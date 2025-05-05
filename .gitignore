@@ -1,0 +1,6 @@
+cd path_to_your_project
+git init
+git remote add origin https://github.com/rodneydanger84/DataBoss.git
+git add .
+git commit -m "Initial commit"
+git push -u origin master:contentReference[oaicite:86]{index=86}

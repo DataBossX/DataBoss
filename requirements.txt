@@ -1,0 +1,12 @@
+gradio>=4.0.0
+pdf2image
+pytesseract
+Pillow
+opencv-python-headless
+numpy
+pandas
+openpyxl
+openai
+anthropic
+transformers
+pymupdf

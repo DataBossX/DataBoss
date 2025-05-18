@@ -1,6 +1,55 @@
-streamlit>=1.28.0
-pandas>=2.0.0
-plotly>=5.15.0
+# Web Frameworks
+streamlit>=1.32.0
+fastapi
+flask
+gradio>=4.44.0
+
+# OCR & PDF
+pytesseract>=0.3.10
+paddleocr>=2.6.0
+Pillow>=9.0.0,<11.0.0
+PyMuPDF
+pdf2image
+fpdf
 PyPDF2>=3.0.0
 python-docx>=0.8.11
 openpyxl>=3.1.2
+
+# AI Models & LLMs
+openai>=1.3.7
+anthropic>=0.20.0
+google-generativeai>=0.6.0,<0.9.0
+transformers
+sentence-transformers
+
+# Core Utilities
+python-dotenv
+psutil
+pyyaml
+jsonschema
+retrying
+tenacity
+requests>=2.31.0
+joblib
+keyring
+tqdm
+watchdog
+pytest
+
+# ML / Data Science
+pandas==2.2.2
+numpy
+matplotlib
+scikit-learn
+seaborn
+networkx
+torch>=2.0.0
+
+# Windows-specific
+pywin32>=306
+
+# Browser Automation
+selenium
+
+# Data Validation / Parsing
+pydantic>=2.0,<3.0

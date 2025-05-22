@@ -5,6 +5,7 @@ import os
 import json
 import webbrowser
 import threading
+import time
 import shutil
 
 # Try to import extractor.py from same directory
@@ -12,6 +13,18 @@ try:
     from extractor import run_extraction
 except ImportError:
     raise RuntimeError("Could not find extractor.py. Make sure it's in the same directory.")
+
+def setup_system_paths():
+    """Setup system paths for DataBoss"""
+    import sys
+    import os
+    
+    if os.name == 'nt' and os.path.exists("D:/DataBoss/DataBossX_Final_Modular/"):
+        sys.path.insert(0, "D:/DataBoss/DataBossX_Final_Modular/")
+        return True
+    return False
+
+setup_system_paths()
 
 # App Constants
 WINDOW_TITLE = "📄 DataBoss Legal Document Processor"
@@ -91,6 +104,16 @@ class DataBossGUI:
             fg="white"
         )
         self.clear_button.pack(side=tk.LEFT, padx=5)
+        
+        self.voice_button = tk.Button(
+            self.button_frame,
+            text="🎤 Voice",
+            command=self.toggle_voice,
+            width=10,
+            bg="#9c27b0",
+            fg="white"
+        )
+        self.voice_button.pack(side=tk.LEFT, padx=5)
 
         # Status Bar
         self.status_bar = tk.Label(self.root, text="Ready", bd=1, relief=tk.SUNKEN, anchor="w")
@@ -200,10 +223,82 @@ class DataBossGUI:
         self.status_label.config(text="No file selected")
         self.download_button.config(state=tk.DISABLED)
 
+    def toggle_voice(self):
+        """Toggle voice recognition on/off"""
+        if not hasattr(self, 'voice_automation'):
+            self.voice_automation = VoiceAutomation(self)
+        
+        self.voice_automation.toggle_listening()
+        
     def status(self, message):
         """Update the status bar"""
         self.status_bar.config(text=message)
         self.root.update_idletasks()
+
+
+class VoiceAutomation:
+    """Voice automation for the DataBoss application"""
+    def __init__(self, app_instance):
+        self.app = app_instance
+        self.is_listening = False
+        self.thread = None
+    
+    def toggle_listening(self):
+        """Toggle voice recognition on/off"""
+        if self.is_listening:
+            self.stop_listening()
+        else:
+            self.start_listening()
+    
+    def start_listening(self):
+        """Start voice recognition in a separate thread"""
+        try:
+            import speech_recognition as sr
+            self.is_listening = True
+            self.thread = threading.Thread(target=self._listen_loop)
+            self.thread.daemon = True
+            self.thread.start()
+            self.app.status("🎤 Voice recognition active")
+        except ImportError:
+            messagebox.showwarning("Voice Recognition", 
+                                  "Speech recognition package not installed.\n"
+                                  "Install with: pip install SpeechRecognition")
+    
+    def stop_listening(self):
+        """Stop voice recognition"""
+        self.is_listening = False
+        self.app.status("Voice recognition stopped")
+    
+    def _listen_loop(self):
+        """Background listening loop"""
+        import speech_recognition as sr
+        recognizer = sr.Recognizer()
+        
+        while self.is_listening:
+            try:
+                with sr.Microphone() as source:
+                    self.app.status("Listening...")
+                    audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
+                    
+                text = recognizer.recognize_google(audio)
+                self.app.status(f"Recognized: {text}")
+                
+                if "process" in text.lower() or "analyze" in text.lower():
+                    self.app.start_processing()
+                elif "clear" in text.lower():
+                    self.app.clear_output()
+                elif "download" in text.lower() or "excel" in text.lower():
+                    self.app.download_excel()
+                elif "stop" in text.lower() or "exit" in text.lower():
+                    self.stop_listening()
+                    
+            except sr.WaitTimeoutError:
+                pass
+            except sr.UnknownValueError:
+                pass
+            except Exception as e:
+                self.app.status(f"Voice recognition error: {str(e)}")
+                time.sleep(2)
 
 
 if __name__ == "__main__":

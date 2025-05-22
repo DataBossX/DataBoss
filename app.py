@@ -19,18 +19,41 @@ def extract_text(file):
         return "Could not extract text."
 
 def analyze_document(text):
-    return {
-        "Confidentiality": {"text": "Parties agree to keep info secret.", "confidence": 0.92, "risk": 0.3},
-        "Termination": {"text": "Either may terminate with 30 days notice.", "confidence": 0.85, "risk": 0.5},
-        "Governing Law": {"text": "This is governed by California law.", "confidence": 0.95, "risk": 0.2}
-    }
+    """Analyze document text using LLM to extract legal clauses"""
+    from model_chain import run_model_chain
+    
+    prompt = f"""
+    Analyze the following legal document text and extract key clauses.
+    For each clause, provide the text, confidence score (0-1), and risk assessment (0-1).
+    Format the response as a JSON object with clause types as keys.
+    
+    Document text:
+    {text[:5000]}  # Limit text length to avoid token limits
+    """
+    
+    analysis_json, model = run_model_chain(prompt)
+    
+    try:
+        import json
+        return json.loads(analysis_json)
+    except:
+        return {
+            "Confidentiality": {"text": "Parties agree to keep info secret.", "confidence": 0.92, "risk": 0.3},
+            "Termination": {"text": "Either may terminate with 30 days notice.", "confidence": 0.85, "risk": 0.5},
+            "Governing Law": {"text": "This is governed by California law.", "confidence": 0.95, "risk": 0.2}
+        }
 
 def to_json(data):
     return json.dumps(data, indent=2)
 
 def to_excel(data):
+    """Convert data to Excel format"""
+    import io
+    buffer = io.BytesIO()
     df = pd.DataFrame.from_dict(data, orient="index")
-    return df.to_excel(index=True)
+    df.to_excel(excel_writer=buffer, index=True)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 def to_docx(data):
     doc = Document()

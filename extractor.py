@@ -1,11 +1,17 @@
 
+"""
+Document Extraction Module for Legal Document Processing
+
+Handles the extraction of legal clauses and information from PDF documents.
+"""
+
 import os
 import json
 import time
 import logging
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from preprocessing import process_pdf, PreprocessingConfig
 from model_chain import run_model_chain
 from pdf_chunker import split_pdf
@@ -16,24 +22,31 @@ logging.basicConfig(level=logging.INFO)
 MAX_PAGE_THRESHOLD = 20  # Max pages before chunking
 
 class ExtractionResult:
+    """Class to store and manage extraction results"""
     def __init__(self, document_id: str):
         self.document_id = document_id
         self.results = []
-        self.processing_time = 0
+        self._processing_time = 0
         self.model_used = "Unknown"
         self.output_files = {}
 
     def add_page_result(self, page_num: int, text: str):
+        """Add a page result to the extraction results"""
         self.results.append({
             "page_number": page_num,
             "text": text.strip(),
             "char_count": len(text)
         })
+        
+    def set_processing_time(self, time_value: float):
+        """Set the processing time"""
+        self._processing_time = time_value
 
     def to_dict(self) -> Dict[str, Any]:
+        """Convert the extraction result to a dictionary"""
         return {
             "document_id": self.document_id,
-            "processing_time": f"{self.processing_time:.2f}s",
+            "processing_time": f"{self._processing_time:.2f}s",
             "model_used": self.model_used,
             "page_count": len(self.results),
             "total_characters": sum(r["char_count"] for r in self.results),
@@ -41,22 +54,33 @@ class ExtractionResult:
         }
 
 def save_results(document_id: str, results: dict, output_dir: str) -> Dict[str, str]:
+    """
+    Save extraction results to various file formats.
+    
+    Args:
+        document_id: Document identifier
+        results: Extraction results dictionary
+        output_dir: Directory to save output files
+        
+    Returns:
+        Dictionary mapping formats to file paths
+    """
     output_paths = {}
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir_path = Path(output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
 
     try:
-        json_path = output_dir / f"{document_id}.json"
+        json_path = output_dir_path / f"{document_id}.json"
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         output_paths["json"] = str(json_path)
 
-        excel_path = output_dir / f"{document_id}.xlsx"
+        excel_path = output_dir_path / f"{document_id}.xlsx"
         df = pd.DataFrame(results["results"])
         df.to_excel(excel_path, index=False)
         output_paths["excel"] = str(excel_path)
 
-        txt_path = output_dir / f"{document_id}.txt"
+        txt_path = output_dir_path / f"{document_id}.txt"
         with open(txt_path, "w", encoding="utf-8") as f:
             for page in results["results"]:
                 f.write(f"\n=== PAGE {page['page_number']} ===\n")
@@ -104,7 +128,7 @@ def run_extraction(pdf_file: str, input_dir: str, output_dir: str) -> Dict[str, 
                 extraction_result.add_page_result(idx + 1, model_output)
                 extraction_result.model_used = model_name
 
-        extraction_result.processing_time = time.time() - start_time
+        extraction_result.set_processing_time(time.time() - start_time)
         output_paths = save_results(
             extraction_result.document_id,
             extraction_result.to_dict(),
@@ -114,7 +138,7 @@ def run_extraction(pdf_file: str, input_dir: str, output_dir: str) -> Dict[str, 
         result.update({
             "success": True,
             "document_id": extraction_result.document_id,
-            "processing_time": f"{extraction_result.processing_time:.2f}s",
+            "processing_time": f"{extraction_result._processing_time:.2f}s",
             "model_used": extraction_result.model_used,
             "output_files": output_paths
         })

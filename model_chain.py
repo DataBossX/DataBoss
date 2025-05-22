@@ -59,35 +59,110 @@ def simulate_failure(probability: float = 0.3) -> bool:
     return random.random() < probability
 
 @retry()
-def query_qwen3(prompt: str) -> Dict[str, str]:
-    logger.debug("Attempting Qwen3 API call")
-    if simulate_failure(0.3):
-        raise Exception("Qwen3 timeout")
-    time.sleep(0.5)
-    return {"content": f"Qwen3 response: {prompt[:50]}..."} if not simulate_failure(0.2) else {"content": "Short"}
+def query_qwen(prompt: str) -> Dict[str, str]:
+    """Query Qwen model through API"""
+    try:
+        import dashscope
+        from dashscope.common.error import DashScopeError
+        
+        logger.debug("Attempting Qwen API call")
+        response = dashscope.Generation.call(
+            model='qwen-max',
+            prompt=prompt,
+            temperature=0.3,
+            max_tokens=2048
+        )
+        
+        if response.status_code == 200:
+            return {"content": response.output.text}
+        else:
+            raise Exception(f"Qwen API error: {response.code} - {response.message}")
+    except ImportError:
+        logger.warning("dashscope not installed, falling back to OpenAI")
+        return query_gpt(prompt)
+    except Exception as e:
+        logger.error(f"Qwen API call failed: {str(e)}")
+        raise
 
 @retry()
 def query_gpt(prompt: str) -> Dict[str, str]:
-    logger.debug("Attempting GPT API call")
-    if simulate_failure(0.2):
-        raise Exception("GPT rate limit exceeded")
-    time.sleep(0.7)
-    return {"content": f"GPT response: {prompt[:50]}..."} if not simulate_failure(0.1) else {"content": "Short"}
+    """Query OpenAI GPT models"""
+    try:
+        import openai
+        
+        logger.debug("Attempting GPT API call")
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=2048
+        )
+        
+        return {"content": response.choices[0].message.content.strip()}
+    except Exception as e:
+        logger.error(f"GPT API call failed: {str(e)}")
+        raise
 
 @retry()
 def query_claude(prompt: str) -> Dict[str, str]:
-    logger.debug("Attempting Claude API call")
-    if simulate_failure(0.1):
-        raise Exception("Claude connection error")
-    time.sleep(0.9)
-    return {"content": f"Claude response: {prompt[:50]}..."} if not simulate_failure(0.15) else {"content": "Short"}
+    """Query Anthropic Claude models"""
+    try:
+        import anthropic
+        
+        logger.debug("Attempting Claude API call")
+        client = anthropic.Anthropic()
+        response = client.messages.create(
+            model="claude-3-opus-20240229",
+            max_tokens=2048,
+            temperature=0.3,
+            system="You are an expert legal document analyzer. Extract key information from legal documents.",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        return {"content": response.content[0].text}
+    except Exception as e:
+        logger.error(f"Claude API call failed: {str(e)}")
+        raise
+
+@retry()
+def query_deepseek(prompt: str) -> Dict[str, str]:
+    """Query DeepSeek models"""
+    try:
+        import deepseek
+        
+        logger.debug("Attempting DeepSeek API call")
+        client = deepseek.DeepSeekClient()
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=2048
+        )
+        
+        return {"content": response.choices[0].message.content}
+    except ImportError:
+        logger.warning("deepseek package not available, falling back to OpenAI")
+        return query_gpt(prompt)
+    except Exception as e:
+        logger.error(f"DeepSeek API call failed: {str(e)}")
+        raise
 
 def run_model_chain(prompt: str) -> Tuple[str, str]:
+    """
+    Run prompt through a chain of LLM models, trying each until success.
+    
+    Args:
+        prompt: Text prompt to send to models
+        
+    Returns:
+        Tuple of (response_text, model_name)
+    """
     logger.info("Starting model chain execution")
     models = [
-        ("Qwen3", query_qwen3),
+        ("Qwen", query_qwen),
         ("GPT-4", query_gpt),
-        ("Claude", query_claude)
+        ("Claude", query_claude),
+        ("DeepSeek", query_deepseek)
     ]
     for model_name, query_func in models:
         for attempt in range(MAX_RETRIES):

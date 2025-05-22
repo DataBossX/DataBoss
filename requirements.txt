@@ -1,55 +1,60 @@
 # Web Frameworks
-streamlit>=1.32.0
-fastapi
-flask
-gradio>=4.44.0
+streamlit>=1.32.0,<2.0.0
+fastapi>=0.104.0,<1.0.0
+flask>=2.3.0,<3.0.0
+gradio>=4.44.0,<5.0.0
 
 # OCR & PDF
-pytesseract>=0.3.10
-paddleocr>=2.6.0
+pytesseract>=0.3.10,<0.4.0
+paddleocr>=2.6.0,<3.0.0
 Pillow>=9.0.0,<11.0.0
-PyMuPDF
-pdf2image
-fpdf
-PyPDF2>=3.0.0
-python-docx>=0.8.11
-openpyxl>=3.1.2
+PyMuPDF>=1.22.0,<2.0.0
+pdf2image>=1.16.0,<2.0.0
+fpdf>=1.7.2,<2.0.0
+PyPDF2>=3.0.0,<4.0.0
+python-docx>=0.8.11,<0.9.0
+openpyxl>=3.1.2,<4.0.0
 
 # AI Models & LLMs
-openai>=1.3.7
-anthropic>=0.20.0
+openai>=1.3.7,<2.0.0
+anthropic>=0.20.0,<1.0.0
 google-generativeai>=0.6.0,<0.9.0
-transformers
-sentence-transformers
+transformers>=4.35.0,<5.0.0
+sentence-transformers>=2.2.2,<3.0.0
+dashscope>=1.10.0,<2.0.0  # For Qwen models
 
 # Core Utilities
-python-dotenv
-psutil
-pyyaml
-jsonschema
-retrying
-tenacity
-requests>=2.31.0
-joblib
-keyring
-tqdm
-watchdog
-pytest
+python-dotenv>=1.0.0,<2.0.0
+psutil>=5.9.0,<6.0.0
+pyyaml>=6.0.0,<7.0.0
+jsonschema>=4.19.0,<5.0.0
+retrying>=1.3.4,<2.0.0
+tenacity>=8.2.0,<9.0.0
+requests>=2.31.0,<3.0.0
+joblib>=1.3.0,<2.0.0
+keyring>=24.0.0,<25.0.0
+tqdm>=4.66.0,<5.0.0
+watchdog>=3.0.0,<4.0.0
+pytest>=7.4.0,<8.0.0
 
 # ML / Data Science
 pandas==2.2.2
-numpy
-matplotlib
-scikit-learn
-seaborn
-networkx
-torch>=2.0.0
+numpy>=1.24.0,<2.0.0
+matplotlib>=3.7.0,<4.0.0
+scikit-learn>=1.3.0,<2.0.0
+seaborn>=0.13.0,<1.0.0
+networkx>=3.1,<4.0
+torch>=2.0.0,<3.0.0
 
 # Windows-specific
-pywin32>=306
+pywin32>=306; platform_system=="Windows"
 
 # Browser Automation
-selenium
+selenium>=4.15.0,<5.0.0
 
 # Data Validation / Parsing
 pydantic>=2.0,<3.0
+
+# Voice Automation
+SpeechRecognition>=3.10.0,<4.0.0
+PyAudio>=0.2.13,<0.3.0; platform_system=="Windows"

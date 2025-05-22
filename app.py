@@ -6,6 +6,7 @@ from PyPDF2 import PdfReader
 import json
 from docx import Document
 import os
+import time
 
 st.set_page_config(page_title="DataBossX", page_icon="⚖️", layout="wide")
 st.title("⚖️ DataBossX Legal Analyzer")
@@ -30,7 +31,10 @@ def to_json(data):
 
 def to_excel(data):
     df = pd.DataFrame.from_dict(data, orient="index")
-    return df.to_excel(index=True)
+    excel_file = f"output_{int(time.time())}.xlsx"
+    df.to_excel(excel_writer=excel_file, index=True)
+    with open(excel_file, "rb") as f:
+        return f.read()
 
 def to_docx(data):
     doc = Document()

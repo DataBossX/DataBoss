@@ -1,0 +1,168 @@
+/* DataBoss Dark Neon Theme */
+
+:root {
+    --bg-primary: #121212;
+    --bg-secondary: #1E1E1E;
+    --bg-tertiary: #252525;
+    --text-primary: #FFFFFF;
+    --text-secondary: #AAAAAA;
+    --accent-blue: #0077FF;
+    --accent-blue-glow: #0077FF80;
+    --accent-green: #00CC66;
+    --accent-red: #FF3366;
+    --accent-yellow: #FFCC00;
+    --border-color: #333333;
+}
+
+/* Global Styles */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.container, .container-fluid {
+    background-color: var(--bg-primary);
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+/* Cards and Containers */
+.card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 0 10px rgba(0, 119, 255, 0.1);
+}
+
+.card-header {
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Tables */
+table {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+th {
+    background-color: var(--bg-tertiary);
+    color: var(--accent-blue);
+}
+
+tr:nth-child(even) {
+    background-color: var(--bg-tertiary);
+}
+
+/* Forms */
+input, select, textarea {
+    background-color: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 0 0.2rem var(--accent-blue-glow) !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+    box-shadow: 0 0 10px var(--accent-blue-glow);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #0055CC;
+    border-color: #0055CC;
+    box-shadow: 0 0 15px var(--accent-blue);
+}
+
+.btn-success {
+    background-color: var(--accent-green);
+    border-color: var(--accent-green);
+    box-shadow: 0 0 10px rgba(0, 204, 102, 0.3);
+}
+
+.btn-danger {
+    background-color: var(--accent-red);
+    border-color: var(--accent-red);
+    box-shadow: 0 0 10px rgba(255, 51, 102, 0.3);
+}
+
+/* Military-style Button */
+.btn-tactical {
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--accent-blue);
+    color: var(--accent-blue);
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 0.5rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    transition: all 0.3s ease;
+}
+
+.btn-tactical::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--accent-blue-glow), transparent);
+    transition: all 0.6s ease;
+    z-index: -1;
+}
+
+.btn-tactical:hover::before {
+    left: 100%;
+}
+
+.btn-tactical:hover {
+    box-shadow: 0 0 15px var(--accent-blue);
+    color: white;
+}
+
+/* Streamlit Specific */
+.stApp {
+    background-color: var(--bg-primary);
+}
+
+.stTextInput > div > div > input {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.stSelectbox > div > div > select {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* JSON Syntax Highlighting */
+.json-key {
+    color: var(--accent-blue);
+}
+
+.json-string {
+    color: var(--accent-green);
+}
+
+.json-number {
+    color: var(--accent-yellow);
+}
+
+.json-boolean {
+    color: var(--accent-red);
+}

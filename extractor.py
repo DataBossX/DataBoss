@@ -19,7 +19,7 @@ class ExtractionResult:
     def __init__(self, document_id: str):
         self.document_id = document_id
         self.results = []
-        self.processing_time = 0
+        self._processing_time = 0
         self.model_used = "Unknown"
         self.output_files = {}
 
@@ -29,11 +29,19 @@ class ExtractionResult:
             "text": text.strip(),
             "char_count": len(text)
         })
+        
+    @property
+    def processing_time(self):
+        return self._processing_time
+        
+    @processing_time.setter
+    def processing_time(self, value):
+        self._processing_time = value
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "document_id": self.document_id,
-            "processing_time": f"{self.processing_time:.2f}s",
+            "processing_time": f"{self._processing_time:.2f}s",
             "model_used": self.model_used,
             "page_count": len(self.results),
             "total_characters": sum(r["char_count"] for r in self.results),
@@ -42,21 +50,21 @@ class ExtractionResult:
 
 def save_results(document_id: str, results: dict, output_dir: str) -> Dict[str, str]:
     output_paths = {}
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir_path = Path(output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
 
     try:
-        json_path = output_dir / f"{document_id}.json"
+        json_path = output_dir_path / f"{document_id}.json"
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         output_paths["json"] = str(json_path)
 
-        excel_path = output_dir / f"{document_id}.xlsx"
+        excel_path = output_dir_path / f"{document_id}.xlsx"
         df = pd.DataFrame(results["results"])
         df.to_excel(excel_path, index=False)
         output_paths["excel"] = str(excel_path)
 
-        txt_path = output_dir / f"{document_id}.txt"
+        txt_path = output_dir_path / f"{document_id}.txt"
         with open(txt_path, "w", encoding="utf-8") as f:
             for page in results["results"]:
                 f.write(f"\n=== PAGE {page['page_number']} ===\n")

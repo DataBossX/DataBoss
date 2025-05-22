@@ -82,13 +82,23 @@ def query_claude(prompt: str) -> Dict[str, str]:
     time.sleep(0.9)
     return {"content": f"Claude response: {prompt[:50]}..."} if not simulate_failure(0.15) else {"content": "Short"}
 
+@retry()
+def query_deepseek(prompt: str) -> Dict[str, str]:
+    logger.debug("Attempting DeepSeek API call")
+    if simulate_failure(0.15):
+        raise Exception("DeepSeek server error")
+    time.sleep(0.6)
+    return {"content": f"DeepSeek response: {prompt[:50]}..."} if not simulate_failure(0.1) else {"content": "Short"}
+
 def run_model_chain(prompt: str) -> Tuple[str, str]:
     logger.info("Starting model chain execution")
     models = [
         ("Qwen3", query_qwen3),
         ("GPT-4", query_gpt),
-        ("Claude", query_claude)
+        ("Claude", query_claude),
+        ("DeepSeek", query_deepseek)
     ]
+    results = {}
     for model_name, query_func in models:
         for attempt in range(MAX_RETRIES):
             try:
@@ -105,13 +115,19 @@ def run_model_chain(prompt: str) -> Tuple[str, str]:
                 content = response.get("content", "")
                 if is_valid(content):
                     logger.info(f"{model_name} succeeded with valid response")
-                    return content, model_name
+                    results[model_name] = {"content": content, "time": elapsed}
+                    break  # Found a valid response for this model
                 logger.warning(f"{model_name} returned invalid response")
             except Exception as e:
                 logger.error(f"Critical error with {model_name}: {str(e)}")
             if attempt < MAX_RETRIES - 1:
                 time.sleep(RETRY_DELAY * (attempt + 1))
-        logger.info(f"Moving to next model after {MAX_RETRIES} {model_name} attempts")
+    
+    if results:
+        best_model = max(results.keys(), key=lambda m: len(results[m]["content"]))
+        logger.info(f"Selected {best_model} as best response")
+        return results[best_model]["content"], best_model
+    
     logger.error("All models failed")
     return "All models failed", "None"
 

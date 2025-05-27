@@ -197,7 +197,7 @@ async def process_ocr(file_content: bytes, filename: str) -> Dict[str, Any]:
         start_time = datetime.now()
         
         # Return mock OCR results
-        raw_text = "This is a mock OCR result.\nFor demonstration purposes only.\nActual OCR processing is disabled."
+        raw_text = f"Mock OCR result for {filename}.\nThis is a demo document with extracted text.\nKey Information:\n- Document Type: Sample Legal Document\n- Parties: DataBossX Corp, Client ABC\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Summary: This document contains important legal information.\n\nNote: This is a mock OCR result for demonstration purposes."
         cleaned_text = raw_text.strip()
         mock_confidence = 0.95
         processing_time = (datetime.now() - start_time).total_seconds()

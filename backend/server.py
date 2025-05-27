@@ -68,8 +68,19 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_A
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# Initialize PaddleOCR
-ocr = paddleocr.PaddleOCR(use_angle_cls=True, lang='en')
+# Initialize OCR engines
+if PADDLEOCR_AVAILABLE:
+    try:
+        ocr = paddleocr.PaddleOCR(use_angle_cls=True, lang='en')
+        PRIMARY_OCR = "paddleocr"
+    except Exception as e:
+        print(f"PaddleOCR initialization failed: {e}")
+        PADDLEOCR_AVAILABLE = False
+        PRIMARY_OCR = "easyocr"
+        ocr = easyocr.Reader(['en'])
+else:
+    PRIMARY_OCR = "easyocr"
+    ocr = easyocr.Reader(['en'])
 
 # Data models
 class Document(BaseModel):

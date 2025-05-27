@@ -191,29 +191,42 @@ async def log_system_event(level: str, message: str, component: str, details: Op
         await db.commit()
 
 async def process_ocr(file_content: bytes, filename: str) -> Dict[str, Any]:
-    """Process document with PaddleOCR"""
+    """Process document with available OCR engine"""
     try:
         # Convert bytes to PIL Image
         image = Image.open(io.BytesIO(file_content))
         
-        # Perform OCR
+        # Perform OCR based on available engine
         start_time = datetime.now()
-        result = ocr.ocr(image, cls=True)
+        
+        if PRIMARY_OCR == "paddleocr" and PADDLEOCR_AVAILABLE:
+            result = ocr.ocr(image, cls=True)
+            # Extract text and confidence scores for PaddleOCR
+            raw_text = ""
+            confidence_scores = []
+            
+            for idx in range(len(result)):
+                res = result[idx]
+                if res:
+                    for line in res:
+                        raw_text += line[1][0] + "\n"
+                        confidence_scores.append(line[1][1])
+            
+            avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+            
+        else:
+            # Use EasyOCR
+            result = ocr.readtext(image)
+            raw_text = ""
+            confidence_scores = []
+            
+            for (bbox, text, confidence) in result:
+                raw_text += text + "\n"
+                confidence_scores.append(confidence)
+            
+            avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+        
         processing_time = (datetime.now() - start_time).total_seconds()
-        
-        # Extract text and confidence scores
-        raw_text = ""
-        confidence_scores = []
-        
-        for idx in range(len(result)):
-            res = result[idx]
-            if res:
-                for line in res:
-                    raw_text += line[1][0] + "\n"
-                    confidence_scores.append(line[1][1])
-        
-        # Calculate average confidence
-        avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
         
         # Clean text (basic cleanup)
         cleaned_text = raw_text.strip().replace('\n\n', '\n')
@@ -222,7 +235,8 @@ async def process_ocr(file_content: bytes, filename: str) -> Dict[str, Any]:
             "raw_text": raw_text,
             "cleaned_text": cleaned_text,
             "confidence_score": avg_confidence,
-            "processing_time": processing_time
+            "processing_time": processing_time,
+            "ocr_engine": PRIMARY_OCR
         }
         
     except Exception as e:

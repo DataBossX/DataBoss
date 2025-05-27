@@ -191,50 +191,21 @@ async def log_system_event(level: str, message: str, component: str, details: Op
         await db.commit()
 
 async def process_ocr(file_content: bytes, filename: str) -> Dict[str, Any]:
-    """Process document with available OCR engine"""
+    """Process document with mock OCR engine for demo purposes"""
     try:
-        # Convert bytes to PIL Image
-        image = Image.open(io.BytesIO(file_content))
-        
-        # Perform OCR based on available engine
+        # Mock OCR processing
         start_time = datetime.now()
         
-        if PRIMARY_OCR == "paddleocr" and PADDLEOCR_AVAILABLE:
-            result = ocr.ocr(image, cls=True)
-            # Extract text and confidence scores for PaddleOCR
-            raw_text = ""
-            confidence_scores = []
-            
-            for idx in range(len(result)):
-                res = result[idx]
-                if res:
-                    for line in res:
-                        raw_text += line[1][0] + "\n"
-                        confidence_scores.append(line[1][1])
-            
-            avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
-            
-        else:
-            # Use EasyOCR
-            result = ocr.readtext(image)
-            raw_text = ""
-            confidence_scores = []
-            
-            for (bbox, text, confidence) in result:
-                raw_text += text + "\n"
-                confidence_scores.append(confidence)
-            
-            avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
-        
+        # Return mock OCR results
+        raw_text = "This is a mock OCR result.\nFor demonstration purposes only.\nActual OCR processing is disabled."
+        cleaned_text = raw_text.strip()
+        mock_confidence = 0.95
         processing_time = (datetime.now() - start_time).total_seconds()
-        
-        # Clean text (basic cleanup)
-        cleaned_text = raw_text.strip().replace('\n\n', '\n')
         
         return {
             "raw_text": raw_text,
             "cleaned_text": cleaned_text,
-            "confidence_score": avg_confidence,
+            "confidence_score": mock_confidence,
             "processing_time": processing_time,
             "ocr_engine": PRIMARY_OCR
         }

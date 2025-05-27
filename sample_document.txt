@@ -1,0 +1,7 @@
+Sample Legal Document
+
+Parties: DataBossX Corp and Client ABC
+Date: 2025-01-27
+Subject: Service Agreement
+
+This document contains important legal information about the service agreement between the parties.

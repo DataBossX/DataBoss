@@ -16,7 +16,13 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # OCR and LLM imports
-import paddleocr
+try:
+    import paddleocr
+    PADDLEOCR_AVAILABLE = True
+except Exception as e:
+    print(f"PaddleOCR not available: {e}")
+    PADDLEOCR_AVAILABLE = False
+
 import openai
 import anthropic
 import google.generativeai as genai
@@ -24,6 +30,8 @@ from PIL import Image
 import io
 import hashlib
 import base64
+import pytesseract
+import easyocr
 
 # Logging
 from loguru import logger

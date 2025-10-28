@@ -1,0 +1,23 @@
+[site]
+base_url = "https://weldrecorder.weldgov.com/web/"
+delay_sec = 3.5
+sec = 1
+township = "7N"
+range = "63W"
+
+[paths]
+workbook = "Black_Tip_Notice_List_verified_updated_20251028_v7.xlsx"
+sheet_dsu = "DSU NOTICE LIST"
+sheet_offset = "OFFSET NOTICE LIST"
+json_out = "data/json_traces"
+log_dir = "data/logs"
+export_dir = "data/exports"
+
+[llms]
+extractor = "anthropic:claude-3-5-sonnet"
+reasoner  = "openai:gpt-4o"
+
+[execution]
+max_concurrent = 6
+timeout_sec = 45
+retries = 3

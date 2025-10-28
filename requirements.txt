@@ -32,3 +32,17 @@ requests>=2.31.0
 gitpython>=3.1.44
 setuptools>=45
 wheel
+playwright==1.48.0
+pydantic==2.9.2
+python-dotenv==1.0.1
+pandas==2.2.2
+openpyxl==3.1.5
+requests==2.32.3
+tenacity==9.0.0
+fastapi==0.114.2
+uvicorn==0.30.6
+Jinja2==3.1.4
+Pillow==10.4.0
+pytesseract==0.3.13
+paddlepaddle==2.6.1; sys_platform != 'win32'
+paddleocr==2.7.0.3; sys_platform != 'win32'

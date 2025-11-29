@@ -1,11 +1,11 @@
 # Start with Python base image
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     PIP_NO_INPUT=1 \
-    NODE_VERSION=18 \
+    NODE_VERSION=22 \
     NEXT_TELEMETRY_DISABLED=1
 
 # Install system dependencies including Node.js
@@ -59,7 +59,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install playwright
+RUN pip install playwright==1.49.1
 RUN playwright install chromium
 RUN playwright install-deps
 

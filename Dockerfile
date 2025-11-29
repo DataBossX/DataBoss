@@ -1,5 +1,5 @@
 # Stage 1: Build React App
-FROM node:20 AS frontend-build
+FROM node:22 AS frontend-build
 ARG FRONTEND_ENV
 ENV FRONTEND_ENV=${FRONTEND_ENV}
 WORKDIR /app
@@ -11,7 +11,7 @@ RUN cat /app/.env
 RUN yarn install --frozen-lockfile && yarn build
 
 # Stage 2: Install Python Backend
-FROM python:3.11-slim as backend
+FROM python:3.13-slim as backend
 WORKDIR /app
 COPY backend/ /app/
 RUN rm /app/.env

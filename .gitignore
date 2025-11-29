@@ -29,7 +29,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-# .env*.local
+.env
+.env*.local
 *token.json*
 # vercel
 .vercel
@@ -46,6 +47,11 @@ agenthub/agents/youtube/db
 venv/
 .venv/
 __pycache__/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # ===================
 # ADDITIONAL RULES TO PREVENT FILE SIZE VIOLATIONS

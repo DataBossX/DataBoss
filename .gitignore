@@ -68,3 +68,9 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+
+# DataBossX Command Center runtime files
+*.db
+*.log
+databossx_*.db
+databossx_*.log

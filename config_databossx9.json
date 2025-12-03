@@ -1,0 +1,66 @@
+{
+  "version": "9.0",
+  "last_updated": "2025-12-03T00:21:24.347050",
+  "paths": {
+    "root_dir": "/home/user/DataBoss",
+    "input_dir": "/home/user/DataBoss/input",
+    "output_dir": "/home/user/DataBoss/output",
+    "assets_dir": "/home/user/DataBoss/assets",
+    "logs_dir": "/home/user/DataBoss/logs",
+    "database_path": "/home/user/DataBoss/databossx_tasks.db",
+    "penterra_dir": "/home/user/DataBoss/penterra_files",
+    "genealogy_dir": "/home/user/DataBoss/genealogy"
+  },
+  "ai": {
+    "use_llm_router": true,
+    "llm_router_path": "backend.llm_router",
+    "default_model": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 2000
+  },
+  "ui": {
+    "theme": "dark",
+    "page_title": "DataBossX Command Center",
+    "page_icon": "🚀",
+    "layout": "wide",
+    "sidebar_state": "expanded"
+  },
+  "features": {
+    "enable_ocr": true,
+    "enable_deals_engine": true,
+    "enable_agents": true,
+    "enable_todo": true,
+    "auto_scan_pdfs": true,
+    "auto_suggestions": true
+  },
+  "ocr": {
+    "supported_formats": [
+      ".pdf",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".tiff"
+    ],
+    "output_format": "json",
+    "batch_size": 10
+  },
+  "deals": {
+    "min_score_threshold": 60,
+    "auto_generate_packages": false,
+    "categories": [
+      "Missing Owner",
+      "Mineral Rights",
+      "Real Estate"
+    ]
+  },
+  "notifications": {
+    "show_tips": true,
+    "show_warnings": true,
+    "tip_frequency": "session"
+  },
+  "performance": {
+    "cache_enabled": true,
+    "cache_ttl": 3600,
+    "max_parallel_tasks": 5
+  }
+}

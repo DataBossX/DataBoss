@@ -1,0 +1,145 @@
+{
+  "agents": [
+    {
+      "agent_id": "builder",
+      "name": "Builder",
+      "role": "Software Engineer",
+      "description": "Writes code, creates features, and builds applications",
+      "icon": "👷",
+      "capabilities": [
+        "coding",
+        "debugging",
+        "architecture",
+        "testing"
+      ],
+      "specialties": [
+        "Python",
+        "JavaScript",
+        "API Development",
+        "Database Design"
+      ],
+      "active": true
+    },
+    {
+      "agent_id": "researcher",
+      "name": "Researcher",
+      "role": "Research Specialist",
+      "description": "Conducts deep research, gathers information, and analyzes data",
+      "icon": "🔬",
+      "capabilities": [
+        "research",
+        "analysis",
+        "data-gathering",
+        "summarization"
+      ],
+      "specialties": [
+        "Web Research",
+        "Document Analysis",
+        "Genealogy",
+        "Public Records"
+      ],
+      "active": true
+    },
+    {
+      "agent_id": "tester",
+      "name": "Tester",
+      "role": "QA Engineer",
+      "description": "Tests software, finds bugs, and ensures quality",
+      "icon": "🧪",
+      "capabilities": [
+        "testing",
+        "qa",
+        "debugging",
+        "validation"
+      ],
+      "specialties": [
+        "Unit Testing",
+        "Integration Testing",
+        "Bug Reports",
+        "Test Automation"
+      ],
+      "active": true
+    },
+    {
+      "agent_id": "money_maker",
+      "name": "Money Maker",
+      "role": "Business Development",
+      "description": "Identifies opportunities, analyzes deals, and generates revenue strategies",
+      "icon": "💰",
+      "capabilities": [
+        "deal-analysis",
+        "opportunity-identification",
+        "roi-calculation",
+        "strategy"
+      ],
+      "specialties": [
+        "Missing Owner Cases",
+        "Mineral Rights",
+        "Real Estate",
+        "Business Analysis"
+      ],
+      "active": true
+    },
+    {
+      "agent_id": "title_ocr",
+      "name": "Title OCR Agent",
+      "role": "Document Processing",
+      "description": "Processes title documents, extracts data, and structures information",
+      "icon": "📄",
+      "capabilities": [
+        "ocr",
+        "document-parsing",
+        "data-extraction",
+        "validation"
+      ],
+      "specialties": [
+        "Title Abstracts",
+        "Legal Descriptions",
+        "Lease Documents",
+        "County Records"
+      ],
+      "active": true
+    },
+    {
+      "agent_id": "deal_finder",
+      "name": "Deal Finder",
+      "role": "Opportunity Scout",
+      "description": "Scouts for deals, finds prospects, and identifies high-value opportunities",
+      "icon": "🎯",
+      "capabilities": [
+        "prospecting",
+        "deal-scoring",
+        "market-analysis",
+        "lead-generation"
+      ],
+      "specialties": [
+        "Mineral Rights",
+        "Property Deals",
+        "Missing Owners",
+        "Market Research"
+      ],
+      "active": true
+    },
+    {
+      "agent_id": "artist",
+      "name": "Artist",
+      "role": "Creative Designer",
+      "description": "Creates designs, generates visualizations, and produces creative content",
+      "icon": "🎨",
+      "capabilities": [
+        "design",
+        "visualization",
+        "ui-ux",
+        "content-creation"
+      ],
+      "specialties": [
+        "UI Design",
+        "Data Visualization",
+        "Graphics",
+        "Branding"
+      ],
+      "active": true
+    }
+  ],
+  "last_updated": "2025-12-03T00:21:24.582475"
+}

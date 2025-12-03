@@ -1,0 +1,393 @@
+{
+  "links": [
+    {
+      "link_id": "chatgpt",
+      "name": "ChatGPT",
+      "url": "https://chat.openai.com",
+      "category": "AI",
+      "icon": "🤖",
+      "description": "OpenAI ChatGPT",
+      "shortcut": "GPT",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "ai",
+        "chat",
+        "research"
+      ]
+    },
+    {
+      "link_id": "claude",
+      "name": "Claude",
+      "url": "https://claude.ai",
+      "category": "AI",
+      "icon": "🧠",
+      "description": "Anthropic Claude",
+      "shortcut": "CLD",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "ai",
+        "chat",
+        "research"
+      ]
+    },
+    {
+      "link_id": "gemini",
+      "name": "Gemini",
+      "url": "https://gemini.google.com",
+      "category": "AI",
+      "icon": "✨",
+      "description": "Google Gemini",
+      "shortcut": "GEM",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "ai",
+        "chat",
+        "research"
+      ]
+    },
+    {
+      "link_id": "deepseek",
+      "name": "DeepSeek",
+      "url": "https://chat.deepseek.com",
+      "category": "AI",
+      "icon": "🔍",
+      "description": "DeepSeek AI",
+      "shortcut": "DSK",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "ai",
+        "chat",
+        "research"
+      ]
+    },
+    {
+      "link_id": "perplexity",
+      "name": "Perplexity",
+      "url": "https://www.perplexity.ai",
+      "category": "AI",
+      "icon": "🎯",
+      "description": "Perplexity AI Search",
+      "shortcut": "PER",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "ai",
+        "search",
+        "research"
+      ]
+    },
+    {
+      "link_id": "aol",
+      "name": "AOL Mail",
+      "url": "https://mail.aol.com",
+      "category": "Communication",
+      "icon": "📧",
+      "description": "AOL Email",
+      "shortcut": "AOL",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "email",
+        "communication"
+      ]
+    },
+    {
+      "link_id": "gmail",
+      "name": "Gmail",
+      "url": "https://mail.google.com",
+      "category": "Communication",
+      "icon": "📬",
+      "description": "Google Mail",
+      "shortcut": "GML",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "email",
+        "communication"
+      ]
+    },
+    {
+      "link_id": "moea",
+      "name": "MOEA",
+      "url": "https://app.moea.com",
+      "category": "Penterra",
+      "icon": "💰",
+      "description": "Missing Owner Escrow",
+      "shortcut": "MOEA",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "penterra",
+        "missing-owner",
+        "escrow"
+      ]
+    },
+    {
+      "link_id": "penterra_sharefile",
+      "name": "Penterra ShareFile",
+      "url": "https://penterra.sharefile.com",
+      "category": "Penterra",
+      "icon": "📁",
+      "description": "Penterra document repository",
+      "shortcut": "PSF",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "penterra",
+        "documents",
+        "storage"
+      ]
+    },
+    {
+      "link_id": "ok_county_records",
+      "name": "OK County Records",
+      "url": "https://www.okcountyrecords.com",
+      "category": "Research",
+      "icon": "📋",
+      "description": "Oklahoma County land records",
+      "shortcut": "OKC",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "county",
+        "records",
+        "research",
+        "penterra"
+      ]
+    },
+    {
+      "link_id": "ok_tax_commission",
+      "name": "OK Tax Commission",
+      "url": "https://oktap.tax.ok.gov",
+      "category": "Research",
+      "icon": "🏛️",
+      "description": "Oklahoma Tax Commission",
+      "shortcut": "TAX",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "tax",
+        "research",
+        "oklahoma"
+      ]
+    },
+    {
+      "link_id": "familysearch",
+      "name": "FamilySearch",
+      "url": "https://www.familysearch.org",
+      "category": "Genealogy",
+      "icon": "🌳",
+      "description": "Family history research",
+      "shortcut": "FS",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "genealogy",
+        "family",
+        "research"
+      ]
+    },
+    {
+      "link_id": "ancestry",
+      "name": "Ancestry",
+      "url": "https://www.ancestry.com",
+      "category": "Genealogy",
+      "icon": "🧬",
+      "description": "Ancestry research",
+      "shortcut": "ANC",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "genealogy",
+        "family",
+        "research"
+      ]
+    },
+    {
+      "link_id": "findagrave",
+      "name": "Find A Grave",
+      "url": "https://www.findagrave.com",
+      "category": "Genealogy",
+      "icon": "⚰️",
+      "description": "Cemetery records",
+      "shortcut": "FAG",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "genealogy",
+        "cemetery",
+        "research"
+      ]
+    },
+    {
+      "link_id": "github",
+      "name": "GitHub",
+      "url": "https://github.com",
+      "category": "Development",
+      "icon": "🐙",
+      "description": "Code repository",
+      "shortcut": "GH",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "development",
+        "code",
+        "git"
+      ]
+    },
+    {
+      "link_id": "stackoverflow",
+      "name": "Stack Overflow",
+      "url": "https://stackoverflow.com",
+      "category": "Development",
+      "icon": "💻",
+      "description": "Developer Q&A",
+      "shortcut": "SO",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "development",
+        "help",
+        "programming"
+      ]
+    },
+    {
+      "link_id": "google_maps",
+      "name": "Google Maps",
+      "url": "https://maps.google.com",
+      "category": "Maps",
+      "icon": "🗺️",
+      "description": "Google Maps",
+      "shortcut": "MAP",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "maps",
+        "location",
+        "research"
+      ]
+    },
+    {
+      "link_id": "google_earth",
+      "name": "Google Earth",
+      "url": "https://earth.google.com",
+      "category": "Maps",
+      "icon": "🌍",
+      "description": "Google Earth",
+      "shortcut": "GE",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "maps",
+        "location",
+        "research",
+        "satellite"
+      ]
+    },
+    {
+      "link_id": "zillow",
+      "name": "Zillow",
+      "url": "https://www.zillow.com",
+      "category": "Real Estate",
+      "icon": "🏠",
+      "description": "Real estate listings",
+      "shortcut": "ZIL",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "real-estate",
+        "property",
+        "research"
+      ]
+    },
+    {
+      "link_id": "realtor",
+      "name": "Realtor.com",
+      "url": "https://www.realtor.com",
+      "category": "Real Estate",
+      "icon": "🏘️",
+      "description": "Property listings",
+      "shortcut": "RLT",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "real-estate",
+        "property",
+        "research"
+      ]
+    },
+    {
+      "link_id": "wikipedia",
+      "name": "Wikipedia",
+      "url": "https://www.wikipedia.org",
+      "category": "Reference",
+      "icon": "📚",
+      "description": "Wikipedia encyclopedia",
+      "shortcut": "WIKI",
+      "usage_count": 0,
+      "last_used": null,
+      "tags": [
+        "reference",
+        "research",
+        "encyclopedia"
+      ]
+    }
+  ],
+  "workflow_groups": [
+    {
+      "group_id": "ai_stack",
+      "name": "AI Stack",
+      "description": "All AI tools for research and problem-solving",
+      "link_ids": [
+        "chatgpt",
+        "claude",
+        "gemini",
+        "deepseek",
+        "perplexity"
+      ],
+      "icon": "🚀"
+    },
+    {
+      "group_id": "missing_owner_workflow",
+      "name": "Missing Owner Workflow",
+      "description": "Tools for missing owner research and escrow",
+      "link_ids": [
+        "moea",
+        "penterra_sharefile",
+        "ok_county_records",
+        "familysearch"
+      ],
+      "icon": "💼"
+    },
+    {
+      "group_id": "genealogy_workflow",
+      "name": "Genealogy Research",
+      "description": "Family history research tools",
+      "link_ids": [
+        "familysearch",
+        "ancestry",
+        "findagrave",
+        "google_maps"
+      ],
+      "icon": "🌳"
+    },
+    {
+      "group_id": "property_research",
+      "name": "Property Research",
+      "description": "Real estate and land research tools",
+      "link_ids": [
+        "ok_county_records",
+        "ok_tax_commission",
+        "zillow",
+        "realtor",
+        "google_earth"
+      ],
+      "icon": "🏡"
+    }
+  ],
+  "last_updated": "2025-12-03T00:21:24.444371"
+}

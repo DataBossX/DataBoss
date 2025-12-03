@@ -1,0 +1,33 @@
+# DataBossX Command Center Requirements
+# Install with: pip install -r requirements_command_center.txt
+
+# Core Dependencies
+streamlit>=1.28.0
+pillow>=10.0.0
+
+# Optional but recommended
+watchdog>=3.0.0       # For auto-reloading in development
+plotly>=5.17.0        # For advanced visualizations (future enhancement)
+
+# Development Dependencies (optional)
+pytest>=7.4.0         # For running tests
+black>=23.0.0         # For code formatting
+pylint>=2.17.0        # For code linting
+
+# Notes:
+# - streamlit: Main dashboard framework
+# - pillow: For logo generation and image processing
+# - watchdog: Improves Streamlit auto-reload performance
+# - plotly: For future chart/graph features
+#
+# The system uses only Python standard library for:
+# - sqlite3 (database operations)
+# - json (configuration files)
+# - pathlib (file operations)
+# - datetime (timestamps)
+# - logging (application logging)
+# - webbrowser (opening external links)
+#
+# Optional integrations:
+# - If you have an llm_router module, it will be used automatically
+# - OCR functionality is simulated; integrate with actual OCR library as needed

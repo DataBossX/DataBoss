@@ -1,0 +1,219 @@
+{
+    "links": {
+        "aol_mail": {
+            "name": "AOL Mail",
+            "url": "https://mail.aol.com",
+            "category": "Communication",
+            "icon": "\ud83d\udce7",
+            "shortcut": "AOL",
+            "description": "Personal email"
+        },
+        "gmail": {
+            "name": "Gmail",
+            "url": "https://mail.google.com",
+            "category": "Communication",
+            "icon": "\ud83d\udcec",
+            "description": "Google email"
+        },
+        "chatgpt": {
+            "name": "ChatGPT",
+            "url": "https://chat.openai.com",
+            "category": "AI",
+            "icon": "\ud83e\udd16",
+            "description": "OpenAI ChatGPT"
+        },
+        "claude": {
+            "name": "Claude",
+            "url": "https://claude.ai",
+            "category": "AI",
+            "icon": "\ud83e\udde0",
+            "description": "Anthropic Claude"
+        },
+        "gemini": {
+            "name": "Gemini",
+            "url": "https://gemini.google.com",
+            "category": "AI",
+            "icon": "\u2728",
+            "description": "Google Gemini"
+        },
+        "deepseek": {
+            "name": "DeepSeek",
+            "url": "https://chat.deepseek.com",
+            "category": "AI",
+            "icon": "\ud83d\udd2e",
+            "description": "DeepSeek AI"
+        },
+        "perplexity": {
+            "name": "Perplexity",
+            "url": "https://www.perplexity.ai",
+            "category": "AI",
+            "icon": "\ud83d\udd0d",
+            "description": "AI Search"
+        },
+        "penterra_sharefile": {
+            "name": "Penterra ShareFile",
+            "url": "https://penterra.sharefile.com",
+            "category": "Penterra",
+            "icon": "\ud83d\udcc1",
+            "shortcut": "PSF",
+            "description": "Document sharing"
+        },
+        "moea": {
+            "name": "MOEA",
+            "url": "https://moea.ok.gov",
+            "category": "Penterra",
+            "icon": "\ud83d\udcb0",
+            "description": "Missing Owner Escrow Authority"
+        },
+        "ok_county_records": {
+            "name": "OK County Records",
+            "url": "https://www.okcountyrecords.com",
+            "category": "Penterra",
+            "icon": "\ud83d\udcdc",
+            "description": "Oklahoma County Records"
+        },
+        "oklahoma_tax_commission": {
+            "name": "Oklahoma Tax Commission",
+            "url": "https://oktap.tax.ok.gov",
+            "category": "Penterra",
+            "icon": "\ud83d\udcb5",
+            "description": "Tax records"
+        },
+        "familysearch": {
+            "name": "FamilySearch",
+            "url": "https://www.familysearch.org",
+            "category": "Genealogy",
+            "icon": "\ud83c\udf33",
+            "description": "Free genealogy research"
+        },
+        "ancestry": {
+            "name": "Ancestry",
+            "url": "https://www.ancestry.com",
+            "category": "Genealogy",
+            "icon": "\ud83e\uddec",
+            "description": "Ancestry research"
+        },
+        "findagrave": {
+            "name": "FindAGrave",
+            "url": "https://www.findagrave.com",
+            "category": "Genealogy",
+            "icon": "\u26b0\ufe0f",
+            "description": "Cemetery records"
+        },
+        "google": {
+            "name": "Google",
+            "url": "https://www.google.com",
+            "category": "Research",
+            "icon": "\ud83d\udd0e",
+            "description": "Search engine"
+        },
+        "google_maps": {
+            "name": "Google Maps",
+            "url": "https://maps.google.com",
+            "category": "Research",
+            "icon": "\ud83d\uddfa\ufe0f",
+            "description": "Maps and locations"
+        },
+        "wikipedia": {
+            "name": "Wikipedia",
+            "url": "https://www.wikipedia.org",
+            "category": "Research",
+            "icon": "\ud83d\udcda",
+            "description": "Encyclopedia"
+        },
+        "github": {
+            "name": "GitHub",
+            "url": "https://github.com",
+            "category": "Development",
+            "icon": "\ud83d\udc19",
+            "description": "Code repository"
+        },
+        "google_drive": {
+            "name": "Google Drive",
+            "url": "https://drive.google.com",
+            "category": "Productivity",
+            "icon": "\ud83d\udcbe",
+            "description": "Cloud storage"
+        },
+        "google_docs": {
+            "name": "Google Docs",
+            "url": "https://docs.google.com",
+            "category": "Productivity",
+            "icon": "\ud83d\udcdd",
+            "description": "Document editing"
+        },
+        "zillow": {
+            "name": "Zillow",
+            "url": "https://www.zillow.com",
+            "category": "Real Estate",
+            "icon": "\ud83c\udfe0",
+            "description": "Real estate listings"
+        },
+        "realtor": {
+            "name": "Realtor.com",
+            "url": "https://www.realtor.com",
+            "category": "Real Estate",
+            "icon": "\ud83c\udfe1",
+            "description": "Property search"
+        }
+    },
+    "workflow_groups": {
+        "missing_owner": {
+            "name": "Missing Owner Workflow",
+            "description": "Complete workflow for missing owner research",
+            "links": [
+                "moea",
+                "ok_county_records",
+                "penterra_sharefile",
+                "familysearch"
+            ],
+            "icon": "\ud83d\udd0d"
+        },
+        "ai_stack": {
+            "name": "Launch AI Stack",
+            "description": "Open all AI tools simultaneously",
+            "links": [
+                "chatgpt",
+                "claude",
+                "gemini",
+                "deepseek",
+                "perplexity"
+            ],
+            "icon": "\ud83d\ude80"
+        },
+        "genealogy_research": {
+            "name": "Genealogy Research",
+            "description": "Full genealogy research toolkit",
+            "links": [
+                "familysearch",
+                "ancestry",
+                "findagrave",
+                "google"
+            ],
+            "icon": "\ud83c\udf33"
+        },
+        "title_research": {
+            "name": "Title Research",
+            "description": "Complete title research workflow",
+            "links": [
+                "ok_county_records",
+                "oklahoma_tax_commission",
+                "google_maps"
+            ],
+            "icon": "\ud83d\udcdc"
+        },
+        "real_estate_deals": {
+            "name": "Real Estate Deals",
+            "description": "Property research and deals",
+            "links": [
+                "zillow",
+                "realtor",
+                "google_maps",
+                "ok_county_records"
+            ],
+            "icon": "\ud83d\udcb0"
+        }
+    },
+    "usage_stats": {},
+    "last_updated": "2025-12-03T00:19:40.570742"
+}

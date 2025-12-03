@@ -1,0 +1,126 @@
+{
+    "system": {
+        "version": "9.0",
+        "environment": "production",
+        "log_file": "databossx_log9.log",
+        "log_level": "INFO",
+        "auto_backup": true,
+        "backup_interval_hours": 24
+    },
+    "paths": {
+        "root_directory": "/home/user/DataBoss",
+        "input_folder": "input",
+        "output_folder": "output",
+        "penterra_folder": "penterra_docs",
+        "genealogy_folder": "genealogy",
+        "deals_folder": "output/deals",
+        "database_path": "databossx.db",
+        "tasks_database": "databossx_tasks.db"
+    },
+    "database": {
+        "sqlite_db_path": "databossx.db",
+        "tasks_db_path": "databossx_tasks.db",
+        "enable_wal_mode": true,
+        "connection_timeout": 30
+    },
+    "api_keys": {
+        "openai_enabled": false,
+        "anthropic_enabled": false,
+        "gemini_enabled": false,
+        "deepseek_enabled": false,
+        "use_env_vars": true
+    },
+    "llm_router": {
+        "default_model": "auto",
+        "fallback_enabled": true,
+        "timeout_seconds": 60,
+        "max_retries": 3,
+        "temperature": 0.7,
+        "max_tokens": 2000
+    },
+    "ocr": {
+        "primary_engine": "demo",
+        "fallback_engines": [
+            "tesseract"
+        ],
+        "confidence_threshold": 0.85,
+        "auto_process": true,
+        "supported_formats": [
+            ".pdf",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".tiff"
+        ]
+    },
+    "ui": {
+        "theme": "dark",
+        "logo_path": "assets/databossx_logo.png",
+        "page_title": "DataBossX Command Center",
+        "page_icon": "assets/databossx_logo.ico",
+        "sidebar_expanded": true,
+        "show_tips": true
+    },
+    "tasks": {
+        "default_project": "General",
+        "projects": [
+            "Penterra",
+            "Genealogy",
+            "System",
+            "General"
+        ],
+        "priority_levels": [
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+        ],
+        "status_options": [
+            "To Do",
+            "In Progress",
+            "Blocked",
+            "Done"
+        ],
+        "enable_ai_suggestions": true
+    },
+    "agents": {
+        "enabled": true,
+        "auto_assign": false,
+        "queue_processing": true,
+        "max_concurrent": 3
+    },
+    "deals": {
+        "min_score_threshold": 60,
+        "auto_contact_generation": true,
+        "track_follow_ups": true,
+        "deal_types": [
+            "Missing Owner",
+            "Mineral Rights",
+            "Real Estate",
+            "Estate"
+        ]
+    },
+    "links": {
+        "track_usage": true,
+        "suggest_workflows": true,
+        "max_recent_links": 10
+    },
+    "notifications": {
+        "enabled": true,
+        "desktop_notifications": false,
+        "email_notifications": false,
+        "notification_email": ""
+    },
+    "performance": {
+        "cache_enabled": true,
+        "cache_ttl_minutes": 30,
+        "parallel_processing": true,
+        "max_workers": 4
+    },
+    "security": {
+        "require_auth": false,
+        "session_timeout_minutes": 480,
+        "encrypt_sensitive_data": false
+    },
+    "last_updated": "2025-12-03T00:19:40.481015"
+}

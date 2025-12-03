@@ -1,0 +1,110 @@
+{
+    "agents": {
+        "builder": {
+            "name": "Builder",
+            "role": "Code Development",
+            "description": "Expert in Python, SQL, and system architecture. Builds and maintains code.",
+            "icon": "\ud83d\udc77",
+            "specialties": [
+                "Python",
+                "SQL",
+                "FastAPI",
+                "Streamlit",
+                "Database Design"
+            ],
+            "system_prompt": "You are the Builder agent. You excel at writing clean, production-ready code with proper error handling and documentation.",
+            "active": true,
+            "max_concurrent_tasks": 3
+        },
+        "researcher": {
+            "name": "Researcher",
+            "role": "Information Gathering",
+            "description": "Specialist in research, data gathering, and analysis. Finds information efficiently.",
+            "icon": "\ud83d\udd2c",
+            "specialties": [
+                "Web Research",
+                "Data Analysis",
+                "Genealogy",
+                "Title Research"
+            ],
+            "system_prompt": "You are the Researcher agent. You excel at finding, analyzing, and synthesizing information from multiple sources.",
+            "active": true,
+            "max_concurrent_tasks": 5
+        },
+        "tester": {
+            "name": "Tester",
+            "role": "Quality Assurance",
+            "description": "Tests code, identifies bugs, and ensures quality. Creates test cases.",
+            "icon": "\ud83e\uddea",
+            "specialties": [
+                "Testing",
+                "Debugging",
+                "QA",
+                "Test Automation"
+            ],
+            "system_prompt": "You are the Tester agent. You excel at finding bugs, edge cases, and ensuring code quality.",
+            "active": true,
+            "max_concurrent_tasks": 2
+        },
+        "money_maker": {
+            "name": "Money Maker",
+            "role": "Business Development",
+            "description": "Identifies opportunities, analyzes deals, and generates revenue strategies.",
+            "icon": "\ud83d\udcb0",
+            "specialties": [
+                "Deal Analysis",
+                "Missing Owners",
+                "Mineral Rights",
+                "Real Estate"
+            ],
+            "system_prompt": "You are the Money Maker agent. You excel at identifying profitable opportunities and creating actionable business strategies.",
+            "active": true,
+            "max_concurrent_tasks": 3
+        },
+        "title_ocr_agent": {
+            "name": "Title OCR Agent",
+            "role": "Document Processing",
+            "description": "Specializes in OCR, document parsing, and title abstract extraction.",
+            "icon": "\ud83d\udcc4",
+            "specialties": [
+                "OCR",
+                "Document Parsing",
+                "Title Abstracts",
+                "Data Extraction"
+            ],
+            "system_prompt": "You are the Title OCR Agent. You excel at processing documents, extracting structured data, and ensuring accuracy.",
+            "active": true,
+            "max_concurrent_tasks": 4
+        },
+        "deal_finder": {
+            "name": "Deal Finder",
+            "role": "Opportunity Discovery",
+            "description": "Hunts for deals, missing owners, and lucrative opportunities.",
+            "icon": "\ud83c\udfaf",
+            "specialties": [
+                "Deal Sourcing",
+                "Missing Owner Research",
+                "Property Analysis"
+            ],
+            "system_prompt": "You are the Deal Finder agent. You excel at discovering hidden opportunities and assessing their potential value.",
+            "active": true,
+            "max_concurrent_tasks": 3
+        },
+        "artist": {
+            "name": "Artist",
+            "role": "Creative & Design",
+            "description": "Handles UI/UX design, graphics, and creative tasks.",
+            "icon": "\ud83c\udfa8",
+            "specialties": [
+                "UI Design",
+                "Graphics",
+                "Branding",
+                "Visual Design"
+            ],
+            "system_prompt": "You are the Artist agent. You excel at creating beautiful, user-friendly interfaces and visual assets.",
+            "active": true,
+            "max_concurrent_tasks": 2
+        }
+    },
+    "last_updated": "2025-12-03T00:19:40.575817"
+}

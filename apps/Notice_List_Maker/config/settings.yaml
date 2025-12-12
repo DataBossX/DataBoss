@@ -1,0 +1,49 @@
+# Notice List Maker Configuration
+
+app:
+  name: "Notice List Maker"
+  version: "1.0.0"
+  mode: "production"
+
+buffer:
+  offset_distance_miles: 0.5
+  method_priority:
+    - "polygon"
+    - "centroid"
+    - "str_grid"
+
+lease_status:
+  rules:
+    umi: "Mineral owner with no active lease"
+    roy: "Mineral owner with active lease"
+    wi: "Leasehold / Operator / Working Interest"
+
+address:
+  source_priority:
+    - "recent_instrument"
+    - "county_tax_roll"
+    - "operator_paydeck"
+    - "manual_override"
+
+output:
+  sheets:
+    - "UNIT_NOTICE_LIST"
+    - "OFFSET_NOTICE_LIST"
+  required_columns:
+    - "OWNER_NAME"
+    - "MAILING_ADDRESS"
+    - "TRACT_ID"
+    - "LEGAL_DESCRIPTION"
+    - "LEASE_STATUS"
+    - "OWNERSHIP_TYPE"
+    - "ADDRESS_SOURCE"
+    - "CONFIDENCE_SCORE"
+
+logging:
+  level: "INFO"
+  file: "logs/notice_list.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+database:
+  path: "db/local_cache.sqlite"
+  cache_ttl_days: 30

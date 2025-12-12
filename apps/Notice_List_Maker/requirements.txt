@@ -1,0 +1,26 @@
+# Notice List Maker - Python Dependencies
+
+# Core
+streamlit>=1.28.0
+pandas>=2.0.0
+pyyaml>=6.0
+
+# PDF Processing
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+
+# Geospatial
+shapely>=2.0.0
+
+# Excel Output
+openpyxl>=3.1.0
+
+# Database
+sqlite3  # Built-in to Python
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Logging (built-in)
+# logging is part of Python standard library

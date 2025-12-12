@@ -1,0 +1,37 @@
+# Source Priority Configuration for Address Resolution
+
+sources:
+  recent_instrument:
+    weight: 100
+    description: "Most recent recorded instrument"
+    required_fields:
+      - "recording_date"
+      - "address"
+
+  county_tax_roll:
+    weight: 80
+    description: "County tax roll address"
+    required_fields:
+      - "tax_year"
+      - "address"
+
+  operator_paydeck:
+    weight: 70
+    description: "Operator paydeck / interest report"
+    required_fields:
+      - "report_date"
+      - "address"
+
+  manual_override:
+    weight: 90
+    description: "Manual override by user"
+    required_fields:
+      - "address"
+      - "verified_by"
+
+# Confidence scoring thresholds
+confidence:
+  high: 90
+  medium: 70
+  low: 50
+  unknown: 0

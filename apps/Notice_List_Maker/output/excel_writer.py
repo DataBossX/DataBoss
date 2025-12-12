@@ -30,10 +30,12 @@ class ExcelWriter:
         "LEASE_STATUS",  # UMI, ROY, or WI
         "OWNERSHIP_TYPE",  # MINERAL, LEASEHOLD, WORKING_INTEREST
         "INTEREST",
+        "OFFSET_METHOD",  # polygon, centroid, str_grid
         "ADDRESS_SOURCE",
         "ADDRESS_DATE",
         "CONFIDENCE_SCORE",
-        "DISTANCE_TO_UNIT_MILES"  # Only for offset tracts
+        "DISTANCE_TO_UNIT_MILES",  # Only for offset tracts
+        "EVIDENCE"  # JSON list of evidence records
     ]
 
     def __init__(self):
@@ -52,9 +54,11 @@ class ExcelWriter:
         gross_acres: Optional[float] = None,
         net_acres: Optional[float] = None,
         interest: Optional[str] = None,
+        offset_method: str = "unknown",
         address_source: str = "unknown",
         address_date: Optional[datetime] = None,
-        confidence_score: float = 0.0
+        confidence_score: float = 0.0,
+        evidence: Optional[List] = None
     ) -> None:
         """
         Add a row to UNIT_NOTICE_LIST.
@@ -73,6 +77,8 @@ class ExcelWriter:
             address_date: Date of address source
             confidence_score: Confidence score (0-100)
         """
+        import json
+
         row = {
             "OWNER_NAME": owner_name,
             "MAILING_ADDRESS": mailing_address,
@@ -83,10 +89,12 @@ class ExcelWriter:
             "LEASE_STATUS": lease_status,
             "OWNERSHIP_TYPE": ownership_type,
             "INTEREST": interest,
+            "OFFSET_METHOD": offset_method,
             "ADDRESS_SOURCE": address_source,
             "ADDRESS_DATE": address_date.strftime("%Y-%m-%d") if address_date else "",
             "CONFIDENCE_SCORE": round(confidence_score, 1),
-            "DISTANCE_TO_UNIT_MILES": ""  # Empty for unit tracts
+            "DISTANCE_TO_UNIT_MILES": "",  # Empty for unit tracts
+            "EVIDENCE": json.dumps(evidence or [], indent=2)
         }
 
         self.unit_data.append(row)
@@ -103,15 +111,19 @@ class ExcelWriter:
         gross_acres: Optional[float] = None,
         net_acres: Optional[float] = None,
         interest: Optional[str] = None,
+        offset_method: str = "unknown",
         address_source: str = "unknown",
         address_date: Optional[datetime] = None,
-        confidence_score: float = 0.0
+        confidence_score: float = 0.0,
+        evidence: Optional[List] = None
     ) -> None:
         """
         Add a row to OFFSET_NOTICE_LIST.
 
         Same as add_unit_row but includes distance to unit.
         """
+        import json
+
         row = {
             "OWNER_NAME": owner_name,
             "MAILING_ADDRESS": mailing_address,
@@ -122,10 +134,12 @@ class ExcelWriter:
             "LEASE_STATUS": lease_status,
             "OWNERSHIP_TYPE": ownership_type,
             "INTEREST": interest,
+            "OFFSET_METHOD": offset_method,
             "ADDRESS_SOURCE": address_source,
             "ADDRESS_DATE": address_date.strftime("%Y-%m-%d") if address_date else "",
             "CONFIDENCE_SCORE": round(confidence_score, 1),
-            "DISTANCE_TO_UNIT_MILES": round(distance_to_unit_miles, 2) if distance_to_unit_miles else ""
+            "DISTANCE_TO_UNIT_MILES": round(distance_to_unit_miles, 2) if distance_to_unit_miles else "",
+            "EVIDENCE": json.dumps(evidence or [], indent=2)
         }
 
         self.offset_data.append(row)

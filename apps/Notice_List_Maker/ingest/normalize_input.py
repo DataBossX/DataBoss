@@ -7,6 +7,7 @@ import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from .case import Case
 
 logger = logging.getLogger(__name__)
 
@@ -265,3 +266,48 @@ class InputNormalizer:
             "tracts_with_acres": sum(1 for t in self.tracts if t.gross_acres or t.net_acres),
             "tracts_with_complete_plss": sum(1 for t in self.tracts if t.township and t.range and t.section)
         }
+
+    def normalize_to_case(
+        self,
+        pdf_tracts: List,
+        sheet_tracts: List,
+        unit_name: Optional[str] = None,
+        county: Optional[str] = None,
+        state: Optional[str] = None,
+        plss_meridian: str = "6PM"
+    ) -> Case:
+        """
+        Normalize all inputs into a Case object.
+
+        Args:
+            pdf_tracts: List of PDF tract objects
+            sheet_tracts: List of spreadsheet tract objects
+            unit_name: Unit name
+            county: County
+            state: State
+            plss_meridian: PLSS meridian
+
+        Returns:
+            Case object with normalized data
+        """
+        # Normalize tracts
+        normalized_tracts = []
+        normalized_tracts.extend(self.normalize_pdf_tracts(pdf_tracts))
+        normalized_tracts.extend(self.normalize_spreadsheet_tracts(sheet_tracts))
+
+        # Store for later access
+        self.tracts = normalized_tracts
+
+        # Create Case object
+        case = Case(
+            unit_name=unit_name,
+            county=county,
+            state=state,
+            plss_meridian=plss_meridian,
+            unit_tracts=normalized_tracts,
+            source_files=list(set(t.source_file for t in normalized_tracts if t.source_file))
+        )
+
+        logger.info(f"Created case with {len(normalized_tracts)} tracts")
+
+        return case

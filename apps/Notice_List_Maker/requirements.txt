@@ -1,7 +1,12 @@
 # Notice List Maker - Python Dependencies
 
-# Core
+# Core Web Frameworks
 streamlit>=1.28.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6  # For file uploads in FastAPI
+
+# Data Processing
 pandas>=2.0.0
 pyyaml>=6.0
 
@@ -16,11 +21,25 @@ shapely>=2.0.0
 openpyxl>=3.1.0
 
 # Database
-sqlite3  # Built-in to Python
+psycopg2-binary>=2.9.9  # PostgreSQL/Supabase support
+# sqlite3 is built-in to Python
+
+# Async Support
+asyncio  # Built-in
+aiohttp>=3.9.0
+httpx>=0.25.0
+
+# Task Scheduling
+schedule>=1.2.0
 
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
 
-# Logging (built-in)
-# logging is part of Python standard library
+# Type Hints
+pydantic>=2.5.0
+
+# Utilities
+python-dotenv>=1.0.0  # For environment variables
+requests>=2.31.0

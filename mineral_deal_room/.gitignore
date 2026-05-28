@@ -1,0 +1,5 @@
+node_modules/
+dist/
+install_log.txt
+.env
+*.local

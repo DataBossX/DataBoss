@@ -1,0 +1,11 @@
+.env
+*.db
+audit.log
+downloads/
+images/
+reports/*.xlsx
+.venv/
+__pycache__/
+*.pyc
+~$*.xlsx
+.doto_commander/

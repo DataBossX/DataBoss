@@ -1,19 +1,26 @@
 import os
+import sys
 import uuid
 import sqlite3
 import json
 import asyncio
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 import aiosqlite
 from pathlib import Path
 
 # FastAPI imports
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
+# Pipeline
+sys.path.insert(0, str(Path(__file__).parent))
+from pipeline.models import Job, JobSource
+from pipeline.db import ensure_jobs_table, list_jobs, get_job
+from pipeline.orchestrator import orchestrator
 
 # OCR and LLM imports - Simplified for demo
 import openai
@@ -249,6 +256,7 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
 async def startup_event():
     """Initialize database on startup"""
     await init_database()
+    ensure_jobs_table()
     await log_system_event("INFO", "DataBossX API started", "system")
     logger.info("DataBossX API started successfully")
 
@@ -494,6 +502,151 @@ async def get_analytics():
             "uploads_24h": recent_uploads
         }
     }
+
+# ── Pipeline Job Endpoints ─────────────────────────────────────────────────────
+
+UPLOADS_DIR = Path("./uploads")
+UPLOADS_DIR.mkdir(exist_ok=True)
+
+
+class JobCreate(BaseModel):
+    source: Literal["wyoming", "oklahoma"] = "oklahoma"
+    tract_description: Optional[str] = None
+    owner_name: Optional[str] = None
+    county: Optional[str] = None
+    state: Optional[str] = None
+    pull_list_batch_id: Optional[str] = None
+
+
+@app.post("/api/jobs")
+async def create_job(params: JobCreate):
+    """Create a new landman report pipeline job.
+
+    For Wyoming: upload files first via POST /api/jobs/{job_id}/files, then the
+    pipeline will run automatically once files are attached.
+    For Oklahoma: provide pull_list_batch_id from DOTO Commander, or upload PDFs.
+    """
+    job = Job(
+        source=params.source,
+        tract_description=params.tract_description,
+        owner_name=params.owner_name,
+        county=params.county,
+        state=params.state,
+        pull_list_batch_id=params.pull_list_batch_id,
+    )
+    job.log("create", f"Job created via API: source={params.source}")
+    from pipeline.db import upsert_job
+    upsert_job(job.to_dict())
+    await log_system_event("INFO", f"Job created: {job.id}", "pipeline", {"source": params.source})
+    return {"job_id": job.id, "status": job.status, "message": "Job created. Upload files or submit to run."}
+
+
+@app.post("/api/jobs/{job_id}/files")
+async def upload_job_files(job_id: str, files: List[UploadFile] = File(...)):
+    """Upload documents for a Wyoming pipeline job and auto-start the pipeline."""
+    data = get_job(job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = Job.from_dict(data)
+    if job.status not in ("queued", "failed"):
+        raise HTTPException(status_code=409, detail=f"Job is already {job.status}")
+
+    saved_paths = []
+    job_dir = UPLOADS_DIR / job_id
+    job_dir.mkdir(exist_ok=True)
+
+    for f in files:
+        dest = job_dir / (f.filename or f"file_{uuid.uuid4()}")
+        content = await f.read()
+        dest.write_bytes(content)
+        saved_paths.append(str(dest))
+        job.log("upload", f"Saved: {f.filename} ({len(content)} bytes)")
+
+    job.files = saved_paths
+    from pipeline.db import upsert_job
+    upsert_job(job.to_dict())
+
+    # Auto-start the pipeline
+    await orchestrator.submit(job)
+    await log_system_event("INFO", f"Job {job_id} files uploaded, pipeline started", "pipeline",
+                           {"file_count": len(saved_paths)})
+    return {
+        "job_id": job_id,
+        "files_uploaded": len(saved_paths),
+        "status": "running",
+        "message": "Files uploaded. Pipeline is running.",
+    }
+
+
+@app.post("/api/jobs/{job_id}/run")
+async def run_job(job_id: str):
+    """Manually trigger or resume a pipeline job."""
+    data = get_job(job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = Job.from_dict(data)
+    if job.status == "done":
+        return {"job_id": job_id, "status": "done", "message": "Job already complete."}
+
+    await orchestrator.submit(job)
+    return {"job_id": job_id, "status": "running", "message": "Pipeline started."}
+
+
+@app.get("/api/jobs")
+async def list_pipeline_jobs(limit: int = 50, status: Optional[str] = None):
+    """List all pipeline jobs, newest first."""
+    jobs = list_jobs(limit=limit, status=status)
+    return [
+        {
+            "job_id": j["id"],
+            "source": j["source"],
+            "status": j["status"],
+            "owner_name": j.get("owner_name"),
+            "county": j.get("county"),
+            "state": j.get("state"),
+            "tract_description": j.get("tract_description"),
+            "document_count": len(j.get("instruments", [])),
+            "total_cost": j.get("total_cost", 0.0),
+            "created_at": j["created_at"],
+            "updated_at": j["updated_at"],
+            "error": j.get("error"),
+        }
+        for j in jobs
+    ]
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_pipeline_job(job_id: str):
+    """Get full job details including all stage results and the final report."""
+    data = get_job(job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return data
+
+
+@app.get("/api/jobs/{job_id}/report")
+async def download_report(job_id: str, fmt: str = "json"):
+    """Download the landman report in JSON or Excel format."""
+    data = get_job(job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if data.get("status") != "done":
+        raise HTTPException(status_code=425, detail=f"Job not complete yet (status={data.get('status')})")
+
+    if fmt == "excel":
+        report_path = data.get("report_path", "")
+        if report_path and Path(report_path).exists():
+            return FileResponse(
+                path=report_path,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename=f"landman_report_{job_id[:8]}.xlsx",
+            )
+        raise HTTPException(status_code=404, detail="Excel report file not found")
+
+    return data.get("report_json") or {"error": "Report JSON not available"}
+
 
 if __name__ == "__main__":
     import uvicorn

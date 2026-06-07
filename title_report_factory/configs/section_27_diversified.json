@@ -1,0 +1,77 @@
+{
+  "project_name": "Diversified Section 27-11N-25W Beckham County OK Cursory Title Report",
+  "subject_property": {
+    "entity": "Diversified",
+    "county": "Beckham",
+    "state": "Oklahoma",
+    "section": "27",
+    "township": "11N",
+    "range": "25W",
+    "meridian": "Indian Meridian",
+    "gross_acres": 640.0,
+    "formation_limit": "Cherokee",
+    "search_variations": [
+      "27-11N-25W",
+      "Section 27 Township 11 North Range 25 West",
+      "Sec 27 T11N R25W",
+      "S27 T11N R25W",
+      "11N 25W 27"
+    ]
+  },
+  "inputs": {
+    "input_dir": "inputs",
+    "source_workbook": "target_27_diversified.xlsx",
+    "template_workbook": "template_10_shanwee.xlsx",
+    "public_records_workbook": "context_public_records.xlsx",
+    "notes_workbook": "project_notes.xlsx",
+    "index_pdf": "index_27.pdf"
+  },
+  "source_sheet_map": {
+    "ogl": "OGL",
+    "diversified_interest": "diversifiedint",
+    "diversified_namesearch": "diversified",
+    "chain_fourpoint": "chainfourpoint",
+    "chain_legacy": "chainlegacy",
+    "leasehold_summary": "LH",
+    "instrument_tracking": "inst",
+    "full_chain_notes": "Full Chain Notes",
+    "executive_summary": "notes 3",
+    "title": "Title ",
+    "overview": "Overview"
+  },
+  "public_records_sheet_map": {
+    "wells": "OCC RBDMS Wells",
+    "completions": "OCC Completion Data",
+    "orders": "OCC Order Watchlist",
+    "sources": "Source Register",
+    "research_summary": "Research Summary"
+  },
+  "output": {
+    "output_dir": "outputs",
+    "workbook_name": "Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx",
+    "date_format": "M/D/YYYY"
+  },
+  "okcounty": {
+    "enabled": false,
+    "base_url": "https://okcountyrecords.com",
+    "county": "beckham",
+    "note": "Live download disabled by default. Enable only with authorization and credentials in .env. Browser access to OKCountyRecords was blocked in the prior run (see source workbook Change Log)."
+  },
+  "name_match_traps": [
+    "Diversified Financial Group",
+    "Diversified Financial Systems",
+    "Diversified Financial Services",
+    "Diversified Financial Sytems",
+    "Diversified Financial Solutiuons"
+  ],
+  "diversified_real_entities": [
+    "Diversified Production, LLC",
+    "Diversified Energy Company PLC",
+    "Diversified Energy Co",
+    "Diversified ABS VI Upstream, LLC",
+    "Diversified Gas and Oil Corporation",
+    "DP Legacy Central, LLC",
+    "DP Legacy Tapstone, LLC",
+    "DP Sooner Holdco, LLC"
+  ]
+}

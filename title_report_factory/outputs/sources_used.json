@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Oklahoma Corporation Commission – Oil and Gas Data Files",
+    "url": "https://oklahoma.gov/occ/divisions/oil-gas/oil-gas-data.html",
+    "used_for": "Source page for RBDMS wells, completion files, formation master data, and production-recordkeeper context.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "OCC notes OTC is official production recordkeeper; production history still must be separately verified."
+  },
+  {
+    "name": "Oklahoma Corporation Commission – RBDMS Well Data CSV",
+    "url": "https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/rbdms-wells.csv",
+    "used_for": "Filtered Beckham County Section 27-T11N-R25W well rows.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Well location/status only; no ownership, lease terms, production, or HBP conclusion."
+  },
+  {
+    "name": "Oklahoma Corporation Commission – Monthly Well Completions Report (2010-present)",
+    "url": "https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/completions-wells-formations-base.xlsx",
+    "used_for": "SITES #1H-2215 completion, formation, first production/sales, OTC PUN, order references.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Completion data is not title proof; order images and production needed."
+  },
+  {
+    "name": "Oklahoma Corporation Commission – Well Completion Legacy Data",
+    "url": "https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/completions-wells-legacy.xlsx",
+    "used_for": "Legacy completion rows for MANDRELL #1-27, MANDRELL #2-27, BETTY SITES #1-27.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Legacy fields/order references need original image/case verification."
+  },
+  {
+    "name": "Oklahoma Corporation Commission – Well Data Finder",
+    "url": "https://oklahoma.gov/occ/divisions/oil-gas/database-search-imaged-documents/occ-well-data-finder.html",
+    "used_for": "Public route to view/download OCC datasets and well records.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Interactive retrieval required for original documents."
+  },
+  {
+    "name": "Oklahoma Corporation Commission – Database Search and Imaged Documents",
+    "url": "https://oklahoma.gov/occ/divisions/oil-gas/database-search-imaged-documents.html",
+    "used_for": "Public route to case, imaging, well records, and oil/gas data mining.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Original order images/case records not pulled in this pass."
+  },
+  {
+    "name": "Oklahoma Corporation Commission – Formation Codes and Names",
+    "url": "https://oklahoma.gov/content/dam/ok/en/occ/documents/og/ogdatafiles/formation-codes-names.pdf",
+    "used_for": "Formation-code context for CHEROKEE / 404CHRK and HOGSHOOTER / 405HGSR.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Code mapping only; not a lease-depth or HBP conclusion."
+  },
+  {
+    "name": "Bureau of Land Management – Land Records",
+    "url": "https://www.blm.gov/services/land-records",
+    "used_for": "General BLM/GLO land-record scope and limitations.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "No Section 27-specific patent/land-status result verified."
+  },
+  {
+    "name": "Bureau of Land Management – General Land Office Records",
+    "url": "https://glorecords.blm.gov/default.aspx",
+    "used_for": "Federal land conveyance/patent/survey source context.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Not all title records are online; section-specific search unavailable in this run."
+  },
+  {
+    "name": "BLM GLO Records Search",
+    "url": "https://glorecords.blm.gov/search/default.aspx?searchByTypeIndex=0&searchTabIndex=0",
+    "used_for": "Access limitation: search tools showed maintenance/unavailable errors.",
+    "reliability": "High for access limitation",
+    "accessed": "2026-06-07",
+    "limitation": "Re-run GLO search when available."
+  },
+  {
+    "name": "Bureau of Land Management – National PLSS CadNSDI MapServer",
+    "url": "https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer",
+    "used_for": "PLSS township/section layer context.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "GIS context only; no title/boundary conclusion."
+  },
+  {
+    "name": "Bureau of Land Management – PLSS Section Layer",
+    "url": "https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer/2",
+    "used_for": "PLSS first division/section layer field/source context.",
+    "reliability": "High",
+    "accessed": "2026-06-07",
+    "limitation": "Use survey/legal records for boundary/title reliance."
+  }
+]

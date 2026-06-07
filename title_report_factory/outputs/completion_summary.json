@@ -1,0 +1,104 @@
+{
+  "workbook_path": "/home/user/DataBoss/title_report_factory/tests/../outputs/Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx",
+  "overall_confidence_score": 64,
+  "overall_confidence_band": "Usable but needs review",
+  "documents_reviewed_count": 90,
+  "documents_downloaded_count": 0,
+  "documents_ocr_count": 0,
+  "index_rows_created_count": 90,
+  "leases_count": 64,
+  "wells_count": 4,
+  "chain_links_count": 22,
+  "qc_checks_passed": "17/17",
+  "major_title_findings": [
+    "Apparent Diversified leasehold via two unverified tracks: Track A (Nadel&Gussman/EnerVest -> FourPoint -> Maverick -> Diversified, partly corporate-level) and Track B (ConocoPhillips/Burlington/LL&E -> DP Legacy -> Diversified entities).",
+    "64 base oil & gas leases (1994-2001) cover the section; all primary terms expired on their face — current validity depends on unconfirmed HBP.",
+    "Cherokee-formation HBP NOT confirmed: active wells exist but the matched completion formation is Hogshooter, not Cherokee.",
+    "Possible divestitures/exclusions (DP Legacy -> Anadarko Basin Holdings 2023; DP Legacy/Diversified -> Teocalli wellbore assignment 2024) require schedule review.",
+    "Name-match trap excluded: 'Diversified Financial' judgment/lien records are a different entity and were not treated as subject mineral ownership."
+  ],
+  "missing_documents": [
+    "[BusinessWire - Maverick Natural Resources Acquires FourPoint Energy Corporate Succession (public source)] Corporate-level succession is not a county-recorded conveyance; no recorded FourPoint->Maverick->Diversified assignment located. Book/Page 'N/A' looks truncated; verify full book number.",
+    "[2023-003027 Assignment] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away.",
+    "[2023-003028 Mineral Deed] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away.",
+    "[2024-002930 Wellbore Assignment] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away.",
+    "[Diversified Energy - completed Maverick acquisition Corporate Succession (public source)] Corporate-level succession is not a county-recorded conveyance; no recorded FourPoint->Maverick->Diversified assignment located. Book/Page 'N/A' looks truncated; verify full book number.",
+    "[2026-001031 Affidavit] facts pass: missing grantee",
+    "[2020-004435 Assignment] facts pass: missing date",
+    "64 base oil & gas leases identified for the section; only 25 have first-page terms captured and 0 are full-image verified. Primary terms (1994-2001) have all expired on their face; HBP status drives current validity and is unconfirmed."
+  ],
+  "curative_issues": [
+    {
+      "id": "CHAIN-001",
+      "severity": "Medium",
+      "desc": "[BusinessWire - Maverick Natural Resources Acquires FourPoint Energy Corporate Succession (public source)] Corporate-level succession is not a county-recorded conveyance; no recorded FourPoint->Maverick->Diversified assignment located. Book/Page 'N/A' looks truncated; verify full book number."
+    },
+    {
+      "id": "CHAIN-002",
+      "severity": "High",
+      "desc": "[2023-003027 Assignment] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away."
+    },
+    {
+      "id": "CHAIN-003",
+      "severity": "High",
+      "desc": "[2023-003028 Mineral Deed] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away."
+    },
+    {
+      "id": "CHAIN-004",
+      "severity": "High",
+      "desc": "[2024-002930 Wellbore Assignment] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away."
+    },
+    {
+      "id": "CHAIN-005",
+      "severity": "Medium",
+      "desc": "[Diversified Energy - completed Maverick acquisition Corporate Succession (public source)] Corporate-level succession is not a county-recorded conveyance; no recorded FourPoint->Maverick->Diversified assignment located. Book/Page 'N/A' looks truncated; verify full book number."
+    },
+    {
+      "id": "CHAIN-006",
+      "severity": "Medium",
+      "desc": "[2026-001031 Affidavit] facts pass: missing grantee"
+    },
+    {
+      "id": "CHAIN-007",
+      "severity": "Medium",
+      "desc": "[2020-004435 Assignment] facts pass: missing date"
+    },
+    {
+      "id": "OGL-001",
+      "severity": "Medium",
+      "desc": "64 base oil & gas leases identified for the section; only 25 have first-page terms captured and 0 are full-image verified. Primary terms (1994-2001) have all expired on their face; HBP status drives current validity and is unconfirmed."
+    },
+    {
+      "id": "HBP-001",
+      "severity": "High",
+      "desc": "Active OCC wells exist in Section 27 (MANDRELL #2-27, BETTY SITES #1-27, SITES #1H-2215), but the only matched completion formation is Hogshooter, NOT Cherokee. Cherokee-formation HBP is NOT confirmed."
+    },
+    {
+      "id": "ID-001",
+      "severity": "Medium",
+      "desc": "The county name-search returns many 'Diversified Financial Group/Systems/Services' judgment, lien and town-lot records (Erick, OK, 1989-1995). These are a DIFFERENT entity from the subject Diversified Production, LLC / Diversified Energy and were excluded from the mineral chain (do not assume ownership from name similarity)."
+    }
+  ],
+  "tools_used": [
+    "multi_ai_tournament_reviewer (heuristic passes)",
+    "ocr_engine (pytesseract/PyMuPDF, optional)",
+    "okcounty_browser_downloader (Playwright, optional)",
+    "openpyxl",
+    "python-stdlib (hashlib/re/concurrent.futures)"
+  ],
+  "artifacts": {
+    "source_inventory.json": "/home/user/DataBoss/title_report_factory/tests/../outputs/source_inventory.json",
+    "index_text.json": "/home/user/DataBoss/title_report_factory/tests/../outputs/index_text.json",
+    "confidence_summary.json": "/home/user/DataBoss/title_report_factory/tests/../outputs/confidence_summary.json",
+    "curative_issues.json": "/home/user/DataBoss/title_report_factory/tests/../outputs/curative_issues.json",
+    "ocr_cache.json": "/home/user/DataBoss/title_report_factory/tests/../outputs/ocr_cache.json",
+    "sources_used.json": "/home/user/DataBoss/title_report_factory/tests/../outputs/sources_used.json",
+    "index_text.txt": "/home/user/DataBoss/title_report_factory/tests/../outputs/index_text.txt",
+    "workbook": "/home/user/DataBoss/title_report_factory/tests/../outputs/Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx"
+  },
+  "errors_or_limitations": [
+    "OKCountyRecords live download: disabled — okcounty.enabled is false; live download skipped by configuration. Relying on locally provided records only.",
+    "Index PDF 'index_27.pdf' (27 pp) not OCR'd: OCR toolchain not installed (missing: poppler, tesseract, pytesseract, pymupdf). Image-only PDF left un-transcribed by design; not fabricated. Structured index data from the source workbook was used instead.",
+    "Multi-LLM tournament backend not configured (no API keys); deterministic heuristic review passes were used."
+  ]
+}

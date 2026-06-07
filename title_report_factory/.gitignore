@@ -1,0 +1,14 @@
+# Source documents are kept local (security rule) and large/proprietary.
+inputs/*.pdf
+inputs/*.xlsx
+
+# Transient pipeline working dirs
+outputs/downloads/
+__pycache__/
+*.pyc
+.env
+
+# Keep the finished deliverables that ARE committed:
+!outputs/Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx
+!outputs/*.json
+!outputs/index_text.txt

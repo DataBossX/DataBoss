@@ -1,0 +1,13 @@
+# Core (required)
+openpyxl>=3.1.5
+
+# Test
+pytest>=8.0.0
+
+# Optional capabilities (auto-detected at runtime; absence is logged, never faked)
+# OCR of scanned/image PDFs:
+#   pip install pytesseract pillow pymupdf   (plus system tesseract + poppler)
+# Live OKCountyRecords download (authorized use only):
+#   pip install playwright && playwright install chromium
+# Multi-LLM tournament backend:
+#   pip install litellm   (set ANTHROPIC_API_KEY / OPENAI_API_KEY in .env)

@@ -1,0 +1,47 @@
+[
+  {
+    "path": "/home/user/DataBoss/title_report_factory/tests/../inputs/context_public_records.xlsx",
+    "name": "context_public_records.xlsx",
+    "kind": "xlsx",
+    "size_bytes": 156368,
+    "sha256": "cb2af0899829bc25d6442400ac8923d11622a0802e759a42bde4a957ceb749a3",
+    "pages": null,
+    "note": "logged source-of-record"
+  },
+  {
+    "path": "/home/user/DataBoss/title_report_factory/tests/../inputs/index_27.pdf",
+    "name": "index_27.pdf",
+    "kind": "pdf",
+    "size_bytes": 25267235,
+    "sha256": "e7ba62e19b5b70efc809a256d0765ba011655f1a6f9418ac57ea272dbab7e051",
+    "pages": 27,
+    "note": "logged source-of-record"
+  },
+  {
+    "path": "/home/user/DataBoss/title_report_factory/tests/../inputs/project_notes.xlsx",
+    "name": "project_notes.xlsx",
+    "kind": "xlsx",
+    "size_bytes": 67285,
+    "sha256": "661f589296fcc29f99abb1c040e72f2dcb166d36a373974e71e9fd2d5fdfcaa1",
+    "pages": null,
+    "note": "logged source-of-record"
+  },
+  {
+    "path": "/home/user/DataBoss/title_report_factory/tests/../inputs/target_27_diversified.xlsx",
+    "name": "target_27_diversified.xlsx",
+    "kind": "xlsx",
+    "size_bytes": 800779,
+    "sha256": "d6cd088cad47ef761edf4affb7d987f0acd2b5490de959e5c702bda3eb026a4c",
+    "pages": null,
+    "note": "logged source-of-record"
+  },
+  {
+    "path": "/home/user/DataBoss/title_report_factory/tests/../inputs/template_10_shanwee.xlsx",
+    "name": "template_10_shanwee.xlsx",
+    "kind": "xlsx",
+    "size_bytes": 500666,
+    "sha256": "28fc2166e10fa45ab2a7c6fef9345fa77a6fa8184848189ce115274cccbb28f6",
+    "pages": null,
+    "note": "logged source-of-record"
+  }
+]

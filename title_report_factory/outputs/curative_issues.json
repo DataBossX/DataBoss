@@ -1,0 +1,92 @@
+[
+  {
+    "issue_id": "CHAIN-001",
+    "severity": "Medium",
+    "category": "Chain of title",
+    "description": "[BusinessWire - Maverick Natural Resources Acquires FourPoint Energy Corporate Succession (public source)] Corporate-level succession is not a county-recorded conveyance; no recorded FourPoint->Maverick->Diversified assignment located. Book/Page 'N/A' looks truncated; verify full book number.",
+    "related_instruments": "BusinessWire - Maverick Natural Resources Acquires FourPoint Energy",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "BusinessWire - Maverick Natural Resources Acquires FourPoint Energy"
+  },
+  {
+    "issue_id": "CHAIN-002",
+    "severity": "High",
+    "category": "Chain of title",
+    "description": "[2023-003027 Assignment] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away.",
+    "related_instruments": "2023-003027",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "Detail"
+  },
+  {
+    "issue_id": "CHAIN-003",
+    "severity": "High",
+    "category": "Chain of title",
+    "description": "[2023-003028 Mineral Deed] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away.",
+    "related_instruments": "2023-003028",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "Detail"
+  },
+  {
+    "issue_id": "CHAIN-004",
+    "severity": "High",
+    "category": "Chain of title",
+    "description": "[2024-002930 Wellbore Assignment] Possible divestiture/exclusion; the assignment schedule controls whether Section 27 / Cherokee depths were conveyed away.",
+    "related_instruments": "2024-002930",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "Detail"
+  },
+  {
+    "issue_id": "CHAIN-005",
+    "severity": "Medium",
+    "category": "Chain of title",
+    "description": "[Diversified Energy - completed Maverick acquisition Corporate Succession (public source)] Corporate-level succession is not a county-recorded conveyance; no recorded FourPoint->Maverick->Diversified assignment located. Book/Page 'N/A' looks truncated; verify full book number.",
+    "related_instruments": "Diversified Energy - completed Maverick acquisition",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "Diversified Energy - completed Maverick acquisition"
+  },
+  {
+    "issue_id": "CHAIN-006",
+    "severity": "Medium",
+    "category": "Chain of title",
+    "description": "[2026-001031 Affidavit] facts pass: missing grantee",
+    "related_instruments": "2026-001031",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "Detail"
+  },
+  {
+    "issue_id": "CHAIN-007",
+    "severity": "Medium",
+    "category": "Chain of title",
+    "description": "[2020-004435 Assignment] facts pass: missing date",
+    "related_instruments": "2020-004435",
+    "recommended_action": "Pull recorded image + assignment schedule; verify Section 27 / Cherokee coverage, net acres, depths, and exclusions.",
+    "source": "Detail"
+  },
+  {
+    "issue_id": "OGL-001",
+    "severity": "Medium",
+    "category": "Leasehold",
+    "description": "64 base oil & gas leases identified for the section; only 25 have first-page terms captured and 0 are full-image verified. Primary terms (1994-2001) have all expired on their face; HBP status drives current validity and is unconfirmed.",
+    "related_instruments": "OGL 1-64",
+    "recommended_action": "Pull every lease image; verify primary term, royalty, depth/Pugh, extension/option, warranty, and tie HBP to OCC production by formation.",
+    "source": "OGL sheet"
+  },
+  {
+    "issue_id": "HBP-001",
+    "severity": "High",
+    "category": "HBP / Formation",
+    "description": "Active OCC wells exist in Section 27 (MANDRELL #2-27, BETTY SITES #1-27, SITES #1H-2215), but the only matched completion formation is Hogshooter, NOT Cherokee. Cherokee-formation HBP is NOT confirmed.",
+    "related_instruments": "API 3500921146, 3500921241, 3500921990",
+    "recommended_action": "Pull OCC spacing/pooling order images and OTC production by formation; confirm whether the Cherokee is held by current production.",
+    "source": "context_public_records.xlsx"
+  },
+  {
+    "issue_id": "ID-001",
+    "severity": "Medium",
+    "category": "Identity",
+    "description": "The county name-search returns many 'Diversified Financial Group/Systems/Services' judgment, lien and town-lot records (Erick, OK, 1989-1995). These are a DIFFERENT entity from the subject Diversified Production, LLC / Diversified Energy and were excluded from the mineral chain (do not assume ownership from name similarity).",
+    "related_instruments": "1989-1995 Diversified Financial entries",
+    "recommended_action": "Keep excluded; confirm entity distinction if any S27 mineral conveyance ever names a Diversified Financial entity.",
+    "source": "diversified / Full Chain Notes sheets"
+  }
+]

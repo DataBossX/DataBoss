@@ -1,0 +1,9 @@
+{
+  "index_27.pdf": {
+    "status": "unavailable",
+    "pages_processed": 0,
+    "mean_confidence": 0,
+    "detail": "OCR toolchain not installed (missing: poppler, tesseract, pytesseract, pymupdf). Image-only PDF left un-transcribed by design; not fabricated.",
+    "text_chars": 0
+  }
+}

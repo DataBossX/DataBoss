@@ -1,0 +1,646 @@
+{
+  "overall_confidence": 64,
+  "overall_band": "Usable but needs review",
+  "checks_passed": 17,
+  "checks_total": 17,
+  "sheet_scores": {
+    "OGL": 59,
+    "Index Text": 69,
+    "Run Sheet": 53,
+    "Well Data": 72,
+    "Title": 59,
+    "Overview": 75,
+    "PLAT": 70,
+    "Source Notes": 90,
+    "Curative Issues": 88
+  },
+  "checks": [
+    {
+      "check": "Sheet exists: Overview",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Title",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: PLAT",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Run Sheet",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: OGL",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Well Data",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Index Text",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Source Notes",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Confidence Summary",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Sheet exists: Curative Issues",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "Every source document logged",
+      "pass": true,
+      "detail": "5 files inventoried"
+    },
+    {
+      "check": "Every lease has a source",
+      "pass": true,
+      "detail": "64 leases"
+    },
+    {
+      "check": "Every index row has source reference",
+      "pass": true,
+      "detail": "90 rows"
+    },
+    {
+      "check": "Every chain link has confidence",
+      "pass": true,
+      "detail": "22 links"
+    },
+    {
+      "check": "Wells collected",
+      "pass": true,
+      "detail": "4 wells"
+    },
+    {
+      "check": "Curative issues identified",
+      "pass": true,
+      "detail": "10 issues"
+    },
+    {
+      "check": "Missing-document/limitations recorded",
+      "pass": true,
+      "detail": "3 limitations"
+    }
+  ],
+  "per_document": [
+    {
+      "instrument": "2001-008526",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008525",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008524",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008523",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008522",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008521",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008520",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008519",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008518",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008517",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008516",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008515",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008514",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-008513",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-002247",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-002246",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2001-002245",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2000-010165",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2000-010164",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2000-010163",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2000-010162",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-004222",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-003760",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-000946",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-000945",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 80,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-000825",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-000824",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-000823",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1999-000193",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-008577",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007087",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007086",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007085",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007084",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007083",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007082",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007081",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007080",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007079",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-007078",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-005861",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-005860",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-005859",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1998-005858",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004394",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004178",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004035",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004034",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004033",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004032",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004031",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004030",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004029",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004028",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004027",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004026",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004025",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004024",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-004023",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-002703",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-002702",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-002701",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1995-001737",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "1994-006197",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 45,
+      "relevance_confidence": 85
+    },
+    {
+      "instrument": "2002-007317",
+      "doc_type": "Conveyance",
+      "match_confidence": 55,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2017-004597",
+      "doc_type": "Assignment",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2019-002937",
+      "doc_type": "Partial Assignment/Release",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2019-002988",
+      "doc_type": "Partial Assignment/Release",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "BusinessWire - Maverick Natural Resources Acquires FourPoint Energy",
+      "doc_type": "Corporate Succession (public source)",
+      "match_confidence": 55,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2020-004462",
+      "doc_type": "Assignment",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-000152",
+      "doc_type": "Assignment",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-000155",
+      "doc_type": "Memorandum",
+      "match_confidence": 40,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-003506",
+      "doc_type": "Merger",
+      "match_confidence": 55,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-003507",
+      "doc_type": "Affidavit",
+      "match_confidence": 55,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-004277",
+      "doc_type": "Assignment",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-004838",
+      "doc_type": "Conveyance",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2022-004844",
+      "doc_type": "Agreement",
+      "match_confidence": 55,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2023-000796",
+      "doc_type": "Conveyance",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2023-003026",
+      "doc_type": "Amendment",
+      "match_confidence": 50,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2023-003027",
+      "doc_type": "Assignment",
+      "match_confidence": 45,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2023-003028",
+      "doc_type": "Mineral Deed",
+      "match_confidence": 45,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2024-002930",
+      "doc_type": "Wellbore Assignment",
+      "match_confidence": 45,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "Diversified Energy - completed Maverick acquisition",
+      "doc_type": "Corporate Succession (public source)",
+      "match_confidence": 55,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2025-001808",
+      "doc_type": "Merger",
+      "match_confidence": 40,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2026-001031",
+      "doc_type": "Affidavit",
+      "match_confidence": 40,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "2020-004435",
+      "doc_type": "Assignment",
+      "match_confidence": 60,
+      "relevance_confidence": 70
+    },
+    {
+      "instrument": "1995-002127",
+      "doc_type": "Oil & Gas Lease",
+      "match_confidence": 55,
+      "relevance_confidence": 65
+    },
+    {
+      "instrument": "2000-000146",
+      "doc_type": "Pooling/Affidavit",
+      "match_confidence": 55,
+      "relevance_confidence": 65
+    },
+    {
+      "instrument": "1719/0304",
+      "doc_type": "Partial Assignment/Release",
+      "match_confidence": 55,
+      "relevance_confidence": 65
+    },
+    {
+      "instrument": "2026-002633",
+      "doc_type": "Quit Claim Deed",
+      "match_confidence": 55,
+      "relevance_confidence": 65
+    }
+  ]
+}

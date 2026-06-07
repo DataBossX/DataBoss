@@ -1,0 +1,49 @@
+{
+  "checks": [
+    {
+      "check": "All required sheets present",
+      "passed": true,
+      "detail": "all 10 present"
+    },
+    {
+      "check": "Source documents logged",
+      "passed": true,
+      "detail": "1 file(s) inventoried; download log at download_log.json"
+    },
+    {
+      "check": "Every run-sheet row has a source",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "check": "Run-sheet rows carry confidence",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "check": "Index entries matched or marked unmatched",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "check": "Final Excel opens without corruption",
+      "passed": true,
+      "detail": "opened with 10 sheets"
+    }
+  ],
+  "checks_passed": 6,
+  "checks_total": 6,
+  "per_sheet_confidence": {
+    "Overview": 60,
+    "Title": 8,
+    "PLAT": 30,
+    "Run Sheet": 0,
+    "OGL": 0,
+    "Well Data": 0,
+    "Index Text": 0,
+    "Source Notes": 60,
+    "Confidence Summary": 60,
+    "Curative Issues": 62
+  },
+  "overall_confidence": 30
+}

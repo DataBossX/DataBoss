@@ -1,0 +1,28 @@
+{
+  "project_name": "section_27_diversified",
+  "subject_property": {
+    "entity": "Diversified",
+    "county": "Beckham County",
+    "state": "Oklahoma",
+    "section": "27",
+    "township": "11N",
+    "range": "25W",
+    "search_variations": [
+      "27-11N-25W",
+      "Section 27 Township 11 North Range 25 West",
+      "Sec 27 T11N R25W",
+      "S27 T11N R25W",
+      "11N 25W 27",
+      "Beckham County Oklahoma Diversified"
+    ]
+  },
+  "input_dirs": ["inputs"],
+  "output_dir": "outputs",
+  "template_workbook": "inputs/11N 23W 10 - Shanwee Cursory - 05-21-2026.xlsx",
+  "authoritative_source_workbook": "inputs/11N_25W_27_Final_Cursory_Title_Report.xlsx",
+  "output_file_name": "Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx",
+  "enable_download": false,
+  "enable_ocr": true,
+  "enable_llm": false,
+  "parallel_workers": 4
+}

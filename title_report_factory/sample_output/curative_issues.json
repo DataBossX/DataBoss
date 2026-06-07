@@ -1,0 +1,62 @@
+{
+  "curative_issues": [
+    {
+      "issue_id": "no-conveyances",
+      "category": "missing_doc",
+      "severity": "high",
+      "description": "No conveyancing instruments were available to build a chain of title.",
+      "related_documents": [],
+      "recommendation": "Obtain base patent/root of title and subsequent conveyances for the subject lands from the county records.",
+      "confidence": 90.0
+    },
+    {
+      "issue_id": "doc-D0001-7907",
+      "category": "ambiguity",
+      "severity": "medium",
+      "description": "D0001 (Unknown): Legal description not machine-readable; subject match unconfirmed.",
+      "related_documents": [
+        "D0001"
+      ],
+      "recommendation": "Re-examine source document; obtain a clearer copy if needed.",
+      "confidence": 55.0
+    },
+    {
+      "issue_id": "doc-D0001-6692",
+      "category": "ambiguity",
+      "severity": "medium",
+      "description": "D0001 (Unknown): No instrument number or book/page -- cannot cross-reference index.",
+      "related_documents": [
+        "D0001"
+      ],
+      "recommendation": "Re-examine source document; obtain a clearer copy if needed.",
+      "confidence": 55.0
+    },
+    {
+      "issue_id": "doc-D0001-9012",
+      "category": "ambiguity",
+      "severity": "medium",
+      "description": "D0001 (Unknown): No parties extracted -- chain linkage uncertain.",
+      "related_documents": [
+        "D0001"
+      ],
+      "recommendation": "Re-examine source document; obtain a clearer copy if needed.",
+      "confidence": 55.0
+    },
+    {
+      "issue_id": "doc-D0001-7168",
+      "category": "ambiguity",
+      "severity": "medium",
+      "description": "D0001 (Unknown): No recording date -- priority/order uncertain.",
+      "related_documents": [
+        "D0001"
+      ],
+      "recommendation": "Re-examine source document; obtain a clearer copy if needed.",
+      "confidence": 55.0
+    }
+  ],
+  "missing_documents": [
+    "Base patent / root of title for the subject lands",
+    "Current oil & gas lease(s) covering the subject interest",
+    "No conveyancing instruments were available to build a chain of title."
+  ]
+}

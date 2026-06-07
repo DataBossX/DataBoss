@@ -1,0 +1,21 @@
+# Core (required)
+openpyxl>=3.1.5
+pandas>=2.0
+pydantic>=2.6
+python-dotenv>=1.0
+typer>=0.9
+tenacity>=8.2
+
+# Document text / OCR (optional but recommended)
+PyMuPDF>=1.23        # PDF text extraction + rasterization
+pytesseract>=0.3.13  # OCR (also requires the `tesseract` system binary)
+Pillow>=10.0
+
+# Optional: multi-AI tournament via LLM
+litellm>=1.40
+
+# Optional: county-records browser automation
+playwright>=1.40
+
+# Dev/test
+pytest>=8.0

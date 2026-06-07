@@ -1,0 +1,41 @@
+{
+  "workbook_path": "/home/user/DataBoss/title_report_factory/outputs/Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx",
+  "overall_confidence_score": 30,
+  "documents_reviewed_count": 1,
+  "documents_downloaded_count": 0,
+  "documents_ocr_count": 0,
+  "index_rows_created_count": 1,
+  "major_title_findings": [
+    "1 document(s) processed; 0 conveyance(s) placed in the chain of title.",
+    "0 document(s) carried a machine-readable legal description.",
+    "No production data found; held-by-production status is undetermined."
+  ],
+  "missing_documents": [
+    "Base patent / root of title for the subject lands",
+    "Current oil & gas lease(s) covering the subject interest",
+    "No conveyancing instruments were available to build a chain of title."
+  ],
+  "curative_issues": [
+    "[high] No conveyancing instruments were available to build a chain of title.",
+    "[medium] D0001 (Unknown): Legal description not machine-readable; subject match unconfirmed.",
+    "[medium] D0001 (Unknown): No instrument number or book/page -- cannot cross-reference index.",
+    "[medium] D0001 (Unknown): No parties extracted -- chain linkage uncertain.",
+    "[medium] D0001 (Unknown): No recording date -- priority/order uncertain."
+  ],
+  "tools_used": [
+    "chain_of_title_builder",
+    "document_classifier",
+    "excel_template_writer",
+    "file_inventory",
+    "index_builder",
+    "multi_ai_tournament_reviewer",
+    "ogl_analyzer",
+    "pymupdf",
+    "quality_control",
+    "well_data_collector"
+  ],
+  "errors_or_limitations": [
+    "OCR backend (tesseract) not installed; image-only PDFs cannot be read.",
+    "LLM tournament ran in deterministic heuristic-only mode (no API key set)."
+  ]
+}

@@ -1,0 +1,133 @@
+================================================================================
+SECTION 27 — FINAL QA SUMMARY
+================================================================================
+Final workbook : 11N 25W 27 Diversified Cursory Report FINAL.xlsx
+Backup of input: 11N 25W 27 Diversified Cursory Report 6-6-2026.BACKUP.xlsx
+Prepared       : 06/07/2026
+Subject        : Section 27, Township 11 North, Range 25 West, Beckham County, OK
+                 (640 acres, more or less)
+Prospect       : 26-005
+Client         : Diversified / Diversified Production, LLC
+Report type    : Leasehold CURSORY title report, limited to the Cherokee formation.
+                 NOT a title opinion. Cursory conclusions were preserved; no
+                 ownership, WI, NRI, royalty, HBP, or curative conclusions were
+                 invented.
+
+--------------------------------------------------------------------------------
+SHEETS EDITED
+--------------------------------------------------------------------------------
+1. Runsheet           - Corrected 3 truncated Book numbers (24 -> 2400,
+                        232 -> 2320, 248 -> 2480) on the 3 most-recent
+                        Diversified-related rows and added their 3 missing
+                        instrument numbers (2023-000796, 2019-004809,
+                        2026-001031). Verified against the 'diversified' tab and
+                        the rows' own notes (which already cited B2400/B2320/B2480).
+2. from kellpro       - Corrected the same 3 truncated Book numbers, fixed the
+                        matching hyperlink book codes (000024->002400, etc.), and
+                        added the 3 instrument numbers (source companion sheet).
+3. Full Chain Notes   - Corrected the same 3 Book/Page values + hyperlink book
+                        codes and added the 3 instrument numbers.
+4. Title              - Added cursory/verify annotations only:
+                        * Tract 1 comment pointing to OGL/LH/needed and flagging
+                          per-owner net acres/royalty/expiration/HBP as unverified.
+                        * An APPARENT-only working-interest entry for Diversified
+                          Production, LLC, with an explicit "apparent/unverified"
+                          caveat tied to the chain tabs.
+                        * A cursory limitation note in the Notes section.
+                        Owner tables were intentionally LEFT UNPOPULATED because
+                        per-owner mineral net acres/royalty/HBP are not supported
+                        by the provided files (filling them would be invention).
+5. Overview           - Added a client/scope remark under REMARKS.
+6. Change Log         - Appended all 29 changed cells (Sheet, Cell, Old, New,
+                        Source, Confidence, Reason).
+7. QA Summary         - New tab (in-workbook copy of this summary).
+8. Remaining Missing  - New tab: concise rollup of outstanding items by priority
+   Items                ('needed' tab retains the full N-001..N-064 detail).
+
+All 29 changed cells are highlighted yellow. Every appended Change Log row is
+also highlighted.
+
+--------------------------------------------------------------------------------
+WHAT WAS COMPLETED / CONFIRMED
+--------------------------------------------------------------------------------
+- OGL tab: 64 Section 27 base oil & gas lease index entries are captured with
+  grantor/grantee, instrument, book/page, dates, source file, and cursory
+  caveats. Leases 1-25 carry first-page terms (term/royalty/depth); leases 26-64
+  are flagged "Needs full lease abstraction." Left as-is (already supported).
+- Diversified chain cross-checked across diversified, diversifiedint, DP Legacy,
+  chainfourpoint, chainlegacy, inst, and LH. Two apparent tracks are documented:
+    A) Nadel & Gussman / EnerVest -> FourPoint -> Maverick/Unbridled -> Diversified
+    B) Chesapeake -> Tapstone / KL CHK SPV -> Diversified Production / DP Legacy /
+       DP Sooner Holdco; ConocoPhillips/Burlington/Louisiana Land -> DP Legacy Central
+  Potential exclusions to Anadarko Basin Holdings and Teocalli are flagged.
+- OGL/runsheet/chain rows carry a source reference, source URL/hyperlink,
+  book/page, instrument number, or an explicit "source needed / verify" note.
+- No spreadsheet formula error tokens (REF/VALUE/NAME/DIV-0/NA) are present.
+- No duplicate records were deleted: the recent Diversified rows that repeat
+  across Runsheet / from kellpro / Full Chain Notes are intentional companion
+  views of the same instruments, not true duplicates, so they were corrected in
+  place rather than removed.
+- All 24 expected key sheets retained; no sheet was wiped (verified by row/col
+  comparison against the backup).
+
+--------------------------------------------------------------------------------
+SOURCE GAPS REMAINING  (full detail on the 'needed' tab)
+--------------------------------------------------------------------------------
+- P1: All 64 base OGL recorded lease IMAGES must be pulled and abstracted to
+  confirm primary term, royalty, depth/Pugh, option/extension, warranty, top
+  lease, expiration, and HBP effect.
+- P1: FourPoint/EnerVest/Chesapeake/Tapstone/KL CHK and DP Legacy/ConocoPhillips
+  assignment images + lease schedules must be reviewed to confirm Section 27 /
+  Cherokee inclusion, depths, net acres, burdens, and exclusions.
+- P1: Release (1995-002127), Affidavit of Pooling (2000-000146), and Partial
+  Release (1719/0304) must be matched to OCC orders and production to confirm or
+  deny HBP. HBP is NOT assumed anywhere in this report.
+- P1: DP Legacy -> Anadarko Basin Holdings (2023-003027, 2023-003028) and
+  DP Legacy/Diversified -> Teocalli (2024-002930) require image review to confirm
+  whether Section 27 / target depths were conveyed out of Diversified.
+- P2: Well 1 tab is a header template only; OCC/RBDMS well, completion,
+  production, spacing, and HBP data are still required.
+- P2: Title owner tables (mineral net acres / royalty / expiration / HBP) require
+  a full mineral run + lease abstraction before they can be populated.
+
+--------------------------------------------------------------------------------
+ASSUMPTIONS MADE
+--------------------------------------------------------------------------------
+- Book values 24 / 232 / 248 were treated as truncations of 2400 / 2320 / 2480.
+  Basis: the same three instruments appear with the full book numbers on the
+  'diversified' tab and the rows' own note text already cited 2400/2320/2480.
+  Page numbers were already correct and were not changed.
+- Diversified Production, LLC is shown on the Title tab ONLY as the apparent
+  working-interest successor (the report's purpose), expressly caveated as
+  unverified. No net acres, royalty, NRI, WI %, or HBP were asserted.
+- Stale 27-15N-24W references in the project notes were treated as
+  template/format references only and ignored; final scope is 27-11N-25W.
+- Private credentials in project_notes_updated (API key, site logins) were NOT
+  copied into the workbook or this summary.
+
+--------------------------------------------------------------------------------
+ITEMS REQUIRING HUMAN / DOCUMENT VERIFICATION
+--------------------------------------------------------------------------------
+All lease terms, royalty, expirations, HBP/production status, net acres, mineral
+ownership, working-interest %, NRI, depth/Pugh clauses, warranty, options, top
+leases, the Diversified leasehold chain (both tracks), and all potential
+exclusions/divestitures. This cursory must not be relied upon as a title opinion,
+or for drilling, acquisition close, division order, or pay-status decisions.
+
+--------------------------------------------------------------------------------
+TECHNICAL NOTES
+--------------------------------------------------------------------------------
+- Editing was done with openpyxl to preserve formatting, formulas, merged cells,
+  column widths, fonts, and workbook structure. pandas was NOT used.
+- LibreOffice headless recalculation was attempted but soffice could not load any
+  xlsx in this environment (it failed on the original file as well), so it was
+  skipped. No SUM/SUBTOTAL ranges were altered; the only formulas added are
+  HYPERLINK fixes, so Excel will recalculate normally on open.
+
+VALIDATION RESULTS
+- Final .xlsx opens successfully (30 sheets).                         PASS
+- All expected key sheets present.                                    PASS
+- Formula error scan (REF/VALUE/NAME/DIV-0/NA): 0 cells.              PASS
+- No sheet wiped (row/col integrity vs backup).                       PASS
+- Final file saved in working directory.                              PASS
+================================================================================

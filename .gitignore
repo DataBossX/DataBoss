@@ -67,4 +67,4 @@ __pycache__/
 *.dylib
 
 # Android SDK
-android-sdk/
+android-sdk/section27_work/__pycache__/

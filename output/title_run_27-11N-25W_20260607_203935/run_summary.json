@@ -1,0 +1,41 @@
+{
+  "final_workbook_path": "output/title_run_27-11N-25W_20260607_203935/Diversified_Section_27_11N_25W_Beckham_County_OK_Cursory_Title_Report.xlsx",
+  "overall_confidence_score": "0",
+  "documents_found": 0,
+  "documents_ocr_processed": 0,
+  "index_rows_created": 0,
+  "runsheet_rows_created": 0,
+  "ogl_rows_created": 0,
+  "well_data_rows_created": 0,
+  "qc": [
+    {
+      "pass": "Source Completeness Check",
+      "result": "FAIL (no inputs)",
+      "detail": "0 source files inventoried. Nothing to process; all data sheets are empty skeletons by design."
+    },
+    {
+      "pass": "OCR and Extraction Check",
+      "result": "N/A",
+      "detail": "No scanned PDFs or images present to OCR."
+    },
+    {
+      "pass": "Title Logic Check",
+      "result": "FAIL (no chain)",
+      "detail": "No instruments; chain gaps cannot even be evaluated. Target-owner interest is UNVERIFIED."
+    },
+    {
+      "pass": "Excel Final Check",
+      "result": "PASS",
+      "detail": "10 sheets present; missing=none; empty=none."
+    },
+    {
+      "pass": "Excel Final Check",
+      "result": "PASS",
+      "detail": "10 sheets present; missing=none; empty=none."
+    }
+  ],
+  "limitations": [
+    "Record collection: disabled (pass --collect-records to enable)",
+    "No source files found in './sources'. The workbook is an honest empty skeleton; provide inputs and re-run."
+  ]
+}

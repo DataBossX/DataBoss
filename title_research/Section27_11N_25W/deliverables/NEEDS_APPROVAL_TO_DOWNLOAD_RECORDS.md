@@ -1,6 +1,6 @@
 # NEEDS APPROVAL TO DOWNLOAD RECORDS — Section 27-11N-25W, Beckham Co., OK
 
-**Status: BLOCKED before any paid download.** No paid records were retrieved.
+**Status (updated 2026-06-08): Key + `APPROVE_OKCR_DOWNLOADS=true` RECEIVED, but downloads are BLOCKED by the environment network allowlist** (okcountyrecords.com returns HTTP 403 from the sandbox egress proxy; pypi/github reachable). No paid records were retrieved. Run `scripts/okcr_pull.py` where the host is reachable to execute the pulls below.
 
 ## Why this file exists
 The research that would *close* the high-priority title gaps requires pulling imaged instruments from **OKCountyRecords.com (paid)**. In this execution environment:

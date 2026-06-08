@@ -1,0 +1,82 @@
+ledger_page,instr_seq,grantor,grantee,kind,acres_qtrs,book_page,date,remarks,confidence,workbook_crosscheck
+0,-,United States / early patentees,various,Patent/early deeds,Sec 27,159;157;3/62;160-4-136;80-6-184,1900s,oldest chain; sparse,L,
+1,-,"Bankhead, Coffey, Brower, Martin, Nelson, Davis, Jefferson et al.",various,WD/Mtg/Rel (old chain),Sec 27 qtrs,120/1/39;120/6/24;120/2/422;160/8/523;160/4/260,1900s-1940s,grantor index Page 1; surface/mineral chain,L,
+2,-,"Davis, Brower, Martin, Murray, Coffey, Burris, Bankhead et al.",various,Mtg/Rel/WD (old chain),Sec 27 qtrs,"(various, handwritten)",1900s-1950s,grantor index Page 2,L,
+12,-,"Mandrell Farms, Inc.","T. S. Dudley Land Co., Inc.",OL,SW/4,1387/232,1994,Mandrell Farms base lease (Tract 4),H,WB Tract4 1387/232
+12,-,"T. S. Dudley Land Co., Inc.",Apache Corporation,Assign,SW/4,1401/173,1995,leasehold assignment,M,
+12,-,Apache Corporation,"Mandrell Farms, Inc.",Release,SW/4,1410/54 (ref 1397-232),4-19-95,release,M,
+12,-,Bennett Family Trust,"Arrowhead Resources, Inc.",OL,SE/4,1419/238,5-23-95,3yr,M,
+12,-,Darcy Coale Agency,"Arrowhead Resources, Inc.",OL,SE/4,1419/241,5-23-95,3yr,M,
+12,-,Laura D. Bennett Trust,"Arrowhead Resources, Inc.",OL,SE/4,1419/244,5-23-95,3yr,M,
+12,-,"Gordon, Donald E.","French Energy, Inc.",OL,NE/4,1432/20,8-14-95,French Energy top-lease block,H,WB 1432/20
+12,-,"Davis, Chloe E. Rev. Living Trust","French Energy, Inc.",OL,NE/4,1432/24,8-14-95,,H,WB 1432/24
+12,-,"Fuchs, Howard G. Trust","French Energy, Inc.",OL,SE/4,1432/28,8-14-95,,H,WB 1432/28
+12,-,"Fuchs, Alfred R. & F. Jeanice","French Energy, Inc.",OL,SE/4,1432/32,8-14-95,,H,WB 1432/32
+12,-,"Mead, Boyd M.","French Energy, Inc.",OL,SE/4,1432/36,8-14-95,,H,WB 1432/36
+12,-,"Benton, Marshall E. & Nell","French Energy, Inc.",OL,NW/4,1432/40,8-14-95,,H,WB 1432/40
+12,-,"Benton, Gary Kent","French Energy, Inc.",OL,NW/4,1432/44,8-14-95,,H,WB 1432/44
+12,-,"Sites, Betty","French Energy, Inc.",OL,NW/4,1432/48,8-14-95,,H,WB 1432/48
+13,4031,"Christopher, Radonna Kay","French Energy, Inc.",OL,NW/4,1432/52,8-15-95,,H,WB 1432/52
+13,4032,"Sites, Michael Ray","French Energy, Inc.",OL,NW/4,1432/56,8-15-95,,H,WB 1432/56
+13,4033,"Harbour, Melody Denise","French Energy, Inc.",OL,NW/4,1432/60,8-15-95,,H,WB 1432/60
+13,4034,"Edwards, Robert A.","French Energy, Inc.",OL,NW/4,1432/64,8-15-95,,H,WB 1432/64
+13,4035,"Benton, Steven Ernest","French Energy, Inc.",OL,NW/4,1432/68,8-15-95,,H,WB 1432/68
+13,4413,"Fuchs, Calvin W. Rev. Trust","French Energy, Inc.",OL,SE/4,1433/213,8-22-95,,H,WB 1433/213
+13,4394,"Edwards, Larry D.","French Energy, Inc.",OL,NW/4,1435/159,9-5-95,3yr,H,WB 1435/159
+13,1065,"French Energy, Inc.","Sanguine, Ltd.",Assign (AOGL),Sec 27,1504/11,2-10-97,assigns French Energy 1432/1433/1435 block,H,WB 1504/11
+13,1267,"Sanguine, Ltd.",(undiv. partial),Assign (AOGL),Sec 27 less 1ac,1505/31,2-14-97,5.60425% partial AOGL,H,WB 1505/31
+13,8467,Letco Exploration,Exxon Corporation,Assign,E/2,1533/362,9-15-97,,M,
+13,5858,"Davis, Chloe E. Trust","Arrowhead Resources, Inc.",OL,NE/4,1574/272,9-2-98,2yr,H,WB 1574/272
+13,5859,"Fuchs, Howard G. Trust","Arrowhead Resources, Inc.",OL,SE/4,1574/276,9-2-98,2yr,H,WB 1574/276
+13,5860,"Fuchs, Calvin W. Trust","Arrowhead Resources, Inc.",OL,SE/4,1574/280,9-2-98,2yr,H,WB 1574/280
+13,5861,"Fuchs, Alfred R. & F. Jeanice","Arrowhead Resources, Inc.",OL,SE/4,1574/284,9-2-98,2yr,H,WB 1574/284
+13,6273,"Arrowhead Resources, Inc.","Lortz, R. Michael",Assign (AOGL),E/2,1576/302,9-21-98,assigns 1574/272-284,H,WB 1576/302
+13,6416,"Lortz, R. Michael",St. Mary Land & Exploration Co.,Assign (AOGL),E/2,1577/102,9-28-98,,H,WB 1577/102
+13,7078,"Edwards, Larry D.","French Energy, Inc.",OL,NW/4,1580/79,10-26-98,3yr,H,WB 1580/79
+13,7079,"Edwards, Robert A.","French Energy, Inc.",OL,NW/4,1580/83,10-26-98,3yr,H,WB 1580/83
+13,7080,"Harbour, Melody D.","French Energy, Inc.",OL,NW/4,1580/87,10-26-98,,H,WB 1580/87
+13,7081,"Benton, Steven E.","French Energy, Inc.",OL,NW/4,1580/91,10-26-98,,H,WB 1580/91
+13,7082,"Christopher, Radonna","French Energy, Inc.",OL,NW/4,1580/95,10-26-98,,H,WB 1580/95
+13,7083,"Benton, Gary Kent","French Energy, Inc.",OL,NW/4,1580/99,10-26-98,,H,WB 1580/99
+13,7084,"Benton, Marshall E.","French Energy, Inc.",OL,NW/4,1580/103,10-26-98,,H,WB 1580/103
+13,7085,"Sites, Michael Ray","French Energy, Inc.",OL,NW/4,1580/107,10-26-98,,H,WB 1580/107
+13,7086,"Gordon, Donald E.","French Energy, Inc.",OL,NE/4,1580/111,10-26-98,,H,WB 1580/111
+13,7087,"Sites, Betty","French Energy, Inc.",OL,NW/4,1580/115,10-26-98,,H,WB 1580/115
+13,8577,"Mead, Boyd","Sanguine, Ltd.",OL,SE/4,1587/129,12-29-98,2yr,H,WB 1587/129
+13,193,Buffalo Missionary Baptist Church,"Todco Properties, Inc.",OL,1ac SW/4,1588/245,1-13-99,2yr church tract,H,WB 1588/245
+13,823,"Coale, Darcy Ann","Todco Properties, Inc.",OL,SE/4,1592/42,2-12-99,1yr,H,WB 1592/42
+13,824,Bennett Family Trust,"Todco Properties, Inc.",OL,SE/4,1592/47,2-12-99,1yr,H,WB 1592/47
+13,825,"Bennett, Laura Owens Trust","Todco Properties, Inc.",OL,SE/4,1592/52,2-13-99,1yr,H,WB 1592/52
+14,945,"Mandrell Farms, Inc.","Sanguine, Ltd.",OL,SW/4,1592/347,2-18-99,Tract 4 Sanguine lease,H,WB 1592/347
+14,946,"Allen, Angela K.","Sanguine, Ltd.",OL,NW/4,1592/350,2-18-99,Morrow-limited (per WB),H,WB 1592/350
+14,-,St. Mary Land & Exploration Co.,"Sanguine, Ltd.",Assign (AOGL),E/2,1595/81,3-12-99,,H,WB 1595/81
+14,-,"Todco Properties, Inc.",Kaiser-Francis Oil Co.,Assign (AOGL),SE/4,1595/300,3-15-99,,H,WB 1595/300
+14,-,"French Energy, Inc.","Sanguine, Ltd.",Assign (AOGL),Sec 27,1597/427,4-5-99,,H,WB 1597/427
+14,-,"Todco Properties, Inc.",Kaiser-Francis Oil Co.,Assign (AOGL),SE/4,1599/227,4-15-99,,H,WB 1599/227
+14,-,"Colt Development, LLC","Colt Development, LLC",OL,NW/4,1605/598 (idx ~591),6-25-99,minor book/pg read variance 591/598,M,WB 1605/598
+14,-,Pine 1990 Irrev. Trusts (Clyde & Sharon),"Colt Development, LLC",OL,NW/4,1608/63,7-16-99,,H,WB 1608/63
+14,-,"Sanguine, Ltd.",Hauschild/Hal French/Johnson Props,ORRI Assign,Sec 27,1626/104,1-10-2000,ORRI burden 1%+1.625%+0.375%,H,WB 1626/104
+14,-,"Colt Development, LLC","Sanguine, Ltd.",Assign (AOGL),NW/4,1634/250,3-8-00,,H,WB 1634/250
+14,-,Pine 1990 Irrev. Trusts,"Sanguine, Ltd.",Assign (AOGL),NW/4,1634/253,3-8-00,,H,WB 1634/253
+14,-,Kaiser-Francis Oil Co.,GBK Corporation,ORRI Assign,SE/4,1636/188,3-24-00,GBK 3% ORRI burden,H,WB 1636/188
+14,-,"Sanguine, Ltd.",Vastar/Enogex/Palace/Sanguine,Assign (AOGL),Sec 27,1638/150,4-7-00,Vastar 50/Enogex 12.5/Palace 17.5/Sanguine 20,H,WB 1638/150
+14,-,"Sanguine, Ltd.",Don H. Nelson et al. group,Assign (AOGL),Sec 27,1641/324,4-27-00,multi-party WI split,H,WB 1641/324
+15,10162,"Davis, Chloe E. Trust","Sanguine, Ltd.",OL,NE/4,1672/130,11-27-00,controlling depth-limited block,H,WB 1672/130
+15,10163,"Fuchs, Calvin W. Trust","Sanguine, Ltd.",OL,SE/4,1672/134,11-27-00,,H,WB 1672/134
+15,10164,"Fuchs, Howard G. Trust","Sanguine, Ltd.",OL,SE/4,1672/137,11-27-00,,H,WB 1672/137
+15,10165,"Fuchs, Alfred R. & F. Jeanice","Sanguine, Ltd.",OL,SE/4,1672/141,11-27-00,,H,WB 1672/141
+15,2245,Bennett Family Trust,"Todco Properties, Inc.",OL,SE/4,1687/160,3-29-01,1yr,H,WB 1687/160
+15,2246,"Coale, Darcy Ann","Todco Properties, Inc.",OL,SE/4,1687/165,3-29-01,1yr,H,WB 1687/165
+15,2247,"Bennett, Laura Owens Trust","Todco Properties, Inc.",OL,SE/4,1687/170,3-29-01,1yr,H,WB 1687/170
+15,8513,"Christopher, Radonna Kay","Sanguine, Ltd.",OL,NW/4,1717/456,11-29-01,controlling Sanguine HBP block,H,WB 1717/456
+15,8514,"Edwards, Larry D. (Trust)","Sanguine, Ltd.",OL,NW/4,1717/460,11-29-01,,H,WB 1717/460
+15,8515,"Edwards, Robert A.","Sanguine, Ltd.",OL,NW/4,1717/464,11-29-01,,H,WB 1717/464
+15,8516,"Harbour, Melody Denise","Sanguine, Ltd.",OL,NW/4,1717/469,11-29-01,,H,WB 1717/469
+15,8517,"Benton, Marshall E. & Nell","Sanguine, Ltd.",OL,NW/4,1717/473,11-29-01,,H,WB 1717/473
+15,8518,"Sites, Betty","Sanguine, Ltd.",OL,NW/4,1717/477,11-29-01,,H,WB 1717/477
+15,8619,"Benton, Steven Ernest","Sanguine, Ltd.",OL,NW/4,1717/481,11-29-01,,H,WB 1717/481
+15,8520,"Benton, Gary Kent","Sanguine, Ltd.",OL,NW/4,1717/485,11-29-01,,H,WB 1717/485
+15,8521,Fuchs Family Rev. Trust,"Sanguine, Ltd.",OL,SE/4,1717/489,11-29-01,,H,WB 1717/489
+16,-,"Sanguine, Ltd. / Vastar / Nelson group",various,Rel / Partial Release (depth),Sec 27,1719/304 (per WB 2001-008828),2001,"partial release below 17,960' strat equiv — depth-limit proof (low legibility on p17)",L,WB 1719/304
+19,-,Christopher / Fell / Hagerman / McAfee families,various,Mineral deeds (mqcd/gcd),Sec 27,(modern mineral conveyances),2000s-2020s,grantee/mineral chain; mineral NMA not derivable,L,
+26,-,"Fell, Morris B. Trust; Hagerman; Christopher, RaDonna",Fell/McAfee/Christopher Trust,Mineral QCD/GCD,Sec 27,(end of grantor index),recent,last index page (Page 26),L,

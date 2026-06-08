@@ -68,3 +68,11 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+# secrets & paid records (title research)
+.env
+*.key
+*.pem
+secrets*
+*api*key*
+title_research/**/records_raw/
+*.pdf

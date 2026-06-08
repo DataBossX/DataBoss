@@ -1,4 +1,4 @@
-import openpyxl, csv
+import openpyxl, csv, json, os
 from copy import copy
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -6,6 +6,23 @@ from openpyxl.utils import get_column_letter
 BASE="input/Section27_report_v2.xlsx"   # best structure
 SRC ="input/Section27_report_v1.xlsx"   # richest data
 OUT ="output/11N_25W_27_Beckham_Co_Diversified_Cursory_Report_FULLY_UPDATED.xlsx"
+os.makedirs("output", exist_ok=True)
+
+# ---- chain-verification gate (written by verify_chain.py after OCR) ----
+# Default: NOT verified -> NRI/WI confidence stays UNRESOLVED/ESTIMATE-ONLY.
+# Confidence is upgraded ONLY when OCR'd assignments actually confirm the chain.
+VERIF_PATH = "records_parsed/chain_verification.json"
+VERIF = {}
+if os.path.exists(VERIF_PATH):
+    try: VERIF = json.load(open(VERIF_PATH, encoding="utf-8"))
+    except Exception: VERIF = {}
+CHAIN_VERIFIED = bool(VERIF.get("chain_verified", False))
+VERIF_INSTR    = VERIF.get("instruments", {})   # {instrument: {"verified":bool,"book_page":..}}
+VERIF_DATE     = VERIF.get("verified_on", "")
+def _vsummary():
+    if not VERIF_INSTR: return "no OCR verification run yet"
+    ok=sum(1 for v in VERIF_INSTR.values() if v.get("verified"))
+    return f"{ok}/{len(VERIF_INSTR)} target instruments OCR-confirmed"
 
 wb  = openpyxl.load_workbook(BASE)
 wbs = openpyxl.load_workbook(SRC)
@@ -104,7 +121,12 @@ add_table("NRI Depth Matrix",
 # ================= NEW TAB: Gap List =================
 gaps=[
  [1,"High","Interest quantum","Exact Diversified WI/NRI not derivable from index; 0.70052083 is an apparent leased-coverage fraction (448.33/640), NOT a proven WI.","Division orders / run-of-title / lessor mineral fractions","Obtain DOs + run mineral title"],
- [2,"High","Chain verification","2017-2026 corporate assignment instruments (2266/194; 2307/894; 2308/123; 2340/218; 2451/4; 2480/824) are NOT in the provided county index and could not be independently verified (no OKCR API).","Imaged assignments from OKCountyRecords","Pull & OCR each assignment; confirm Sec-27 asset scope & quantum"],
+ [2,("Resolved" if CHAIN_VERIFIED else "High"),"Chain verification",
+   (f"2017-2026 corporate assignment instruments OCR-verified ({_vsummary()}) on {VERIF_DATE}; assignment chain into Diversified confirmed. WI quantum still requires DOs/ORRI netting (Gap #1/#7)."
+    if CHAIN_VERIFIED else
+    "2017-2026 corporate assignment instruments (2266/194; 2307/894; 2308/123; 2340/218; 2451/4; 2480/824) are NOT in the provided county index and could not be independently verified (no OKCR API)."),
+   "Imaged assignments from OKCountyRecords",
+   ("DONE - assignments pulled & OCR'd; see records_ocr/ & chain_verification.json" if CHAIN_VERIFIED else "Pull & OCR each assignment; confirm Sec-27 asset scope & quantum")],
  [3,"High","Track A vs Track B","WI carries Track A only; Title/merger recitals suggest convergence with Track B (Chesapeake/Tapstone/DP). Not silently resolved.","Recorded Track B assignments (2340/403; 2340/490; etc.) + 2451/4 merger reconciliation","Reconcile both tracks before booking"],
  [4,"High","Corporate succession","FourPoint->Unbridled->Maverick->Diversified relies on corporate/merger recitals + public filings, not a recorded Sec-27 conveyance chain.","Recorded asset schedules / merger exhibits for Sec 27","Obtain merger exhibits naming Sec 27"],
  [5,"High","Depth","Controlling depth = below ~17,960'/17,860' strat equiv (TD+100, Mandrell #2-27). Cherokee NOT supported by any provided record.","Imaged 2266/194 severance + 1719/304 partial release","Abstract full depth clauses"],
@@ -146,12 +168,20 @@ qa=[
  ["Residual ties to 191.666667 NMA","PASS","0.299479167 x 640 = 191.666667."],
  ["Formula error scan (REF / VALUE / DIV0 / NAME / NA)","PASS","No error literals found in any sheet (verified by qa script)."],
  ["OGL layer verified vs county index","PASS","All French Energy 1432/xx, Arrowhead 1574/xx, Todco 1592/1687/xx, Sanguine 1672/1717/xx OGLs matched the grantor index book/pages."],
- ["2017-2026 corporate assignments verified","FAIL / N/A","Not present in provided index and no OKCR API access; carried as cited and flagged in Gap List #2."],
+ ["2017-2026 corporate assignments verified",
+   ("PASS" if CHAIN_VERIFIED else "FAIL / N/A"),
+   (f"OCR-verified {VERIF_DATE}: {_vsummary()}. Assignment chain into Diversified confirmed against pulled images (records_ocr/)."
+    if CHAIN_VERIFIED else
+    "Key+approval supplied but okcountyrecords.com is blocked by the environment egress allowlist (HTTP 403); not downloadable here. Carried as cited; run the Windows runner where the host is reachable. Flagged Gap #2.")],
  ["NRI booked","INTENTIONALLY OMITTED","NRI shown UNRESOLVED/ESTIMATE-ONLY; ORRI stack unmetered, NMA unknown."],
  ["Per-lessor / per-tract NMA","OPEN","Shown 'Unknown' - not derivable from index (cursory)."],
  ["Every carried interest has a source/assumption note","PASS","WI rows, Assumptions, Source Index, and Instrument Index provide basis for each carried figure."],
  ["No API key / secret in outputs","PASS","No credentials present anywhere in workbook or supporting files."],
- ["Downloaded records indexed & OCR'd","PARTIAL","Provided index PDF rendered (27 pp) & read; no paid downloads performed (none authorized/available)."],
+ ["Downloaded records indexed & OCR'd",
+   ("PASS" if CHAIN_VERIFIED else "PARTIAL"),
+   (f"Provided index PDF rendered (27 pp) & read; Priority-1 assignments pulled from OKCountyRecords & OCR'd ({_vsummary()})."
+    if CHAIN_VERIFIED else
+    "Provided index PDF rendered (27 pp) & read; no paid downloads performed (egress to okcountyrecords.com blocked in build environment).")],
  ["High-impact gaps listed","PASS","12 items in Gap List (4 High, 5 Medium, 3 Low)."],
 ]
 add_table("QA Audit",
@@ -170,8 +200,21 @@ if "Change Log" in wb.sheetnames:
       "- Added NRI Depth Matrix (NRI UNRESOLVED/ESTIMATE-ONLY), Gap List (12 items), Assumptions, QA Audit tabs.",
       "- NOTE: 2017-2026 corporate assignment instruments NOT in provided index and NOT independently verifiable (no OKCountyRecords API in environment).",
       "- Diversified apparent WI unchanged at 0.700520833 (448.333333/640); residual 0.299479167 (191.666667/640); section ties to 640 ac / 1.000000 WI.",
+      "--- 2026-06-08 OKCR download attempt ---",
+      "- API key supplied and APPROVE_OKCR_DOWNLOADS=true set. Egress test: okcountyrecords.com returns HTTP 403 from the environment proxy (host not on the sandbox allowlist; pypi/github reachable, okcountyrecords/example.com blocked).",
+      "- No records downloadable in this environment. Runnable pull pipeline scripts/okcr_pull.py delivered for execution where the host is reachable (dry-run cost estimate then idempotent Priority-1 pulls).",
+      "- 2017-2026 corporate assignment chain remains carried-as-cited / unverified pending those pulls. No key/secret written to any output.",
     ]:
         cl.cell(r,1,line).font=Font(size=10); r+=1
+    if CHAIN_VERIFIED:
+        for line in [
+          f"--- {VERIF_DATE} OKCR pull + OCR completed (local run) ---",
+          f"- Priority-1 assignments pulled from OKCountyRecords and OCR'd: {_vsummary()}.",
+          "- Assignment chain into Diversified independently confirmed; Gap #2 and QA 'corporate assignments verified' upgraded to resolved/PASS.",
+          "- NRI/WI DECIMAL deliberately kept UNRESOLVED/ESTIMATE-ONLY: chain ownership is confirmed, but the WI decimal still depends on per-lessor NMA and the unmetered ORRI stack (Gap #1/#7/#8). Do not book NRI on chain verification alone.",
+          "- No API key/secret written to any output (verified).",
+        ]:
+            cl.cell(r,1,line).font=Font(size=10); r+=1
 
 # ---- order sheets & tab colors ----
 order=["Overview","Title ","PLAT","Runsheet","OGLs","WI",

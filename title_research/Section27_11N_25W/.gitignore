@@ -1,0 +1,9 @@
+.venv/
+.env
+records_raw/
+records_ocr/
+records_parsed/chain_verification.json
+records_parsed/download_estimate.json
+records_parsed/download_manifest_actual.csv
+__pycache__/
+*.pyc

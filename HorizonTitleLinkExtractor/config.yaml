@@ -1,0 +1,55 @@
+# =============================================================================
+# HorizonTitleLinkExtractor - configuration
+# =============================================================================
+# Edit these values to control how the tool behaves. The defaults are safe:
+# REVIEW ONLY mode - the original workbook is never overwritten and AI
+# corrections are written into NEW review columns only.
+# =============================================================================
+
+# ---- Google Drive source / destination ------------------------------------
+drive_folder_url: "https://drive.google.com/drive/folders/1cmfCYsFkUoBXgo5fanDTOZsprtFZrGhc"
+source_workbook_strategy: "latest_non_ai_review_title_report"
+source_workbook_name_override: null
+output_folder_strategy: "create_timestamped_ai_folder"
+output_folder_prefix: "_AI_Updated_Reports"
+
+# ---- Browser automation ----------------------------------------------------
+browser_headless: false
+auth_state_path: ".auth/county_state.json"
+
+# ---- Row range / limits ----------------------------------------------------
+start_row: null
+end_row: null
+max_rows: null
+test_mode_rows: 5
+max_pages_per_document: 3
+
+# ---- Saving / temp behaviour ----------------------------------------------
+save_documents: false
+save_screenshots: false
+debug_save_screenshots: false
+delete_temp_after_each_row: true
+
+# ---- AI models -------------------------------------------------------------
+openai_model: "gpt-5.2"
+gemini_model: "gemini-2.5-pro"
+claude_model: "claude-sonnet-4"
+
+# ---- Validation / consensus ------------------------------------------------
+always_validate: false
+validate_changed_rows: true
+validate_low_confidence_rows: true
+ai_confidence_auto_safe_threshold: 0.97
+ai_confidence_review_threshold: 0.85
+
+# ---- Timing / retries ------------------------------------------------------
+request_delay_seconds: 1.0
+max_retries_per_row: 3
+timeout_seconds: 45
+
+# ---- Resume / output behaviour --------------------------------------------
+resume_from_log: true
+force_reprocess: false
+apply_corrections: false
+write_review_columns: true
+highlight_changed_cells: true

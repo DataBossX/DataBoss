@@ -1,0 +1,31 @@
+# HorizonTitleLinkExtractor - Python dependencies (Python 3.11+)
+
+# Browser automation
+playwright==1.49.0
+
+# Excel reading/writing
+openpyxl==3.1.5
+
+# Config + env
+PyYAML==6.0.2
+python-dotenv==1.0.1
+
+# Schema validation
+pydantic==2.9.2
+
+# Retry logic
+tenacity==9.0.0
+
+# AI vision providers (all optional at runtime; only used if keys are present)
+openai==1.57.0
+google-generativeai==0.8.3
+anthropic==0.40.0
+
+# Google Drive API (Mode B). Optional - only needed if not using Drive Desktop.
+google-api-python-client==2.151.0
+google-auth==2.36.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+
+# Image handling for in-memory screenshots
+Pillow==11.0.0

@@ -1,0 +1,49 @@
+# =============================================================================
+# HorizonTitleLinkExtractor - .gitignore
+# NEVER commit secrets, auth state, temp data, or county document images.
+# =============================================================================
+
+# Secrets / credentials
+.env
+*.env
+!.env.example
+.auth/
+*county_state.json*
+*token*.json
+*client_secret*.json
+*credentials*.json
+*service_account*.json
+
+# Working data
+temp/
+debug/
+input/
+output/
+
+# Logs
+logs/
+*.log
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Playwright
+playwright-report/
+.playwright/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep empty working dirs in the repo (the folders, not their contents)
+!input/.gitkeep
+!output/.gitkeep
+!logs/.gitkeep
+!temp/.gitkeep
+!debug/.gitkeep
+!.auth/.gitkeep

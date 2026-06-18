@@ -1,0 +1,44 @@
+name: Horizon Title Extractor
+
+# Focused CI for the HorizonTitleLinkExtractor subproject. Runs only when that
+# folder changes. Installs just the dependencies its tests need (no heavy vision
+# SDKs - those are imported lazily and not exercised by the offline test suite).
+
+on:
+  push:
+    paths:
+      - "DataBossX_Final_Modular/HorizonTitleLinkExtractor/**"
+  pull_request:
+    paths:
+      - "DataBossX_Final_Modular/HorizonTitleLinkExtractor/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: DataBossX_Final_Modular/HorizonTitleLinkExtractor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest \
+            openpyxl PyYAML pydantic tenacity python-dotenv rapidfuzz Pillow playwright
+
+      - name: Lint (syntax errors / undefined names)
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run tests
+        run: |
+          pytest tests/ -q

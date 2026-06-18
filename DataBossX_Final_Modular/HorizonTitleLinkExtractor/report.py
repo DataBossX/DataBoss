@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import html
 import os
+import urllib.parse
 from typing import Any
 
 _COLOR_BG = {"green": "#C6EFCE", "yellow": "#FFEB9C", "red": "#FFC7CE",
@@ -57,11 +58,26 @@ def _card(n: Any, label: str, color: str = "") -> str:
             f'<div class="l">{html.escape(label)}</div></div>')
 
 
+def _safe_link_html(link: str) -> str:
+    """Render a document link as a clickable anchor ONLY when it is a web URL.
+
+    Document links come from the (potentially untrusted) source workbook. Any
+    non-http(s) scheme - e.g. javascript: or data: - is rendered as inert,
+    escaped text so it cannot execute when the report is opened in a browser.
+    """
+    if not link:
+        return '<span class="muted">-</span>'
+    scheme = urllib.parse.urlparse(link).scheme.lower()
+    if scheme in ("http", "https"):
+        return (f'<a href="{html.escape(link, quote=True)}" target="_blank" '
+                f'rel="noopener noreferrer">open</a>')
+    return (f'<span class="muted" title="non-web link suppressed for safety">'
+            f'{html.escape(link)}</span>')
+
+
 def _row_html(r: dict[str, Any]) -> str:
     bg = _COLOR_BG.get(r.get("color", ""), "#fff")
-    link = r.get("link") or ""
-    link_html = (f'<a href="{html.escape(link)}" target="_blank">open</a>'
-                 if link else '<span class="muted">-</span>')
+    link_html = _safe_link_html(r.get("link") or "")
     conf = r.get("confidence")
     conf_html = f"{conf:.2f}" if isinstance(conf, (int, float)) else ""
     changed = ", ".join(r.get("changed_fields", []) or []) or \

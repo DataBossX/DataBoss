@@ -52,6 +52,18 @@ def _timestamp_folder(prefix: str) -> str:
     return f"{prefix}_{now.strftime('%Y-%m-%d_%H%M')}"
 
 
+def _safe_basename(name: str) -> str:
+    """Reduce a (possibly attacker-controlled) Drive file name to a bare, safe
+    filename. Drive names can contain '/' and '..'; without this a name like
+    '../../x.xlsx' would let a download escape the intended directory."""
+    raw = str(name).replace("\\", "/").strip()
+    base = os.path.basename(raw)
+    # Reject anything that carried a directory component or traversal marker.
+    if not base or base in (".", "..") or base != raw:
+        raise ValueError(f"Unsafe workbook filename: {name!r}")
+    return base
+
+
 def _score(name: str) -> tuple[int, int]:
     low = name.lower()
     excluded = any(tok in low for tok in _EXCLUDE_TOKENS)
@@ -155,7 +167,7 @@ class LocalDriveSync(DriveSync):
                 f"No candidate .xlsx workbook found in {self.local_path}")
         print(f"[Drive] Selected source workbook: {src.name}")
         os.makedirs(dest_dir, exist_ok=True)
-        dest = os.path.join(dest_dir, src.name)
+        dest = os.path.join(dest_dir, _safe_basename(src.name))
         shutil.copy2(src.path_or_id, dest)  # copy; never modify original
         return dest
 
@@ -275,7 +287,7 @@ class ApiDriveSync(DriveSync):
             raise FileNotFoundError("No candidate workbook found in Drive folder.")
         print(f"[Drive] Selected source workbook: {src.name}")
         os.makedirs(dest_dir, exist_ok=True)
-        dest = os.path.join(dest_dir, src.name)
+        dest = os.path.join(dest_dir, _safe_basename(src.name))
         request = self._svc().files().get_media(fileId=src.path_or_id)
         with open(dest, "wb") as fh:
             downloader = MediaIoBaseDownload(fh, request)
@@ -345,7 +357,7 @@ class NullDriveSync(DriveSync):
         if os.path.dirname(src.path_or_id) == os.path.abspath(dest_dir):
             return src.path_or_id
         os.makedirs(dest_dir, exist_ok=True)
-        dest = os.path.join(dest_dir, src.name)
+        dest = os.path.join(dest_dir, _safe_basename(src.name))
         if os.path.abspath(src.path_or_id) != os.path.abspath(dest):
             shutil.copy2(src.path_or_id, dest)
         return dest

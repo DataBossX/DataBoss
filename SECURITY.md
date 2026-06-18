@@ -23,6 +23,8 @@ Please allow reasonable time for a fix before any public disclosure.
   3. Run `python scripts/security_scan.py`.
 - Run the secret/hygiene scan regularly: `python scripts/security_scan.py`
   (or `SECURITY_SCAN.bat`). Optionally install `pip-audit` for dependency CVEs.
+- Enable the commit-time guards: `pip install pre-commit && pre-commit install`.
+  These block private keys, large blobs, and run the hygiene scan before commits.
 - The DOTO encryption key (`master.key`, `.doto_commander/`) and any `*.key` /
   `*.pem` files are gitignored — never share or commit them.
 

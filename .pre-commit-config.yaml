@@ -1,0 +1,33 @@
+# Pre-commit hooks for DataBossX. Install with:
+#   pip install pre-commit && pre-commit install
+# Run on all files once with:
+#   pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key            # blocks committing private keys
+      - id: check-added-large-files       # blocks large/binary blobs
+        args: ["--maxkb=2048"]
+      - id: check-json
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args: ["--select=E9,F63,F7,F82"]   # syntax-error gate (matches CI)
+
+  - repo: local
+    hooks:
+      - id: databossx-secret-scan
+        name: DataBossX secret/hygiene scan
+        entry: python scripts/security_scan.py
+        language: system
+        pass_filenames: false
+        always_run: true

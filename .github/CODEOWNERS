@@ -1,0 +1,27 @@
+# Code owners — GitHub requests review from these owners on matching changes.
+# Replace @OWNER with the repository owner's GitHub username or a team
+# (e.g. @DataBossX/maintainers) so the rules below take effect.
+
+# Default owner for everything.
+* @OWNER
+
+# Security-sensitive areas should always get owner review.
+/.github/        @OWNER
+/.github/workflows/  @OWNER
+/.github/dependabot.yml  @OWNER
+/SECURITY.md     @OWNER
+/.pre-commit-config.yaml  @OWNER
+
+# Dependency manifests.
+/requirements.txt        @OWNER
+/requirements-dev.txt    @OWNER
+/backend/requirements.txt @OWNER
+/doto_image_commander/requirements.txt @OWNER
+/frontend/package.json   @OWNER
+/mineral_deal_room/package.json @OWNER
+
+# Backend security/config surface.
+/backend/config.py        @OWNER
+/backend/logging_utils.py @OWNER
+/backend/server.py        @OWNER
+/doto_image_commander/core/security.py @OWNER

@@ -1,0 +1,27 @@
+# Large / generated / vendored directories Cursor should not index for search.
+# (Indexing-only ignore; these may still be opened explicitly.)
+node_modules/
+.venv/
+venv/
+__pycache__/
+build/
+dist/
+.next/
+out/
+coverage/
+.cache/
+.pytest_cache/
+.mypy_cache/
+*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+backups/
+*.zip
+*.tar.gz
+doto_image_commander/downloads/
+doto_image_commander/images/
+yarn.lock
+**/yarn.lock
+package-lock.json

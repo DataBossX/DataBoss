@@ -1,0 +1,53 @@
+# Files Cursor must NOT read, index, or send to the model.
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.key
+*.pem
+*.crt
+master.key
+.doto_commander/
+*token.json*
+*credentials.json*
+secrets.json
+**/secrets/
+
+# Local databases & data
+*.db
+*.sqlite
+*.sqlite3
+dump.rdb
+
+# Logs
+logs/
+*.log
+audit.log
+
+# Dependencies / build / caches
+node_modules/
+.venv/
+venv/
+__pycache__/
+build/
+dist/
+.next/
+out/
+coverage/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime downloads / generated artifacts
+doto_image_commander/downloads/
+doto_image_commander/images/
+
+# Backups / archives
+backups/
+*.zip
+*.tar.gz
+*.tar

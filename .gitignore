@@ -1,70 +1,110 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 .idea/
 dist
-# dependencies
+.vscode
+
+# ===================
+# DEPENDENCIES
+# ===================
 node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
-.vscode
-# testing
-/coverage
-dump.rdb
-chainlit.md
-.chainlit
-# next.js
-/.next/
-/out/
-.ipynb_checkpoints/
-# production
-/build
+venv/
+.venv/
+**/.venv/
+__pycache__/
+*.egg-info/
+.eggs/
 
-# misc
-.DS_Store
+# ===================
+# SECRETS / ENV  (NEVER COMMIT REAL SECRETS)
+# ===================
+.env
+.env.*
+!.env.example
+*/.env
+*/.env.*
+!*/.env.example
+*.key
 *.pem
+*.crt
+*token.json*
+*credentials.json*
+secrets.json
+**/secrets/
+**/private/
+.doto_commander/
+master.key
 
-# debug
+# ===================
+# LOCAL DATABASES / DATA
+# ===================
+*.db
+*.sqlite
+*.sqlite3
+dump.rdb
+data/json_traces/
+data/exports/
+
+# ===================
+# LOGS
+# ===================
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-# .env*.local
-*token.json*
-# vercel
-.vercel
-
-# typescript
+# ===================
+# BUILD OUTPUT / CACHES
+# ===================
+/build
+**/build/
+/out/
+/.next/
+/coverage
+.cache/
+*.pack
 *.tsbuildinfo
 next-env.d.ts
-*pyc*
-#*.env
-.ac
-agenthub/agents/youtube/db
-*credentials.json*
-
-venv/
-.venv/
-__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # ===================
-# ADDITIONAL RULES TO PREVENT FILE SIZE VIOLATIONS
+# RUNTIME / DOWNLOADS (doto_image_commander)
 # ===================
-# Archive files (anywhere in the project)
+doto_image_commander/downloads/
+doto_image_commander/images/
+doto_image_commander/reports/*.xlsx
+audit.log
+
+# ===================
+# PYTHON ARTIFACTS
+# ===================
+*.pyc
+*.pyo
+*.pyd
+
+# ===================
+# BACKUPS / ARCHIVES
+# ===================
+backups/
 **/*.zip
 **/*.tar.gz
 **/*.tar
 **/*.tgz
 
-# Build caches and artifacts
-.cache/
-*.pack
-
-# System packages
+# ===================
+# MISC / OS
+# ===================
+.DS_Store
+chainlit.md
+.chainlit
+.vercel
+.ac
 *.deb
-
-# Python native libraries
 *.dylib
-
-# Android SDK
 android-sdk/

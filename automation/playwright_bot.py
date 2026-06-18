@@ -5,12 +5,16 @@ from playwright.sync_api import sync_playwright
 from automation.parsing import extractor_llm
 from automation.status_logic import decide_status_rule_based
 from automation.writer import update_workbook
+from automation.config import load_config
 
-BASE = "https://weldrecorder.weldgov.com/web/"
-WORKBOOK = "Black_Tip_Notice_List_verified_updated_20251028_v7.xlsx"
-SHEET_DSU = "DSU NOTICE LIST"
-SHEET_OFFSET = "OFFSET NOTICE LIST"
-DELAY = 3.5
+# Configuration is sourced from config/settings.toml (with safe defaults).
+_CFG = load_config()
+BASE = _CFG.base_url
+WORKBOOK = _CFG.workbook
+SHEET_DSU = _CFG.sheet_dsu
+SHEET_OFFSET = _CFG.sheet_offset
+DELAY = _CFG.delay_sec
+JSON_OUT = _CFG.json_out
 
 def load_owners():
     dsu = pd.read_excel(WORKBOOK, sheet_name=SHEET_DSU)
@@ -84,7 +88,7 @@ def update_owner(owner:str, decision:dict, last_doc:dict):
 
 def main():
     owners = load_owners()
-    pathlib.Path("data/json_traces").mkdir(parents=True, exist_ok=True)
+    pathlib.Path(JSON_OUT).mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # Visible so you can click CAPTCHA
         page = browser.new_page()
@@ -102,13 +106,13 @@ def main():
                 last_doc = sorted(docs, key=lambda d: (d.get("recording_date") or "0000-00-00"))[-1]
                 update_owner(owner, decision, last_doc)
                 safe_name = owner.replace('/', '_')
-                with open(f"data/json_traces/{safe_name}.json", "w") as fh:
+                with open(f"{JSON_OUT}/{safe_name}.json", "w") as fh:
                     json.dump({"owner": owner, "docs": docs, "decision": decision},
                               fh, ensure_ascii=False, indent=2)
                 time.sleep(DELAY)
             except Exception as e:
                 safe_name = owner.replace('/', '_')
-                with open(f"data/json_traces/{safe_name}_ERR.json", "w") as fh:
+                with open(f"{JSON_OUT}/{safe_name}_ERR.json", "w") as fh:
                     json.dump({"owner": owner, "error": str(e)}, fh)
                 time.sleep(DELAY)
         browser.close()

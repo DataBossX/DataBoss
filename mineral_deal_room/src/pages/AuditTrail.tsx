@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { SAMPLE_AUDIT } from '../data/sampleData'
 import type { AuditEntry, AuditCategory } from '../types'
-import { ClipboardList, Download, Search, X } from 'lucide-react'
+import { Download, Search, X } from 'lucide-react'
 
 const CATEGORY_COLORS: Record<AuditCategory, string> = {
   Target:   'bg-blue-100 text-blue-700',

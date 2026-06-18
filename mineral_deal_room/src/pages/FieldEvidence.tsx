@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { SAMPLE_EVIDENCE, SAMPLE_TARGETS } from '../data/sampleData'
 import type { Evidence, EvidenceType } from '../types'
 import StatusBadge from '../components/StatusBadge'
-import { Upload, FolderOpen, X, FileText, Download } from 'lucide-react'
+import { Upload, X, FileText, Download } from 'lucide-react'
 
 const EVIDENCE_TYPES: EvidenceType[] = [
   'Warranty Deed','Oil & Gas Lease','Probate','Affidavit of Heirship',

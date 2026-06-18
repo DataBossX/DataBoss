@@ -13,9 +13,9 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 
-# Skip cleanly if the backend's runtime deps are not installed.
-for mod in ("fastapi", "openai", "anthropic", "google.generativeai",
-            "aiosqlite", "PIL", "loguru", "dotenv"):
+# Skip cleanly if the backend's core runtime deps are not installed.
+# (google.generativeai and PIL are optional and no longer imported at module load.)
+for mod in ("fastapi", "aiosqlite", "loguru", "dotenv"):
     pytest.importorskip(mod)
 
 if str(BACKEND) not in sys.path:

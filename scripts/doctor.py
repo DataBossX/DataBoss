@@ -91,7 +91,6 @@ def main() -> int:
               "\nsqlite3" not in ("\n" + body))
 
     # Secrets must not be tracked by git
-    tracked = tool_version(["git", "ls-files"])
     if shutil.which("git"):
         try:
             out = subprocess.run(["git", "ls-files"], cwd=ROOT,

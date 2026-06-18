@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { SAMPLE_TARGETS, SAMPLE_DEAL_SCORES } from '../data/sampleData'
-import type { DealScore, ScoreComponent } from '../types'
+import type { ScoreComponent } from '../types'
 import ScoreBadge from '../components/ScoreBadge'
-import { BarChart2, TrendingUp, TrendingDown } from 'lucide-react'
+import { BarChart2 } from 'lucide-react'
 
 const RECOMMENDATION_COLOR: Record<string, string> = {
   'Strong Buy': 'bg-green-100 text-green-800 border-green-200',

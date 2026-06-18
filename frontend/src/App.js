@@ -81,7 +81,7 @@ const App = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         setUploadStatus('success');
         fetchDocuments();
         setTimeout(() => setUploadStatus(null), 3000);

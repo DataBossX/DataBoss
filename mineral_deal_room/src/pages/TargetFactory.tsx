@@ -3,7 +3,7 @@ import { SAMPLE_TARGETS } from '../data/sampleData'
 import type { Target, TargetStatus } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import ScoreBadge from '../components/ScoreBadge'
-import { Search, Download, Plus, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Search, Download, ChevronDown, ChevronUp, X } from 'lucide-react'
 
 const STATUSES: TargetStatus[] = ['Identified','Contacted','Under Review','Offer Sent','Signed','Passed','On Hold']
 const COUNTIES = [...new Set(SAMPLE_TARGETS.map(t => t.county))].sort()

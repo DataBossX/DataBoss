@@ -1,0 +1,45 @@
+# Lints the JS/TS apps with ESLint. Replaces the old deno workflow, which was
+# an unconfigured template linting a non-Deno codebase and could never pass.
+name: Lint
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  mineral_deal_room:
+    name: ESLint (mineral_deal_room)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mineral_deal_room
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mineral_deal_room/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  frontend:
+    name: ESLint (frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # The CRA app has no lockfile; install only the lint toolchain (already
+      # declared in devDependencies) instead of the full react-scripts stack.
+      - run: npm install --no-save --no-audit --no-fund eslint@9.23.0 @eslint/js@9.23.0 globals@15.15.0 eslint-plugin-react@7.37.4
+      - run: npm run lint

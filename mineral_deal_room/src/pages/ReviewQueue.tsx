@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { SAMPLE_EVIDENCE, SAMPLE_TARGETS } from '../data/sampleData'
 import type { Evidence, EvidenceStatus } from '../types'
 import StatusBadge from '../components/StatusBadge'
-import { FileSearch, CheckCircle, Flag, Clock, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { CheckCircle, Flag, Clock, X } from 'lucide-react'
 
 export default function ReviewQueue() {
   const [statusFilter, setStatusFilter] = useState<EvidenceStatus | 'all'>('Pending Review')

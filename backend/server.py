@@ -3,6 +3,7 @@ import uuid
 import sqlite3
 import json
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import aiosqlite
@@ -33,14 +34,29 @@ load_dotenv()
 # Configure logger
 logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
 
-# Initialize FastAPI app
-app = FastAPI(title="DataBossX API", version="1.0.0")
+# Application lifespan: initialize the database on startup
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_database()
+    await log_system_event("INFO", "DataBossX API started", "system")
+    logger.info("DataBossX API started successfully")
+    yield
 
-# CORS middleware
+# Initialize FastAPI app
+app = FastAPI(title="DataBossX API", version="1.0.0", lifespan=lifespan)
+
+# CORS middleware.
+# allow_origins=["*"] with allow_credentials=True is rejected by browsers and is
+# overly permissive, so origins are configurable via the CORS_ORIGINS env var
+# (comma-separated). Credentials are only enabled when origins are explicit.
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+_allow_credentials = ALLOWED_ORIGINS != ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -217,7 +233,7 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
             
         elif model_name == "claude" and anthropic_client:
             response = anthropic_client.messages.create(
-                model="claude-3-sonnet-20240229",
+                model="claude-opus-4-8",
                 max_tokens=1000,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -245,13 +261,6 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
         raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
 
 # API Endpoints
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    await init_database()
-    await log_system_event("INFO", "DataBossX API started", "system")
-    logger.info("DataBossX API started successfully")
-
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""

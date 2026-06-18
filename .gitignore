@@ -28,8 +28,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-# .env*.local
+# local env files (never commit real secrets)
+backend/.env
+.env
+.env.local
+.env*.local
 *token.json*
 # vercel
 .vercel
@@ -42,6 +45,11 @@ next-env.d.ts
 .ac
 agenthub/agents/youtube/db
 *credentials.json*
+
+# SQLite databases (runtime data, not source)
+*.db
+*.sqlite
+*.sqlite3
 
 venv/
 .venv/

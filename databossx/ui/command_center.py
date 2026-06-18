@@ -11,6 +11,7 @@ from pathlib import Path
 
 from ..core import backup, diagnostics, health, paths, project_map, secret_scan
 from ..excel import mock_workbook, review_workbook, workbook_fingerprint, workbook_inspector
+from ..title import titlepreviewfixer
 
 MENU = """
 === DataBossX Command Center ===
@@ -26,7 +27,7 @@ MENU = """
 10. Inspect Excel Workbook
 11. Create Safe Review Workbook Copy
 12. Export Workbook Links
-13. Run TitlePreviewFixer 3-Row Preflight (roadmap/gated)
+13. Run TitlePreviewFixer 3-Row Preflight (gated, mock OCR)
 14. Show Next Ready Task
 15. Build Diagnostics Bundle
 16. Open Master Handoff Prompt
@@ -124,11 +125,16 @@ def interactive() -> None:
                 p = input("Workbook path> ").strip()
                 _, csvp, _ = workbook_inspector.run(Path(p))
                 print("->", csvp)
+            elif choice == "13":
+                src = input("Source workbook path (blank = fresh mock)> ").strip()
+                res = titlepreviewfixer.run_preflight(source=Path(src) if src else None)
+                print("-> report:", res.report_path)
+                print("-> source unchanged:", res.source_unchanged)
             elif choice == "15":
                 print("->", diagnostics.build().zip_path)
             elif choice == "14":
-                print("Next ready task: run option 8 (self-test), then gated TitlePreviewFixer preflight.")
-            elif choice in {"6", "9", "13", "16"}:
+                print("Next ready task: run option 8 (self-test), then option 13 (TitlePreviewFixer preflight).")
+            elif choice in {"6", "9", "16"}:
                 print("Roadmap item — not yet implemented. See reports/ for status.")
             elif choice == "17":
                 print("Bye.")

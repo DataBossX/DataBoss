@@ -1,0 +1,4 @@
+row,AI_Status,AI_Confidence,Suggested_Type,Suggested_Document_Date,Suggested_Recorded_Date,Suggested_Book,Suggested_Page,Review_Reason
+1,Auto-Suggested,0.93,Warranty Deed,1998-04-12,1998-04-15,412,221,"confidence above threshold, no uncertain fields"
+2,Needs Human Review,0.4,Oil & Gas Lease,2005-09-30,2005-10-02,905,118,confidence 0.40 < 0.85
+3,Auto-Suggested,0.93,Mineral Deed,2011-01-22,2011-02-01,9999,55,"confidence above threshold, no uncertain fields; MISMATCH"

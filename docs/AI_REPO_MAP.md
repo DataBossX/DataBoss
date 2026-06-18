@@ -25,12 +25,19 @@ deal/pipeline dashboards.
 
 ### `backend/` — FastAPI OCR + LLM API
 - Entry: `backend/server.py` (`uvicorn server:app`, port 8001).
+- Config: `backend/config.py` (typed `Settings.from_env`, validated at startup).
+- Logging: `backend/logging_utils.py` (secret-redacting; loguru or stdlib).
 - SQLite (`SQLITE_DB_PATH`, default `./databossx.db`); tables: documents,
   ocr_results, llm_analysis, system_logs.
-- Endpoints: `/api/health`, `/api/documents` (+upload, +detail), `/api/logs`,
-  `/api/analytics`.
-- OCR is currently **mocked** (`PRIMARY_OCR = "demo_ocr"`); LLM analysis calls
-  OpenAI/Anthropic/Gemini when keys present.
+- Endpoints: `GET /` (root), `/api/health`, `/api/documents` (+upload, +detail),
+  `/api/logs`, `/api/analytics`.
+- Cross-cutting middleware: per-request id (`X-Request-ID`), timing header,
+  sliding-window rate limiter (429) on write methods, JSON error guard.
+- Uploads: size-limited (`MAX_UPLOAD_MB`), extension allow-list
+  (`ALLOWED_UPLOAD_EXTENSIONS`, 415 on reject), filename sanitization.
+- **LLM SDK imports are optional** — the API starts even if openai/anthropic/
+  google-generativeai are absent (reported "unavailable"). OCR is **mocked**
+  (`PRIMARY_OCR = "demo_ocr"`).
 
 ### `frontend/` — OCR control center (CRA, React 19)
 - Entry: `frontend/src/index.js` / `App.js`.
@@ -103,7 +110,9 @@ deal/pipeline dashboards.
 
 - LLM: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`,
   `OPENAI_MODEL`, `OPENAI_MAX_TOKENS`.
-- Backend: `SQLITE_DB_PATH`, `CORS_ALLOW_ORIGINS`, `MAX_UPLOAD_MB`.
+- Backend: `SQLITE_DB_PATH`, `CORS_ALLOW_ORIGINS`, `MAX_UPLOAD_MB`,
+  `ALLOWED_UPLOAD_EXTENSIONS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SEC`,
+  `LOG_PATH`, `LOG_LEVEL`.
 - Frontend: `REACT_APP_BACKEND_URL`.
 - DOTO: `OKCOUNTY_API_KEY`, `OKCOUNTY_API_BASE_URL`, `OKCOUNTY_COST_PER_IMAGE`,
   `OKCOUNTY_COST_PER_SEARCH`, `DOWNLOADS_DIR`, `IMAGES_DIR`, `REPORTS_DIR`,

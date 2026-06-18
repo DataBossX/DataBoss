@@ -95,3 +95,37 @@ CRA→Vite for `frontend`, align react-router 6/7, CI action SHA-pinning +
 3. Review & apply `docs/ROADMAP.md` P1 items (auth/rate-limit, requirements
    consolidation, CI bumps, remove no-op `deno.yml`).
 4. Add a pre-commit secret scanner to prevent regressions.
+
+---
+
+## Addendum — Pass 2: backend & automation deep upgrade
+
+Focused on turning the cleaned-up repo into a genuinely robust one, with every
+change verified by a real test (56 tests, all passing; up from 12).
+
+### Backend (`backend/server.py` + new modules)
+- New `config.py` (typed, validated settings) and `logging_utils.py`
+  (secret-redacting logger). Both stdlib-light and unit-tested.
+- **Optional LLM imports** — the API now boots even without
+  openai/anthropic/google-generativeai installed (graceful degradation).
+- Added per-request id + timing headers, a sliding-window **rate limiter** (429),
+  an upload **extension allow-list** (415), cross-platform filename sanitization,
+  a `GET /` root, richer `/api/health`, and a JSON error guard.
+
+### Automation (`automation/`)
+- New `config.py` loads `config/settings.toml`; `playwright_bot.py` no longer
+  hardcodes URL/workbook/sheets/paths.
+
+### Verification
+- `pytest` → **56 passed, 0 skipped** (with lean deps installed).
+- Hermetic backend tests: no external/paid API calls (clients disabled, temp DB).
+- `flake8` syntax gate clean; `doctor`, `security_scan`, `test_all` all green.
+
+### CI / tooling
+- `python-app.yml` rewritten (`setup-python@v5`, py3.11, pip cache, lean deps,
+  syntax gate + pytest). Removed no-op `deno.yml`. Added `requirements-dev.txt`
+  and a `Makefile`.
+
+### New/updated config knobs
+`ALLOWED_UPLOAD_EXTENSIONS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SEC`,
+`LOG_PATH`, `LOG_LEVEL` (see `.env.example` / `backend/.env.example`).

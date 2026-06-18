@@ -2,6 +2,33 @@
 
 Records significant choices made during the autonomous upgrade and why.
 
+## 2026-06 — Backend & automation deep upgrade
+
+- **Made LLM SDK imports optional** in `backend/server.py`. The API previously
+  failed to import if any one of openai/anthropic/google-generativeai was
+  missing. Optional imports + graceful degradation make the service far more
+  operable and testable. Behavior for configured providers is unchanged.
+- **Introduced a typed config layer** (`backend/config.py`) instead of scattered
+  `os.getenv` calls. Stdlib dataclass (not pydantic-settings) to keep it
+  import-light and unit-testable without the heavy stack.
+- **Secret-redacting logger** (`backend/logging_utils.py`) so keys never reach
+  log sinks; works with or without loguru.
+- **In-process rate limiter** (sliding window, write methods only). Chosen over a
+  Redis dependency because the app is single-process today; documented as a
+  swap point if it scales out.
+- **Upload extension allow-list** with a sensible document/image default. This is
+  a deliberate (safer) behavior change for an upload endpoint; it is fully
+  configurable via `ALLOWED_UPLOAD_EXTENSIONS` (empty = allow any).
+- **Removed `deno.yml`.** Earlier it was kept pending sign-off; under the broader
+  "make it better" mandate it was removed as dead CI (no Deno code exists).
+- **Lean `requirements-dev.txt` for CI/tests** instead of installing the full
+  heavy stack (paddleocr/playwright), so CI is fast and reliable. Tests skip
+  cleanly when optional deps are absent.
+- **Hermetic backend tests**: LLM clients are monkeypatched to `None` and a temp
+  DB is used, guaranteeing no external/paid API calls during testing.
+- **Wired automation to `config/settings.toml`** rather than rewriting the
+  scraper. Config is the lowest-risk, highest-value improvement there.
+
 ## 2026-06 — Repository hardening & automation pass
 
 - **Untracked secrets instead of deleting them.** `backend/.env` and

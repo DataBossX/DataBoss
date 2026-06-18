@@ -4,25 +4,16 @@
 
 ### `.github/workflows/python-app.yml`
 - Triggers: push / pull_request to `main`.
-- Already declares least-privilege `permissions: contents: read` ✅.
-- Runs flake8 syntax gate + pytest.
-- **Recommendations:**
-  - Pin third-party actions by commit SHA where practical. `actions/checkout`,
-    `actions/setup-python` are first-party; pinning to SHA is still best practice
-    for supply-chain hardening.
-  - `actions/setup-python@v3` is older — bump to `@v5`.
-  - Consider caching pip and installing `requirements.txt` reliably (the heavy
-    OCR deps may need system libs; keep the unit job lean — e.g. install only
-    `pytest flake8` plus light deps).
+- Declares least-privilege `permissions: contents: read` ✅.
+- Uses `actions/setup-python@v5`, Python 3.11, pip cache ✅.
+- Installs the lean `requirements-dev.txt` (fast, reliable) and runs the flake8
+  syntax gate + full pytest ✅.
+- **Remaining recommendation:** pin first-party actions (`actions/checkout`,
+  `actions/setup-python`) to a full commit SHA for supply-chain hardening.
 
-### `.github/workflows/deno.yml`
-- Triggers: push / pull_request to `main`.
-- **There is no Deno source in this repository.** `deno lint` / `deno test`
-  operate on nothing meaningful.
-- The third-party `denoland/setup-deno` action is already pinned by SHA ✅.
-- **Recommendation:** remove this workflow (legacy/no-op) unless Deno code is
-  planned. Left in place during this upgrade to avoid changing CI behavior
-  without owner sign-off — see `docs/DECISIONS.md`.
+### `.github/workflows/deno.yml` — REMOVED
+- Deleted in the 2026-06 upgrade. There was no Deno source in the repository, so
+  `deno lint` / `deno test` ran against nothing. See `docs/DECISIONS.md`.
 
 ## General hardening checklist (for new/changed workflows)
 

@@ -56,6 +56,15 @@ use_cache: true                  # cache AI reads by image hash (free re-runs)
 cache_dir: ".cache"
 generate_html_report: true       # write a human-readable output/*_REPORT.html
 
+# --- Offline demo / dry run ------------------------------------------------
+offline_mode: false              # true = synthetic docs + mock AI, no network
+
+# --- Production hardening ---------------------------------------------------
+checkpoint_every: 10             # crash-safe save of review workbook every N rows
+scan_outputs_for_secrets: true   # refuse to upload any secret-shaped file
+write_run_manifest: true         # logs/run_manifest.json (audit + reproducibility)
+domain_checks: true              # PLSS + sanity flags (section 1-36, future dates...)
+
 # --- Timing / retries ------------------------------------------------------
 request_delay_seconds: 1.0
 max_retries_per_row: 3

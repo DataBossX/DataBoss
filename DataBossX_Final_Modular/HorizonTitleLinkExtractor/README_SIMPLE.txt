@@ -19,7 +19,17 @@ You stay in control. Nothing is "auto-fixed" by default.
 
 
 ==============================================================================
- STEP 0 (DO THIS FIRST): LOCK DOWN THE GOOGLE DRIVE FOLDER
+ WANT TO SEE IT WORK RIGHT NOW (NO SETUP)?
+==============================================================================
+After INSTALL.bat, double-click   RUN_OFFLINE_DEMO.bat
+It runs the WHOLE process on built-in sample documents - no API keys, no login,
+no internet. Then open the workbook in output\ and the matching *_REPORT.html
+to see exactly what the real review output looks like (green/yellow/red rows,
+AI suggestions, flags). This is the fastest way to understand the tool.
+
+
+==============================================================================
+ STEP 0 (DO THIS FIRST FOR REAL RUNS): LOCK DOWN THE GOOGLE DRIVE FOLDER
 ==============================================================================
 Open the "Horizon Work" folder in Google Drive in your web browser.
 Click Share. If it says "Anyone with the link - Editor", CHANGE IT.
@@ -142,4 +152,14 @@ re-run as many times as you like.
  * Images are auto-oriented, contrast-enhanced and upscaled before AI reads
    them; blurry/tiny captures are scored, flagged RED, and sent to validators.
  * AI reads are cached by image hash (.cache\) and every call's cost is logged.
+ * Domain checks: section must be 1-36, dates can't be in the future, and the
+   Section/Township/Range is cross-checked against the legal description and the
+   project tract (e.g. 31-12N-24W) - mismatches are flagged for a human.
+ * Crash-safe: the review workbook is checkpoint-saved every few rows and on
+   Ctrl-C, written atomically so it can never be corrupted mid-run.
+ * Every run writes logs\run_manifest.json (config snapshot with secrets
+   redacted, file hashes, counts, cost) and logs\events.jsonl for auditing.
+ * Outputs are scanned for secrets before any Drive upload and refused if a key
+   or token is ever detected.
+ * RUN_OFFLINE_DEMO.bat runs the entire pipeline with synthetic data offline.
 ==============================================================================

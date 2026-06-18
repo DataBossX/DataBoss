@@ -325,14 +325,14 @@ class NullDriveSync(DriveSync):
                             "Still: lock the Drive folder to Restricted/Viewer.")}
 
     def list_candidates(self) -> list[Candidate]:
-        # Fall back to any workbook already placed in input/.
+        # Fall back to any workbook already placed in the configured input dir.
         out: list[Candidate] = []
-        for d in ("input", self.config.get("input_dir", "input")):
-            if os.path.isdir(d):
-                for name in os.listdir(d):
-                    full = os.path.join(d, name)
-                    if os.path.isfile(full) and _XLSX_RE.search(name):
-                        out.append(Candidate(name, full, os.path.getmtime(full)))
+        input_dir = self.config.get("input_dir") or "input"
+        if os.path.isdir(input_dir):
+            for name in os.listdir(input_dir):
+                full = os.path.join(input_dir, name)
+                if os.path.isfile(full) and _XLSX_RE.search(name):
+                    out.append(Candidate(name, full, os.path.getmtime(full)))
         return out
 
     def download_source(self, dest_dir: str) -> str:

@@ -38,8 +38,11 @@ from typing import Any
 from dotenv import load_dotenv
 
 import config_schema
+import domain
 import drive_sync
 import excel_writer as xl
+import offline as offline_mod
+import provenance
 import report as report_mod
 from ai_extractors import MAJOR_FIELDS, ModelRouter
 from browser_viewer import BrowserViewer, LoginExpiredError, run_login_setup
@@ -57,6 +60,8 @@ DEBUG_DIR = os.path.join(HERE, "debug")
 RUN_LOG = os.path.join(LOGS_DIR, "run_log.csv")
 SUMMARY_LOG = os.path.join(LOGS_DIR, "summary.csv")
 ERRORS_LOG = os.path.join(LOGS_DIR, "errors.log")
+EVENTS_LOG = os.path.join(LOGS_DIR, "events.jsonl")
+MANIFEST = os.path.join(LOGS_DIR, "run_manifest.json")
 
 RUN_LOG_HEADER = ["timestamp", "workbook", "sheet", "row", "link", "status",
                   "confidence", "changed_fields", "review_needed", "error_message"]
@@ -75,8 +80,8 @@ def ensure_dirs() -> None:
 
 def load_config() -> dict[str, Any]:
     cfg = config_schema.load_validated(CONFIG_PATH)  # validates + applies defaults
-    cfg.setdefault("input_dir", INPUT_DIR)
-    cfg.setdefault("debug_dir", DEBUG_DIR)
+    cfg["input_dir"] = cfg.get("input_dir") or INPUT_DIR
+    cfg["debug_dir"] = cfg.get("debug_dir") or DEBUG_DIR
     return cfg
 
 
@@ -140,9 +145,9 @@ def _color_for(status: str, confidence: float, changed: list[str],
     return "yellow"
 
 
-def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserViewer,
-                router: ModelRouter, cfg: dict[str, Any], workbook_name: str
-                ) -> dict[str, Any]:
+def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: Any,
+                router: Any, cfg: dict[str, Any], workbook_name: str,
+                tract: str | None = None) -> dict[str, Any]:
     """Process a single linked row. Returns a run-log-friendly dict; never raises
     except LoginExpiredError (which must stop the whole run)."""
     ts = _dt.datetime.now().isoformat(timespec="seconds")
@@ -197,8 +202,12 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
     suggestions = {f: getattr(primary, f) for f in MAJOR_FIELDS}
     suggestions.update(ai["consensus"])
 
+    # Only compare/flag fields that actually exist as columns in this sheet.
+    # (An extracted value for a column the runsheet doesn't have is shown as a
+    # suggestion but is not treated as a "change" to a non-existent cell.)
+    present_fields = [f for f in MAJOR_FIELDS if f in layout.columns]
     changed, minor = xl.compare_fields(
-        link_row.values, suggestions, MAJOR_FIELDS,
+        link_row.values, suggestions, present_fields,
         same_threshold=float(cfg.get("match_same_threshold", 0.97)),
         minor_threshold=float(cfg.get("match_minor_threshold", 0.85)))
     # Disagreement among models -> keep original untouched, force review.
@@ -228,6 +237,18 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
         "consensus" if ai["consensus_fields"] else
         ("disagreement" if disagree else "single_model"))
 
+    # Domain intelligence: PLSS + sanity checks (never mutates data, only flags).
+    domain_warnings: list[str] = []
+    if cfg.get("domain_checks", True):
+        try:
+            domain_warnings = domain.audit(suggestions, link_row.values, tract)
+        except Exception as exc:  # never let a check break the run
+            log.warning("domain audit failed on row %s: %s", link_row.row, exc)
+    if domain_warnings:
+        review_needed = True
+        if color == "green":
+            color = "yellow"
+
     notes_parts = []
     if primary.evidence_summary:
         notes_parts.append(primary.evidence_summary)
@@ -240,6 +261,8 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
     if ai.get("poor_image"):
         notes_parts.append(
             f"Poor image quality (score={ai.get('image_quality')})")
+    if domain_warnings:
+        notes_parts.append("Domain flags: " + "; ".join(domain_warnings))
     notes = " | ".join(notes_parts)
 
     result = {
@@ -284,18 +307,27 @@ def _wipe_temp(cfg: dict[str, Any]) -> None:
 # =============================================================================
 # Job runner
 # =============================================================================
-def run_job(test_mode: bool) -> int:
+def run_job(test_mode: bool, offline: bool = False) -> int:
     ensure_dirs()
     setup_logging()
     init_run_log()
     load_dotenv(os.path.join(HERE, ".env"))
     cfg = load_config()
     cfg["debug_dir"] = DEBUG_DIR
+    offline = offline or bool(cfg.get("offline_mode"))
 
     start_time = _dt.datetime.now()
+    provenance.append_event(EVENTS_LOG, {"event": "run_start", "offline": offline,
+                                         "test_mode": test_mode})
     summary = {k: 0 for k in (
         "total_rows_seen", "linked_rows", "processed_rows", "skipped_rows",
         "failed_rows", "changed_rows", "high_confidence_rows", "review_needed_rows")}
+
+    if offline:
+        log.info("=" * 70)
+        log.info(" OFFLINE DEMO MODE - no browser, no AI, no network.")
+        log.info(" Synthetic documents + deterministic extraction.")
+        log.info("=" * 70)
 
     # --- 1. Drive security check ------------------------------------------
     drive = drive_sync.DriveSync.create(cfg)
@@ -307,22 +339,33 @@ def run_job(test_mode: bool) -> int:
         log.warning(" >>> Lock down the Drive folder before continuing. <<<")
     log.info("=" * 70)
 
-    if not os.getenv("OPENAI_API_KEY"):
-        log.error("OPENAI_API_KEY is not set in .env. Cannot run AI extraction.")
-        return 2
-
-    auth_path = os.path.join(HERE, cfg.get("auth_state_path", ".auth/county_state.json"))
-    if not os.path.exists(auth_path):
-        log.warning("No county auth state at %s. Run RUN_LOGIN_SETUP.bat first if "
-                    "the county site requires login.", auth_path)
+    if not offline:
+        if not os.getenv("OPENAI_API_KEY"):
+            log.error("OPENAI_API_KEY is not set in .env. Cannot run AI extraction.")
+            return 2
+        auth_path = os.path.join(
+            HERE, cfg.get("auth_state_path", ".auth/county_state.json"))
+        if not os.path.exists(auth_path):
+            log.warning("No county auth state at %s. Run RUN_LOGIN_SETUP.bat first "
+                        "if the county site requires login.", auth_path)
 
     # --- 2. source workbook -----------------------------------------------
+    if offline:
+        # Self-contained demo: synthesize a runsheet if input/ has none.
+        existing = drive.list_candidates()
+        if not existing:
+            demo = os.path.join(INPUT_DIR, "DEMO_31-12N-24W_Cursory_Title_Report.xlsx")
+            offline_mod.make_demo_workbook(demo)
+            log.info("Created demo workbook: %s", demo)
     try:
         source_path = drive.download_source(INPUT_DIR)
     except Exception as exc:
         log.error("Could not obtain source workbook: %s", exc)
         return 3
     log.info("Source workbook: %s", source_path)
+    tract = domain.parse_tract(os.path.basename(source_path))
+    if tract:
+        log.info("Project tract detected from filename: %s", tract)
 
     # --- 3. review copy ---------------------------------------------------
     wb, review_path = xl.load_workbook_copy(source_path, OUTPUT_DIR)
@@ -338,7 +381,13 @@ def run_job(test_mode: bool) -> int:
     cost = CostTracker()
     rcache = ResultCache(os.path.join(HERE, cfg.get("cache_dir", ".cache")),
                          enabled=bool(cfg.get("use_cache", True)))
-    router = ModelRouter(cfg, cost=cost, result_cache=rcache)
+    if offline:
+        router = offline_mod.MockRouter(cfg, cost=cost)
+        viewer_cls = offline_mod.MockViewer
+    else:
+        router = ModelRouter(cfg, cost=cost, result_cache=rcache)
+        viewer_cls = BrowserViewer
+    checkpoint_every = int(cfg.get("checkpoint_every", 10))
     report_rows: list[dict[str, Any]] = []
     done_keys = (completed_keys()
                  if cfg.get("resume_from_log") and not cfg.get("force_reprocess")
@@ -354,7 +403,7 @@ def run_job(test_mode: bool) -> int:
 
     # --- 4/5. iterate ------------------------------------------------------
     try:
-        with BrowserViewer(cfg) as viewer:
+        with viewer_cls(cfg) as viewer:
             for ws in sheets:
                 if stop_all:
                     break
@@ -398,7 +447,7 @@ def run_job(test_mode: bool) -> int:
                     for attempt in range(1, attempts + 1):
                         try:
                             rec = process_row(link_row, layout, viewer, router,
-                                               cfg, workbook_name)
+                                               cfg, workbook_name, tract=tract)
                             break
                         except LoginExpiredError as exc:
                             log.error("LOGIN EXPIRED: %s", exc)
@@ -459,11 +508,25 @@ def run_job(test_mode: bool) -> int:
                                 cfg.get("ai_confidence_auto_safe_threshold", 0.97)):
                         summary["high_confidence_rows"] += 1
 
+                    provenance.append_event(EVENTS_LOG, {
+                        "event": "row", "sheet": rec["sheet"], "row": rec["row"],
+                        "status": rec["status"], "confidence": rec["confidence"],
+                        "changed": rec["changed_fields"],
+                        "review": rec["review_needed"]})
+
                     processed_count += 1
                     _wipe_temp(cfg)
-                    time.sleep(delay)
+                    # Periodic crash-safe checkpoint of the review workbook.
+                    if processed_count % checkpoint_every == 0:
+                        _atomic_save(wb, review_path)
+                        log.info("Checkpoint saved (%d rows).", processed_count)
+                    if not offline:
+                        time.sleep(delay)
+    except KeyboardInterrupt:
+        log.warning("Interrupted by user (Ctrl-C). Saving progress so far...")
+        provenance.append_event(EVENTS_LOG, {"event": "interrupted"})
     finally:
-        wb.save(review_path)
+        _atomic_save(wb, review_path)
         log.info("Saved review workbook: %s", review_path)
 
     # --- 6. summary + cost + HTML report -----------------------------------
@@ -492,23 +555,51 @@ def run_job(test_mode: bool) -> int:
             log.warning("Could not build HTML report: %s", exc)
             report_path = None
 
-    # --- 7. upload ---------------------------------------------------------
+    # --- manifest (reproducibility/audit) ----------------------------------
     summary_csv = SUMMARY_LOG
+    manifest_path = None
+    candidate_outputs = [review_path, RUN_LOG, summary_csv, cost_csv,
+                         report_path, EVENTS_LOG]
+    if cfg.get("write_run_manifest", True):
+        try:
+            manifest_path = provenance.build_manifest(
+                MANIFEST, config=cfg, offline=offline, source_path=source_path,
+                review_path=review_path, summary=summary,
+                cost_usd=cost.total_usd,
+                models={"openai": cfg.get("openai_model"),
+                        "gemini": cfg.get("gemini_model"),
+                        "claude": cfg.get("claude_model"),
+                        "offline": offline},
+                started=start_time.isoformat(timespec="seconds"),
+                ended=end_time.isoformat(timespec="seconds"),
+                outputs=[f for f in candidate_outputs if f])
+            log.info("Run manifest: %s", manifest_path)
+        except Exception as exc:
+            log.warning("Could not write manifest: %s", exc)
+
+    # --- 7. upload (secret-scanned) ----------------------------------------
     uploaded = None
-    upload_files = [review_path, RUN_LOG, summary_csv, cost_csv]
-    if report_path:
-        upload_files.append(report_path)
+    upload_files = [f for f in candidate_outputs + [manifest_path]
+                    if f and os.path.exists(f)]
+    if cfg.get("scan_outputs_for_secrets", True):
+        upload_files, blocked = provenance.safe_upload_list(upload_files)
+        for path, hits in blocked:
+            log.error("REFUSING to upload %s - looks like it contains secrets: %s",
+                      path, ", ".join(hits))
     try:
-        uploaded = drive.upload_outputs([f for f in upload_files
-                                         if f and os.path.exists(f)])
+        uploaded = drive.upload_outputs(upload_files)
     except Exception as exc:
         log.warning("Drive upload failed: %s", exc)
 
+    provenance.append_event(EVENTS_LOG, {"event": "run_end",
+                                         "summary": summary,
+                                         "cost_usd": round(cost.total_usd, 4)})
     log.info("=" * 70)
     log.info(" DONE.")
     log.info(" Review workbook : %s", review_path)
+    log.info(" HTML report     : %s", report_path or "(disabled)")
     log.info(" Run log         : %s", RUN_LOG)
-    log.info(" Summary         : %s", summary_csv)
+    log.info(" Manifest        : %s", manifest_path or "(disabled)")
     if uploaded:
         log.info(" Drive output    : %s", uploaded)
     else:
@@ -517,8 +608,26 @@ def run_job(test_mode: bool) -> int:
              "review=%d", summary["linked_rows"], summary["processed_rows"],
              summary["skipped_rows"], summary["failed_rows"],
              summary["changed_rows"], summary["review_needed_rows"])
+    log.info(" Estimated cost  : $%.4f", cost.total_usd)
     log.info("=" * 70)
     return 0
+
+
+def _atomic_save(wb: Any, path: str) -> None:
+    """Save the workbook to a temp file then replace, so a crash mid-write can
+    never corrupt the review workbook."""
+    tmp = path + ".tmp"
+    try:
+        wb.save(tmp)
+        os.replace(tmp, path)
+    except Exception:
+        # Fall back to a direct save rather than losing the data entirely.
+        wb.save(path)
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def _write_summary(summary: dict[str, int], start: _dt.datetime,
@@ -650,6 +759,11 @@ def main(argv: list[str] | None = None) -> int:
                        help="Run the full configured review job.")
     group.add_argument("--upload-only", action="store_true",
                        help="Upload the latest output to Drive.")
+    group.add_argument("--offline-demo", action="store_true",
+                       help="Run the full pipeline offline with synthetic data "
+                            "(no browser, no AI, no network, no keys).")
+    parser.add_argument("--offline", action="store_true",
+                        help="Force offline mode for --test/--run.")
     args = parser.parse_args(argv)
 
     ensure_dirs()
@@ -664,7 +778,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.upload_only:
         return upload_only()
-    return run_job(test_mode=args.test)
+    if args.offline_demo:
+        return run_job(test_mode=False, offline=True)
+    return run_job(test_mode=args.test, offline=args.offline)
 
 
 if __name__ == "__main__":

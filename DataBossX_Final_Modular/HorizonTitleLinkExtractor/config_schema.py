@@ -62,6 +62,15 @@ class Config(BaseModel):
     use_cache: bool = True
     cache_dir: str = ".cache"
 
+    # Offline demo / dry-run mode (no browser, no AI, no network)
+    offline_mode: bool = False
+
+    # Production hardening
+    checkpoint_every: int = Field(10, ge=1)   # save review workbook every N rows
+    scan_outputs_for_secrets: bool = True     # refuse to upload secret-shaped files
+    write_run_manifest: bool = True
+    domain_checks: bool = True                # PLSS + sanity flags on extractions
+
     # Timing / retries
     request_delay_seconds: float = Field(1.0, ge=0.0)
     max_retries_per_row: int = Field(3, ge=1)

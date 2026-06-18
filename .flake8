@@ -1,0 +1,15 @@
+[flake8]
+max-line-length = 127
+max-complexity = 12
+extend-ignore = E203, W503, E501
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    node_modules,
+    build,
+    dist,
+    .pytest_cache,
+    doto_image_commander/downloads,
+    doto_image_commander/images

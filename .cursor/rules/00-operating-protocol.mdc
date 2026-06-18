@@ -1,0 +1,20 @@
+---
+description: Safe autonomous workflow for any agent working in DataBossX
+alwaysApply: true
+---
+
+# Operating protocol
+
+- **Never** read, print, copy, modify, or commit real secrets. Secrets live in
+  `.env` files (gitignored). You may update `*.env.example` with variable
+  **names** only — never real values.
+- Before changes: `git status`, confirm the branch, don't clobber uncommitted
+  work. Do destructive/irreversible actions (deletes, migrations, paid API
+  usage, production deploys) only with explicit human approval.
+- Preserve existing behavior unless fixing a clearly identified bug/security
+  issue that you cover with a test.
+- After meaningful work: run `python scripts/test_all.py` and
+  `python scripts/security_scan.py`. Keep changes explainable and documented.
+- Do **not** push to remote unless the human explicitly asks.
+- Prefer small, working, tested changes over large rewrites.
+- Update the docs in `40-docs-memory.mdc` when you make notable changes.

@@ -1,0 +1,27 @@
+---
+description: DataBossX architecture and key commands (see docs/AI_REPO_MAP.md)
+alwaysApply: true
+---
+
+# Repo map (concise)
+
+DataBossX = five apps sharing LLM/OCR pieces. Full detail:
+`docs/AI_REPO_MAP.md`. Day-to-day runbook: `docs/RUNBOOK.md`.
+
+- `backend/server.py` — FastAPI OCR+LLM API (SQLite, port 8001). OCR is mocked.
+- `frontend/` — React (CRA) UI; calls backend via `REACT_APP_BACKEND_URL`.
+- `automation/playwright_bot.py` — Weld County recorder scraper + status engine
+  (`status_logic.py`, `parsing.py`, `writer.py`); config in `config/settings.toml`.
+- `doto_image_commander/` — Streamlit OK-county download/OCR workflow (paid APIs;
+  cost tracking + Fernet key mgmt in `core/`).
+- `mineral_deal_room/` — Vite/React/TS dashboard on local sample data.
+
+Key commands:
+- Doctor: `python scripts/doctor.py`
+- Tests/lint: `python scripts/test_all.py`  (unit suite in `tests/`)
+- Security: `python scripts/security_scan.py`
+- Backend: `cd backend && uvicorn server:app --reload --port 8001`
+- Frontend: `cd frontend && yarn start` · Mineral room: `yarn dev`
+
+Env var names: see `docs/AI_REPO_MAP.md` ("Environment variables"). Never inline
+real values.

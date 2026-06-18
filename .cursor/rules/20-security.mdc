@@ -1,0 +1,30 @@
+---
+description: Security rules for DataBossX
+alwaysApply: true
+---
+
+# Security rules
+
+## Secrets
+- Real secrets only in `.env` (gitignored). Templates = `*.env.example` (names,
+  placeholders). Never commit `.env`, `*.key`, `*.pem`, `*.db`, `credentials*`.
+- If a secret is exposed: rotate it at the provider, `git rm --cached`, re-scan.
+
+## Application security
+- Validate and sanitize all external input (uploads, filenames, owner names,
+  spreadsheet cells, API responses). Filenames must be path-traversal-safe
+  (`backend/server.py:sanitize_filename`).
+- Bound resource use: cap upload size (`MAX_UPLOAD_MB`), cap loops/pagination.
+- HTTP calls must set explicit timeouts. Avoid SSRF: don't fetch user-supplied
+  URLs without allow-listing.
+- DB access must use parameterized queries (never string-formatted SQL).
+- CORS: configure via `CORS_ALLOW_ORIGINS`; never wildcard + credentials.
+- Never log secrets or full LLM responses containing PII; redact.
+- Catch specific exceptions; never bare `except:`. Don't leak internals in API
+  error messages.
+
+## Dependencies & CI
+- Keep stdlib modules (e.g. `sqlite3`) out of requirements files.
+- Add least-privilege `permissions:` to every GitHub workflow. Treat PR/issue
+  text and branch names as untrusted. Pin third-party actions by SHA.
+- Run `python scripts/security_scan.py` before finishing security-relevant work.

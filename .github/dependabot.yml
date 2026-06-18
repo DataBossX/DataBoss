@@ -1,0 +1,75 @@
+version: 2
+
+updates:
+  # ---- Python (pip) ----
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      python-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+    labels: ["dependencies", "python"]
+
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      backend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    labels: ["dependencies", "python", "backend"]
+
+  - package-ecosystem: "pip"
+    directory: "/doto_image_commander"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      doto-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    labels: ["dependencies", "python", "doto"]
+
+  # ---- Node (npm/yarn) ----
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      frontend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      frontend-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+    labels: ["dependencies", "javascript", "frontend"]
+
+  - package-ecosystem: "npm"
+    directory: "/mineral_deal_room"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      mineral-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      mineral-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+    labels: ["dependencies", "javascript", "mineral_deal_room"]
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "ci"]

@@ -1,0 +1,18 @@
+---
+description: Documentation/memory upkeep after notable work
+alwaysApply: true
+---
+
+# Docs & memory
+
+After any notable change, update the relevant doc so future sessions stay smart:
+
+- `docs/CHANGELOG_AI.md` — what changed and why (append an entry).
+- `docs/DECISIONS.md` — record significant choices and rationale.
+- `docs/RISKS.md` — add/clear risks, with severity and mitigation.
+- `docs/ROADMAP.md` — keep the prioritized next-steps list current.
+- `docs/AI_REPO_MAP.md` — update if structure, commands, or env vars change.
+
+Keep entries short and factual. Prefer linking to existing docs over
+duplicating content. When you defer a major upgrade, log it in
+`docs/upgrade/MAJOR_UPGRADE_BACKLOG.md`.

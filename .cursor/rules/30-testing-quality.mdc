@@ -1,0 +1,27 @@
+---
+description: Test/lint/build commands and required checks for DataBossX
+alwaysApply: true
+---
+
+# Testing & quality
+
+## Commands
+- Unit/smoke tests: `pytest` (suite in `tests/`, config in `pytest.ini`).
+- All checks at once: `python scripts/test_all.py`.
+- Lint (CI gate): `flake8 . --count --select=E9,F63,F7,F82 --show-source`.
+  Full lint config in `.flake8` (`max-line-length = 127`).
+- Frontend lint: `cd frontend && npx eslint src` (after `yarn install`).
+- Backend build smoke: `python -m py_compile backend/server.py`.
+
+## Required before finishing
+1. `python scripts/test_all.py` passes (or document blockers in
+   `docs/upgrade/TEST_BLOCKERS.md`).
+2. `flake8` syntax gate is clean.
+3. `python scripts/security_scan.py` shows no tracked secrets.
+4. Every bug fix gets a regression test; new security helpers get unit tests.
+5. Tests must degrade gracefully when heavy deps are absent
+   (use `pytest.importorskip`), as in `tests/test_backend_helpers.py`.
+
+## Style
+- Match surrounding code. Python: type hints where practical, parameterized SQL,
+  specific exceptions. JS/TS: 2-space indent.

@@ -1,0 +1,48 @@
+# =============================================================================
+# HorizonTitleLinkExtractor - .gitignore
+# Keep secrets, cookies, tokens, temp data, and document images OUT of git.
+# =============================================================================
+
+# Secrets / credentials
+.env
+*.env
+!.env.example
+*token*.json
+token.json
+client_secret*.json
+credentials.json
+service_account*.json
+
+# Playwright saved login state (CONTAINS COOKIES - never commit)
+*.auth.json
+county_state.json
+.auth/google_token.json
+
+# Working data (ignore contents but keep the folders via .gitkeep below)
+temp/*
+debug/*
+logs/*
+input/*
+output/*
+.auth/*
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Keep folder structure (these .gitkeep entries are explicitly allowed)
+!input/.gitkeep
+!output/.gitkeep
+!logs/.gitkeep
+!temp/.gitkeep
+!debug/.gitkeep
+!.auth/.gitkeep

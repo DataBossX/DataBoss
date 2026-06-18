@@ -330,7 +330,10 @@ def run_job(test_mode: bool, offline: bool = False) -> int:
         log.info("=" * 70)
 
     # --- 1. Drive security check ------------------------------------------
-    drive = drive_sync.DriveSync.create(cfg)
+    # Offline mode must never touch a Drive backend, even if Google creds are
+    # present in .env - force the local/null backend so it stays fully offline.
+    drive = (drive_sync.NullDriveSync(cfg) if offline
+             else drive_sync.DriveSync.create(cfg))
     perm = drive.check_permissions()
     log.info("=" * 70)
     log.info(" SECURITY / DRIVE CHECK")
@@ -368,7 +371,16 @@ def run_job(test_mode: bool, offline: bool = False) -> int:
         log.info("Project tract detected from filename: %s", tract)
 
     # --- 3. review copy ---------------------------------------------------
-    wb, review_path = xl.load_workbook_copy(source_path, OUTPUT_DIR)
+    # When resuming, copy the most recent prior review workbook (which already
+    # holds AI columns for completed rows) instead of a blank copy of the source,
+    # so skipped/already-done rows keep their results.
+    resume_from = None
+    if cfg.get("resume_from_log") and not cfg.get("force_reprocess"):
+        resume_from = xl.find_latest_review(OUTPUT_DIR, source_path)
+        if resume_from:
+            log.info("Resume: continuing from %s", os.path.basename(resume_from))
+    wb, review_path = xl.load_workbook_copy(source_path, OUTPUT_DIR,
+                                            resume_from=resume_from)
     workbook_name = os.path.basename(review_path)
 
     sheets = xl.detect_title_sheets(wb)

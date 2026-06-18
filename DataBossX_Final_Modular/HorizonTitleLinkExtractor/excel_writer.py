@@ -19,6 +19,7 @@ Provides:
 from __future__ import annotations
 
 import datetime as _dt
+import glob
 import logging
 import os
 import re
@@ -118,19 +119,40 @@ class SheetLayout:
 # =============================================================================
 # Loading
 # =============================================================================
-def load_workbook_copy(source_path: str, output_dir: str) -> tuple[Any, str]:
+def find_latest_review(output_dir: str, source_path: str) -> str | None:
+    """Return the newest existing review workbook for this source (used to
+    resume from prior results), or None if there isn't one."""
+    stem = os.path.splitext(os.path.basename(source_path))[0]
+    pattern = os.path.join(output_dir, f"{stem}_AI_REVIEW_*.xlsx")
+    matches = [p for p in glob.glob(pattern) if os.path.isfile(p)]
+    if not matches:
+        return None
+    return max(matches, key=os.path.getmtime)
+
+
+def load_workbook_copy(source_path: str, output_dir: str,
+                       resume_from: str | None = None) -> tuple[Any, str]:
     """
-    Copy the source workbook into output_dir as an AI_REVIEW file and open it.
-    The original is never touched. Returns (workbook, review_path).
+    Create a new AI_REVIEW working copy and open it. The original source is never
+    touched. The new file is always named from the SOURCE stem.
+
+    When resume_from is given (a prior review workbook), it is copied instead of
+    the source so previously-written AI review columns/results are preserved -
+    otherwise resuming would leave blank review data for already-processed rows.
+    Returns (workbook, review_path).
     """
     os.makedirs(output_dir, exist_ok=True)
     base = os.path.basename(source_path)
     stem, ext = os.path.splitext(base)
-    stamp = _dt.datetime.now().strftime("%Y-%m-%d_%H%M")
+    now = _dt.datetime.now()
+    stamp = now.strftime("%Y-%m-%d_%H%M%S") + f"_{now.microsecond // 1000:03d}"
     review_name = f"{stem}_AI_REVIEW_{stamp}{ext}"
     review_path = os.path.join(output_dir, review_name)
-    shutil.copy2(source_path, review_path)
+    copy_src = resume_from if (resume_from and os.path.exists(resume_from)) else source_path
+    shutil.copy2(copy_src, review_path)
     wb = load_workbook(review_path)  # keep formulas + formatting + hyperlinks
+    if copy_src != source_path:
+        log.info("Resuming from prior review workbook: %s", os.path.basename(copy_src))
     log.info("Opened review copy: %s", review_path)
     return wb, review_path
 
@@ -278,8 +300,30 @@ def rows_without_links(layout: SheetLayout) -> list[int]:
 # Review columns
 # =============================================================================
 def ensure_review_columns(layout: SheetLayout) -> None:
-    """Append the review column headers to the right of existing data."""
+    """Ensure the review columns exist on this sheet and map them.
+
+    Idempotent: if the sheet already has the review columns (e.g. we resumed from
+    a prior review workbook), reuse them instead of appending a duplicate set.
+    """
     ws = layout.sheet
+    # Detect any review columns already present in the header row.
+    existing: dict[str, int] = {}
+    for c in range(1, (ws.max_column or 1) + 1):
+        val = ws.cell(row=layout.header_row, column=c).value
+        if isinstance(val, str) and val in REVIEW_COLUMNS:
+            existing.setdefault(val, c)
+    if "AI Status" in existing:
+        # Reuse the existing block; backfill any columns a prior version lacked.
+        layout.review_cols = dict(existing)
+        next_col = max(existing.values()) + 1
+        for name in REVIEW_COLUMNS:
+            if name not in layout.review_cols:
+                ws.cell(row=layout.header_row, column=next_col, value=name)
+                layout.review_cols[name] = next_col
+                next_col += 1
+        layout.review_start_col = min(layout.review_cols.values())
+        return
+
     start_col = (ws.max_column or 1) + 1
     layout.review_start_col = start_col
     for i, name in enumerate(REVIEW_COLUMNS):

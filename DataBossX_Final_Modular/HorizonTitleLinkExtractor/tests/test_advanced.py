@@ -182,15 +182,15 @@ def test_build_manifest(tmp_path):
 # --------------------------------------------------------------------------- #
 # full end-to-end offline run of run_job()
 # --------------------------------------------------------------------------- #
-def test_offline_end_to_end(tmp_path, monkeypatch):
+def _setup_offline(tmp_path, monkeypatch, clear_google_env=True):
+    """Redirect all module path globals into a temp project and return (t, paths)."""
     import title_link_extractor as t
 
     proj = tmp_path
     for d in ("input", "output", "logs", "temp", "debug", ".auth", ".cache"):
-        (proj / d).mkdir()
+        (proj / d).mkdir(exist_ok=True)
     shutil.copy(os.path.join(os.path.dirname(t.__file__), "config.yaml"),
                 str(proj / "config.yaml"))
-
     paths = {
         "HERE": str(proj), "CONFIG_PATH": str(proj / "config.yaml"),
         "INPUT_DIR": str(proj / "input"), "OUTPUT_DIR": str(proj / "output"),
@@ -204,9 +204,17 @@ def test_offline_end_to_end(tmp_path, monkeypatch):
     }
     for k, v in paths.items():
         monkeypatch.setattr(t, k, v)
-    for env in ("GOOGLE_DRIVE_LOCAL_SYNC_PATH", "GOOGLE_OAUTH_CLIENT_SECRET_JSON",
-                "GOOGLE_APPLICATION_CREDENTIALS"):
-        monkeypatch.delenv(env, raising=False)
+    if clear_google_env:
+        for env in ("GOOGLE_DRIVE_LOCAL_SYNC_PATH",
+                    "GOOGLE_OAUTH_CLIENT_SECRET_JSON",
+                    "GOOGLE_APPLICATION_CREDENTIALS"):
+            monkeypatch.delenv(env, raising=False)
+    return t, paths
+
+
+def test_offline_end_to_end(tmp_path, monkeypatch):
+    t, paths = _setup_offline(tmp_path, monkeypatch)
+    proj = tmp_path
 
     rc = t.run_job(test_mode=False, offline=True)
     assert rc == 0
@@ -232,3 +240,42 @@ def test_offline_end_to_end(tmp_path, monkeypatch):
     assert "AI Status" in hdr and "AI Suggested Grantor" in hdr
     # a green row's grantor equals the AI reading (clean match)
     assert ws.cell(row=6, column=hdr["AI Status"]).value == "ok"
+
+
+def test_offline_ignores_drive_credentials(tmp_path, monkeypatch):
+    # Offline mode must stay offline even when Google creds exist in the env.
+    t, paths = _setup_offline(tmp_path, monkeypatch, clear_google_env=True)
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET_JSON",
+                       str(tmp_path / "does_not_exist.json"))
+    rc = t.run_job(test_mode=False, offline=True)
+    assert rc == 0
+    assert glob.glob(str(tmp_path / "output" / "*_AI_REVIEW_*.xlsx"))
+
+
+def test_offline_resume_preserves_prior_results(tmp_path, monkeypatch):
+    # First run produces results; a resumed run must NOT blank out the review
+    # columns of rows it skips (the P1 resume bug).
+    t, paths = _setup_offline(tmp_path, monkeypatch)
+    assert t.run_job(test_mode=False, offline=True) == 0
+    first = max(glob.glob(str(tmp_path / "output" / "*_AI_REVIEW_*.xlsx")),
+                key=os.path.getmtime)
+
+    # Second run: resume_from_log is true by default -> every row is skipped, and
+    # the new workbook is copied from the prior review so results are preserved.
+    assert t.run_job(test_mode=False, offline=True) == 0
+    reviews = sorted(glob.glob(str(tmp_path / "output" / "*_AI_REVIEW_*.xlsx")),
+                     key=os.path.getmtime)
+    assert len(reviews) == 2
+    second = reviews[-1]
+    assert second != first
+
+    wb = load_workbook(second)
+    ws = wb["Runsheet"]
+    hdr = {ws.cell(row=1, column=c).value: c for c in range(1, ws.max_column + 1)}
+    # previously-processed rows still carry their AI results (not blank)
+    assert ws.cell(row=6, column=hdr["AI Status"]).value == "ok"
+    assert ws.cell(row=2, column=hdr["AI Status"]).value  # not None/empty
+    # review columns were reused, not duplicated
+    header_values = [ws.cell(row=1, column=c).value
+                     for c in range(1, ws.max_column + 1)]
+    assert header_values.count("AI Status") == 1

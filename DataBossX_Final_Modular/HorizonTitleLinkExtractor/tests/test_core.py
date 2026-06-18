@@ -130,6 +130,40 @@ def test_compare_fields_major_minor(tmp_path):
     assert "grantee" in minor and "grantee" not in major
 
 
+def test_ensure_review_columns_idempotent(tmp_path):
+    # Resuming reopens a workbook that already has review columns; we must reuse
+    # them, not append a duplicate set.
+    src = _sample_wb(str(tmp_path / "src.xlsx"))
+    wb, _ = xl.load_workbook_copy(src, str(tmp_path / "out"))
+    sheet = xl.detect_title_sheets(wb)[0]
+    layout = xl.detect_header(sheet)
+    xl.ensure_review_columns(layout)
+    first_max = layout.sheet.max_column
+
+    layout2 = xl.detect_header(sheet)          # fresh layout over same sheet
+    xl.ensure_review_columns(layout2)
+    assert layout.sheet.max_column == first_max  # no new columns added
+    hdr = [layout.sheet.cell(row=layout2.header_row, column=c).value
+           for c in range(1, layout.sheet.max_column + 1)]
+    assert hdr.count("AI Status") == 1
+    assert len(layout2.review_cols) == len(xl.REVIEW_COLUMNS)
+
+
+def test_find_latest_review(tmp_path):
+    out = tmp_path / "out"
+    out.mkdir()
+    src = tmp_path / "Book_31.xlsx"
+    src.write_bytes(b"x")
+    a = out / "Book_31_AI_REVIEW_1.xlsx"
+    b = out / "Book_31_AI_REVIEW_2.xlsx"
+    a.write_bytes(b"a")
+    b.write_bytes(b"b")
+    os.utime(a, (1, 1))
+    os.utime(b, (2, 2))
+    assert xl.find_latest_review(str(out), str(src)) == str(b)
+    assert xl.find_latest_review(str(out), str(tmp_path / "Other.xlsx")) is None
+
+
 def test_review_columns_written(tmp_path):
     src = _sample_wb(str(tmp_path / "src.xlsx"))
     wb, review = xl.load_workbook_copy(src, str(tmp_path / "out"))

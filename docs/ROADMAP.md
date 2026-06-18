@@ -2,8 +2,9 @@
 
 ## P0 — Do now (security/correctness)
 1. **Rotate all API keys** that were committed in `.env` files (see `RISKS.md`).
-2. Add a `.git/hooks` or pre-commit secret scan (e.g. `gitleaks`/`detect-secrets`)
-   so secrets can't be re-committed.
+2. ✅ **Done** — `.pre-commit-config.yaml` adds `detect-private-key`, a
+   large-file guard, and a local secret/hygiene scan. Activate with
+   `pip install pre-commit && pre-commit install`.
 
 ## P1 — High value, low risk
 3. Add **authentication** to the FastAPI backend before any public exposure;
@@ -14,7 +15,7 @@
 5. ✅ **Done** — CI bumped to `setup-python@v5`, Python 3.11, pip cache, lean
    `requirements-dev.txt`, syntax gate + pytest. _(Still TODO: SHA-pin actions.)_
 6. ✅ **Done** — removed the no-op `deno.yml` workflow.
-7. Add a `CODEOWNERS` file so workflow/dependency changes require review.
+7. ✅ **Done** — `.github/CODEOWNERS` added (set `@OWNER` to the real owner/team).
 
 ## P2 — Quality & reliability
 8. ✅ **Done** — `automation/playwright_bot.py` now reads `config/settings.toml`

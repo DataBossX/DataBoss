@@ -129,3 +129,17 @@ change verified by a real test (56 tests, all passing; up from 12).
 ### New/updated config knobs
 `ALLOWED_UPLOAD_EXTENSIONS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_SEC`,
 `LOG_PATH`, `LOG_LEVEL` (see `.env.example` / `backend/.env.example`).
+
+---
+
+## Addendum — Pass 3: DOTO coverage, supply-chain guards, typing
+
+- **DOTO Image Commander** got its first tests (config, Fernet security,
+  cost-affecting pull-list normalization/dedup) and a security fix
+  (`ENCRYPTION_KEY` is validated before being persisted).
+- **Supply-chain prevention**: `.pre-commit-config.yaml` (detect-private-key,
+  large-file guard, flake8 gate, local hygiene scan) and `.github/CODEOWNERS`.
+- **Static typing**: `mypy.ini` + a mypy step in `test_all.py` and CI, covering
+  the typed modules.
+- **Tests: 56 → 72, all passing.** CI runs flake8 + mypy + pytest on a lean dep
+  set (`requirements-dev.txt`).

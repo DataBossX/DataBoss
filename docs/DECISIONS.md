@@ -2,6 +2,23 @@
 
 Records significant choices made during the autonomous upgrade and why.
 
+## 2026-06 — Pass 3: DOTO tests, supply-chain, typing
+
+- **Tested DOTO's cost-affecting logic first.** The dedup/normalization in
+  `pull_list.py` decides which images get *paid* downloads, so that's where a
+  bug costs real money — highest-value coverage for the effort.
+- **Redirected DOTO import-time side effects** (audit log, db, key file) into a
+  temp dir via `conftest.py` so tests never write to the repo or a real home.
+- **Validate `ENCRYPTION_KEY` before writing it** in `core/security.py` —
+  previously a bad key was persisted and only failed later at use.
+- **pre-commit over a bespoke git hook.** Standard, portable, and includes
+  `detect-private-key` + large-file guards; the local hook reuses our existing
+  `scripts/security_scan.py` (no logic duplication).
+- **Scoped mypy to the typed, dependency-light modules** rather than the whole
+  tree, so the type gate is meaningful and green from day one; expand over time.
+- **Repaired `cffi` in the dev image** so the system `cryptography` works; tests
+  still skip gracefully if crypto is genuinely unavailable.
+
 ## 2026-06 — Backend & automation deep upgrade
 
 - **Made LLM SDK imports optional** in `backend/server.py`. The API previously

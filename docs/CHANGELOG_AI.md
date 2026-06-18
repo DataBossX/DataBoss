@@ -2,6 +2,28 @@
 
 Entries by autonomous agent sessions. Newest first.
 
+## 2026-06-18 — Pass 3: DOTO coverage, supply-chain guards, static typing
+
+### DOTO Image Commander (`doto_image_commander/`)
+- First tests for this paid-API app: `test_doto_config`, `test_doto_security`
+  (Fernet round-trip, restrictive key perms, key derivation), and
+  `test_doto_pull_list` (cost-affecting normalization + dedup logic).
+- `core/security.py`: validate a supplied `ENCRYPTION_KEY` before persisting it
+  (fail loudly on an invalid key instead of writing garbage to disk).
+
+### Supply-chain / prevention
+- `.pre-commit-config.yaml`: trailing-whitespace, EOF, YAML/TOML/JSON checks,
+  **detect-private-key**, large-file guard, flake8 syntax gate, and a local
+  hook running `scripts/security_scan.py`.
+- `.github/CODEOWNERS`: owner review required on workflows, dependency
+  manifests, and security/config files (fill in `@OWNER`).
+
+### Static typing
+- `mypy.ini` + `mypy` step in `test_all.py` and CI for the typed modules
+  (`backend/config.py`, `backend/logging_utils.py`, `automation/config.py`).
+
+### Tests: 56 → 72, all passing. CI now runs flake8 + mypy + pytest.
+
 ## 2026-06-18 — Backend & automation deep upgrade ("10,000x" pass)
 
 ### Backend architecture (`backend/`)

@@ -1,84 +1,79 @@
-import os
-import uuid
-import sqlite3
-import json
+"""DataBossX API.
+
+Document ingestion -> OCR/text extraction -> multi-provider LLM analysis,
+with structured logging, metrics, input validation, and reliability hardening.
+"""
 import asyncio
-from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Optional, List, Dict, Any
-import aiosqlite
-from pathlib import Path
-
-# FastAPI imports
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from dotenv import load_dotenv
-
-# OCR and LLM imports - Simplified for demo
-import openai
-import anthropic
-import google.generativeai as genai
-from PIL import Image
-import io
 import hashlib
-import base64
+import json
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-# Logging
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel
 from loguru import logger
 
-# Load environment variables
-load_dotenv()
+import config
+import db
+import llm
+import observability
+from ocr import extract_text, OCRError, supported as ocr_supported, tesseract_available
 
-# Configure logger
-logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
 
-# Application lifespan: initialize the database on startup
+# --------------------------------------------------------------------------- #
+# Lifespan
+# --------------------------------------------------------------------------- #
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_database()
+    observability.configure_logging()
+    await db.init(config.SQLITE_DB_PATH)
     await log_system_event("INFO", "DataBossX API started", "system")
     logger.info("DataBossX API started successfully")
-    yield
+    try:
+        yield
+    finally:
+        await db.close()
 
-# Initialize FastAPI app
-app = FastAPI(title="DataBossX API", version="1.0.0", lifespan=lifespan)
 
-# CORS middleware.
-# allow_origins=["*"] with allow_credentials=True is rejected by browsers and is
-# overly permissive, so origins are configurable via the CORS_ORIGINS env var
-# (comma-separated). Credentials are only enabled when origins are explicit.
-_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
-ALLOWED_ORIGINS = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
-_allow_credentials = ALLOWED_ORIGINS != ["*"]
+app = FastAPI(title="DataBossX API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=_allow_credentials,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=config.CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.middleware("http")(observability.metrics_middleware)
 
-# Database configuration
-SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "./databossx.db")
 
-# API Keys
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# --------------------------------------------------------------------------- #
+# Error handling — consistent JSON error envelope
+# --------------------------------------------------------------------------- #
+class ApiError(Exception):
+    def __init__(self, status_code: int, message: str):
+        self.status_code = status_code
+        self.message = message
 
-# Initialize clients
-openai_client = openai.OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
-# Initialize OCR engine (simplified for demo)
-PRIMARY_OCR = "demo_ocr"
+@app.exception_handler(ApiError)
+async def _api_error_handler(request: Request, exc: ApiError):
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.message})
 
-# Data models
+
+@app.exception_handler(Exception)
+async def _unhandled_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception")
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
+
+
+# --------------------------------------------------------------------------- #
+# Models
+# --------------------------------------------------------------------------- #
 class Document(BaseModel):
     id: str
     filename: str
@@ -86,424 +81,261 @@ class Document(BaseModel):
     upload_time: datetime
     file_size: int
     status: str
-    
-class OCRResult(BaseModel):
-    id: str
-    document_id: str
-    raw_text: str
-    cleaned_text: str
-    confidence_score: float
-    processing_time: float
-    created_at: datetime
-    
-class LLMAnalysis(BaseModel):
-    id: str
-    document_id: str
-    model_name: str
-    prompt_type: str
-    analysis_result: Dict[str, Any]
-    processing_time: float
-    created_at: datetime
-    
-class SystemLog(BaseModel):
-    id: str
-    level: str
-    message: str
-    component: str
-    details: Optional[Dict[str, Any]]
-    created_at: datetime
 
-# Database initialization
-async def init_database():
-    """Initialize SQLite database with required tables"""
-    async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-        # Documents table
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS documents (
-                id TEXT PRIMARY KEY,
-                filename TEXT NOT NULL,
-                file_hash TEXT UNIQUE NOT NULL,
-                upload_time TIMESTAMP NOT NULL,
-                file_size INTEGER NOT NULL,
-                status TEXT NOT NULL DEFAULT 'uploaded'
-            )
-        """)
-        
-        # OCR results table
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS ocr_results (
-                id TEXT PRIMARY KEY,
-                document_id TEXT NOT NULL,
-                raw_text TEXT NOT NULL,
-                cleaned_text TEXT NOT NULL,
-                confidence_score REAL NOT NULL,
-                processing_time REAL NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                FOREIGN KEY (document_id) REFERENCES documents (id)
-            )
-        """)
-        
-        # LLM analysis table
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS llm_analysis (
-                id TEXT PRIMARY KEY,
-                document_id TEXT NOT NULL,
-                model_name TEXT NOT NULL,
-                prompt_type TEXT NOT NULL,
-                analysis_result TEXT NOT NULL,
-                processing_time REAL NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                FOREIGN KEY (document_id) REFERENCES documents (id)
-            )
-        """)
-        
-        # System logs table
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS system_logs (
-                id TEXT PRIMARY KEY,
-                level TEXT NOT NULL,
-                message TEXT NOT NULL,
-                component TEXT NOT NULL,
-                details TEXT,
-                created_at TIMESTAMP NOT NULL
-            )
-        """)
-        
-        await db.commit()
 
-# Utility functions
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
 def calculate_file_hash(file_content: bytes) -> str:
-    """Calculate SHA-256 hash of file content"""
     return hashlib.sha256(file_content).hexdigest()
 
+
 async def log_system_event(level: str, message: str, component: str, details: Optional[Dict] = None):
-    """Log system events to database"""
-    log_id = str(uuid.uuid4())
-    async with aiosqlite.connect(SQLITE_DB_PATH) as db:
+    await db.execute(
+        "INSERT INTO system_logs (id, level, message, component, details, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (str(uuid.uuid4()), level, message, component,
+         json.dumps(details) if details else None, datetime.now().isoformat()),
+    )
+    observability.inc("system_logs_total", level=level, component=component)
+
+
+async def process_ocr(file_content: bytes, filename: str, content_type: Optional[str]) -> Dict[str, Any]:
+    """Run extraction off the event loop (CPU-bound)."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, extract_text, file_content, filename, content_type)
+
+
+# --------------------------------------------------------------------------- #
+# Background processing
+# --------------------------------------------------------------------------- #
+async def process_document_background(doc_id: str, file_content: bytes, filename: str, content_type: Optional[str]):
+    try:
+        await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("processing", doc_id))
+
+        ocr_result = await process_ocr(file_content, filename, content_type)
+
         await db.execute(
-            "INSERT INTO system_logs (id, level, message, component, details, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (log_id, level, message, component, json.dumps(details) if details else None, datetime.now())
+            "INSERT INTO ocr_results (id, document_id, raw_text, cleaned_text, confidence_score, "
+            "processing_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (str(uuid.uuid4()), doc_id, ocr_result["raw_text"], ocr_result["cleaned_text"],
+             ocr_result["confidence_score"], ocr_result["processing_time"], datetime.now().isoformat()),
         )
-        await db.commit()
+        observability.inc("ocr_processed_total", engine=ocr_result.get("ocr_engine", "unknown"))
 
-async def process_ocr(file_content: bytes, filename: str) -> Dict[str, Any]:
-    """Process document with mock OCR engine for demo purposes"""
-    try:
-        # Mock OCR processing
-        start_time = datetime.now()
-        
-        # Return mock OCR results
-        raw_text = f"Mock OCR result for {filename}.\nThis is a demo document with extracted text.\nKey Information:\n- Document Type: Sample Legal Document\n- Parties: DataBossX Corp, Client ABC\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Summary: This document contains important legal information.\n\nNote: This is a mock OCR result for demonstration purposes."
-        cleaned_text = raw_text.strip()
-        mock_confidence = 0.95
-        processing_time = (datetime.now() - start_time).total_seconds()
-        
-        return {
-            "raw_text": raw_text,
-            "cleaned_text": cleaned_text,
-            "confidence_score": mock_confidence,
-            "processing_time": processing_time,
-            "ocr_engine": PRIMARY_OCR
-        }
-        
-    except Exception as e:
-        logger.error(f"OCR processing failed for {filename}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
+        # Analyze with every available provider; one failing provider must not
+        # abort the others or the whole document.
+        for model in llm.available_models():
+            try:
+                llm_result = await llm.analyze(ocr_result["cleaned_text"], model, "legal_summary")
+                await db.execute(
+                    "INSERT INTO llm_analysis (id, document_id, model_name, prompt_type, "
+                    "analysis_result, processing_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (str(uuid.uuid4()), doc_id, model, "legal_summary", json.dumps(llm_result),
+                     llm_result["processing_time"], datetime.now().isoformat()),
+                )
+                observability.inc("llm_analysis_total", model=model, outcome="success")
+            except Exception as exc:
+                observability.inc("llm_analysis_total", model=model, outcome="error")
+                logger.error(f"LLM analysis failed for {model}: {exc}")
+                await log_system_event("ERROR", f"LLM analysis failed for {model}", "processing",
+                                       {"document_id": doc_id, "error": str(exc)})
 
-async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict[str, Any]:
-    """Analyze text with specified LLM"""
-    start_time = datetime.now()
-    
-    prompts = {
-        "legal_summary": f"Analyze this legal document and extract key information:\n\nDocument: {text}\n\nPlease provide:\n1. Document type\n2. Key parties involved\n3. Important dates\n4. Main legal points\n5. Summary",
-        "general_summary": f"Provide a concise summary of this document:\n\n{text}",
-        "field_extraction": f"Extract structured data from this document:\n\n{text}\n\nReturn as JSON with relevant fields."
-    }
-    
-    prompt = prompts.get(prompt_type, prompts["general_summary"])
-    
-    try:
-        if model_name == "gpt-4" and openai_client:
-            response = openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=1000
-            )
-            result = response.choices[0].message.content
-            
-        elif model_name == "claude" and anthropic_client:
-            response = anthropic_client.messages.create(
-                model="claude-opus-4-8",
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            result = response.content[0].text
-            
-        elif model_name == "gemini" and GEMINI_API_KEY:
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content(prompt)
-            result = response.text
-            
-        else:
-            raise HTTPException(status_code=400, detail=f"Model {model_name} not available")
-        
-        processing_time = (datetime.now() - start_time).total_seconds()
-        
-        return {
-            "analysis": result,
-            "processing_time": processing_time,
-            "model_used": model_name,
-            "prompt_type": prompt_type
-        }
-        
-    except Exception as e:
-        logger.error(f"LLM analysis failed with {model_name}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
+        await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("completed", doc_id))
+        observability.inc("documents_completed_total")
+        await log_system_event("INFO", f"Document processing completed: {filename}", "processing",
+                               {"document_id": doc_id})
 
-# API Endpoints
+    except OCRError as exc:
+        await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
+        observability.inc("documents_failed_total", reason="ocr")
+        await log_system_event("ERROR", f"OCR failed: {filename}", "processing",
+                               {"document_id": doc_id, "error": str(exc)})
+        logger.error(f"OCR failed for {doc_id}: {exc}")
+    except Exception as exc:
+        await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
+        observability.inc("documents_failed_total", reason="error")
+        await log_system_event("ERROR", f"Document processing failed: {filename}", "processing",
+                               {"document_id": doc_id, "error": str(exc)})
+        logger.error(f"Background processing failed for {doc_id}: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Endpoints
+# --------------------------------------------------------------------------- #
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
+    providers = llm.provider_status()
     return {
         "status": "healthy",
         "timestamp": datetime.now(),
-        "version": "1.0.0",
+        "version": app.version,
         "services": {
             "ocr": "available",
-            "openai": "available" if openai_client else "unavailable",
-            "anthropic": "available" if anthropic_client else "unavailable", 
-            "gemini": "available" if GEMINI_API_KEY else "unavailable"
-        }
+            "ocr_image": "available" if tesseract_available() else "unavailable",
+            **providers,
+        },
     }
+
 
 @app.post("/api/documents/upload")
 async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    """Upload and process document with OCR"""
-    try:
-        # Read file content
-        file_content = await file.read()
-        file_hash = calculate_file_hash(file_content)
-        file_size = len(file_content)
-        
-        # Check for duplicates
-        async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-            async with db.execute("SELECT id FROM documents WHERE file_hash = ?", (file_hash,)) as cursor:
-                existing = await cursor.fetchone()
-                if existing:
-                    return JSONResponse(
-                        status_code=409,
-                        content={"error": "Document already exists", "document_id": existing[0]}
-                    )
-        
-        # Create document record
-        doc_id = str(uuid.uuid4())
-        async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-            await db.execute(
-                "INSERT INTO documents (id, filename, file_hash, upload_time, file_size, status) VALUES (?, ?, ?, ?, ?, ?)",
-                (doc_id, file.filename, file_hash, datetime.now(), file_size, "processing")
-            )
-            await db.commit()
-        
-        # Process OCR in background
-        background_tasks.add_task(process_document_background, doc_id, file_content, file.filename)
-        
-        await log_system_event("INFO", f"Document uploaded: {file.filename}", "upload", {"document_id": doc_id})
-        
-        return {
-            "document_id": doc_id,
-            "filename": file.filename,
-            "file_size": file_size,
-            "status": "processing"
-        }
-        
-    except Exception as e:
-        logger.error(f"Document upload failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+    file_content = await file.read()
+    file_size = len(file_content)
 
-async def process_document_background(doc_id: str, file_content: bytes, filename: str):
-    """Background task to process document with OCR and LLM"""
-    try:
-        # Update status to processing
-        async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-            await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("processing", doc_id))
-            await db.commit()
-        
-        # Process OCR
-        ocr_result = await process_ocr(file_content, filename)
-        
-        # Save OCR result
-        ocr_id = str(uuid.uuid4())
-        async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-            await db.execute(
-                "INSERT INTO ocr_results (id, document_id, raw_text, cleaned_text, confidence_score, processing_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (ocr_id, doc_id, ocr_result["raw_text"], ocr_result["cleaned_text"], 
-                 ocr_result["confidence_score"], ocr_result["processing_time"], datetime.now())
-            )
-            await db.commit()
-        
-        # Process with available LLMs
-        available_models = []
-        if openai_client:
-            available_models.append("gpt-4")
-        if anthropic_client:
-            available_models.append("claude")
-        if GEMINI_API_KEY:
-            available_models.append("gemini")
-        
-        for model in available_models:
-            try:
-                llm_result = await analyze_with_llm(ocr_result["cleaned_text"], model, "legal_summary")
-                
-                # Save LLM analysis
-                analysis_id = str(uuid.uuid4())
-                async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-                    await db.execute(
-                        "INSERT INTO llm_analysis (id, document_id, model_name, prompt_type, analysis_result, processing_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (analysis_id, doc_id, model, "legal_summary", json.dumps(llm_result), 
-                         llm_result["processing_time"], datetime.now())
-                    )
-                    await db.commit()
-            except Exception as e:
-                logger.error(f"LLM analysis failed for {model}: {str(e)}")
-        
-        # Update document status to completed
-        async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-            await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("completed", doc_id))
-            await db.commit()
-        
-        await log_system_event("INFO", f"Document processing completed: {filename}", "processing", {"document_id": doc_id})
-        
-    except Exception as e:
-        # Update status to failed
-        async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-            await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
-            await db.commit()
-        
-        await log_system_event("ERROR", f"Document processing failed: {filename}", "processing", 
-                              {"document_id": doc_id, "error": str(e)})
-        logger.error(f"Background processing failed for {doc_id}: {str(e)}")
+    # --- Validation ---
+    if file_size == 0:
+        raise ApiError(400, "Uploaded file is empty")
+    if file_size > config.MAX_UPLOAD_BYTES:
+        raise ApiError(413, f"File exceeds maximum size of {config.MAX_UPLOAD_BYTES} bytes")
+    if not ocr_supported(file.filename or "", file.content_type):
+        raise ApiError(415, f"Unsupported file type: {file.content_type or file.filename}")
+
+    file_hash = calculate_file_hash(file_content)
+
+    existing = await db.fetchone("SELECT id FROM documents WHERE file_hash = ?", (file_hash,))
+    if existing:
+        return JSONResponse(
+            status_code=409,
+            content={"error": "Document already exists", "document_id": existing["id"]},
+        )
+
+    doc_id = str(uuid.uuid4())
+    await db.execute(
+        "INSERT INTO documents (id, filename, file_hash, upload_time, file_size, status) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (doc_id, file.filename, file_hash, datetime.now().isoformat(), file_size, "processing"),
+    )
+    observability.inc("documents_uploaded_total")
+
+    background_tasks.add_task(
+        process_document_background, doc_id, file_content, file.filename, file.content_type
+    )
+    await log_system_event("INFO", f"Document uploaded: {file.filename}", "upload",
+                           {"document_id": doc_id})
+
+    return {
+        "document_id": doc_id,
+        "filename": file.filename,
+        "file_size": file_size,
+        "status": "processing",
+    }
+
 
 @app.get("/api/documents")
 async def get_documents():
-    """Get all documents"""
-    async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-        async with db.execute("SELECT * FROM documents ORDER BY upload_time DESC") as cursor:
-            documents = await cursor.fetchall()
-            
+    rows = await db.fetchall("SELECT * FROM documents ORDER BY upload_time DESC")
     return [
         {
-            "id": doc[0],
-            "filename": doc[1],
-            "file_hash": doc[2],
-            "upload_time": doc[3],
-            "file_size": doc[4],
-            "status": doc[5]
+            "id": r["id"],
+            "filename": r["filename"],
+            "file_hash": r["file_hash"],
+            "upload_time": r["upload_time"],
+            "file_size": r["file_size"],
+            "status": r["status"],
         }
-        for doc in documents
+        for r in rows
     ]
+
 
 @app.get("/api/documents/{document_id}")
 async def get_document_details(document_id: str):
-    """Get detailed document information including OCR and LLM results"""
-    async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-        # Get document info
-        async with db.execute("SELECT * FROM documents WHERE id = ?", (document_id,)) as cursor:
-            doc = await cursor.fetchone()
-            if not doc:
-                raise HTTPException(status_code=404, detail="Document not found")
-        
-        # Get OCR results
-        async with db.execute("SELECT * FROM ocr_results WHERE document_id = ?", (document_id,)) as cursor:
-            ocr_results = await cursor.fetchall()
-        
-        # Get LLM analysis
-        async with db.execute("SELECT * FROM llm_analysis WHERE document_id = ?", (document_id,)) as cursor:
-            llm_results = await cursor.fetchall()
-    
+    doc = await db.fetchone("SELECT * FROM documents WHERE id = ?", (document_id,))
+    if not doc:
+        raise ApiError(404, "Document not found")
+
+    ocr_rows = await db.fetchall("SELECT * FROM ocr_results WHERE document_id = ?", (document_id,))
+    llm_rows = await db.fetchall("SELECT * FROM llm_analysis WHERE document_id = ?", (document_id,))
+
     return {
         "document": {
-            "id": doc[0],
-            "filename": doc[1],
-            "file_hash": doc[2],
-            "upload_time": doc[3],
-            "file_size": doc[4],
-            "status": doc[5]
+            "id": doc["id"],
+            "filename": doc["filename"],
+            "file_hash": doc["file_hash"],
+            "upload_time": doc["upload_time"],
+            "file_size": doc["file_size"],
+            "status": doc["status"],
         },
         "ocr_results": [
             {
-                "id": result[0],
-                "raw_text": result[2],
-                "cleaned_text": result[3],
-                "confidence_score": result[4],
-                "processing_time": result[5],
-                "created_at": result[6]
+                "id": r["id"],
+                "raw_text": r["raw_text"],
+                "cleaned_text": r["cleaned_text"],
+                "confidence_score": r["confidence_score"],
+                "processing_time": r["processing_time"],
+                "created_at": r["created_at"],
             }
-            for result in ocr_results
+            for r in ocr_rows
         ],
         "llm_analysis": [
             {
-                "id": result[0],
-                "model_name": result[2],
-                "prompt_type": result[3],
-                "analysis_result": json.loads(result[4]),
-                "processing_time": result[5],
-                "created_at": result[6]
+                "id": r["id"],
+                "model_name": r["model_name"],
+                "prompt_type": r["prompt_type"],
+                "analysis_result": json.loads(r["analysis_result"]),
+                "processing_time": r["processing_time"],
+                "created_at": r["created_at"],
             }
-            for result in llm_results
-        ]
+            for r in llm_rows
+        ],
     }
+
 
 @app.get("/api/logs")
 async def get_system_logs(limit: int = 100):
-    """Get system logs"""
-    async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-        async with db.execute("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT ?", (limit,)) as cursor:
-            logs = await cursor.fetchall()
-    
+    limit = max(1, min(limit, 1000))
+    rows = await db.fetchall(
+        "SELECT * FROM system_logs ORDER BY created_at DESC LIMIT ?", (limit,)
+    )
     return [
         {
-            "id": log[0],
-            "level": log[1],
-            "message": log[2],
-            "component": log[3],
-            "details": json.loads(log[4]) if log[4] else None,
-            "created_at": log[5]
+            "id": r["id"],
+            "level": r["level"],
+            "message": r["message"],
+            "component": r["component"],
+            "details": json.loads(r["details"]) if r["details"] else None,
+            "created_at": r["created_at"],
         }
-        for log in logs
+        for r in rows
     ]
+
 
 @app.get("/api/analytics")
 async def get_analytics():
-    """Get system analytics and metrics"""
-    async with aiosqlite.connect(SQLITE_DB_PATH) as db:
-        # Document counts by status
-        async with db.execute("SELECT status, COUNT(*) FROM documents GROUP BY status") as cursor:
-            doc_stats = await cursor.fetchall()
-        
-        # OCR performance metrics
-        async with db.execute("SELECT AVG(confidence_score), AVG(processing_time) FROM ocr_results") as cursor:
-            ocr_metrics = await cursor.fetchone()
-        
-        # LLM usage stats
-        async with db.execute("SELECT model_name, COUNT(*) FROM llm_analysis GROUP BY model_name") as cursor:
-            llm_stats = await cursor.fetchall()
-        
-        # Recent activity
-        async with db.execute("SELECT COUNT(*) FROM documents WHERE upload_time >= datetime('now', '-24 hours')") as cursor:
-            recent_uploads = (await cursor.fetchone())[0]
-    
+    doc_stats = await db.fetchall("SELECT status, COUNT(*) AS n FROM documents GROUP BY status")
+    ocr_metrics = await db.fetchone(
+        "SELECT AVG(confidence_score) AS conf, AVG(processing_time) AS pt FROM ocr_results"
+    )
+    llm_stats = await db.fetchall(
+        "SELECT model_name, COUNT(*) AS n FROM llm_analysis GROUP BY model_name"
+    )
+    cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
+    recent = await db.fetchone(
+        "SELECT COUNT(*) AS n FROM documents WHERE upload_time >= ?", (cutoff,)
+    )
+
     return {
-        "document_stats": {status: count for status, count in doc_stats},
+        "document_stats": {r["status"]: r["n"] for r in doc_stats},
         "ocr_metrics": {
-            "avg_confidence": ocr_metrics[0] if ocr_metrics[0] else 0,
-            "avg_processing_time": ocr_metrics[1] if ocr_metrics[1] else 0
+            "avg_confidence": ocr_metrics["conf"] if ocr_metrics and ocr_metrics["conf"] else 0,
+            "avg_processing_time": ocr_metrics["pt"] if ocr_metrics and ocr_metrics["pt"] else 0,
         },
-        "llm_usage": {model: count for model, count in llm_stats},
-        "recent_activity": {
-            "uploads_24h": recent_uploads
-        }
+        "llm_usage": {r["model_name"]: r["n"] for r in llm_stats},
+        "recent_activity": {"uploads_24h": recent["n"] if recent else 0},
     }
+
+
+@app.get("/api/metrics")
+async def metrics_json():
+    return observability.snapshot()
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+async def metrics_prometheus():
+    return observability.prometheus_text()
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)

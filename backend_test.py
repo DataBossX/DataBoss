@@ -4,6 +4,20 @@ import os
 import time
 from datetime import datetime
 
+import pytest
+
+# This is a live integration test for the deployed DataBossX stack: it reads the
+# backend URL from the running container's frontend/.env and makes real HTTP
+# calls against a running API. Skip the whole module when that deployment isn't
+# present (e.g. in CI), so it doesn't error out collection.
+_BACKEND_ENV_FILE = '/app/frontend/.env'
+if not os.path.exists(_BACKEND_ENV_FILE):
+    pytest.skip(
+        "Skipping live API integration tests: deployed DataBossX backend not available",
+        allow_module_level=True,
+    )
+
+
 class DataBossXAPITester(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(DataBossXAPITester, self).__init__(*args, **kwargs)

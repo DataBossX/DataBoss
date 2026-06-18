@@ -5,9 +5,12 @@ Main orchestrator for HorizonTitleLinkExtractor.
 
 Modes (chosen by RUN_*.bat via CLI flags):
   --login-setup   Open a browser so the user can log into county records.
+  --doctor        Run preflight checks (env, deps, config, login) and exit.
+  --dry-run       Links + browser capture only, NO AI calls (free validation).
   --test          Process only `test_mode_rows` linked rows (default 5).
   --full          Process the whole workbook per config.
   --upload-only   Upload the latest local output to Google Drive.
+  --report        Regenerate logs/report.html from existing logs and exit.
 
 Pipeline (per row with a document link):
   Drive -> download workbook -> read rows -> open link in Playwright ->
@@ -41,7 +44,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 def load_config() -> dict:
     path = os.path.join(HERE, "config.yaml")
     with open(path, "r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
+        raw = yaml.safe_load(fh) or {}
+    # Validate types / ranges and fill defaults; raises on bad config.
+    from config_schema import validate_config
+
+    return validate_config(raw)
 
 
 def load_env() -> None:
@@ -149,7 +156,8 @@ def make_output_path(source_path: str, output_dir: str) -> str:
 class Job:
     def __init__(self, config: dict, mode: str):
         self.config = config
-        self.mode = mode  # "test" or "full"
+        self.mode = mode  # "test", "full", or "dry"
+        self.dry_run = (mode == "dry") or bool(config.get("dry_run", False))
         self.logs_dir = os.path.join(HERE, "logs")
         self.input_dir = os.path.join(HERE, "input")
         self.output_dir = os.path.join(HERE, "output")
@@ -170,6 +178,8 @@ class Job:
             "end_time": "",
         }
         self.output_path: Optional[str] = None
+        self.report_path: Optional[str] = None
+        self.tracker = None
 
     # -- main run ------------------------------------------------------------
     def run(self) -> int:
@@ -177,8 +187,11 @@ class Job:
         import excel_writer
         from ai_extractors import ModelRouter
         from browser_viewer import BrowserViewer
+        from cache import AIResultCache, UsageTracker
 
         self.stats["start_time"] = datetime.now().isoformat(timespec="seconds")
+        if self.dry_run:
+            print("\n*** DRY RUN: links + browser capture only, NO AI calls. ***\n")
 
         # 1. Drive backend + security check + workbook selection.
         backend = drive_sync.build_backend(self.config)
@@ -200,9 +213,14 @@ class Job:
         wb = excel_writer.load_workbook(source_path)
 
         # 3. AI router + browser.
-        router = ModelRouter(self.config)
+        self.tracker = UsageTracker()
+        cache = AIResultCache(
+            self.config.get("cache_dir", ".cache"),
+            enabled=bool(self.config.get("enable_ai_cache", True)),
+        )
+        router = ModelRouter(self.config, tracker=self.tracker, cache=cache)
         print(f"AI models available: {router.available_summary()}")
-        if not router.primary.available:
+        if not self.dry_run and not router.primary.available:
             log.error("OPENAI_API_KEY missing - primary extractor unavailable. Aborting.")
             return 3
 
@@ -219,16 +237,36 @@ class Job:
             stop = self._process_workbook(wb, viewer, router, excel_writer,
                                           os.path.basename(source_path))
 
-        # 4. Save output workbook.
+        # 4. Finalize stats (incl. AI usage) and add a summary sheet.
+        self.stats["end_time"] = datetime.now().isoformat(timespec="seconds")
+        self.stats.update(self.tracker.summary())
+        try:
+            excel_writer.add_summary_sheet(
+                wb, self.stats, os.path.basename(source_path)
+            )
+        except Exception as exc:
+            log.warning("Could not add summary sheet: %s", exc)
+
+        # 5. Save output workbook (never overwrites the original).
         wb.save(self.output_path)
         print(f"\nOutput workbook saved to:\n  {self.output_path}\n")
 
-        # 5. Finalize logs + summary.
-        self.stats["end_time"] = datetime.now().isoformat(timespec="seconds")
+        # 6. Write CSV summary + optional HTML report.
         self.audit.write_summary(self.stats)
+        self.report_path = None
+        if self.config.get("generate_html_report", True):
+            try:
+                import report
+
+                self.report_path = report.generate_report(
+                    self.logs_dir, os.path.basename(source_path)
+                )
+                print(f"HTML report: {self.report_path}")
+            except Exception as exc:
+                log.warning("Could not generate HTML report: %s", exc)
         self._print_summary()
 
-        # 6. Upload (or print manual instructions).
+        # 7. Upload (or print manual instructions).
         self._deliver(backend)
 
         if stop:
@@ -332,10 +370,11 @@ class Job:
                      workbook_name, safe_thr) -> bool:
         """Process a single linked row. Returns True if login expired (stop)."""
         retries = int(self.config.get("max_retries_per_row", 3))
+        tag = f"{ws.title}_r{row}"
         capture = None
         for attempt in range(1, retries + 1):
             try:
-                capture = viewer.capture_document(link)
+                capture = viewer.capture_document(link, tag=tag)
             except Exception as exc:
                 log.warning("Row %s capture attempt %d error: %s", row, attempt, exc)
                 continue
@@ -352,6 +391,28 @@ class Job:
             status = "blocked" if "block" in err.lower() else "failed"
             self._log_failed(ws, sheet, row, link, status, err,
                              excel_writer, workbook_name)
+            return False
+
+        # DRY RUN: we proved the link opens and the document is visible. Record
+        # success and skip all AI calls (no cost).
+        if self.dry_run:
+            payload = {
+                "merged": {}, "status": "dry_run_ok", "confidence": 1.0,
+                "changed_fields": [], "consensus_fields": [],
+                "evidence_summary": f"captured via {capture.method}",
+                "needs_human_review": False, "error": "", "link": link,
+                "viewer_method": capture.method, "model_used": "(dry-run)",
+                "validators_used": [],
+            }
+            excel_writer.write_review(ws, sheet, row, payload, self.config)
+            self.stats["processed_rows"] += 1
+            self.audit.write_row(
+                timestamp=datetime.now().isoformat(timespec="seconds"),
+                workbook=workbook_name, sheet=ws.title, row=row, link=link,
+                status="dry_run_ok", confidence=1.0, changed_fields="",
+                review_needed="no", error_message="",
+            )
+            log.info("Row %s -> dry_run_ok (%s)", row, capture.method)
             return False
 
         # AI extraction (primary, then conditional validators).
@@ -458,12 +519,20 @@ class Job:
         print("\n================ SUMMARY ================")
         for k, v in self.stats.items():
             print(f"  {k:24s}: {v}")
+        if self.tracker:
+            detail = self.tracker.detail_lines()
+            if detail:
+                print("  -- AI usage by model --")
+                for line in detail:
+                    print(line)
         print("=========================================\n")
 
     def _deliver(self, backend) -> None:
         files = [self.output_path,
                  self.audit.run_log_path,
                  self.audit.summary_path]
+        if self.report_path:
+            files.append(self.report_path)
         if backend.mode == "none":
             print("Google Drive upload is NOT configured.")
             print("To upload manually:")
@@ -525,14 +594,38 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="HorizonTitleLinkExtractor")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--login-setup", action="store_true")
+    group.add_argument("--doctor", action="store_true", help="preflight checks")
+    group.add_argument("--dry-run", action="store_true",
+                       help="links + browser capture only, no AI calls")
     group.add_argument("--test", action="store_true")
     group.add_argument("--full", action="store_true")
     group.add_argument("--upload-only", action="store_true")
+    group.add_argument("--report", action="store_true",
+                       help="regenerate HTML report from existing logs")
     args = parser.parse_args(argv)
 
     setup_logging()
     load_env()
-    config = load_config()
+
+    if args.doctor:
+        from preflight import run_doctor
+
+        return run_doctor()
+
+    if args.report:
+        import report
+
+        path = report.generate_report(os.path.join(HERE, "logs"))
+        print(f"HTML report regenerated: {path}")
+        return 0
+
+    # Everything below needs a valid config.
+    try:
+        config = load_config()
+    except Exception as exc:
+        log.error("config.yaml is invalid: %s", exc)
+        print(f"\n[ERROR] config.yaml is invalid:\n  {exc}\n")
+        return 5
 
     if args.login_setup:
         from browser_viewer import run_login_setup
@@ -543,7 +636,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.upload_only:
         return upload_latest(config)
 
-    mode = "test" if args.test else "full"
+    mode = "test" if args.test else ("dry" if args.dry_run else "full")
     try:
         return Job(config, mode).run()
     except KeyboardInterrupt:

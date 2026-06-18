@@ -26,6 +26,8 @@ from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from cache import AIResultCache, UsageTracker, image_signature
+
 log = logging.getLogger("horizon.ai")
 
 # ---------------------------------------------------------------------------
@@ -169,6 +171,8 @@ class OpenAIVision:
 
     def __init__(self, model: str):
         self.model = model
+        self.last_in_tok = 0
+        self.last_out_tok = 0
         self.available = bool(os.getenv("OPENAI_API_KEY"))
         self._client = None
         if self.available:
@@ -215,6 +219,10 @@ class OpenAIVision:
             raw = getattr(resp, "output_text", None) or json.dumps(
                 resp.model_dump().get("output", "")
             )
+            u = getattr(resp, "usage", None)
+            if u is not None:
+                self.last_in_tok = getattr(u, "input_tokens", 0) or 0
+                self.last_out_tok = getattr(u, "output_tokens", 0) or 0
             return _safe_parse(raw)
         except Exception as exc:
             log.warning("Responses API failed (%s); trying chat.completions", exc)
@@ -238,6 +246,10 @@ class OpenAIVision:
             ],
             response_format={"type": "json_object"},
         )
+        u = getattr(resp, "usage", None)
+        if u is not None:
+            self.last_in_tok = getattr(u, "prompt_tokens", 0) or 0
+            self.last_out_tok = getattr(u, "completion_tokens", 0) or 0
         return _safe_parse(resp.choices[0].message.content)
 
 
@@ -246,6 +258,8 @@ class GeminiVision:
 
     def __init__(self, model: str):
         self.model = model
+        self.last_in_tok = 0
+        self.last_out_tok = 0
         self.available = bool(os.getenv("GEMINI_API_KEY"))
         self._genai = None
         if self.available:
@@ -272,6 +286,10 @@ class GeminiVision:
             parts,
             generation_config={"response_mime_type": "application/json"},
         )
+        u = getattr(resp, "usage_metadata", None)
+        if u is not None:
+            self.last_in_tok = getattr(u, "prompt_token_count", 0) or 0
+            self.last_out_tok = getattr(u, "candidates_token_count", 0) or 0
         return _safe_parse(getattr(resp, "text", "") or "")
 
 
@@ -280,6 +298,8 @@ class ClaudeVision:
 
     def __init__(self, model: str):
         self.model = model
+        self.last_in_tok = 0
+        self.last_out_tok = 0
         self.available = bool(os.getenv("ANTHROPIC_API_KEY"))
         self._client = None
         if self.available:
@@ -317,6 +337,10 @@ class ClaudeVision:
         raw = "".join(
             block.text for block in resp.content if getattr(block, "type", "") == "text"
         )
+        u = getattr(resp, "usage", None)
+        if u is not None:
+            self.last_in_tok = getattr(u, "input_tokens", 0) or 0
+            self.last_out_tok = getattr(u, "output_tokens", 0) or 0
         return _safe_parse(raw)
 
 
@@ -366,13 +390,37 @@ class RouterResult:
 class ModelRouter:
     """Coordinates primary extraction + conditional validation + consensus."""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, tracker: Optional[UsageTracker] = None,
+                 cache: Optional[AIResultCache] = None):
         self.config = config
         self.primary = OpenAIVision(config.get("openai_model", "gpt-5.2"))
         self.gemini = GeminiVision(config.get("gemini_model", "gemini-2.5-pro"))
         self.claude = ClaudeVision(config.get("claude_model", "claude-sonnet-4"))
         self.review_threshold = float(config.get("ai_confidence_review_threshold", 0.85))
         self.always_validate = bool(config.get("always_validate", False))
+        self.tracker = tracker or UsageTracker()
+        self.cache = cache or AIResultCache(
+            config.get("cache_dir", ".cache"),
+            enabled=bool(config.get("enable_ai_cache", True)),
+        )
+
+    def _extract_cached(self, client, label: str, images_png: List[bytes]) -> TitleExtraction:
+        """Run one model with image-hash caching + usage tracking."""
+        key = image_signature(images_png, label)
+        hit = self.cache.get(key)
+        if hit is not None:
+            self.tracker.record_cache_hit(label)
+            try:
+                return TitleExtraction.model_validate(hit)
+            except Exception:
+                pass  # corrupt cache entry - fall through to a fresh call
+        extraction = client.extract(images_png)
+        self.tracker.record_call(label, client.last_in_tok, client.last_out_tok)
+        try:
+            self.cache.put(key, extraction.model_dump())
+        except Exception:
+            pass
+        return extraction
 
     def available_summary(self) -> str:
         parts = [
@@ -400,21 +448,24 @@ class ModelRouter:
         """Run the full router. `row_changed` = AI primary differs from sheet."""
         result = RouterResult()
 
-        primary = self.primary.extract(images_png)
+        primary_label = self.config.get("openai_model", "openai")
+        primary = self._extract_cached(self.primary, primary_label, images_png)
         result.primary = primary
-        result.models_used.append(self.config.get("openai_model", "openai"))
+        result.models_used.append(primary_label)
 
         extractions: List[Tuple[str, TitleExtraction]] = [("openai", primary)]
 
         if self._should_validate(primary, row_changed):
             if self.gemini.available:
-                g = self.gemini.extract(images_png)
+                label = self.config.get("gemini_model", "gemini")
+                g = self._extract_cached(self.gemini, label, images_png)
                 extractions.append(("gemini", g))
-                result.validators_used.append(self.config.get("gemini_model", "gemini"))
+                result.validators_used.append(label)
             if self.claude.available:
-                c = self.claude.extract(images_png)
+                label = self.config.get("claude_model", "claude")
+                c = self._extract_cached(self.claude, label, images_png)
                 extractions.append(("claude", c))
-                result.validators_used.append(self.config.get("claude_model", "claude"))
+                result.validators_used.append(label)
 
         self._merge(extractions, result)
         return result

@@ -25,7 +25,7 @@ import re
 from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple
 
-from openpyxl.styles import PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 log = logging.getLogger("horizon.excel")
@@ -271,10 +271,23 @@ def ensure_review_columns(ws, sheet: SheetMap) -> None:
         return
     start = ws.max_column + 2  # leave a one-column gap
     sheet.review_col_start = start
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="305496", end_color="305496", fill_type="solid")
     for i, header in enumerate(REVIEW_COLUMNS):
         col = start + i
-        ws.cell(row=sheet.header_row, column=col, value=header)
+        cell = ws.cell(row=sheet.header_row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        # Readable, generous widths; legal description gets the most room.
+        width = 40 if "Legal" in header else (22 if "Suggested" in header or "Notes" in header else 16)
+        ws.column_dimensions[get_column_letter(col)].width = width
         sheet.review_col_index[header] = col
+    # Freeze the header row so it stays visible while scrolling long sheets.
+    try:
+        ws.freeze_panes = ws.cell(row=sheet.header_row + 1, column=1)
+    except Exception:
+        pass
 
 
 def _fmt(value) -> str:
@@ -359,3 +372,63 @@ def load_workbook(path: str):
 def iter_data_rows(ws, sheet: SheetMap) -> List[int]:
     """Yield 1-based data row indices below the header row."""
     return list(range(sheet.header_row + 1, ws.max_row + 1))
+
+
+def add_summary_sheet(wb, stats: dict, workbook_name: str) -> None:
+    """Prepend an '_AI_Review_Summary' sheet with run stats and a color legend.
+
+    Inserted at the front so the reviewer sees it first. Never touches data sheets.
+    """
+    title = "_AI_Review_Summary"
+    if title in wb.sheetnames:
+        del wb[title]
+    ws = wb.create_sheet(title, 0)
+    ws.column_dimensions["A"].width = 30
+    ws.column_dimensions["B"].width = 50
+
+    big = Font(bold=True, size=14)
+    bold = Font(bold=True)
+    ws["A1"] = "Horizon Title Link Extractor - AI Review Summary"
+    ws["A1"].font = big
+    ws["A2"] = "Source workbook"
+    ws["A2"].font = bold
+    ws["B2"] = workbook_name
+    ws["A3"] = "Generated"
+    ws["A3"].font = bold
+    ws["B3"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    r = 5
+    ws.cell(row=r, column=1, value="Statistic").font = bold
+    ws.cell(row=r, column=2, value="Value").font = bold
+    r += 1
+    for k, v in stats.items():
+        ws.cell(row=r, column=1, value=k)
+        ws.cell(row=r, column=2, value=v)
+        r += 1
+
+    r += 1
+    ws.cell(row=r, column=1, value="Color legend").font = bold
+    r += 1
+    legend = [
+        ("GREEN", "High confidence, no major mismatch", FILL_GREEN),
+        ("YELLOW", "Possible correction / medium confidence / disagreement", FILL_YELLOW),
+        ("RED", "Failed / blocked / login expired / unreadable / low confidence", FILL_RED),
+    ]
+    for label, desc, fill in legend:
+        c = ws.cell(row=r, column=1, value=label)
+        c.fill = fill
+        c.font = bold
+        ws.cell(row=r, column=2, value=desc)
+        r += 1
+
+    r += 1
+    note = ws.cell(
+        row=r, column=1,
+        value="REVIEW ONLY: the original workbook was not modified. Suggested "
+              "corrections are in the AI columns on each data sheet.",
+    )
+    note.font = Font(italic=True, color="888888")
+    try:
+        ws.freeze_panes = "A2"
+    except Exception:
+        pass

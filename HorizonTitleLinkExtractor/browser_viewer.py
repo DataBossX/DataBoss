@@ -115,8 +115,17 @@ class BrowserViewer:
         return has_pw_field and hits >= 1
 
     # -- main entry ----------------------------------------------------------
-    def capture_document(self, url: str) -> CaptureResult:
+    def capture_document(self, url: str, tag: str = "") -> CaptureResult:
         result = CaptureResult()
+
+        # 0. If the link itself is a direct image/PDF, fetch its bytes directly.
+        direct = self._fetch_direct(url)
+        if direct is not None:
+            result.images = [direct]
+            result.method = "direct-url"
+            self._maybe_debug_save(result.images, tag)
+            return result
+
         page = self._context.new_page()
         try:
             page.goto(url, wait_until="domcontentloaded")
@@ -132,11 +141,20 @@ class BrowserViewer:
             result.method = method
             self._wait_idle(target_page)
 
-            # Now capture from whatever viewer surfaced.
+            # If the View click navigated straight to an image/PDF, grab it.
+            direct = self._fetch_direct(target_page.url)
+            if direct is not None:
+                result.images = [direct]
+                result.method = f"{method}->direct-image"
+                self._maybe_debug_save(result.images, tag)
+                return result
+
+            # Otherwise capture from whatever viewer surfaced.
             images, cap_method = self._capture_from(target_page)
             if images:
                 result.images = images
                 result.method = f"{method}->{cap_method}"
+                self._maybe_debug_save(result.images, tag)
             else:
                 result.error = "no document content found after View click"
             return result
@@ -149,6 +167,39 @@ class BrowserViewer:
                 page.close()
             except Exception:
                 pass
+
+    def _fetch_direct(self, url: str) -> Optional[bytes]:
+        """If the URL points straight at an image, return its bytes (reuses the
+        authenticated session). PDFs are left to the viewer screenshot path."""
+        if not url:
+            return None
+        low = url.split("?")[0].lower()
+        if not low.endswith((".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff")):
+            return None
+        try:
+            resp = self._context.request.get(url, timeout=self.timeout_ms)
+            if resp.ok:
+                ctype = (resp.headers or {}).get("content-type", "")
+                if "image" in ctype or low.endswith((".tif", ".tiff")):
+                    return resp.body()
+        except Exception as exc:
+            log.debug("direct image fetch failed: %s", exc)
+        return None
+
+    def _maybe_debug_save(self, images: List[bytes], tag: str) -> None:
+        """Persist captured images ONLY when debug_save_screenshots is on."""
+        if not self.debug_save or not images:
+            return
+        debug_dir = os.path.join(os.getcwd(), "debug")
+        try:
+            os.makedirs(debug_dir, exist_ok=True)
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            safe = "".join(c if c.isalnum() else "_" for c in (tag or "doc"))[:40]
+            for i, img in enumerate(images):
+                with open(os.path.join(debug_dir, f"{stamp}_{safe}_p{i+1}.png"), "wb") as fh:
+                    fh.write(img)
+        except Exception as exc:
+            log.debug("debug screenshot save failed: %s", exc)
 
     # -- helpers -------------------------------------------------------------
     def _wait_idle(self, page) -> None:

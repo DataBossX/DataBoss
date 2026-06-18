@@ -84,6 +84,36 @@ STEP-BY-STEP
         _AI_Updated_Reports_2026-06-17_1430
 
 
+HELPFUL EXTRA TOOLS (optional but recommended)
+----------------------------------------------------------------------------
+RUN_DOCTOR.bat
+   Checks everything is set up correctly (Python, keys, login, folders) and
+   prints a simple PASS / WARN / FAIL checklist. Run this FIRST if anything
+   is not working - it tells you exactly what to fix.
+
+RUN_DRY_RUN.bat
+   Opens every document link and confirms the document is visible, but does
+   NOT call any AI (so it costs nothing). Great for confirming your county
+   login and the links work before you spend money on a full AI review.
+   Afterward, open  logs\report.html  to see which links opened.
+
+RUN_TESTS.bat
+   Runs the built-in self-tests of the program's logic. You normally do not
+   need this, but it proves the core code is healthy.
+
+THE HTML REPORT
+   After any test/dry-run/full review, open  logs\report.html  in your web
+   browser for a friendly, color-coded summary of every row - green (good),
+   yellow (check this), red (failed / needs a human). The output Excel file
+   also now starts with an "_AI_Review_Summary" tab.
+
+SAVING MONEY
+   Identical document images are cached, so re-running does not re-pay the AI
+   for documents it already read. The run summary prints how many AI calls and
+   cache hits happened. (Only the AI's text answers are cached - never the
+   county document images.)
+
+
 OPTIONAL: UPLOAD LATER
 ----------------------------------------------------------------------------
 If Drive upload was not configured when you ran the review, you can run

@@ -53,3 +53,16 @@ force_reprocess: false
 apply_corrections: false
 write_review_columns: true
 highlight_changed_cells: true
+
+# ---- v2 enhancements -------------------------------------------------------
+# dry_run: capture documents through the browser but skip all AI calls (free).
+dry_run: false
+# enable_ai_cache: reuse AI results for identical document images (saves money).
+enable_ai_cache: true
+cache_dir: ".cache"
+# generate_html_report: write logs/report.html for easy non-coder review.
+generate_html_report: true
+# request_jitter_seconds: random extra delay added to request_delay_seconds.
+request_jitter_seconds: 0.0
+# openai_fallback_models: tried in order if the primary model errors.
+openai_fallback_models: []

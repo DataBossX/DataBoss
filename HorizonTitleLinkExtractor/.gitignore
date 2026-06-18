@@ -19,6 +19,7 @@ temp/
 debug/
 input/
 output/
+.cache/
 
 # Logs
 logs/

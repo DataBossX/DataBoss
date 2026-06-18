@@ -29,6 +29,13 @@ def _env_int(name: str, default: int) -> int:
     return int(_env_float(name, float(default)))
 
 
+# Default upload extensions appropriate for an OCR/document pipeline.
+_DEFAULT_UPLOAD_EXTENSIONS = frozenset({
+    ".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff",
+    ".bmp", ".gif", ".webp", ".txt",
+})
+
+
 @dataclass(frozen=True)
 class Settings:
     """Resolved backend settings. Construct via :meth:`from_env`."""
@@ -44,10 +51,7 @@ class Settings:
     # Empty set means "allow any extension". Defaults to common document/image
     # types appropriate for an OCR pipeline.
     allowed_upload_extensions: Set[str] = field(
-        default_factory=lambda: {
-            ".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff",
-            ".bmp", ".gif", ".webp", ".txt",
-        }
+        default_factory=lambda: set(_DEFAULT_UPLOAD_EXTENSIONS)
     )
 
     # Rate limiting (per client IP, sliding window) for write endpoints
@@ -84,9 +88,7 @@ class Settings:
                 for e in _split_csv(ext_raw)
             }
         else:
-            exts = cls.__dataclass_fields__[
-                "allowed_upload_extensions"
-            ].default_factory()  # type: ignore[attr-defined]
+            exts = set(_DEFAULT_UPLOAD_EXTENSIONS)
 
         return cls(
             db_path=os.getenv("SQLITE_DB_PATH", "./databossx.db"),

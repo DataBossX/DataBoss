@@ -35,5 +35,8 @@ jobs:
           # Style report (advisory, never fails the build).
           flake8 . --count --exit-zero --statistics
 
+      - name: Type check (typed modules)
+        run: mypy
+
       - name: Run tests
         run: pytest -q

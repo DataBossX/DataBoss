@@ -57,7 +57,13 @@ def main() -> int:
     else:
         skipped.append("flake8 (not installed)")
 
-    # 3. frontend lint (only if deps already installed)
+    # 3. mypy static type check on typed modules (config in mypy.ini)
+    if have("mypy", is_module=True) and (ROOT / "mypy.ini").exists():
+        run("mypy (typed modules)", [sys.executable, "-m", "mypy"])
+    else:
+        skipped.append("mypy (not installed)")
+
+    # 4. frontend lint (only if deps already installed)
     fe = ROOT / "frontend"
     if (fe / "node_modules").exists() and have("npx"):
         run("frontend eslint", ["npx", "eslint", "src", "--max-warnings", "0"],

@@ -5,6 +5,7 @@
 # Test & lint tooling
 pytest>=8.0.0
 flake8>=7.0.0
+mypy>=1.8.0
 
 # Backend (FastAPI) runtime needed by tests/test_backend_api.py
 fastapi>=0.110.1
@@ -17,3 +18,7 @@ loguru>=0.7.0
 
 # Automation helpers exercised by unit tests
 tenacity>=8.2.3
+
+# DOTO Image Commander modules exercised by unit tests
+pandas>=2.2.0
+cryptography>=42.0.0

@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 try:  # Python 3.11+
-    import tomllib  # type: ignore
+    import tomllib
 except ModuleNotFoundError:  # pragma: no cover - older interpreters
-    tomllib = None  # type: ignore
+    tomllib = None  # type: ignore[assignment]
 
 DEFAULT_SETTINGS_PATH = (
     Path(__file__).resolve().parent.parent / "config" / "settings.toml"

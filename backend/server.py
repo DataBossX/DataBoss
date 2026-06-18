@@ -9,6 +9,7 @@ import aiosqlite
 from pathlib import Path
 
 # FastAPI imports
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -33,20 +34,40 @@ load_dotenv()
 # Configure logger
 logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
 
-# Initialize FastAPI app
-app = FastAPI(title="DataBossX API", version="1.0.0")
+# Application lifespan (replaces deprecated @app.on_event hooks)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize the database and log startup/shutdown."""
+    await init_database()
+    await log_system_event("INFO", "DataBossX API started", "system")
+    logger.info("DataBossX API started successfully")
+    yield
+    logger.info("DataBossX API shutting down")
 
-# CORS middleware
+
+# Initialize FastAPI app
+app = FastAPI(title="DataBossX API", version="1.0.0", lifespan=lifespan)
+
+# CORS middleware.
+# Origins are configured via CORS_ALLOW_ORIGINS (comma-separated). Defaults to
+# localhost dev origins. A wildcard ("*") is supported but, per the CORS spec,
+# credentials are disabled when a wildcard is used.
+_cors_env = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000")
+_cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+_allow_credentials = "*" not in _cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 # Database configuration
 SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "./databossx.db")
+
+# Maximum allowed upload size (bytes) for document uploads.
+MAX_UPLOAD_BYTES = int(float(os.getenv("MAX_UPLOAD_MB", "25")) * 1024 * 1024)
 
 # API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -160,6 +181,16 @@ def calculate_file_hash(file_content: bytes) -> str:
     """Calculate SHA-256 hash of file content"""
     return hashlib.sha256(file_content).hexdigest()
 
+def sanitize_filename(filename: Optional[str]) -> str:
+    """Return a safe base filename, stripping any path components.
+
+    Prevents path-traversal (e.g. '../../etc/passwd') from user-supplied
+    upload filenames being persisted or echoed back.
+    """
+    name = Path(filename or "").name  # drop directory components
+    name = name.replace("\x00", "")
+    return name or "unnamed"
+
 async def log_system_event(level: str, message: str, component: str, details: Optional[Dict] = None):
     """Log system events to database"""
     log_id = str(uuid.uuid4())
@@ -245,13 +276,6 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
         raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
 
 # API Endpoints
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    await init_database()
-    await log_system_event("INFO", "DataBossX API started", "system")
-    logger.info("DataBossX API started successfully")
-
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
@@ -273,9 +297,20 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     try:
         # Read file content
         file_content = await file.read()
-        file_hash = calculate_file_hash(file_content)
         file_size = len(file_content)
-        
+
+        # Reject empty or oversized uploads early
+        if file_size == 0:
+            raise HTTPException(status_code=400, detail="Empty file uploaded")
+        if file_size > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)",
+            )
+
+        safe_filename = sanitize_filename(file.filename)
+        file_hash = calculate_file_hash(file_content)
+
         # Check for duplicates
         async with aiosqlite.connect(SQLITE_DB_PATH) as db:
             async with db.execute("SELECT id FROM documents WHERE file_hash = ?", (file_hash,)) as cursor:
@@ -291,22 +326,25 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
         async with aiosqlite.connect(SQLITE_DB_PATH) as db:
             await db.execute(
                 "INSERT INTO documents (id, filename, file_hash, upload_time, file_size, status) VALUES (?, ?, ?, ?, ?, ?)",
-                (doc_id, file.filename, file_hash, datetime.now(), file_size, "processing")
+                (doc_id, safe_filename, file_hash, datetime.now(), file_size, "processing")
             )
             await db.commit()
-        
+
         # Process OCR in background
-        background_tasks.add_task(process_document_background, doc_id, file_content, file.filename)
-        
-        await log_system_event("INFO", f"Document uploaded: {file.filename}", "upload", {"document_id": doc_id})
-        
+        background_tasks.add_task(process_document_background, doc_id, file_content, safe_filename)
+
+        await log_system_event("INFO", f"Document uploaded: {safe_filename}", "upload", {"document_id": doc_id})
+
         return {
             "document_id": doc_id,
-            "filename": file.filename,
+            "filename": safe_filename,
             "file_size": file_size,
             "status": "processing"
         }
-        
+
+    except HTTPException:
+        # Preserve intended client-error status codes (400/409/413/...)
+        raise
     except Exception as e:
         logger.error(f"Document upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")

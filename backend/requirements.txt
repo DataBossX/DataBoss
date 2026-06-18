@@ -25,7 +25,8 @@ jq>=1.6.0
 typer>=0.9.0
 
 # DataBossX Dependencies
-sqlite3>=0.0.0
+# NOTE: sqlite3 ships with the Python standard library. Do NOT add a "sqlite3"
+# requirement here — no such PyPI package exists and it breaks `pip install`.
 openai>=1.54.0
 anthropic>=0.40.0
 google-generativeai>=0.8.0

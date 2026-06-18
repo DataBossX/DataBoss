@@ -34,7 +34,8 @@ def search_owner(page, owner:str):
     # pick first suggestion if appears
     try:
         page.locator(".react-select__menu").locator("div").nth(0).click(timeout=2000)
-    except: pass
+    except Exception:
+        pass  # no autocomplete suggestion appeared; continue with typed name
     page.get_by_role("button", name="Search").click()
     time.sleep(DELAY+1)
 
@@ -52,7 +53,8 @@ def parse_results(page, owner:str):
         try:
             cols.nth(0).click()
             page.get_by_role("link", name=re.compile("View", re.I)).click(timeout=3000)
-        except: pass
+        except Exception:
+            pass  # detail link not present for this row; capture current URL only
         # side panel or new tab may show details; capture URL
         source_url = page.url
         text_blob = " ".join([doc_no, instr, recd])
@@ -99,11 +101,15 @@ def main():
                 # pick the latest doc for workbook
                 last_doc = sorted(docs, key=lambda d: (d.get("recording_date") or "0000-00-00"))[-1]
                 update_owner(owner, decision, last_doc)
-                json.dump({"owner":owner,"docs":docs,"decision":decision},
-                          open(f"data/json_traces/{owner.replace('/','_')}.json","w"), ensure_ascii=False, indent=2)
+                safe_name = owner.replace('/', '_')
+                with open(f"data/json_traces/{safe_name}.json", "w") as fh:
+                    json.dump({"owner": owner, "docs": docs, "decision": decision},
+                              fh, ensure_ascii=False, indent=2)
                 time.sleep(DELAY)
             except Exception as e:
-                json.dump({"owner":owner,"error":str(e)}, open(f"data/json_traces/{owner.replace('/','_')}_ERR.json","w"))
+                safe_name = owner.replace('/', '_')
+                with open(f"data/json_traces/{safe_name}_ERR.json", "w") as fh:
+                    json.dump({"owner": owner, "error": str(e)}, fh)
                 time.sleep(DELAY)
         browser.close()
 

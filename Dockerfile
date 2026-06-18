@@ -4,17 +4,19 @@ ARG FRONTEND_ENV
 ENV FRONTEND_ENV=${FRONTEND_ENV}
 WORKDIR /app
 COPY frontend/ /app/
-RUN rm /app/.env
-RUN touch /app/.env
-RUN echo "${FRONTEND_ENV}" | tr ',' '\n' > /app/.env
-RUN cat /app/.env
+# Build-time frontend env is injected via the FRONTEND_ENV build arg
+# (comma-separated KEY=VALUE pairs). Do NOT print it — that would leak
+# values into the build logs.
+RUN rm -f /app/.env && \
+    printf '%s\n' "${FRONTEND_ENV}" | tr ',' '\n' > /app/.env
 RUN yarn install --frozen-lockfile && yarn build
 
 # Stage 2: Install Python Backend
 FROM python:3.11-slim as backend
 WORKDIR /app
 COPY backend/ /app/
-RUN rm /app/.env
+# Never bake a committed .env into the image; runtime env is injected at deploy.
+RUN rm -f /app/.env
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 3: Final Image

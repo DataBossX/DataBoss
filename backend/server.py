@@ -1,87 +1,163 @@
 import os
 import uuid
-import sqlite3
 import json
-import asyncio
+import time
+import hashlib
+from collections import deque
+from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-import aiosqlite
 from pathlib import Path
+from typing import Optional, List, Dict, Any, Deque, Tuple
+
+import aiosqlite
 
 # FastAPI imports
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import (
+    FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Request,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# OCR and LLM imports - Simplified for demo
-import openai
-import anthropic
-import google.generativeai as genai
-from PIL import Image
-import io
-import hashlib
-import base64
+from config import Settings
+from logging_utils import configure_logging
 
-# Logging
-from loguru import logger
+# --- Optional heavy dependencies -------------------------------------------
+# The API must start even when individual LLM SDKs are not installed; each
+# provider degrades gracefully and is simply reported as "unavailable".
+try:
+    import openai  # type: ignore
+except Exception:  # pragma: no cover - import guard
+    openai = None  # type: ignore
+try:
+    import anthropic  # type: ignore
+except Exception:  # pragma: no cover - import guard
+    anthropic = None  # type: ignore
+try:
+    import google.generativeai as genai  # type: ignore
+except Exception:  # pragma: no cover - import guard
+    genai = None  # type: ignore
 
-# Load environment variables
+# Load environment variables, then resolve typed settings.
 load_dotenv()
+settings = Settings.from_env()
 
-# Configure logger
-logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
+# Logger with secret redaction (prefers loguru, falls back to stdlib).
+logger = configure_logging(
+    settings.log_path,
+    settings.log_level,
+    extra_secrets=[
+        settings.openai_api_key,
+        settings.anthropic_api_key,
+        settings.gemini_api_key,
+    ],
+)
+
+# Back-compat module-level aliases (referenced by tests and helpers).
+SQLITE_DB_PATH = settings.db_path
+MAX_UPLOAD_BYTES = settings.max_upload_bytes
+GEMINI_API_KEY = settings.gemini_api_key
+_cors_origins = settings.cors_origins
+_allow_credentials = settings.allow_credentials
+
+# Initialize LLM clients lazily/defensively.
+openai_client = (
+    openai.OpenAI(api_key=settings.openai_api_key)
+    if (openai and settings.openai_api_key) else None
+)
+anthropic_client = (
+    anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    if (anthropic and settings.anthropic_api_key) else None
+)
+if genai and settings.gemini_api_key:
+    try:
+        genai.configure(api_key=settings.gemini_api_key)
+    except Exception as exc:  # pragma: no cover
+        logger.warning(f"Gemini configuration failed: {exc}")
+        genai = None  # type: ignore
+
+# Initialize OCR engine (simplified for demo)
+PRIMARY_OCR = "demo_ocr"
+
+
+# --- Simple in-memory sliding-window rate limiter --------------------------
+_rate_buckets: Dict[str, Deque[float]] = {}
+
+
+def _rate_limit_ok(client_id: str) -> bool:
+    """Return True if a request from ``client_id`` is within the limit."""
+    if settings.rate_limit_max <= 0:
+        return True
+    now = time.monotonic()
+    window = settings.rate_limit_window_sec
+    bucket = _rate_buckets.setdefault(client_id, deque())
+    while bucket and (now - bucket[0]) > window:
+        bucket.popleft()
+    if len(bucket) >= settings.rate_limit_max:
+        return False
+    bucket.append(now)
+    return True
+
 
 # Application lifespan (replaces deprecated @app.on_event hooks)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize the database and log startup/shutdown."""
+    for warning in settings.validate():
+        logger.warning(f"config: {warning}")
     await init_database()
     await log_system_event("INFO", "DataBossX API started", "system")
-    logger.info("DataBossX API started successfully")
+    logger.info(
+        "DataBossX API started "
+        f"(providers={settings.configured_providers() or 'none'})"
+    )
     yield
     logger.info("DataBossX API shutting down")
 
 
 # Initialize FastAPI app
-app = FastAPI(title="DataBossX API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="DataBossX API", version="1.1.0", lifespan=lifespan)
 
-# CORS middleware.
-# Origins are configured via CORS_ALLOW_ORIGINS (comma-separated). Defaults to
-# localhost dev origins. A wildcard ("*") is supported but, per the CORS spec,
-# credentials are disabled when a wildcard is used.
-_cors_env = os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000")
-_cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
-_allow_credentials = "*" not in _cors_origins
+# CORS — configured via CORS_ALLOW_ORIGINS (comma-separated). Credentials are
+# disabled automatically when a wildcard origin is used (per the CORS spec).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=_allow_credentials,
+    allow_origins=settings.cors_origins,
+    allow_credentials=settings.allow_credentials,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Database configuration
-SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "./databossx.db")
 
-# Maximum allowed upload size (bytes) for document uploads.
-MAX_UPLOAD_BYTES = int(float(os.getenv("MAX_UPLOAD_MB", "25")) * 1024 * 1024)
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    """Attach a request id, enforce rate limits, and add timing headers."""
+    request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    client_ip = request.client.host if request.client else "unknown"
 
-# API Keys
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    # Rate-limit mutating requests only (keeps reads cheap).
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        if not _rate_limit_ok(client_ip):
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Too many requests", "request_id": request_id},
+                headers={"Retry-After": str(int(settings.rate_limit_window_sec))},
+            )
 
-# Initialize clients
-openai_client = openai.OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-# Initialize OCR engine (simplified for demo)
-PRIMARY_OCR = "demo_ocr"
+    start = time.monotonic()
+    try:
+        response = await call_next(request)
+    except Exception as exc:  # defensive: never leak stack traces to clients
+        logger.error(f"Unhandled error [{request_id}]: {exc}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "request_id": request_id},
+        )
+    elapsed_ms = (time.monotonic() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Process-Time-ms"] = f"{elapsed_ms:.1f}"
+    return response
 
 # Data models
 class Document(BaseModel):
@@ -187,9 +263,23 @@ def sanitize_filename(filename: Optional[str]) -> str:
     Prevents path-traversal (e.g. '../../etc/passwd') from user-supplied
     upload filenames being persisted or echoed back.
     """
-    name = Path(filename or "").name  # drop directory components
-    name = name.replace("\x00", "")
+    # Normalise Windows-style separators so traversal is stripped regardless of
+    # the server OS (uploads may originate from Windows clients).
+    raw = (filename or "").replace("\\", "/")
+    name = Path(raw).name  # drop directory components
+    name = name.replace("\x00", "").strip()
     return name or "unnamed"
+
+
+def is_allowed_extension(filename: str) -> bool:
+    """Return True if the file extension is permitted by configuration.
+
+    An empty allow-list means "allow any type".
+    """
+    allowed = settings.allowed_upload_extensions
+    if not allowed:
+        return True
+    return Path(filename).suffix.lower() in allowed
 
 async def log_system_event(level: str, message: str, component: str, details: Optional[Dict] = None):
     """Log system events to database"""
@@ -276,19 +366,36 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
         raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
 
 # API Endpoints
+@app.get("/")
+async def root():
+    """Service metadata / liveness root."""
+    return {
+        "service": "DataBossX API",
+        "version": app.version,
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
         "timestamp": datetime.now(),
-        "version": "1.0.0",
+        "version": app.version,
         "services": {
             "ocr": "available",
             "openai": "available" if openai_client else "unavailable",
-            "anthropic": "available" if anthropic_client else "unavailable", 
-            "gemini": "available" if GEMINI_API_KEY else "unavailable"
-        }
+            "anthropic": "available" if anthropic_client else "unavailable",
+            "gemini": "available" if (GEMINI_API_KEY and genai) else "unavailable",
+        },
+        "limits": {
+            "max_upload_mb": settings.max_upload_mb,
+            "rate_limit_per_window": settings.rate_limit_max,
+            "rate_limit_window_sec": settings.rate_limit_window_sec,
+        },
     }
 
 @app.post("/api/documents/upload")
@@ -309,6 +416,12 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
             )
 
         safe_filename = sanitize_filename(file.filename)
+        if not is_allowed_extension(safe_filename):
+            allowed = ", ".join(sorted(settings.allowed_upload_extensions))
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported file type. Allowed: {allowed}",
+            )
         file_hash = calculate_file_hash(file_content)
 
         # Check for duplicates

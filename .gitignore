@@ -68,3 +68,21 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+
+# ===================
+# DATABOSSX BASELINE RULES (appended; originals above preserved)
+# ===================
+.env
+.auth/
+temp/
+logs/
+backups/
+outputs/
+quarantine/
+agent_outputs/
+data/*.sqlite
+data/*.db
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

@@ -68,3 +68,36 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+
+# ===================
+# DataBossX safety rules (never commit secrets/artifacts)
+# ===================
+# Real env files (templates like .env.example are allowed)
+.env
+**/.env
+.env.*
+!.env.example
+!**/.env.example
+.auth/
+**/.auth
+cookies/
+*.pem
+
+# Generated artifact dirs
+/backups/
+/diagnostics/
+/rollback/
+/memory/
+logs/*.log
+
+# Databases / private memory
+*.db
+*.sqlite3
+
+# Review workbook copies may hold client data
+review_outputs/*.xlsx
+review_outputs/*.xlsm
+
+# Debug images
+debug_images/
+**/*debug*.png

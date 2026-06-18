@@ -1,0 +1,56 @@
+# Dedicated CI for the HorizonTitleLinkExtractor tool.
+#
+# This is intentionally separate from the repo-wide python-app.yml: it installs
+# ONLY this tool's minimal, conflict-free test dependencies and runs its own
+# pytest suite. Path-filtered so it only runs when this tool changes.
+
+name: HorizonTitleLinkExtractor CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "HorizonTitleLinkExtractor/**"
+      - ".github/workflows/horizon-title-link-extractor.yml"
+  pull_request:
+    paths:
+      - "HorizonTitleLinkExtractor/**"
+      - ".github/workflows/horizon-title-link-extractor.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: HorizonTitleLinkExtractor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal test dependencies
+        # Only what the logic tests need - no Playwright/AI/Drive packages,
+        # so this stays fast and free of the repo-wide dependency conflicts.
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl==3.1.5 pydantic==2.9.2 PyYAML==6.0.2 \
+                      tenacity==9.0.0 python-dotenv==1.0.1 flake8 pytest
+
+      - name: Syntax / undefined-name lint (flake8)
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Compile all modules
+        run: |
+          python -m py_compile *.py tests/*.py
+
+      - name: Run test suite
+        run: |
+          python -m pytest -q

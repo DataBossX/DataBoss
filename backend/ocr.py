@@ -8,18 +8,30 @@ If image OCR is requested but Tesseract is not installed, a clear ``OCRError``
 is raised so the caller can mark the document ``failed`` with a useful message
 instead of silently returning fake text.
 """
+
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 TEXT_EXTENSIONS = {".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".log", ".xml", ".html", ".htm", ".rtf"}
 TEXT_CONTENT_TYPES = {
-    "text/plain", "text/markdown", "text/csv", "text/tab-separated-values",
-    "application/json", "text/xml", "application/xml", "text/html",
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/tab-separated-values",
+    "application/json",
+    "text/xml",
+    "application/xml",
+    "text/html",
 }
 IMAGE_CONTENT_TYPES = {
-    "image/png", "image/jpeg", "image/jpg", "image/tiff", "image/bmp",
-    "image/webp", "image/gif",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/tiff",
+    "image/bmp",
+    "image/webp",
+    "image/gif",
 }
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".gif"}
 
@@ -32,11 +44,11 @@ def _ext(filename: str) -> str:
     return os.path.splitext(filename or "")[1].lower()
 
 
-def is_text(filename: str, content_type: Optional[str]) -> bool:
+def is_text(filename: str, content_type: str | None) -> bool:
     return _ext(filename) in TEXT_EXTENSIONS or (content_type or "").split(";")[0].strip() in TEXT_CONTENT_TYPES
 
 
-def is_image(filename: str, content_type: Optional[str]) -> bool:
+def is_image(filename: str, content_type: str | None) -> bool:
     return _ext(filename) in IMAGE_EXTENSIONS or (content_type or "").split(";")[0].strip() in IMAGE_CONTENT_TYPES
 
 
@@ -49,13 +61,14 @@ def tesseract_available() -> bool:
         return False
     try:
         import pytesseract
+
         pytesseract.get_tesseract_version()
         return True
     except Exception:
         return False
 
 
-def supported(filename: str, content_type: Optional[str]) -> bool:
+def supported(filename: str, content_type: str | None) -> bool:
     return is_text(filename, content_type) or is_image(filename, content_type)
 
 
@@ -66,9 +79,7 @@ def _ocr_image(content: bytes) -> tuple[str, float]:
         import pytesseract
         from PIL import Image
     except ImportError as exc:  # pragma: no cover - depends on environment
-        raise OCRError(
-            "Image OCR requires Pillow and pytesseract to be installed."
-        ) from exc
+        raise OCRError("Image OCR requires Pillow and pytesseract to be installed.") from exc
 
     try:
         image = Image.open(io.BytesIO(content))
@@ -79,9 +90,7 @@ def _ocr_image(content: bytes) -> tuple[str, float]:
     try:
         data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
     except pytesseract.TesseractNotFoundError as exc:
-        raise OCRError(
-            "Tesseract OCR engine is not installed on this host."
-        ) from exc
+        raise OCRError("Tesseract OCR engine is not installed on this host.") from exc
     except Exception as exc:
         raise OCRError(f"OCR failed: {exc}") from exc
 
@@ -93,7 +102,7 @@ def _ocr_image(content: bytes) -> tuple[str, float]:
     return raw_text, round(confidence, 4)
 
 
-def extract_text(content: bytes, filename: str, content_type: Optional[str]) -> Dict[str, Any]:
+def extract_text(content: bytes, filename: str, content_type: str | None) -> dict[str, Any]:
     """Extract text from a document. Raises OCRError on unsupported/failed input."""
     start = time.monotonic()
 
@@ -105,9 +114,7 @@ def extract_text(content: bytes, filename: str, content_type: Optional[str]) -> 
         raw_text, confidence = _ocr_image(content)
         engine = "tesseract"
     else:
-        raise OCRError(
-            f"Unsupported file type for OCR: {content_type or _ext(filename) or 'unknown'}"
-        )
+        raise OCRError(f"Unsupported file type for OCR: {content_type or _ext(filename) or 'unknown'}")
 
     processing_time = time.monotonic() - start
     return {

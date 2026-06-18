@@ -3,6 +3,7 @@
 All settings are read from the environment (loaded from backend/.env) so that
 nothing is hard-coded. Import this module wherever configuration is needed.
 """
+
 import os
 
 from dotenv import load_dotenv
@@ -50,6 +51,14 @@ _cors_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
 CORS_ORIGINS = [o.strip() for o in _cors_raw.split(",") if o.strip()]
 # Browsers reject credentialed requests when origin is the "*" wildcard.
 CORS_ALLOW_CREDENTIALS = CORS_ORIGINS != ["*"]
+
+# --- Security (opt-in) ---
+# Comma-separated allowed API keys. Empty => auth disabled (open mode).
+_api_keys_raw = os.getenv("API_KEYS", "")
+API_KEYS = [k.strip() for k in _api_keys_raw.split(",") if k.strip()]
+# Per-client request cap; 0 => rate limiting disabled.
+RATE_LIMIT_PER_MINUTE = _int("RATE_LIMIT_PER_MINUTE", 0)
+RATE_LIMIT_WINDOW = _float("RATE_LIMIT_WINDOW", 60.0)
 
 # --- Logging / observability ---
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

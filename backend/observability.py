@@ -5,25 +5,23 @@ Dependency-light by design:
   * metrics are kept in-process and exposed both as JSON (/api/metrics) and in
     Prometheus text format (/metrics) — no extra package required.
 """
+
 import os
 import sys
 import threading
 import time
 from collections import defaultdict
-from typing import Dict, Tuple
 
 from loguru import logger
 
 import config
 
 _lock = threading.Lock()
-_counters: Dict[Tuple[str, Tuple[Tuple[str, str], ...]], float] = defaultdict(float)
-_hist: Dict[Tuple[str, Tuple[Tuple[str, str], ...]], Dict[str, float]] = defaultdict(
-    lambda: {"count": 0.0, "sum": 0.0}
-)
+_counters: dict[tuple[str, tuple[tuple[str, str], ...]], float] = defaultdict(float)
+_hist: dict[tuple[str, tuple[tuple[str, str], ...]], dict[str, float]] = defaultdict(lambda: {"count": 0.0, "sum": 0.0})
 
 
-def _key(name: str, labels: Dict[str, str]) -> Tuple[str, Tuple[Tuple[str, str], ...]]:
+def _key(name: str, labels: dict[str, str]) -> tuple[str, tuple[tuple[str, str], ...]]:
     return name, tuple(sorted(labels.items()))
 
 
@@ -41,13 +39,9 @@ def observe(name: str, value: float, **labels: str) -> None:
 
 def snapshot() -> dict:
     with _lock:
-        counters = [
-            {"name": n, "labels": dict(lbls), "value": v}
-            for (n, lbls), v in _counters.items()
-        ]
+        counters = [{"name": n, "labels": dict(lbls), "value": v} for (n, lbls), v in _counters.items()]
         histograms = [
-            {"name": n, "labels": dict(lbls), "count": h["count"], "sum": h["sum"]}
-            for (n, lbls), h in _hist.items()
+            {"name": n, "labels": dict(lbls), "count": h["count"], "sum": h["sum"]} for (n, lbls), h in _hist.items()
         ]
     return {"counters": counters, "histograms": histograms}
 
@@ -55,7 +49,7 @@ def snapshot() -> dict:
 def prometheus_text() -> str:
     lines = []
 
-    def fmt_labels(lbls: Tuple[Tuple[str, str], ...]) -> str:
+    def fmt_labels(lbls: tuple[tuple[str, str], ...]) -> str:
         if not lbls:
             return ""
         inner = ",".join(f'{k}="{v}"' for k, v in lbls)

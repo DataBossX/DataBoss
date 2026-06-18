@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.1.0 — security, frontend wiring, hardening, tooling
+
+### Security posture (opt-in, backward compatible)
+- API-key auth (`X-API-Key`) on data endpoints — active only when `API_KEYS`
+  is configured; `/api/health` and `/metrics` stay open.
+- In-process per-client rate limiting (`RATE_LIMIT_PER_MINUTE`, returns 429 +
+  `Retry-After`).
+- Security response headers (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`) always applied. Shared `ApiError` envelope across layers.
+
+### Frontend wiring
+- Centralized API client (`frontend/src/api.js`): base URL, optional
+  `REACT_APP_API_KEY` header, and real error parsing.
+- Upload errors now show the backend's reason (too large / unsupported /
+  rate-limited); accepted file types aligned to what the backend supports.
+- Dashboard shows live Text-OCR and Image-OCR availability; document detail
+  shows the OCR engine. Verified with a production `yarn build`.
+
+### Backend
+- New `ocr_engine` column (with an additive migration) surfaced through the API.
+
+### Other modules hardened
+- `automation/status_logic.py`: guards for missing owner/empty docs.
+- `automation/playwright_bot.py`: replaced bare `except:` with `except Exception:`.
+
+### Test depth + tooling
+- Unit tests for `ocr` and `llm` (retry/timeout/availability) and for the
+  `automation` logic. Suite now 47 tests; `pytest.ini` covers both dirs.
+- Added `ruff` + `mypy` config (`pyproject.toml`), a `.pre-commit-config.yaml`,
+  and wired ruff + mypy into CI alongside pytest.
+
 ## Backend v2.0.0 — substantial quality overhaul
 
 ### Real OCR + robustness

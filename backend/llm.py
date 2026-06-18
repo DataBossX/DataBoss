@@ -5,16 +5,17 @@ not installed (the provider simply reports as unavailable). Each analysis call
 is bounded by a timeout and retried with exponential backoff; a provider that
 keeps failing degrades gracefully rather than taking the request down.
 """
+
 import asyncio
 import random
-from typing import Any, Dict, List
+from typing import Any
 
 from loguru import logger
 
 import config
 
 # Cache lazily-created provider clients: name -> client (or False if unavailable)
-_clients: Dict[str, Any] = {}
+_clients: dict[str, Any] = {}
 
 PROMPTS = {
     "legal_summary": (
@@ -25,8 +26,7 @@ PROMPTS = {
     ),
     "general_summary": "Provide a concise summary of this document:\n\n{text}",
     "field_extraction": (
-        "Extract structured data from this document:\n\n{text}\n\n"
-        "Return as JSON with relevant fields."
+        "Extract structured data from this document:\n\n{text}\n\nReturn as JSON with relevant fields."
     ),
 }
 
@@ -78,7 +78,7 @@ def _gemini_module():
     return _clients["gemini"]
 
 
-def available_models() -> List[str]:
+def available_models() -> list[str]:
     models = []
     if _openai_client():
         models.append("gpt-4")
@@ -89,7 +89,7 @@ def available_models() -> List[str]:
     return models
 
 
-def provider_status() -> Dict[str, str]:
+def provider_status() -> dict[str, str]:
     return {
         "openai": "available" if _openai_client() else "unavailable",
         "anthropic": "available" if _anthropic_client() else "unavailable",
@@ -131,7 +131,7 @@ def _call_sync(model_name: str, prompt: str) -> str:
     raise LLMError(f"Unknown model: {model_name}")
 
 
-async def analyze(text: str, model_name: str, prompt_type: str) -> Dict[str, Any]:
+async def analyze(text: str, model_name: str, prompt_type: str) -> dict[str, Any]:
     """Run an LLM analysis with timeout + retry. Raises LLMError on failure."""
     prompt = PROMPTS.get(prompt_type, PROMPTS["general_summary"]).format(text=text)
     loop = asyncio.get_event_loop()
@@ -151,7 +151,7 @@ async def analyze(text: str, model_name: str, prompt_type: str) -> Dict[str, Any
                 "prompt_type": prompt_type,
                 "attempts": attempt + 1,
             }
-        except asyncio.TimeoutError as exc:
+        except TimeoutError:
             last_exc = LLMError(f"{model_name} timed out after {config.LLM_TIMEOUT_SECONDS}s")
             logger.warning(f"LLM {model_name} timeout (attempt {attempt + 1})")
         except Exception as exc:  # provider/network error
@@ -159,7 +159,7 @@ async def analyze(text: str, model_name: str, prompt_type: str) -> Dict[str, Any
             logger.warning(f"LLM {model_name} error (attempt {attempt + 1}): {exc}")
 
         if attempt < config.LLM_MAX_RETRIES:
-            backoff = min(2 ** attempt + random.uniform(0, 0.5), 10)
+            backoff = min(2**attempt + random.uniform(0, 0.5), 10)
             await asyncio.sleep(backoff)
 
     raise LLMError(f"LLM analysis with {model_name} failed: {last_exc}")

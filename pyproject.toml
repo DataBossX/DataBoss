@@ -1,0 +1,32 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# Sub-apps with their own toolchains/styles are out of scope for now.
+extend-exclude = ["doto_image_commander", "mineral_deal_room", "frontend", "build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",  # line length handled by formatter, not enforced hard
+    "B008",  # FastAPI uses callables in argument defaults (Depends/File)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# conftest sets environment variables before importing the app on purpose.
+"backend/conftest.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "config", "db", "llm", "ocr", "observability", "security", "errors",
+    "server", "status_logic", "parsing", "writer",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = false
+# Pragmatic: check our modules without demanding full annotations everywhere.
+# Scoped to the core backend; the flat (package-less) module layout makes
+# checking multiple top-level dirs at once ambiguous for mypy.
+files = ["backend"]
+exclude = "(/tests/|conftest\\.py|backend_test\\.py)"

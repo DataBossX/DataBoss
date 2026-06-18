@@ -5,6 +5,7 @@ aiosqlite serializes operations through a dedicated worker thread, so a shared
 connection is safe to use concurrently and avoids the per-operation
 connect/close overhead the original code paid on every query.
 """
+
 import aiosqlite
 
 _conn: aiosqlite.Connection | None = None
@@ -30,6 +31,7 @@ SCHEMA = [
         confidence_score REAL NOT NULL,
         processing_time REAL NOT NULL,
         created_at TIMESTAMP NOT NULL,
+        ocr_engine TEXT,
         FOREIGN KEY (document_id) REFERENCES documents (id)
     )
     """,
@@ -72,8 +74,17 @@ async def init(path: str) -> aiosqlite.Connection:
     await _conn.execute("PRAGMA foreign_keys=ON")
     for stmt in SCHEMA:
         await _conn.execute(stmt)
+    await _migrate(_conn)
     await _conn.commit()
     return _conn
+
+
+async def _migrate(connection: aiosqlite.Connection) -> None:
+    """Lightweight, additive migrations for databases created by older versions."""
+    async with connection.execute("PRAGMA table_info(ocr_results)") as cur:
+        columns = {row[1] for row in await cur.fetchall()}
+    if "ocr_engine" not in columns:
+        await connection.execute("ALTER TABLE ocr_results ADD COLUMN ocr_engine TEXT")
 
 
 async def close() -> None:

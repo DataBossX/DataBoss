@@ -1,4 +1,5 @@
 """Offline API tests using FastAPI's TestClient (no live server required)."""
+
 import uuid
 
 
@@ -36,6 +37,7 @@ def test_upload_text_and_process(client):
     ocr = details["ocr_results"][0]
     assert "Acme" in ocr["raw_text"]
     assert ocr["confidence_score"] == 1.0
+    assert ocr["ocr_engine"] == "text-decode"
     # No LLMs configured → no analyses, but the document still completes.
     assert details["llm_analysis"] == []
 

@@ -26,12 +26,10 @@ jobs:
         # LLM provider SDKs are imported lazily, so they aren't required here.
         pip install \
           fastapi "uvicorn" aiosqlite python-multipart loguru python-dotenv \
-          pillow pytesseract httpx pytest flake8
-    - name: Lint with flake8
-      run: |
-        # Fail the build on real errors: syntax errors and undefined names.
-        flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Style issues are reported but non-blocking.
-        flake8 backend --count --exit-zero --max-complexity=12 --max-line-length=120 --statistics
+          pillow pytesseract httpx tenacity pytest ruff mypy
+    - name: Lint with ruff
+      run: ruff check backend automation
+    - name: Type-check with mypy
+      run: mypy
     - name: Test with pytest
       run: pytest -q

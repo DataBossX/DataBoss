@@ -3,25 +3,29 @@
 Document ingestion -> OCR/text extraction -> multi-provider LLM analysis,
 with structured logging, metrics, input validation, and reliability hardening.
 """
+
 import asyncio
 import hashlib
 import json
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import FastAPI, File, UploadFile, BackgroundTasks, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel
 from loguru import logger
+from pydantic import BaseModel
 
 import config
 import db
 import llm
 import observability
-from ocr import extract_text, OCRError, supported as ocr_supported, tesseract_available
+import security
+from errors import ApiError
+from ocr import OCRError, extract_text, tesseract_available
+from ocr import supported as ocr_supported
 
 
 # --------------------------------------------------------------------------- #
@@ -48,18 +52,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Middleware runs in reverse registration order, so register security last to
+# make it the outermost layer (rate-limit/headers wrap everything).
 app.middleware("http")(observability.metrics_middleware)
+app.middleware("http")(security.security_middleware)
+
+# Applied to data endpoints; a no-op until API_KEYS is configured.
+auth = [Depends(security.require_api_key)]
 
 
 # --------------------------------------------------------------------------- #
 # Error handling — consistent JSON error envelope
 # --------------------------------------------------------------------------- #
-class ApiError(Exception):
-    def __init__(self, status_code: int, message: str):
-        self.status_code = status_code
-        self.message = message
-
-
 @app.exception_handler(ApiError)
 async def _api_error_handler(request: Request, exc: ApiError):
     return JSONResponse(status_code=exc.status_code, content={"error": exc.message})
@@ -90,17 +94,22 @@ def calculate_file_hash(file_content: bytes) -> str:
     return hashlib.sha256(file_content).hexdigest()
 
 
-async def log_system_event(level: str, message: str, component: str, details: Optional[Dict] = None):
+async def log_system_event(level: str, message: str, component: str, details: dict | None = None):
     await db.execute(
-        "INSERT INTO system_logs (id, level, message, component, details, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), level, message, component,
-         json.dumps(details) if details else None, datetime.now().isoformat()),
+        "INSERT INTO system_logs (id, level, message, component, details, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            str(uuid.uuid4()),
+            level,
+            message,
+            component,
+            json.dumps(details) if details else None,
+            datetime.now().isoformat(),
+        ),
     )
     observability.inc("system_logs_total", level=level, component=component)
 
 
-async def process_ocr(file_content: bytes, filename: str, content_type: Optional[str]) -> Dict[str, Any]:
+async def process_ocr(file_content: bytes, filename: str, content_type: str | None) -> dict[str, Any]:
     """Run extraction off the event loop (CPU-bound)."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, extract_text, file_content, filename, content_type)
@@ -109,7 +118,7 @@ async def process_ocr(file_content: bytes, filename: str, content_type: Optional
 # --------------------------------------------------------------------------- #
 # Background processing
 # --------------------------------------------------------------------------- #
-async def process_document_background(doc_id: str, file_content: bytes, filename: str, content_type: Optional[str]):
+async def process_document_background(doc_id: str, file_content: bytes, filename: str, content_type: str | None):
     try:
         await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("processing", doc_id))
 
@@ -117,9 +126,17 @@ async def process_document_background(doc_id: str, file_content: bytes, filename
 
         await db.execute(
             "INSERT INTO ocr_results (id, document_id, raw_text, cleaned_text, confidence_score, "
-            "processing_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (str(uuid.uuid4()), doc_id, ocr_result["raw_text"], ocr_result["cleaned_text"],
-             ocr_result["confidence_score"], ocr_result["processing_time"], datetime.now().isoformat()),
+            "processing_time, created_at, ocr_engine) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                str(uuid.uuid4()),
+                doc_id,
+                ocr_result["raw_text"],
+                ocr_result["cleaned_text"],
+                ocr_result["confidence_score"],
+                ocr_result["processing_time"],
+                datetime.now().isoformat(),
+                ocr_result.get("ocr_engine"),
+            ),
         )
         observability.inc("ocr_processed_total", engine=ocr_result.get("ocr_engine", "unknown"))
 
@@ -131,32 +148,46 @@ async def process_document_background(doc_id: str, file_content: bytes, filename
                 await db.execute(
                     "INSERT INTO llm_analysis (id, document_id, model_name, prompt_type, "
                     "analysis_result, processing_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (str(uuid.uuid4()), doc_id, model, "legal_summary", json.dumps(llm_result),
-                     llm_result["processing_time"], datetime.now().isoformat()),
+                    (
+                        str(uuid.uuid4()),
+                        doc_id,
+                        model,
+                        "legal_summary",
+                        json.dumps(llm_result),
+                        llm_result["processing_time"],
+                        datetime.now().isoformat(),
+                    ),
                 )
                 observability.inc("llm_analysis_total", model=model, outcome="success")
             except Exception as exc:
                 observability.inc("llm_analysis_total", model=model, outcome="error")
                 logger.error(f"LLM analysis failed for {model}: {exc}")
-                await log_system_event("ERROR", f"LLM analysis failed for {model}", "processing",
-                                       {"document_id": doc_id, "error": str(exc)})
+                await log_system_event(
+                    "ERROR",
+                    f"LLM analysis failed for {model}",
+                    "processing",
+                    {"document_id": doc_id, "error": str(exc)},
+                )
 
         await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("completed", doc_id))
         observability.inc("documents_completed_total")
-        await log_system_event("INFO", f"Document processing completed: {filename}", "processing",
-                               {"document_id": doc_id})
+        await log_system_event(
+            "INFO", f"Document processing completed: {filename}", "processing", {"document_id": doc_id}
+        )
 
     except OCRError as exc:
         await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
         observability.inc("documents_failed_total", reason="ocr")
-        await log_system_event("ERROR", f"OCR failed: {filename}", "processing",
-                               {"document_id": doc_id, "error": str(exc)})
+        await log_system_event(
+            "ERROR", f"OCR failed: {filename}", "processing", {"document_id": doc_id, "error": str(exc)}
+        )
         logger.error(f"OCR failed for {doc_id}: {exc}")
     except Exception as exc:
         await db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
         observability.inc("documents_failed_total", reason="error")
-        await log_system_event("ERROR", f"Document processing failed: {filename}", "processing",
-                               {"document_id": doc_id, "error": str(exc)})
+        await log_system_event(
+            "ERROR", f"Document processing failed: {filename}", "processing", {"document_id": doc_id, "error": str(exc)}
+        )
         logger.error(f"Background processing failed for {doc_id}: {exc}")
 
 
@@ -178,7 +209,7 @@ async def health_check():
     }
 
 
-@app.post("/api/documents/upload")
+@app.post("/api/documents/upload", dependencies=auth)
 async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     file_content = await file.read()
     file_size = len(file_content)
@@ -202,17 +233,13 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
 
     doc_id = str(uuid.uuid4())
     await db.execute(
-        "INSERT INTO documents (id, filename, file_hash, upload_time, file_size, status) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO documents (id, filename, file_hash, upload_time, file_size, status) VALUES (?, ?, ?, ?, ?, ?)",
         (doc_id, file.filename, file_hash, datetime.now().isoformat(), file_size, "processing"),
     )
     observability.inc("documents_uploaded_total")
 
-    background_tasks.add_task(
-        process_document_background, doc_id, file_content, file.filename, file.content_type
-    )
-    await log_system_event("INFO", f"Document uploaded: {file.filename}", "upload",
-                           {"document_id": doc_id})
+    background_tasks.add_task(process_document_background, doc_id, file_content, file.filename, file.content_type)
+    await log_system_event("INFO", f"Document uploaded: {file.filename}", "upload", {"document_id": doc_id})
 
     return {
         "document_id": doc_id,
@@ -222,7 +249,7 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     }
 
 
-@app.get("/api/documents")
+@app.get("/api/documents", dependencies=auth)
 async def get_documents():
     rows = await db.fetchall("SELECT * FROM documents ORDER BY upload_time DESC")
     return [
@@ -238,7 +265,7 @@ async def get_documents():
     ]
 
 
-@app.get("/api/documents/{document_id}")
+@app.get("/api/documents/{document_id}", dependencies=auth)
 async def get_document_details(document_id: str):
     doc = await db.fetchone("SELECT * FROM documents WHERE id = ?", (document_id,))
     if not doc:
@@ -264,6 +291,7 @@ async def get_document_details(document_id: str):
                 "confidence_score": r["confidence_score"],
                 "processing_time": r["processing_time"],
                 "created_at": r["created_at"],
+                "ocr_engine": r["ocr_engine"],
             }
             for r in ocr_rows
         ],
@@ -281,12 +309,10 @@ async def get_document_details(document_id: str):
     }
 
 
-@app.get("/api/logs")
+@app.get("/api/logs", dependencies=auth)
 async def get_system_logs(limit: int = 100):
     limit = max(1, min(limit, 1000))
-    rows = await db.fetchall(
-        "SELECT * FROM system_logs ORDER BY created_at DESC LIMIT ?", (limit,)
-    )
+    rows = await db.fetchall("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT ?", (limit,))
     return [
         {
             "id": r["id"],
@@ -300,19 +326,13 @@ async def get_system_logs(limit: int = 100):
     ]
 
 
-@app.get("/api/analytics")
+@app.get("/api/analytics", dependencies=auth)
 async def get_analytics():
     doc_stats = await db.fetchall("SELECT status, COUNT(*) AS n FROM documents GROUP BY status")
-    ocr_metrics = await db.fetchone(
-        "SELECT AVG(confidence_score) AS conf, AVG(processing_time) AS pt FROM ocr_results"
-    )
-    llm_stats = await db.fetchall(
-        "SELECT model_name, COUNT(*) AS n FROM llm_analysis GROUP BY model_name"
-    )
+    ocr_metrics = await db.fetchone("SELECT AVG(confidence_score) AS conf, AVG(processing_time) AS pt FROM ocr_results")
+    llm_stats = await db.fetchall("SELECT model_name, COUNT(*) AS n FROM llm_analysis GROUP BY model_name")
     cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
-    recent = await db.fetchone(
-        "SELECT COUNT(*) AS n FROM documents WHERE upload_time >= ?", (cutoff,)
-    )
+    recent = await db.fetchone("SELECT COUNT(*) AS n FROM documents WHERE upload_time >= ?", (cutoff,))
 
     return {
         "document_stats": {r["status"]: r["n"] for r in doc_stats},
@@ -325,7 +345,7 @@ async def get_analytics():
     }
 
 
-@app.get("/api/metrics")
+@app.get("/api/metrics", dependencies=auth)
 async def metrics_json():
     return observability.snapshot()
 

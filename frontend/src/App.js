@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import { apiGet, apiUpload, SUPPORTED_ACCEPT } from './api';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -8,17 +9,14 @@ const App = () => {
   const [analytics, setAnalytics] = useState({});
   const [systemHealth, setSystemHealth] = useState({});
   const [uploadStatus, setUploadStatus] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentDetails, setDocumentDetails] = useState(null);
-
-  const backendUrl = process.env.REACT_APP_BACKEND_URL;
 
   // Fetch data functions
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/documents`);
-      const data = await response.json();
-      setDocuments(data);
+      setDocuments(await apiGet('/api/documents'));
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
@@ -26,9 +24,7 @@ const App = () => {
 
   const fetchSystemLogs = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/logs`);
-      const data = await response.json();
-      setSystemLogs(data);
+      setSystemLogs(await apiGet('/api/logs'));
     } catch (error) {
       console.error('Error fetching logs:', error);
     }
@@ -36,9 +32,7 @@ const App = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/analytics`);
-      const data = await response.json();
-      setAnalytics(data);
+      setAnalytics(await apiGet('/api/analytics'));
     } catch (error) {
       console.error('Error fetching analytics:', error);
     }
@@ -46,9 +40,7 @@ const App = () => {
 
   const fetchSystemHealth = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/health`);
-      const data = await response.json();
-      setSystemHealth(data);
+      setSystemHealth(await apiGet('/api/health'));
     } catch (error) {
       console.error('Error fetching system health:', error);
     }
@@ -56,9 +48,7 @@ const App = () => {
 
   const fetchDocumentDetails = async (documentId) => {
     try {
-      const response = await fetch(`${backendUrl}/api/documents/${documentId}`);
-      const data = await response.json();
-      setDocumentDetails(data);
+      setDocumentDetails(await apiGet(`/api/documents/${documentId}`));
     } catch (error) {
       console.error('Error fetching document details:', error);
     }
@@ -73,26 +63,19 @@ const App = () => {
     formData.append('file', file);
 
     setUploadStatus('uploading');
+    setUploadError(null);
 
     try {
-      const response = await fetch(`${backendUrl}/api/documents/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUploadStatus('success');
-        fetchDocuments();
-        setTimeout(() => setUploadStatus(null), 3000);
-      } else {
-        setUploadStatus('error');
-        setTimeout(() => setUploadStatus(null), 3000);
-      }
+      await apiUpload('/api/documents/upload', formData);
+      setUploadStatus('success');
+      fetchDocuments();
+      setTimeout(() => setUploadStatus(null), 3000);
     } catch (error) {
       console.error('Error uploading file:', error);
+      // Surface the backend's reason (too large, unsupported type, rate limited…).
+      setUploadError(error.message);
       setUploadStatus('error');
-      setTimeout(() => setUploadStatus(null), 3000);
+      setTimeout(() => { setUploadStatus(null); setUploadError(null); }, 5000);
     }
 
     event.target.value = '';
@@ -155,7 +138,8 @@ const App = () => {
           <span className="mr-2">⚡</span> SYSTEM STATUS
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <ServiceStatus serviceName="OCR Engine" isAvailable={true} />
+          <ServiceStatus serviceName="Text OCR" isAvailable={systemHealth.services?.ocr === 'available'} />
+          <ServiceStatus serviceName="Image OCR" isAvailable={systemHealth.services?.ocr_image === 'available'} />
           <ServiceStatus serviceName="OpenAI GPT" isAvailable={systemHealth.services?.openai === 'available'} />
           <ServiceStatus serviceName="Anthropic Claude" isAvailable={systemHealth.services?.anthropic === 'available'} />
           <ServiceStatus serviceName="Google Gemini" isAvailable={systemHealth.services?.gemini === 'available'} />
@@ -216,16 +200,16 @@ const App = () => {
           <input
             type="file"
             onChange={handleFileUpload}
-            accept=".pdf,.png,.jpg,.jpeg,.bmp,.tiff"
+            accept={SUPPORTED_ACCEPT}
             className="hidden"
             id="fileUpload"
           />
           <label htmlFor="fileUpload" className="cursor-pointer">
             <div className="text-4xl text-cyan-400 mb-4">📁</div>
             <div className="text-lg text-white mb-2">DROP FILES OR CLICK TO UPLOAD</div>
-            <div className="text-sm text-gray-400">Supports: PDF, PNG, JPG, JPEG, BMP, TIFF</div>
+            <div className="text-sm text-gray-400">Text: TXT, MD, CSV, JSON · Images: PNG, JPG, BMP, TIFF, WEBP, GIF</div>
           </label>
-          
+
           {uploadStatus && (
             <div className={`mt-4 p-3 rounded ${
               uploadStatus === 'uploading' ? 'bg-yellow-800 text-yellow-200' :
@@ -234,7 +218,7 @@ const App = () => {
             }`}>
               {uploadStatus === 'uploading' && '⏳ Processing...'}
               {uploadStatus === 'success' && '✅ Upload successful!'}
-              {uploadStatus === 'error' && '❌ Upload failed!'}
+              {uploadStatus === 'error' && `❌ ${uploadError || 'Upload failed!'}`}
             </div>
           )}
         </div>
@@ -283,8 +267,9 @@ const App = () => {
                 <h4 className="text-lg font-bold text-cyan-400 mb-2">🔍 OCR RESULTS</h4>
                 <div className="bg-gray-700 p-4 rounded border border-gray-600">
                   <div className="mb-2 text-sm text-gray-400">
-                    Confidence: {(ocr.confidence_score * 100).toFixed(1)}% | 
+                    Confidence: {(ocr.confidence_score * 100).toFixed(1)}% |
                     Processing Time: {ocr.processing_time.toFixed(2)}s
+                    {ocr.ocr_engine && ` | Engine: ${ocr.ocr_engine}`}
                   </div>
                   <div className="text-white max-h-40 overflow-y-auto">
                     {ocr.cleaned_text}
@@ -455,7 +440,7 @@ const App = () => {
       {/* Footer */}
       <footer className="bg-gray-900 border-t border-cyan-500 p-4 mt-auto">
         <div className="container mx-auto text-center text-gray-400">
-          <div>DataBossX v1.0.0 | Offline-First AI Document Processing | 
+          <div>DataBossX v2.0.0 | Offline-First AI Document Processing |
             <span className="text-cyan-400 ml-2">
               {new Date().toLocaleString()}
             </span>

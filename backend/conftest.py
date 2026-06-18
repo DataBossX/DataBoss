@@ -4,6 +4,7 @@ Environment is set BEFORE importing the app so ``config`` (which reads env at
 import time) picks up the test values: a throwaway SQLite DB, a small upload
 limit, and no provider keys (so LLM analysis is skipped deterministically).
 """
+
 import os
 import sys
 import tempfile

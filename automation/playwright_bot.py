@@ -1,7 +1,11 @@
-import os, time, json, pathlib, re
+import json
+import pathlib
+import re
+import time
+
 import pandas as pd
-from tenacity import retry, stop_after_attempt, wait_fixed
 from playwright.sync_api import sync_playwright
+
 from automation.parsing import extractor_llm
 from automation.status_logic import decide_status_rule_based
 from automation.writer import update_workbook
@@ -12,6 +16,7 @@ SHEET_DSU = "DSU NOTICE LIST"
 SHEET_OFFSET = "OFFSET NOTICE LIST"
 DELAY = 3.5
 
+
 def load_owners():
     dsu = pd.read_excel(WORKBOOK, sheet_name=SHEET_DSU)
     off = pd.read_excel(WORKBOOK, sheet_name=SHEET_OFFSET)
@@ -20,11 +25,13 @@ def load_owners():
     # de-dup by owner name
     return sorted(set(unk["Name (Owner)"].dropna().tolist()))
 
+
 def human_check_prompt(page):
     # If page shows “I am human” checkbox, wait for a minute for manual click
     time.sleep(2)
 
-def search_owner(page, owner:str):
+
+def search_owner(page, owner: str):
     page.goto(BASE + "search/DOCSEARCH524S12", timeout=60000)
     time.sleep(DELAY)
     # Type in “Search Name as Grantor or Grantee”
@@ -34,37 +41,44 @@ def search_owner(page, owner:str):
     # pick first suggestion if appears
     try:
         page.locator(".react-select__menu").locator("div").nth(0).click(timeout=2000)
-    except: pass
+    except Exception:
+        pass
     page.get_by_role("button", name="Search").click()
-    time.sleep(DELAY+1)
+    time.sleep(DELAY + 1)
 
-def parse_results(page, owner:str):
+
+def parse_results(page, owner: str):
     rows = page.locator("table tbody tr")
     n = rows.count()
-    docs=[]
+    docs = []
     for i in range(min(n, 200)):  # cap per owner
         row = rows.nth(i)
         cols = row.locator("td")
         doc_no = cols.nth(1).inner_text().strip()
-        instr  = cols.nth(2).inner_text().strip()
-        recd   = cols.nth(3).inner_text().strip()
+        instr = cols.nth(2).inner_text().strip()
+        recd = cols.nth(3).inner_text().strip()
         # Open detail in new tab
         try:
             cols.nth(0).click()
             page.get_by_role("link", name=re.compile("View", re.I)).click(timeout=3000)
-        except: pass
+        except Exception:
+            pass
         # side panel or new tab may show details; capture URL
         source_url = page.url
         text_blob = " ".join([doc_no, instr, recd])
         doc = extractor_llm(text_blob, source_url)
-        if not doc.get("doc_no"): doc["doc_no"]=doc_no
-        if not doc.get("instrument"): doc["instrument"]=instr
-        if not doc.get("recording_date"): doc["recording_date"]=recd or None
+        if not doc.get("doc_no"):
+            doc["doc_no"] = doc_no
+        if not doc.get("instrument"):
+            doc["instrument"] = instr
+        if not doc.get("recording_date"):
+            doc["recording_date"] = recd or None
         docs.append(doc)
         time.sleep(1.0)
     return docs
 
-def update_owner(owner:str, decision:dict, last_doc:dict):
+
+def update_owner(owner: str, decision: dict, last_doc: dict):
     payload = {
         "verified_address": (last_doc.get("addresses") or [None])[0],
         "status": decision["status"],
@@ -79,6 +93,7 @@ def update_owner(owner:str, decision:dict, last_doc:dict):
     ok = update_workbook(WORKBOOK, SHEET_DSU, owner, payload)
     if not ok:
         update_workbook(WORKBOOK, SHEET_OFFSET, owner, payload)
+
 
 def main():
     owners = load_owners()
@@ -97,15 +112,22 @@ def main():
                 # rule-based first
                 decision = decide_status_rule_based(owner, docs)
                 # pick the latest doc for workbook
-                last_doc = sorted(docs, key=lambda d: (d.get("recording_date") or "0000-00-00"))[-1]
+                last_doc = sorted(docs, key=lambda d: d.get("recording_date") or "0000-00-00")[-1]
                 update_owner(owner, decision, last_doc)
-                json.dump({"owner":owner,"docs":docs,"decision":decision},
-                          open(f"data/json_traces/{owner.replace('/','_')}.json","w"), ensure_ascii=False, indent=2)
+                json.dump(
+                    {"owner": owner, "docs": docs, "decision": decision},
+                    open(f"data/json_traces/{owner.replace('/', '_')}.json", "w"),
+                    ensure_ascii=False,
+                    indent=2,
+                )
                 time.sleep(DELAY)
             except Exception as e:
-                json.dump({"owner":owner,"error":str(e)}, open(f"data/json_traces/{owner.replace('/','_')}_ERR.json","w"))
+                json.dump(
+                    {"owner": owner, "error": str(e)}, open(f"data/json_traces/{owner.replace('/', '_')}_ERR.json", "w")
+                )
                 time.sleep(DELAY)
         browser.close()
+
 
 if __name__ == "__main__":
     main()

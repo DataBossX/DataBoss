@@ -127,6 +127,7 @@ class BrowserViewer:
             return result
 
         page = self._context.new_page()
+        target_page = None
         try:
             page.goto(url, wait_until="domcontentloaded")
             self._wait_idle(page)
@@ -163,14 +164,23 @@ class BrowserViewer:
             result.error = f"{type(exc).__name__}: {exc}"
             return result
         finally:
+            # Close the popup tab (if View opened one) before the opener, so we
+            # don't accumulate one extra page per linked row across a full run.
+            if target_page is not None and target_page is not page:
+                try:
+                    target_page.close()
+                except Exception:
+                    pass
             try:
                 page.close()
             except Exception:
                 pass
 
     def _fetch_direct(self, url: str) -> Optional[bytes]:
-        """If the URL points straight at an image, return its bytes (reuses the
-        authenticated session). PDFs are left to the viewer screenshot path."""
+        """If the URL points straight at an image, return its bytes as PNG
+        (reuses the authenticated session). Converting to PNG keeps the whole
+        downstream pipeline PNG-only - the AI extractors and debug saves all
+        assume PNG. PDFs are left to the viewer screenshot path."""
         if not url:
             return None
         low = url.split("?")[0].lower()
@@ -181,10 +191,32 @@ class BrowserViewer:
             if resp.ok:
                 ctype = (resp.headers or {}).get("content-type", "")
                 if "image" in ctype or low.endswith((".tif", ".tiff")):
-                    return resp.body()
+                    return self._to_png(resp.body())
         except Exception as exc:
             log.debug("direct image fetch failed: %s", exc)
         return None
+
+    @staticmethod
+    def _to_png(raw: bytes) -> Optional[bytes]:
+        """Normalize arbitrary image bytes to PNG. Returns None on failure, so
+        the caller falls back to the browser screenshot path (also PNG)."""
+        if not raw:
+            return None
+        try:
+            from io import BytesIO
+
+            from PIL import Image
+
+            img = Image.open(BytesIO(raw))
+            img.seek(0)  # first frame for multi-page TIFFs
+            if img.mode not in ("RGB", "RGBA", "L"):
+                img = img.convert("RGB")
+            out = BytesIO()
+            img.save(out, format="PNG")
+            return out.getvalue()
+        except Exception as exc:
+            log.debug("PNG conversion failed: %s", exc)
+            return None
 
     def _maybe_debug_save(self, images: List[bytes], tag: str) -> None:
         """Persist captured images ONLY when debug_save_screenshots is on."""

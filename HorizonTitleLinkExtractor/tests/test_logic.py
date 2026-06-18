@@ -281,6 +281,25 @@ def test_usage_tracker_counts():
 # --------------------------------- report ----------------------------------
 
 
+def test_browser_to_png_converts_non_png():
+    """Direct image bytes (e.g. JPEG/TIFF) must be normalized to PNG so the
+    downstream AI extractors and debug saves are always valid PNGs."""
+    pytest.importorskip("PIL")
+    from io import BytesIO
+
+    from PIL import Image
+
+    import browser_viewer
+
+    bv = browser_viewer.BrowserViewer({})
+    buf = BytesIO()
+    Image.new("RGB", (4, 4), (255, 0, 0)).save(buf, format="JPEG")
+    png = bv._to_png(buf.getvalue())
+    assert png is not None
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"  # PNG magic bytes
+    assert bv._to_png(b"not an image") is None
+
+
 def test_generate_report(tmp_path):
     logs = tmp_path / "logs"
     logs.mkdir()

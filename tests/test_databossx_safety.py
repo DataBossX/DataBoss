@@ -32,6 +32,16 @@ def test_secret_scan_detects_fake_keys(tmp_path: Path):
     assert any("OpenAI" in f.label or "key" in f.label.lower() for f in result.findings)
 
 
+def test_secret_scan_detects_keys_in_dotenv_variants(tmp_path: Path):
+    # .env.local / .env.production must be scanned too (not just exact .env).
+    (tmp_path / ".env.local").write_text("OPENAI_API_KEY=sk-abcdef0123456789ABCDEF0123456789\n")
+    (tmp_path / ".env.production").write_text("GROK_API_KEY=xai-abcdef0123456789ABCDEF\n")
+    result = secret_scan.scan(root=tmp_path)
+    found_files = {f.path for f in result.findings}
+    assert ".env.local" in found_files
+    assert ".env.production" in found_files
+
+
 def test_secret_scan_ignores_clean_files(tmp_path: Path):
     (tmp_path / "ok.py").write_text("x = 1\nname = 'hello world'\n")
     result = secret_scan.scan(root=tmp_path)
@@ -144,6 +154,28 @@ def test_diagnostics_excludes_env(tmp_path: Path, monkeypatch):
         names = zf.namelist()
     assert not any(n.endswith(".env") for n in names)
     assert any(n.endswith("r.md") for n in names)
+
+
+def test_diagnostics_excludes_review_workbooks(tmp_path: Path, monkeypatch):
+    reports = tmp_path / "reports"
+    logs = tmp_path / "logs"
+    reviews = tmp_path / "review_outputs"
+    for d in (reports, logs, reviews):
+        d.mkdir()
+    (reports / "r.md").write_text("ok")
+    (reviews / "client_REVIEW.xlsx").write_text("PRETEND CLIENT DATA")
+    monkeypatch.setattr(paths, "ROOT", tmp_path)
+    monkeypatch.setattr(paths, "REPORTS", reports)
+    monkeypatch.setattr(paths, "LOGS", logs)
+    monkeypatch.setattr(paths, "REVIEW_OUTPUTS", reviews)
+    monkeypatch.setattr(paths, "DIAGNOSTICS", tmp_path / "diagnostics")
+    monkeypatch.setattr(paths, "ALL_ARTIFACT_DIRS", (tmp_path / "diagnostics",))
+    result = diagnostics.build()
+    import zipfile
+
+    with zipfile.ZipFile(result.zip_path) as zf:
+        names = zf.namelist()
+    assert not any("review_outputs" in n or n.endswith(".xlsx") for n in names)
 
 
 def test_cli_first_task_runs(tmp_path: Path, monkeypatch):

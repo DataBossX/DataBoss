@@ -71,6 +71,10 @@ def _git_tracked_files(root: Path) -> set[str]:
 def _should_scan(path: Path) -> bool:
     if path.name in ALWAYS_SCAN_NAMES:
         return True
+    # Any dotenv variant (.env, .env.local, .env.production, ...) — these are the
+    # most common secret-leak files and the .gitignore treats `.env.*` as secret.
+    if path.name == ".env" or path.name.startswith(".env."):
+        return True
     if path.name.endswith(".example"):
         # Templates are safe to scan but rarely hold real secrets; still scan.
         return True

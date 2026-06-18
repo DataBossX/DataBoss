@@ -27,7 +27,9 @@ def build(ts: str | None = None) -> DiagnosticsResult:
     zip_path = paths.DIAGNOSTICS / f"DataBossX_diagnostics_{ts}.zip"
 
     # Only collect safe artifact dirs; re-check every file against exclusion rules.
-    sources = [paths.REPORTS, paths.LOGS, paths.REVIEW_OUTPUTS]
+    # review_outputs is deliberately EXCLUDED: review workbooks may hold real
+    # client/title data and must never ride along in a support bundle.
+    sources = [paths.REPORTS, paths.LOGS]
     included: list[str] = []
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for src in sources:

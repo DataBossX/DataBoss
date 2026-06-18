@@ -17,6 +17,13 @@ def _load_or_create_key() -> bytes:
     env_key = os.getenv("ENCRYPTION_KEY")
     if env_key:
         key = env_key.encode()
+        try:
+            Fernet(key)  # validate before persisting
+        except Exception as exc:
+            raise ValueError(
+                "ENCRYPTION_KEY is not a valid Fernet key "
+                "(urlsafe base64-encoded 32-byte key)."
+            ) from exc
     else:
         key = Fernet.generate_key()
     _KEY_FILE.write_bytes(key)

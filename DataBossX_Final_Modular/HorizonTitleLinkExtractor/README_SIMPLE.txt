@@ -77,6 +77,15 @@ This saves your login locally so the tool can open documents.
 
 
 ==============================================================================
+ STEP 3b (RECOMMENDED): CHECK EVERYTHING IS READY
+==============================================================================
+Double-click   RUN_DOCTOR.bat
+It prints a checklist (Python, libraries, your API key, county login, Google
+Drive, config). Fix anything marked [FAIL] before running a real job. Items
+marked [WARN] are optional.
+
+
+==============================================================================
  STEP 4: TEST ON 5 ROWS
 ==============================================================================
 Double-click   RUN_TEST_5_ROWS.bat
@@ -97,6 +106,15 @@ This processes the whole workbook. It keeps going even if some rows fail.
 Find the finished workbook in the   output\   folder
 (name ends in _AI_REVIEW_<date>.xlsx).
 
+There is ALSO a friendly web-page report next to it:
+   output\..._AI_REVIEW_..._REPORT.html
+Double-click it to open a color-coded summary in your browser (green/yellow/red
+rows, what changed, and the estimated AI cost for the run). The cost detail per
+row is in   logs\cost.csv .
+
+TIP: Re-running is cheap. The tool remembers documents it already read (cache),
+so a second pass does not pay for the same images twice.
+
 If Google Drive upload is configured, it is also uploaded into a timestamped
 folder named _AI_Updated_Reports_YYYY-MM-DD_HHMM inside your Drive folder.
 If not, double-click RUN_UPLOAD_OUTPUT.bat or follow the printed instructions
@@ -113,4 +131,15 @@ to upload it yourself.
 
 Nothing is ever deleted or overwritten in your original file. You are safe to
 re-run as many times as you like.
+==============================================================================
+
+ FOR DEVELOPERS (optional)
+------------------------------------------------------------------------------
+ * Run the test suite:   .venv\Scripts\python.exe -m pytest tests\ -q
+ * Smarter matching: names ("ACME L.L.C." = "ACME LLC") and legal descriptions
+   are compared with field-aware fuzzy logic, so trivial punctuation isn't
+   flagged as a correction, while NW/4 vs NE/4 IS flagged (direction matters).
+ * Images are auto-oriented, contrast-enhanced and upscaled before AI reads
+   them; blurry/tiny captures are scored, flagged RED, and sent to validators.
+ * AI reads are cached by image hash (.cache\) and every call's cost is logged.
 ==============================================================================

@@ -28,6 +28,10 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+import image_utils
+import matching
+from cache import CostTracker, ResultCache, image_key
+
 log = logging.getLogger("horizon.ai")
 
 # Fields the consensus logic treats as "major" (drive validation + flagging).
@@ -175,7 +179,9 @@ class ModelRouter:
     """Routes a document image through primary + optional validator models and
     computes field-level consensus."""
 
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any],
+                 cost: CostTracker | None = None,
+                 result_cache: ResultCache | None = None):
         self.config = config
         self.openai_model = config.get("openai_model", "gpt-5.2")
         self.gemini_model = config.get("gemini_model", "gemini-2.5-pro")
@@ -184,6 +190,12 @@ class ModelRouter:
         self.openai_key = os.getenv("OPENAI_API_KEY") or ""
         self.gemini_key = os.getenv("GEMINI_API_KEY") or ""
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY") or ""
+
+        self.cost = cost or CostTracker()
+        self.cache = result_cache or ResultCache(
+            config.get("cache_dir", ".cache"),
+            enabled=bool(config.get("use_cache", True)))
+        self.agree_threshold = float(config.get("match_minor_threshold", 0.85))
 
         self._openai_client = None
         self._gemini_ready = False
@@ -213,7 +225,7 @@ class ModelRouter:
     # --- provider calls ----------------------------------------------------
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=2, min=2, max=16), reraise=True)
-    def run_openai(self, images: list[bytes]) -> TitleExtraction:
+    def run_openai(self, images: list[bytes]) -> tuple[TitleExtraction, int, int]:
         """Primary extractor using the OpenAI Responses API."""
         client = self._openai()
         content: list[dict[str, Any]] = [{"type": "input_text", "text": USER_PROMPT}]
@@ -238,11 +250,14 @@ class ModelRouter:
             },
         )
         text = getattr(resp, "output_text", None) or ""
-        return _coerce(_extract_json(text))
+        usage = getattr(resp, "usage", None)
+        in_tok = getattr(usage, "input_tokens", 0) or 0
+        out_tok = getattr(usage, "output_tokens", 0) or 0
+        return _coerce(_extract_json(text)), in_tok, out_tok
 
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=2, min=2, max=16), reraise=True)
-    def run_gemini(self, images: list[bytes]) -> TitleExtraction:
+    def run_gemini(self, images: list[bytes]) -> tuple[TitleExtraction, int, int]:
         genai = self._gemini()
         model = genai.GenerativeModel(
             self.gemini_model, system_instruction=SYSTEM_PROMPT)
@@ -251,11 +266,14 @@ class ModelRouter:
             parts.append({"mime_type": "image/png", "data": img})
         resp = model.generate_content(
             parts, generation_config={"response_mime_type": "application/json"})
-        return _coerce(_extract_json(resp.text))
+        um = getattr(resp, "usage_metadata", None)
+        in_tok = getattr(um, "prompt_token_count", 0) or 0
+        out_tok = getattr(um, "candidates_token_count", 0) or 0
+        return _coerce(_extract_json(resp.text)), in_tok, out_tok
 
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=2, min=2, max=16), reraise=True)
-    def run_claude(self, images: list[bytes]) -> TitleExtraction:
+    def run_claude(self, images: list[bytes]) -> tuple[TitleExtraction, int, int]:
         client = self._anthropic()
         blocks: list[dict[str, Any]] = [{"type": "text", "text": USER_PROMPT}]
         for img in images:
@@ -271,12 +289,18 @@ class ModelRouter:
             messages=[{"role": "user", "content": blocks}],
         )
         text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
-        return _coerce(_extract_json(text))
+        usage = getattr(msg, "usage", None)
+        in_tok = getattr(usage, "input_tokens", 0) or 0
+        out_tok = getattr(usage, "output_tokens", 0) or 0
+        return _coerce(_extract_json(text)), in_tok, out_tok
 
     # --- routing -----------------------------------------------------------
-    def _should_validate(self, primary: TitleExtraction) -> bool:
+    def _should_validate(self, primary: TitleExtraction,
+                         poor_image: bool = False) -> bool:
         cfg = self.config
         if cfg.get("always_validate"):
+            return True
+        if poor_image:
             return True
         if primary.confidence < float(cfg.get("ai_confidence_review_threshold", 0.85)):
             return True
@@ -286,8 +310,8 @@ class ModelRouter:
             return True
         return False
 
-    def extract(self, images: list[bytes], row_changed_hint: bool = False
-                ) -> dict[str, Any]:
+    def extract(self, images: list[bytes], row_changed_hint: bool = False,
+                row_id: Any = "") -> dict[str, Any]:
         """
         Run primary + (conditionally) validators, then compute consensus.
 
@@ -304,22 +328,51 @@ class ModelRouter:
             "needs_human_review": bool,
           }
         """
-        primary = self.run_openai(images)
+        # 1. Preprocess images for legibility + assess quality.
+        if self.config.get("preprocess_images", True):
+            prepared, quality = image_utils.prepare_for_ai(images)
+        else:
+            prepared, quality = images, None
+        poor_image = bool(
+            quality and quality.is_poor
+            and self.config.get("flag_poor_image_quality", True))
+
+        # 2. Primary extraction (cache by content hash to avoid repaid calls).
+        pkey = image_key(self.openai_model, prepared)
+        cached = self.cache.get(pkey)
+        if cached is not None:
+            primary = _coerce(cached)
+            self.cost.record(self.openai_model, 0, 0, row=row_id, cached=True)
+        else:
+            primary, in_tok, out_tok = self.run_openai(prepared)
+            self.cost.record(self.openai_model, in_tok, out_tok, row=row_id)
+            self.cache.set(pkey, primary.model_dump())
+
+        if poor_image:
+            # A poor capture should never read as high confidence.
+            primary.confidence = min(primary.confidence, 0.5)
+            primary.needs_human_review = True
+
         models_used = self.openai_model
         validators: dict[str, TitleExtraction | None] = {"gemini": None, "claude": None}
         validator_models: list[str] = []
 
-        run_validators = self._should_validate(primary) or row_changed_hint
+        run_validators = (self._should_validate(primary, poor_image)
+                          or row_changed_hint)
         if run_validators:
             if self.gemini_key:
                 try:
-                    validators["gemini"] = self.run_gemini(images)
+                    res, i, o = self.run_gemini(prepared)
+                    validators["gemini"] = res
+                    self.cost.record(self.gemini_model, i, o, row=row_id)
                     validator_models.append(self.gemini_model)
                 except Exception as exc:  # continue after failures
                     log.warning("Gemini validator failed: %s", exc)
             if self.anthropic_key:
                 try:
-                    validators["claude"] = self.run_claude(images)
+                    res, i, o = self.run_claude(prepared)
+                    validators["claude"] = res
+                    self.cost.record(self.claude_model, i, o, row=row_id)
                     validator_models.append(self.claude_model)
                 except Exception as exc:
                     log.warning("Claude validator failed: %s", exc)
@@ -330,6 +383,7 @@ class ModelRouter:
         needs_review = (
             primary.needs_human_review
             or bool(disagree_fields)
+            or poor_image
             or primary.confidence < float(
                 self.config.get("ai_confidence_review_threshold", 0.85))
         )
@@ -344,21 +398,17 @@ class ModelRouter:
             "validator_models_used": validator_models,
             "confidence": primary.confidence,
             "needs_human_review": needs_review,
+            "image_quality": quality.score if quality else None,
+            "poor_image": poor_image,
         }
 
     # --- consensus ---------------------------------------------------------
-    @staticmethod
-    def _norm(v: Any) -> str:
-        if v is None:
-            return ""
-        return " ".join(str(v).split()).strip().lower()
-
     def _consensus(self, primary: TitleExtraction,
                    validators: dict[str, TitleExtraction | None]):
         """
-        Per major field:
-          * If >=2 of the available models agree (normalized), that value is the
-            AI consensus value.
+        Per major field, using FIELD-AWARE FUZZY agreement (so "ACME L.L.C." and
+        "ACME LLC" count as agreeing, but "NW/4" vs "NE/4" do not):
+          * If >=2 of the available models agree, that value is the AI consensus.
           * If models disagree, the field is flagged for review and NO consensus
             value is produced (original cell stays untouched downstream).
           * Missing (null) values are never invented.
@@ -370,28 +420,35 @@ class ModelRouter:
         disagree_fields: list[str] = []
 
         for field in MAJOR_FIELDS:
-            values = [(getattr(m, field), self._norm(getattr(m, field))) for m in models]
-            non_null = [(orig, norm) for orig, norm in values if norm != ""]
+            non_null = [getattr(m, field) for m in models
+                        if matching.normalize_ws(getattr(m, field)) != ""]
             if not non_null:
                 continue  # nothing visible; do not invent
 
-            counts: dict[str, int] = {}
-            originals: dict[str, Any] = {}
-            for orig, norm in non_null:
-                counts[norm] = counts.get(norm, 0) + 1
-                originals.setdefault(norm, orig)
-
-            best_norm = max(counts, key=counts.get)
-            agree = counts[best_norm]
-
             if len(models) == 1:
                 # Single model: surface its suggestion but do not call it consensus.
-                consensus[field] = non_null[0][0]
-            elif agree >= 2:
-                consensus[field] = originals[best_norm]
+                consensus[field] = non_null[0]
+                continue
+
+            # Cluster values by fuzzy agreement; pick the largest cluster.
+            clusters: list[list[Any]] = []
+            for val in non_null:
+                placed = False
+                for cl in clusters:
+                    if matching.values_agree(field, cl[0], val,
+                                             self.agree_threshold):
+                        cl.append(val)
+                        placed = True
+                        break
+                if not placed:
+                    clusters.append([val])
+
+            clusters.sort(key=len, reverse=True)
+            top = clusters[0]
+            if len(top) >= 2:
+                consensus[field] = top[0]
                 consensus_fields.append(field)
             else:
-                # Disagreement across validators -> flag, keep original untouched.
                 disagree_fields.append(field)
 
         return consensus, consensus_fields, disagree_fields

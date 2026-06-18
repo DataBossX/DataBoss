@@ -41,6 +41,21 @@ validate_low_confidence_rows: true
 ai_confidence_auto_safe_threshold: 0.97
 ai_confidence_review_threshold: 0.85
 
+# --- Fuzzy field matching --------------------------------------------------
+# How similar two values must be to count as "same" (>= same) or only a
+# formatting "minor" diff (>= minor). Below minor = a real "major" change.
+match_same_threshold: 0.97
+match_minor_threshold: 0.85
+
+# --- Image preprocessing ---------------------------------------------------
+preprocess_images: true          # deskew/enhance/upscale before sending to AI
+flag_poor_image_quality: true    # mark blurry/tiny captures RED + force review
+
+# --- Caching / cost --------------------------------------------------------
+use_cache: true                  # cache AI reads by image hash (free re-runs)
+cache_dir: ".cache"
+generate_html_report: true       # write a human-readable output/*_REPORT.html
+
 # --- Timing / retries ------------------------------------------------------
 request_delay_seconds: 1.0
 max_retries_per_row: 3

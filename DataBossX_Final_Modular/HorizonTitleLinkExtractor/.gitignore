@@ -26,6 +26,9 @@ input/*
 output/*
 .auth/*
 
+# AI result cache (content-addressed; safe to delete, regenerated on demand)
+.cache/
+
 # Python
 venv/
 .venv/

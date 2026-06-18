@@ -17,6 +17,9 @@ python-dotenv==1.0.1
 # Retry logic
 tenacity==9.0.0
 
+# Fast, high-quality fuzzy matching (optional; falls back to stdlib difflib)
+rapidfuzz==3.10.1
+
 # AI vision providers
 openai==1.57.0
 google-generativeai==0.8.3

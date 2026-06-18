@@ -32,6 +32,8 @@ from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+import matching
+
 log = logging.getLogger("horizon.excel")
 
 # --- color fills -------------------------------------------------------------
@@ -312,25 +314,35 @@ _DATE_FIELDS = {"filed_date", "recorded_date", "effective_date"}
 
 
 def compare_fields(existing: dict[str, Any], extracted: dict[str, Any],
-                   major_fields: list[str]) -> list[str]:
+                   major_fields: list[str],
+                   same_threshold: float = matching.SAME_THRESHOLD,
+                   minor_threshold: float = matching.MINOR_THRESHOLD
+                   ) -> tuple[list[str], list[str]]:
     """
-    Compare existing row values vs AI-suggested values (normalized for
-    comparison only). Return the list of major fields that differ.
-    Legal descriptions are compared leniently (case/whitespace-insensitive only).
+    Compare existing row values vs AI-suggested values using field-aware fuzzy
+    matching. Returns (major_changes, minor_changes):
+
+      * major_changes - substantive differences worth human review.
+      * minor_changes - formatting/punctuation-level differences (noted, not
+        treated as real corrections).
+
+    AI nulls never produce a change. Names and legal descriptions are matched
+    leniently so trivial punctuation/abbreviation differences are not flagged
+    as hard changes.
     """
-    changed: list[str] = []
+    major: list[str] = []
+    minor: list[str] = []
     for fld in major_fields:
         ai_val = extracted.get(fld)
         if ai_val in (None, ""):
-            continue  # AI saw nothing -> never flag a "change"
-        cur = existing.get(fld)
-        if fld in _DATE_FIELDS:
-            a, b = _norm_date(cur), _norm_date(ai_val)
-        else:
-            a, b = _norm_text(cur).lower(), _norm_text(ai_val).lower()
-        if a != b:
-            changed.append(fld)
-    return changed
+            continue
+        level = matching.classify_diff(fld, existing.get(fld), ai_val,
+                                       same_threshold, minor_threshold)
+        if level == "major":
+            major.append(fld)
+        elif level == "minor":
+            minor.append(fld)
+    return major, minor
 
 
 def write_review(layout: SheetLayout, row: int, result: dict[str, Any]) -> None:

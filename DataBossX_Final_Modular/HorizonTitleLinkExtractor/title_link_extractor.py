@@ -35,13 +35,15 @@ import sys
 import time
 from typing import Any
 
-import yaml
 from dotenv import load_dotenv
 
+import config_schema
 import drive_sync
 import excel_writer as xl
+import report as report_mod
 from ai_extractors import MAJOR_FIELDS, ModelRouter
 from browser_viewer import BrowserViewer, LoginExpiredError, run_login_setup
+from cache import CostTracker, ResultCache
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.yaml")
@@ -72,8 +74,7 @@ def ensure_dirs() -> None:
 
 
 def load_config() -> dict[str, Any]:
-    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
-        cfg = yaml.safe_load(fh) or {}
+    cfg = config_schema.load_validated(CONFIG_PATH)  # validates + applies defaults
     cfg.setdefault("input_dir", INPUT_DIR)
     cfg.setdefault("debug_dir", DEBUG_DIR)
     return cfg
@@ -165,12 +166,14 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
         }
         xl.write_review(layout, link_row.row, result)
         return {**base, "status": status, "confidence": 0.0,
-                "changed_fields": "", "review_needed": True, "error_message": err}
+                "changed_fields": "", "review_needed": True, "error_message": err,
+                "color": "red", "consensus_label": "", "notes": err,
+                "viewer_method": cap.get("viewer_method", "")}
 
     # --- AI extraction -----------------------------------------------------
     images = cap["images"]
     try:
-        ai = router.extract(images, row_changed_hint=False)
+        ai = router.extract(images, row_changed_hint=False, row_id=link_row.row)
     except Exception as exc:
         err = f"AI extraction failed: {type(exc).__name__}: {exc}"
         log.warning(err)
@@ -185,14 +188,19 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
         }
         xl.write_review(layout, link_row.row, result)
         return {**base, "status": "failed", "confidence": 0.0,
-                "changed_fields": "", "review_needed": True, "error_message": err}
+                "changed_fields": "", "review_needed": True, "error_message": err,
+                "color": "red", "consensus_label": "", "notes": err,
+                "viewer_method": cap.get("viewer_method", "")}
 
     primary = ai["primary"]
     # Build the suggestion dict: consensus values win; else primary's reading.
     suggestions = {f: getattr(primary, f) for f in MAJOR_FIELDS}
     suggestions.update(ai["consensus"])
 
-    changed = xl.compare_fields(link_row.values, suggestions, MAJOR_FIELDS)
+    changed, minor = xl.compare_fields(
+        link_row.values, suggestions, MAJOR_FIELDS,
+        same_threshold=float(cfg.get("match_same_threshold", 0.97)),
+        minor_threshold=float(cfg.get("match_minor_threshold", 0.85)))
     # Disagreement among models -> keep original untouched, force review.
     disagree = ai["disagree_fields"]
     confidence = float(ai["confidence"])
@@ -213,8 +221,8 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
         status = "ok"
 
     color = _color_for(status, confidence, changed, review_needed, cfg)
-    if disagree:
-        color = "yellow"
+    if disagree or ai.get("poor_image"):
+        color = "red" if ai.get("poor_image") else "yellow"
 
     consensus_label = (
         "consensus" if ai["consensus_fields"] else
@@ -225,8 +233,13 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
         notes_parts.append(primary.evidence_summary)
     if primary.uncertain_fields:
         notes_parts.append("Uncertain: " + ", ".join(primary.uncertain_fields))
+    if minor:
+        notes_parts.append("Minor diffs (formatting): " + ", ".join(minor))
     if disagree:
         notes_parts.append("Model disagreement: " + ", ".join(disagree))
+    if ai.get("poor_image"):
+        notes_parts.append(
+            f"Poor image quality (score={ai.get('image_quality')})")
     notes = " | ".join(notes_parts)
 
     result = {
@@ -251,7 +264,9 @@ def process_row(link_row: xl.LinkRow, layout: xl.SheetLayout, viewer: BrowserVie
 
     return {**base, "status": status, "confidence": round(confidence, 3),
             "changed_fields": ", ".join(changed), "review_needed": review_needed,
-            "error_message": ""}
+            "error_message": "", "color": color,
+            "consensus_label": consensus_label, "notes": notes,
+            "viewer_method": cap.get("viewer_method", "")}
 
 
 def _wipe_temp(cfg: dict[str, Any]) -> None:
@@ -320,7 +335,11 @@ def run_job(test_mode: bool) -> int:
     log.info("Detected %d title sheet(s): %s",
              len(sheets), ", ".join(s.title for s in sheets))
 
-    router = ModelRouter(cfg)
+    cost = CostTracker()
+    rcache = ResultCache(os.path.join(HERE, cfg.get("cache_dir", ".cache")),
+                         enabled=bool(cfg.get("use_cache", True)))
+    router = ModelRouter(cfg, cost=cost, result_cache=rcache)
+    report_rows: list[dict[str, Any]] = []
     done_keys = (completed_keys()
                  if cfg.get("resume_from_log") and not cfg.get("force_reprocess")
                  else set())
@@ -415,6 +434,17 @@ def run_job(test_mode: bool) -> int:
                                     "YES" if rec["review_needed"] else "no",
                                     rec["error_message"]])
 
+                    report_rows.append({
+                        "sheet": rec["sheet"], "row": rec["row"],
+                        "status": rec["status"], "confidence": rec["confidence"],
+                        "consensus_label": rec.get("consensus_label", ""),
+                        "changed_fields": (rec["changed_fields"].split(", ")
+                                           if rec["changed_fields"] else []),
+                        "review_needed": rec["review_needed"],
+                        "viewer_method": rec.get("viewer_method", ""),
+                        "notes": rec.get("notes", ""),
+                        "color": rec.get("color", ""), "link": rec["link"]})
+
                     # summary tallies
                     if rec["status"] in ("failed", "login_expired"):
                         summary["failed_rows"] += 1
@@ -436,15 +466,41 @@ def run_job(test_mode: bool) -> int:
         wb.save(review_path)
         log.info("Saved review workbook: %s", review_path)
 
-    # --- 6. summary --------------------------------------------------------
+    # --- 6. summary + cost + HTML report -----------------------------------
     end_time = _dt.datetime.now()
     _write_summary(summary, start_time, end_time)
+
+    cost_csv = os.path.join(LOGS_DIR, "cost.csv")
+    try:
+        cost.write_csv(cost_csv)
+        log.info("Estimated AI cost this run: $%.4f (%d billable calls)",
+                 cost.total_usd, cost.total_calls)
+    except Exception as exc:
+        log.warning("Could not write cost log: %s", exc)
+
+    report_path = None
+    if cfg.get("generate_html_report", True):
+        try:
+            report_path = os.path.join(
+                OUTPUT_DIR, os.path.splitext(workbook_name)[0] + "_REPORT.html")
+            report_mod.build_report(
+                report_path, workbook_name,
+                end_time.isoformat(timespec="seconds"), summary, report_rows,
+                total_cost=cost.total_usd)
+            log.info("HTML report: %s", report_path)
+        except Exception as exc:
+            log.warning("Could not build HTML report: %s", exc)
+            report_path = None
 
     # --- 7. upload ---------------------------------------------------------
     summary_csv = SUMMARY_LOG
     uploaded = None
+    upload_files = [review_path, RUN_LOG, summary_csv, cost_csv]
+    if report_path:
+        upload_files.append(report_path)
     try:
-        uploaded = drive.upload_outputs([review_path, RUN_LOG, summary_csv])
+        uploaded = drive.upload_outputs([f for f in upload_files
+                                         if f and os.path.exists(f)])
     except Exception as exc:
         log.warning("Drive upload failed: %s", exc)
 
@@ -501,6 +557,84 @@ def upload_only() -> int:
 
 
 # =============================================================================
+# Doctor / preflight
+# =============================================================================
+def doctor() -> int:
+    """Preflight checklist: dependencies, keys, auth, drive, config."""
+    ensure_dirs()
+    setup_logging()
+    load_dotenv(os.path.join(HERE, ".env"))
+    ok = True
+
+    def check(label: str, passed: bool, warn: bool = False, hint: str = "") -> None:
+        nonlocal ok
+        mark = "PASS" if passed else ("WARN" if warn else "FAIL")
+        if not passed and not warn:
+            ok = False
+        line = f" [{mark}] {label}"
+        if hint and not passed:
+            line += f"\n         -> {hint}"
+        log.info(line)
+
+    log.info("=" * 70)
+    log.info(" HORIZON TITLE EXTRACTOR - DOCTOR")
+    log.info("=" * 70)
+
+    check(f"Python {sys.version_info.major}.{sys.version_info.minor} (need 3.11+)",
+          sys.version_info >= (3, 11), hint="Install Python 3.11 or newer.")
+
+    deps = ["openpyxl", "yaml", "pydantic", "tenacity", "dotenv", "PIL",
+            "playwright", "openai"]
+    for mod in deps:
+        try:
+            __import__(mod)
+            check(f"dependency: {mod}", True)
+        except Exception:
+            check(f"dependency: {mod}", False,
+                  hint="Run INSTALL.bat to install requirements.")
+
+    # config validity
+    try:
+        cfg = load_config()
+        check("config.yaml is valid", True)
+    except Exception as exc:
+        check("config.yaml is valid", False, hint=str(exc))
+        cfg = {}
+
+    # .env / keys
+    env_path = os.path.join(HERE, ".env")
+    check(".env file present", os.path.exists(env_path),
+          hint="Copy .env.example to .env and add your keys.")
+    check("OPENAI_API_KEY set (primary extractor)", bool(os.getenv("OPENAI_API_KEY")),
+          hint="Add OPENAI_API_KEY to .env.")
+    check("GEMINI_API_KEY set (optional validator)", bool(os.getenv("GEMINI_API_KEY")),
+          warn=True, hint="Optional second opinion.")
+    check("ANTHROPIC_API_KEY set (optional validator)",
+          bool(os.getenv("ANTHROPIC_API_KEY")), warn=True,
+          hint="Optional second opinion.")
+
+    # auth state
+    auth = os.path.join(HERE, cfg.get("auth_state_path", ".auth/county_state.json"))
+    check("county login state saved", os.path.exists(auth), warn=True,
+          hint="Run RUN_LOGIN_SETUP.bat if county records need login.")
+
+    # drive + security
+    try:
+        drive = drive_sync.DriveSync.create(cfg)
+        perm = drive.check_permissions()
+        check(f"Drive: {perm['message']}", not perm.get("public_writer"),
+              warn=not perm.get("public_writer") and not perm.get("configured"),
+              hint="Lock the Drive folder to Restricted/Viewer-only.")
+    except Exception as exc:
+        check("Drive configuration", False, warn=True, hint=str(exc))
+
+    log.info("=" * 70)
+    log.info(" RESULT: %s", "READY" if ok else "NOT READY (fix FAIL items above)")
+    log.info("=" * 70)
+    return 0 if ok else 1
+
+
+# =============================================================================
 # CLI
 # =============================================================================
 def main(argv: list[str] | None = None) -> int:
@@ -508,6 +642,8 @@ def main(argv: list[str] | None = None) -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--login-setup", action="store_true",
                        help="Open a browser to log into county records and save state.")
+    group.add_argument("--doctor", action="store_true",
+                       help="Run a preflight checklist of deps, keys, auth, drive.")
     group.add_argument("--test", action="store_true",
                        help="Process only test_mode_rows linked rows.")
     group.add_argument("--run", action="store_true",
@@ -517,6 +653,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     ensure_dirs()
+    if args.doctor:
+        return doctor()
     if args.login_setup:
         setup_logging()
         cfg = load_config()

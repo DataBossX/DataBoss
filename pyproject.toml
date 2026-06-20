@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databossx"
+version = "0.1.0"
+description = "Local-first safety tooling for the DataBossX title/runsheet workflow."
+readme = "databossx/README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "DataBossX" }]
+keywords = ["title", "runsheet", "ocr", "excel", "safety", "tooling"]
+dependencies = [
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+ocr = [
+    "pytesseract>=0.3.13",
+    "Pillow>=10.4",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "flake8>=7.0",
+    "mypy>=1.8",
+    "black>=24.1",
+]
+
+[project.scripts]
+databossx = "databossx.cli:main"
+
+[tool.setuptools]
+# Ship only the application package; the repo root holds many unrelated trees.
+packages = [
+    "databossx",
+    "databossx.core",
+    "databossx.excel",
+    "databossx.title",
+    "databossx.agents",
+    "databossx.ui",
+]
+
+[tool.pytest.ini_options]
+# Restrict default collection to the maintained unit suite. The legacy
+# backend_test.py integration tests are opt-in (RUN_BACKEND_INTEGRATION=1).
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["databossx"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+[tool.coverage.run]
+source = ["databossx"]
+omit = ["databossx/ui/command_center.py"]

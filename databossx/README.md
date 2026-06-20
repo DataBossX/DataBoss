@@ -23,7 +23,7 @@ python -m pytest tests/test_databossx_safety.py -q
 |--------|---------|------------------|
 | `core/paths` | Artifact paths + exclusion rules | Single source of truth for what is never committed |
 | `core/health` | Runtime/dep/dir health | Flags tracked `.env` files |
-| `core/secret_scan` | Detect secrets by pattern | Reports location/type only — **never values** |
+| `core/secret_scan` | Detect secrets by pattern | Reports location/type only — **never values**; `# pragma: allowlist secret` suppresses a line |
 | `core/backup` | Zip backup + SHA-256 manifest | Excludes `.env`, logs, db, backups, keys |
 | `core/project_map` | Markdown tree map | Skips excluded dirs |
 | `core/file_guard` | Guarded copy/delete | No overwrite, no protected-area writes, dry-run |

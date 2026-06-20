@@ -26,7 +26,7 @@ from databossx.excel import (
 
 def test_secret_scan_detects_fake_keys(tmp_path: Path):
     env = tmp_path / ".env"
-    env.write_text("OPENAI_API_KEY=sk-abcdef0123456789ABCDEF0123456789ABCDEF\n")
+    env.write_text("OPENAI_API_KEY=sk-abcdef0123456789ABCDEF0123456789ABCDEF\n")  # pragma: allowlist secret
     result = secret_scan.scan(root=tmp_path)
     assert result.findings, "expected the fake key to be detected"
     assert any("OpenAI" in f.label or "key" in f.label.lower() for f in result.findings)
@@ -34,8 +34,8 @@ def test_secret_scan_detects_fake_keys(tmp_path: Path):
 
 def test_secret_scan_detects_keys_in_dotenv_variants(tmp_path: Path):
     # .env.local / .env.production must be scanned too (not just exact .env).
-    (tmp_path / ".env.local").write_text("OPENAI_API_KEY=sk-abcdef0123456789ABCDEF0123456789\n")
-    (tmp_path / ".env.production").write_text("GROK_API_KEY=xai-abcdef0123456789ABCDEF\n")
+    (tmp_path / ".env.local").write_text("OPENAI_API_KEY=sk-abcdef0123456789ABCDEF0123456789\n")  # pragma: allowlist secret
+    (tmp_path / ".env.production").write_text("GROK_API_KEY=xai-abcdef0123456789ABCDEF\n")  # pragma: allowlist secret
     result = secret_scan.scan(root=tmp_path)
     found_files = {f.path for f in result.findings}
     assert ".env.local" in found_files
@@ -46,6 +46,21 @@ def test_secret_scan_ignores_clean_files(tmp_path: Path):
     (tmp_path / "ok.py").write_text("x = 1\nname = 'hello world'\n")
     result = secret_scan.scan(root=tmp_path)
     assert result.findings == []
+
+
+def test_secret_scan_respects_allowlist_pragma(tmp_path: Path):
+    # A deliberate fake key marked with the allowlist pragma must be suppressed,
+    # so `scan --fail-on-tracked` stays usable as a CI gate.
+    (tmp_path / "fixture.py").write_text(
+        'KEY = "sk-abcdef0123456789ABCDEF0123456789"  # pragma: allowlist secret\n'
+    )
+    assert secret_scan.scan(root=tmp_path).findings == []
+
+    # Without the pragma the same value is still reported. (The pragma comment
+    # here suppresses the finding on *this* source line only; the string written
+    # to real.py has no pragma, so the scan below still detects it.)
+    (tmp_path / "real.py").write_text('KEY = "sk-abcdef0123456789ABCDEF0123456789"\n')  # pragma: allowlist secret
+    assert secret_scan.scan(root=tmp_path).findings
 
 
 def test_backup_excludes_secrets(tmp_path: Path, monkeypatch):

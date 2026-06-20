@@ -30,6 +30,11 @@ SECRET_PATTERNS = [
     ("Generic long key=value", re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{24,}")),
 ]
 
+# Inline markers that suppress a finding on the line they appear on. Use this for
+# deliberate test fixtures / fake keys so `scan --fail-on-tracked` stays usable as
+# a CI gate (mirrors the detect-secrets `pragma: allowlist secret` convention).
+ALLOWLIST_MARKERS = ("pragma: allowlist secret", "databossx: allowlist secret")
+
 # Files we scan even though they are otherwise "excluded" because .env is the
 # most common place secrets leak.
 ALWAYS_SCAN_NAMES = {".env"}
@@ -102,6 +107,8 @@ def scan(root: Path | None = None, max_bytes: int = 2_000_000) -> ScanResult:
         rel = path.relative_to(root).as_posix()
         is_tracked = rel in tracked
         for lineno, line in enumerate(text.splitlines(), start=1):
+            if any(marker in line for marker in ALLOWLIST_MARKERS):
+                continue
             for label, pattern in SECRET_PATTERNS:
                 if pattern.search(line):
                     result.findings.append(Finding(rel, lineno, label, is_tracked))

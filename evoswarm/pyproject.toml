@@ -1,0 +1,35 @@
+[project]
+name = "evoswarm"
+version = "10.0.0"
+description = "EvoSwarm — Oklahoma mineral-rights agent fleet for DataBoss"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.4",
+    "pyyaml>=6.0.2",
+    "fastapi>=0.114",
+    "uvicorn>=0.30",
+    # Orchestration / infra clients (optional at import time; graph degrades gracefully)
+    "langgraph>=0.2.45",
+    "redis>=5.0",
+    "psycopg[binary]>=3.2",
+    "neo4j>=5.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=4.1", "mypy>=1.8", "ruff>=0.6"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

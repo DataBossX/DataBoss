@@ -1,0 +1,12 @@
+name: compliance
+role: compliance
+model: claude-opus-4-8
+temperature: 0.0
+max_tokens: 8192
+tools:
+- occ_rules
+- audit_log
+system_prompt_ref: prompts/compliance.md
+sub_team: []
+replicas: 1
+cost_ceiling_usd: '10.00'

@@ -1,0 +1,12 @@
+name: evolver
+role: evolver
+model: claude-opus-4-8
+temperature: 0.0
+max_tokens: 8192
+tools:
+- run_evals
+- open_pr
+system_prompt_ref: prompts/evolver.md
+sub_team: []
+replicas: 1
+cost_ceiling_usd: '10.00'

@@ -1,0 +1,11 @@
+name: royalty-analyst
+role: royalty_analyst
+model: claude-opus-4-8
+temperature: 0.0
+max_tokens: 8192
+tools:
+- doi_royalty_calc
+system_prompt_ref: prompts/royalty-analyst.md
+sub_team: []
+replicas: 2
+cost_ceiling_usd: '10.00'

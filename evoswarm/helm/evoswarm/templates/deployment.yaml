@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evoswarm-api
+  labels: { app: evoswarm, component: api }
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels: { app: evoswarm, component: api }
+  template:
+    metadata:
+      labels: { app: evoswarm, component: api }
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ containerPort: {{ .Values.api.port }} }]
+          env:
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: {{ .Values.api.port }} }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+---
+{{- range .Values.agents }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evoswarm-agent-{{ .name }}
+  labels: { app: evoswarm, component: agent, agent: {{ .name }} }
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels: { app: evoswarm, agent: {{ .name }} }
+  template:
+    metadata:
+      labels: { app: evoswarm, component: agent, agent: {{ .name }} }
+    spec:
+      containers:
+        - name: worker
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          args: ["python", "-m", "evoswarm.agents.registry"]
+          env:
+            - name: EVOSWARM_AGENT
+              value: {{ .name | quote }}
+          resources: {{- toYaml $.Values.resources | nindent 12 }}
+---
+{{- end }}

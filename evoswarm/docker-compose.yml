@@ -1,0 +1,45 @@
+name: evoswarm
+
+services:
+  api:
+    build: { context: ., dockerfile: Dockerfile }
+    command: uvicorn evoswarm.api:app --host 0.0.0.0 --port 8080
+    environment:
+      EVOSWARM_POSTGRES_DSN: postgresql://evoswarm:evoswarm@postgres:5432/evoswarm
+      EVOSWARM_NEO4J_URI: bolt://neo4j:7687
+      EVOSWARM_REDIS_URL: redis://redis:6379/0
+      EVOSWARM_TEMPORAL_HOST: temporal:7233
+    ports: ["8080:8080"]
+    depends_on: [postgres, redis, neo4j]
+
+  postgres:
+    image: postgis/postgis:16-3.4   # PostGIS for PLSS / spacing-unit geometry
+    environment:
+      POSTGRES_USER: evoswarm
+      POSTGRES_PASSWORD: evoswarm
+      POSTGRES_DB: evoswarm
+    ports: ["5432:5432"]
+    volumes: ["pg:/var/lib/postgresql/data"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  neo4j:
+    image: neo4j:5-community   # chain-of-title graph
+    environment:
+      NEO4J_AUTH: neo4j/evoswarm
+    ports: ["7474:7474", "7687:7687"]
+
+  temporal:
+    image: temporalio/auto-setup:1.25
+    environment:
+      DB: postgres12
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: evoswarm
+      POSTGRES_PWD: evoswarm
+    ports: ["7233:7233"]
+    depends_on: [postgres]
+
+volumes:
+  pg: {}

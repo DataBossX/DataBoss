@@ -1,0 +1,12 @@
+name: geo-analyst
+role: geo_analyst
+model: claude-haiku-4-5-20251001
+temperature: 0.0
+max_tokens: 8192
+tools:
+- postgis_query
+- plss_resolve
+system_prompt_ref: prompts/geo-analyst.md
+sub_team: []
+replicas: 2
+cost_ceiling_usd: '2.00'

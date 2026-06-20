@@ -1,0 +1,12 @@
+name: ocr
+role: ocr
+model: claude-haiku-4-5-20251001
+temperature: 0.0
+max_tokens: 8192
+tools:
+- paddleocr
+- pdf_split
+system_prompt_ref: prompts/ocr.md
+sub_team: []
+replicas: 4
+cost_ceiling_usd: '2.00'

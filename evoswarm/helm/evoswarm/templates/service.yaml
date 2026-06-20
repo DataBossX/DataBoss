@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: evoswarm-api
+  labels: { app: evoswarm, component: api }
+spec:
+  selector: { app: evoswarm, component: api }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: {{ .Values.api.port }}
+  type: ClusterIP

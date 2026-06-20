@@ -1,0 +1,32 @@
+# EvoSwarm Tiltfile — `tilt up` from a cold clone brings the whole swarm online.
+# Local stateful deps come from docker-compose; the API runs on k8s via Helm so
+# the same manifests work in dev and prod.
+
+docker_compose('./docker-compose.yml')
+dc_resource('postgres', labels=['infra'])
+dc_resource('redis', labels=['infra'])
+dc_resource('neo4j', labels=['infra'])
+dc_resource('temporal', labels=['infra'])
+
+# Regenerate + validate the 12 agent specs whenever the manifest changes.
+local_resource(
+    'gen-specs',
+    cmd='python scripts/gen_specs.py',
+    deps=['scripts/gen_specs.py', 'src/evoswarm/schemas.py'],
+    labels=['build'],
+)
+
+# Run the eval suite on every code change (this is also the EvoLoop gate).
+local_resource(
+    'evals',
+    cmd='python -m pytest -q',
+    deps=['src', 'tests', 'specs'],
+    resource_deps=['gen-specs'],
+    labels=['quality'],
+)
+
+# Build + deploy the API image to the local cluster via Helm.
+docker_build('evoswarm/api', '.', dockerfile='Dockerfile')
+k8s_yaml(helm('./helm/evoswarm', name='evoswarm'))
+k8s_resource('evoswarm-api', port_forwards=['8080:8080'], labels=['app'],
+             resource_deps=['evals'])

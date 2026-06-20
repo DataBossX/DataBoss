@@ -1,0 +1,12 @@
+name: intake
+role: intake
+model: claude-haiku-4-5-20251001
+temperature: 0.0
+max_tokens: 8192
+tools:
+- okcounty_search
+- pull_list
+system_prompt_ref: prompts/intake.md
+sub_team: []
+replicas: 2
+cost_ceiling_usd: '2.00'

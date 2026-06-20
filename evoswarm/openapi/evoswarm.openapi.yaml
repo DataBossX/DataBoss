@@ -1,0 +1,330 @@
+openapi: 3.1.0
+info:
+  title: EvoSwarm
+  version: 10.0.0
+paths:
+  /healthz:
+    get:
+      summary: Healthz
+      operationId: healthz_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Healthz Healthz Get
+  /v1/tasks:
+    post:
+      summary: Submit Task
+      operationId: submit_task_v1_tasks_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwarmState'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/royalty:
+    post:
+      summary: Royalty
+      operationId: royalty_v1_royalty_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoyaltyInput'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoyaltyResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AgentRole:
+      type: string
+      enum:
+      - orchestrator
+      - intake
+      - parser
+      - ocr
+      - title_examiner
+      - royalty_analyst
+      - geo_analyst
+      - valuation
+      - outreach
+      - compliance
+      - critic
+      - evolver
+      title: AgentRole
+    Evidence:
+      properties:
+        source:
+          type: string
+          title: Source
+        document_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Document Id
+        page:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Page
+        quote:
+          type: string
+          title: Quote
+        confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Confidence
+      additionalProperties: false
+      type: object
+      required:
+      - source
+      - quote
+      - confidence
+      title: Evidence
+      description: A single citable fact a downstream agent or human can audit.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Money-Input:
+      properties:
+        amount:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        currency:
+          type: string
+          const: USD
+          title: Currency
+          default: USD
+      additionalProperties: false
+      type: object
+      required:
+      - amount
+      title: Money
+      description: "USD with explicit Decimal precision \u2014 never float for dollars."
+    Money-Output:
+      properties:
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        currency:
+          type: string
+          const: USD
+          title: Currency
+          default: USD
+      additionalProperties: false
+      type: object
+      required:
+      - amount
+      title: Money
+      description: "USD with explicit Decimal precision \u2014 never float for dollars."
+    RoyaltyInput:
+      properties:
+        net_mineral_acres:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Net Mineral Acres
+        spacing_unit_acres:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Spacing Unit Acres
+        royalty_rate:
+          anyOf:
+          - type: number
+            maximum: 0.5
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Royalty Rate
+        monthly_production_bbl:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Monthly Production Bbl
+        price_per_bbl:
+          $ref: '#/components/schemas/Money-Input'
+      additionalProperties: false
+      type: object
+      required:
+      - net_mineral_acres
+      - spacing_unit_acres
+      - royalty_rate
+      - monthly_production_bbl
+      - price_per_bbl
+      title: RoyaltyInput
+    RoyaltyResult:
+      properties:
+        decimal_interest:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Decimal Interest
+        gross_monthly:
+          $ref: '#/components/schemas/Money-Output'
+        net_monthly:
+          $ref: '#/components/schemas/Money-Output'
+        explanation:
+          type: string
+          title: Explanation
+      additionalProperties: false
+      type: object
+      required:
+      - decimal_interest
+      - gross_monthly
+      - net_monthly
+      - explanation
+      title: RoyaltyResult
+    SwarmState:
+      properties:
+        task:
+          $ref: '#/components/schemas/Task'
+        scratch:
+          additionalProperties: true
+          type: object
+          title: Scratch
+        cost_spent_usd:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Cost Spent Usd
+          default: '0'
+        review_required:
+          type: boolean
+          title: Review Required
+          default: false
+        history:
+          items:
+            type: string
+          type: array
+          title: History
+      additionalProperties: false
+      type: object
+      required:
+      - task
+      title: SwarmState
+      description: LangGraph channel payload. Strict so a bad node can't poison the
+        run.
+    Task:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        county:
+          type: string
+          maxLength: 40
+          minLength: 3
+          title: County
+        legal:
+          type: string
+          pattern: ^\d{2}-\d{1,2}[NS]-\d{1,2}[EW]$
+          title: Legal
+        objective:
+          type: string
+          title: Objective
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+          default: queued
+        assigned_to:
+          anyOf:
+          - $ref: '#/components/schemas/AgentRole'
+          - type: 'null'
+        evidence:
+          items:
+            $ref: '#/components/schemas/Evidence'
+          type: array
+          title: Evidence
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      additionalProperties: false
+      type: object
+      required:
+      - county
+      - legal
+      - objective
+      title: Task
+      description: The unit of work that flows through the graph state.
+    TaskStatus:
+      type: string
+      enum:
+      - queued
+      - running
+      - needs_review
+      - done
+      - failed
+      title: TaskStatus
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

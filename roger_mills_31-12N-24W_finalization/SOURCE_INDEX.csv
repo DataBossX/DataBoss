@@ -1,0 +1,11 @@
+Source ID,File or URL,Type,Date accessed,SHA256,Pages/sheets,Linked tracts,Linked owners,Linked leases,Reliability
+S1,31-12N-24W_Roger_Mills_Final_Updated_Title_Report.xlsx (Google Drive id 1Qs0zfr_GlJZNLSYkqHOFU65JDvATvruK),Workbook (primary),2026-06-19,c39d350707f59c25cc6b866fe881515a4e3938ad0b76baa4e5a478a2eec04bc6,"Title, OGLs, Runsheet, Wells, PLAT, WIsheet, Overview, Tract 1-8",1-8,all,all 6 Silver Oak + historic,High (your master workbook)
+S2,12N 24W 31 - Index.pdf (Drive id 1yLKg3R-n1eJZC6KAj-Y_5WE93fRiv2iP),"County numerical index (scanned PDF, 5.7MB)",2026-06-19,not hashed (binary not downloaded this run),"pages incl. 24, 88 cited",1-8,many,EOG/Silver Oak,Medium-High (scanned index)
+S3,31-12N-24W Roger Mills Final Reconciled Ownership Tracker (Drive gdoc id 1-RdDFHEm9...),NMA reconciliation (interpretive),2026-06-19,n/a (gdoc),single table,1-8,all estimated owners,—,Low-Medium (ESTIMATE / family-tree based)
+S4,31-12N-24W Roger Mills Final Cursory Title Report (Drive gdoc id 1AdemXADhQ...),Narrative report,2026-06-19,n/a (gdoc),full,1-8,Bain/Mitchell,Silver Oak + Alexander 1-31,Medium narrative; HBP claim OVERSTATED (corrected here)
+S5,Raw runsheet (Drive Google Sheet id 19BQfeqH36p2g6srK72I8KUvQGT5Oh-HDOm8Ym0d1i74),Double-entry historical ledger,2026-06-19,n/a (gsheet),all,1-8,all,all,Medium-High (chain backbone)
+S6,OKCountyRecords API images (Roger Mills),County instrument images,6/12/2026,n/a (external),"Silver Oak leases, ORRI 2698/0069","1,3,4,6,7",Silver Oak lessors,6 Silver Oak; ORRI,High for page-1 terms (full images still needed)
+S7,OCC RBDMS GIS (gis.occ.ok.gov),Well regulatory data,6/12/2026,n/a (external),Alexander #1-31 record,all,—,well-tied,High for status; production NOT included
+S8,ShaleXP (OTC-sourced) corroboration,Production corroboration,6/12/2026,n/a (external),operator-level,all,—,—,Low for well-level (no Alexander block visible)
+S9,Oklahoma Tax Commission Gross Production (PUN),Production of record,NOT PULLED,n/a,—,all,—,HBP-critical,PENDING — see MANUAL_DOWNLOAD_QUEUE
+S10,BLM GLO Records (glorecords.blm.gov),Patent / survey / lots,NOT PULLED,n/a,—,"5,6,8",—,—,PENDING — for irregular-lot acreage

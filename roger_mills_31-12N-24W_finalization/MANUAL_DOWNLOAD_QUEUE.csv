@@ -1,0 +1,10 @@
+Priority,Source,Record / search,Where,Why it matters,Block reason
+1-HIGH,OTC,Gross production / PUN for API 35-129-22925 (Alexander 1-31),oklahoma.gov/tax gross-production; PUN search,Confirms/denies HBP for entire section,Blocked 403/login this env
+2-HIGH,OKCountyRecords,"Full lease images 2693/0337,0345,0349; 2697/0520,0524; 2702/0505; prior Bk 1736",okcountyrecords.com/search/roger mills,"Lease terms, depth, pooling, expiration",Blocked 403/login
+3-HIGH,County Clerk/District Court,"Probate & heirship: Mitchell, Nancy Mitchell est., Marvin M. Williams est., Sorenson trust, Bain branches",Roger Mills probate; OKCountyRecords party search,Converts NMA estimates to record title,Blocked 403/login
+4-HIGH,OKCountyRecords,Panhandle Royalty conveyance into 31-12N-24W (or remove est.),Party 'Panhandle Royalty',Validates 40 NMA in Tract 1,Blocked 403/login
+5-HIGH,Runsheet/Plat,Ownership of NE/4 SW/4 (unassigned 40 ac),Legal-desc search NE/4 SW/4 31-12N-24W,Accounts for 40 NMA,Local runsheet review
+6-MED,OKCountyRecords,"Mineral deeds 2625/0231,0233; 2481/0287; 2426/0154; 2406/0228; 2365/0338",okcountyrecords Bk/Pg,Confirms mineral fractions,Blocked 403/login
+7-MED,OKCountyRecords,Release matches for Lucas/Bryant/Fairway/Samson mortgages,Bk/Pg pairs,Clears marketability clouds,Blocked 403/login
+8-MED,OCC,"Alexander 1-31 well file, 1002A, spacing/pooling orders, surface/legal reconcile",OCC imaged docs; API 35-129-22925,Which tracts the well holds,Blocked 403/login
+9-MED,BLM GLO,"Section 31 patent, survey plat, field notes (gov't lots)",glorecords.blm.gov,True lot acreage Tracts 5/6/8,Blocked policy

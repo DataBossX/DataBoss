@@ -1,0 +1,34 @@
+Owner,Tract,Gross acres,Coverage fraction,Mineral fraction,Estimated NMA,Evidence basis,Confidence,Curative needed
+Gena Williams Moore (a/k/a Gena Mitchell / Gena Williams),1,80,1.0,0.125,10.0,Reconciled Mitchell 4-heir split; Silver Oak lease 2702/0505,Low-Medium,Probate/heirship; full deed
+"Mitchell-Buonaccorsi Living Trust (Carrie Leeann Mitchell, Trustee)",1,80,1.0,0.125,10.0,Reconciled Mitchell 4-heir split; lease 2693/0337,Low-Medium,Probate/heirship; full deed
+Nancy Susan Mitchell (Estate),1,80,1.0,0.125,10.0,Reconciled Mitchell 4-heir split; lease 2697/0524,Low-Medium,Probate of Nancy Mitchell estate
+Marvin Mitchell Williams (Estate),1,80,1.0,0.125,10.0,Reconciled Mitchell 4-heir split; lease 2702/0505,Low-Medium,Probate of estate
+Panhandle Royalty Company,1,80,1.0,0.5,40.0,Inserted in Reconciled Tracker as unleased/historic; NOT in Title sheet,Low,Source the Panhandle interest; confirm 40 NMA basis
+"Okki Industries, LLC (successor to EDR)",2,40,1.0,0.0385,1.5385,Mineral deed 2625/0231; exact fraction not in index,Low,Full mineral deed 2625/0231
+"Del Monte Royalty Partners, LLC (successor to EDR)",2,40,1.0,0.0385,1.5385,Mineral deed 2625/0233; exact fraction not in index,Low,Full mineral deed 2625/0233
+"Cardinal Land Company, LLC (successor to Greystone)",2,40,1.0,0.0769,3.0769,Mineral deed 2481/0287; exact fraction not in index,Low,Full mineral deed 2481/0287
+Remaining Bain Family Heirs (multiple branches),2,40,1.0,0.8462,33.8462,Residual of Tract 2 after EDR successors; split unconfirmed,Low,Bain heirship/probate
+Gena Moore,3,40,1.0,0.125,5.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Mitchell-Buonaccorsi Trust,3,40,1.0,0.125,5.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Nancy Mitchell Estate,3,40,1.0,0.125,5.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Marvin Mitchell Williams Estate,3,40,1.0,0.125,5.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Keri Lee Daigle Tucker Trust,3,40,1.0,0.16667,6.6667,Sorenson 3-heir split; lease 2697/0520,Low-Medium,Sorenson trust/heirship
+Mark Ashley Daigle Trust,3,40,1.0,0.16667,6.6667,Sorenson 3-heir split; lease 2693/0349,Low-Medium,Sorenson trust/heirship
+Kevin Warner Johnson Trust,3,40,1.0,0.16667,6.6667,Sorenson 3-heir split; lease 2693/0345,Low-Medium,Sorenson trust/heirship
+Gena Moore,4,80,1.0,0.125,10.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Mitchell-Buonaccorsi Trust,4,80,1.0,0.125,10.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Nancy Mitchell Estate,4,80,1.0,0.125,10.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Marvin Mitchell Williams Estate,4,80,1.0,0.125,10.0,Mitchell 4-heir split,Low-Medium,Probate/heirship
+Keri Lee Daigle Tucker Trust,4,80,1.0,0.16667,13.3333,Sorenson 3-heir split,Low-Medium,Sorenson trust/heirship
+Mark Ashley Daigle Trust,4,80,1.0,0.16667,13.3333,Sorenson 3-heir split,Low-Medium,Sorenson trust/heirship
+Kevin Warner Johnson Trust,4,80,1.0,0.16667,13.3333,Sorenson 3-heir split,Low-Medium,Sorenson trust/heirship
+Calvin Wayne Kirk (from Ella Pearl Kirk),5,,,,32.8,Mineral deed 2365/0338; tract acreage irregular/unverified,Low,Recorded plat/survey; full deed
+William Bryant,5,,,,33.1,Deed 2261/0255; Lot 1 partial; mortgage/release open,Low,Plat/survey; release confirmation
+Ronald Paul Dold,6,80,1.0,1.0,80.0,Silver Oak lease 2697/0524 covers full W/2 SW/4; only leased-confirmed NMA,Medium,Underlying mineral deed; 2004 prior lease
+Keri Lee Daigle Tucker Trust,7,40,1.0,0.33333,13.3333,Sorenson 3-heir split; lease 2697/0520,Low-Medium,Sorenson trust/heirship
+Mark Ashley Daigle Trust,7,40,1.0,0.33333,13.3333,Sorenson 3-heir split; lease 2693/0349,Low-Medium,Sorenson trust/heirship
+Kevin Warner Johnson Trust,7,40,1.0,0.33333,13.3333,Sorenson 3-heir split; lease 2693/0345,Low-Medium,Sorenson trust/heirship
+"Del Monte Royalty Partners, LLC",8,120,1.0,0.38462,46.1538,EDR mineral deed 2625/0233,Low,Full deed; Bain reconciliation
+"Okki Industries, LLC",8,120,1.0,0.38462,46.1538,EDR mineral deed 2625/0231,Low,Full deed; Bain reconciliation
+"Other Bain heirs (Slobin, Cook, Fuchs, etc.)",8,120,1.0,0.23077,27.6924,Residual reconciliation among Bain branches,Low,Bain heirship/probate
+UNKNOWN / UNCONFIRMED OWNER,(unassigned) NE/4 SW/4,40,1.0,1.0,40.0,Quarter-quarter not assigned to any subject tract; ownership open,Unknown,Verify ownership; allocate to tract

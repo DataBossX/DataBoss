@@ -1,0 +1,8 @@
+Workbook location,Target,Type,Check result,HTTP/file status,Fix applied,Notes
+SOURCE_INDEX!B2,Google Drive workbook id 1Qs0zfr...,Drive file id,VERIFIED (downloaded & parsed this run),OK,none,"1.15 MB, 20 sheets parsed"
+SOURCE_INDEX!B3,Drive PDF id 1yLKg3R...,Drive file id,EXISTS (listed in Drive search),OK,none,Binary not downloaded; OCR pending
+SOURCE_INDEX!B6,okcountyrecords.com,Public URL,BLOCKED,HTTP 403,routed to manual queue,Login/paywall + bot block in this environment
+SOURCE_INDEX!B7,gis.occ.ok.gov / oklahoma.gov/occ,Public URL,BLOCKED,HTTP 403,routed to manual queue,Not reachable from this container
+SOURCE_INDEX!B9,oklahoma.gov/tax gross-production,Public URL,NOT ATTEMPTED (blocked policy),n/a,manual queue,OTC PUN pull required offline
+SOURCE_INDEX!B10,glorecords.blm.gov,Public URL,NOT ATTEMPTED (blocked policy),n/a,manual queue,Patent/survey pull required offline
+OWNER_NMA_ESTIMATE!G,internal SUM formula,Formula,VERIFIED,OK,none,Total NMA sums estimate column

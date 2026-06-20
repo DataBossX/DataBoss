@@ -1,0 +1,11 @@
+FORMULA QA
+=========
+Scanned all 16 sheets of the final workbook for error literals
+(#REF!, #VALUE!, #NAME?, #DIV/0!, #N/A, #NULL!): 0 found.
+Active formulas: OWNER_NMA_ESTIMATE col F (=C*D*E per row) and the total
+SUM(G2:G33). Reopen via openpyxl succeeded (no corruption).
+Per-tract NMA reconciliation vs gross acres:
+  Tract 1: 80.00 / 80    Tract 2: 40.00 / 40    Tract 3: 40.00 / 40
+  Tract 4: 80.00 / 80    Tract 5: 65.90 / VERIFY Tract 6: 80.00 / 80
+  Tract 7: 40.00 / 40    Tract 8: 120.00 / 120  Unassigned: 40.00 / 40
+  TOTAL estimated NMA: 585.90 (gap to 640 = Tract 5 irregular-lot acreage, OPEN).

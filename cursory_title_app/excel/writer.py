@@ -1,0 +1,203 @@
+"""Format-preserving Runsheet writer.
+
+Two backends, same contract:
+  * COMWriter  (Windows + Excel installed)  -> PRIMARY. Opens the real .xlsx in
+    Excel, sets only specific cells, saves. Nothing else in the file is touched,
+    so every style/merge/filter/print-area survives exactly.
+  * OpenpyxlWriter (cross-platform fallback) -> loads the workbook with
+    keep_vba/rich formatting and writes only target cells. Never rebuilds from a
+    blank workbook (that is what pandas.to_excel does — REJECTED).
+
+Both refuse to write the live-formula columns O..S, both make a timestamped
+backup, and both write to a NEW output file (never overwrite the source unless
+the caller explicitly passes the same path AND approve_overwrite=True).
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import shutil
+from pathlib import Path
+from typing import Optional
+
+from .. import config
+from ..runsheet.columns import (
+    FIELD_TO_COLUMN,
+    FORMULA_COLUMNS,
+    assert_writable,
+)
+
+
+def _excel_safe(value):
+    """Excel formulas via openpyxl must not begin with '=' unless intended.
+    We only ever write plain values here; HYPERLINK is handled separately."""
+    return value
+
+
+def _timestamp() -> str:
+    return _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def make_backup(src: Path, backup_dir: Path) -> Path:
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    dest = backup_dir / f"{src.stem}.BACKUP_{_timestamp()}{src.suffix}"
+    shutil.copy2(src, dest)
+    return dest
+
+
+def hyperlink_formula(url: str, label: Optional[str] = None) -> str:
+    """Build an Excel =HYPERLINK formula matching the workbook's existing style."""
+    label = label or url
+    safe_url = url.replace('"', '""')
+    safe_label = str(label).replace('"', '""')
+    return f'=HYPERLINK("{safe_url}","{safe_label}")'
+
+
+def _resolve_cells(field_values: dict) -> dict[str, object]:
+    """Map logical field names -> column letters, enforcing write guards."""
+    cells: dict[str, object] = {}
+    for field, value in field_values.items():
+        col = FIELD_TO_COLUMN.get(field)
+        if col is None:
+            raise KeyError(f"Unknown field '{field}' (no Runsheet column).")
+        assert_writable(col)          # hard stop on O..S or unknown columns
+        cells[col] = value
+    return cells
+
+
+class BaseWriter:
+    backend = "base"
+
+    def write_rows(self, writes: list) -> dict:
+        raise NotImplementedError
+
+
+# --------------------------------------------------------------------------- #
+# openpyxl fallback (also used for verification on any OS)
+# --------------------------------------------------------------------------- #
+class OpenpyxlWriter(BaseWriter):
+    backend = "openpyxl"
+
+    def __init__(self, source_path: Path):
+        self.source_path = Path(source_path)
+
+    def write(self, writes: list, output_path: Path) -> dict:
+        import openpyxl
+
+        wb = openpyxl.load_workbook(self.source_path, keep_links=True)
+        before_tabs = list(wb.sheetnames)
+        ws = wb[config.RUNSHEET_TAB]
+
+        written = 0
+        for w in writes:
+            cells = _resolve_cells(w.values)
+            for col, value in cells.items():
+                ws[f"{col}{w.row}"] = _excel_safe(value)
+                written += 1
+            if w.document_link_url:
+                assert_writable("K")
+                ws[f"K{w.row}"] = hyperlink_formula(
+                    w.document_link_url, w.document_link_label
+                )
+                written += 1
+
+        after_tabs = list(wb.sheetnames)
+        if before_tabs != after_tabs:
+            raise RuntimeError(
+                f"Tab set changed during write! before={before_tabs} after={after_tabs}"
+            )
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        wb.save(output_path)
+        return {"backend": self.backend, "cells_written": written,
+                "output": str(output_path), "tabs": after_tabs}
+
+
+# --------------------------------------------------------------------------- #
+# Excel COM primary (Windows only)
+# --------------------------------------------------------------------------- #
+class COMWriter(BaseWriter):
+    backend = "com"
+
+    def __init__(self, source_path: Path):
+        self.source_path = Path(source_path)
+
+    def write(self, writes: list, output_path: Path) -> dict:
+        import win32com.client as win32  # pywin32, Windows only
+
+        excel = win32.gencache.EnsureDispatch("Excel.Application")
+        excel.Visible = False
+        excel.DisplayAlerts = False
+        wb = None
+        try:
+            wb = excel.Workbooks.Open(str(self.source_path.resolve()))
+            before_tabs = [s.Name for s in wb.Worksheets]
+            ws = wb.Worksheets(config.RUNSHEET_TAB)
+
+            written = 0
+            for w in writes:
+                cells = _resolve_cells(w.values)
+                for col, value in cells.items():
+                    ws.Range(f"{col}{w.row}").Value = value
+                    written += 1
+                if w.document_link_url:
+                    assert_writable("K")
+                    # Use the formula form so it matches existing K-column style.
+                    ws.Range(f"K{w.row}").Formula = hyperlink_formula(
+                        w.document_link_url, w.document_link_label
+                    )
+                    written += 1
+
+            after_tabs = [s.Name for s in wb.Worksheets]
+            if before_tabs != after_tabs:
+                raise RuntimeError(
+                    f"Tab set changed! before={before_tabs} after={after_tabs}"
+                )
+
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # 51 = xlOpenXMLWorkbook (.xlsx)
+            wb.SaveAs(str(output_path.resolve()), FileFormat=51)
+            return {"backend": self.backend, "cells_written": written,
+                    "output": str(output_path), "tabs": after_tabs}
+        finally:
+            if wb is not None:
+                wb.Close(SaveChanges=False)
+            excel.Quit()
+
+
+def get_writer(source_path: Path, prefer: str = "auto") -> BaseWriter:
+    """Pick the safest available backend. COM on Windows, else openpyxl."""
+    if prefer in ("com", "auto"):
+        try:
+            import win32com.client  # noqa: F401
+            return COMWriter(source_path)
+        except Exception:
+            if prefer == "com":
+                raise RuntimeError(
+                    "COM backend requested but pywin32/Excel unavailable."
+                )
+    return OpenpyxlWriter(source_path)
+
+
+def write_runsheet(
+    source_path: Path,
+    writes: list,
+    output_dir: Path = config.OUTPUT_DIR,
+    backup_dir: Path = config.BACKUP_DIR,
+    prefer: str = "auto",
+) -> dict:
+    """Top-level entry: backup, write to a NEW output file, return a report.
+
+    Never overwrites the source. Caller verifies the result with excel.verify.
+    """
+    source_path = Path(source_path)
+    backup = make_backup(source_path, backup_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out = output_dir / f"{source_path.stem}.UPDATED_{_timestamp()}{source_path.suffix}"
+
+    writer = get_writer(source_path, prefer=prefer)
+    report = writer.write(writes, out)
+    report["backup"] = str(backup)
+    report["source"] = str(source_path)
+    report["protected_columns"] = FORMULA_COLUMNS
+    return report

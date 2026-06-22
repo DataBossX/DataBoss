@@ -1,0 +1,25 @@
+# Cursory Title App — local-first, Windows-first
+python-dotenv>=1.0.1
+pydantic>=2.9
+tenacity>=8.2
+
+# Excel: openpyxl always; pywin32 only on Windows (Excel COM = primary writer)
+openpyxl>=3.1.5
+pywin32>=306; sys_platform == 'win32'
+
+# Index PDF rendering (no text layer -> rasterize for vision)
+pypdfium2>=4.30
+
+# Browser automation against your visible, logged-in session
+playwright>=1.48
+
+# Model providers (swappable; install what you use)
+anthropic>=0.39
+openai>=1.50
+
+# Local UI
+streamlit>=1.39
+
+# Optional local OCR fallback for PRINTED docs (cursive index still needs vision)
+pytesseract>=0.3.13
+Pillow>=10.4

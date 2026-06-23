@@ -1,4 +1,3 @@
-import type { TargetStatus, EvidenceStatus, TitleClearance } from '../types'
 
 const STATUS_COLORS: Record<string, string> = {
   // Target status

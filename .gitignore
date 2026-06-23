@@ -68,3 +68,7 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+
+# Generated title report deliverables
+title_report_output/
+*.xlsx

@@ -13,11 +13,13 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from .base import ModelResult, VisionProvider
 from .claude_provider import ClaudeProvider
 from .openai_provider import OpenAIProvider
+from .mock_provider import MockProvider
 from .. import config
 
 _REGISTRY: dict[str, type[VisionProvider]] = {
     "claude": ClaudeProvider,
     "openai": OpenAIProvider,
+    "mock": MockProvider,
 }
 
 

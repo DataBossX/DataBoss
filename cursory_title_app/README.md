@@ -45,6 +45,29 @@ touching formulas, tabs, or formatting.
    and NEED / ACTION (U).
 6. **QA** — verify the produced workbook.
 
+## Index OCR → Runsheet diff (handwritten index)
+The Section 31 index is 88 pages of cursive handwriting with no text layer. This
+renders each page, reads it with the vision model, and diffs the result against
+your existing Runsheet to surface **missing** and **conflicting** instruments.
+Resumable (already-extracted pages are skipped).
+
+```bash
+# real run (needs ANTHROPIC_API_KEY or OPENAI_API_KEY)
+python -m cursory_title_app.index.run "12N 24W 31 - Index.pdf" "31-...xlsx" --provider claude
+
+# offline wiring test, no key:
+python -m cursory_title_app.index.run INDEX.pdf WB.xlsx --pages 1-3 --provider mock
+```
+Output: `_data/index_missing_report.json` (missing / conflict / present counts +
+the prioritized pull list). Every handwriting read is low-confidence and flagged.
+
+## Forensic QC audit (existing workbook)
+```bash
+python -m cursory_title_app.audit.engine "31-...xlsx"
+```
+Writes `_data/audit_report.md` + `.json`. See `docs/SECTION31_QC_AUDIT.md` for the
+current Section 31 result (all 8 tracts balanced; 640/640 acres; each tract 100%).
+
 ## Tests
 ```bash
 pip install -r requirements.txt pytest

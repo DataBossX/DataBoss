@@ -82,6 +82,8 @@ def run(pdf: Path, workbook: Path, pages_spec=None, reset=False) -> dict:
 
     diff = analyzer.analyze(workbook)
     rep = missing_report()
+    from ..reports import export as pull_export
+    exported = pull_export.export()
     summary = {
         "pages_total": n,
         "pages_extracted": len(_already_extracted_pages()),
@@ -89,6 +91,8 @@ def run(pdf: Path, workbook: Path, pages_spec=None, reset=False) -> dict:
         "missing_instruments": len(rep["missing"]),
         "conflicts": len(rep["conflict"]),
         "present": rep["present_count"],
+        "pull_list_csv": exported["csv"],
+        "pull_list_xlsx": exported["xlsx"],
     }
 
     out_json = config.DATA_DIR / "index_missing_report.json"

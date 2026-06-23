@@ -22,6 +22,12 @@ STRICT = ConfigDict(strict=True, extra="forbid", frozen=False)
 PLSSKey = Annotated[str, StringConstraints(pattern=r"^\d{2}-\d{1,2}[NS]-\d{1,2}[EW]$")]
 County = Annotated[str, StringConstraints(min_length=3, max_length=40)]
 
+# Money/quantities arrive over HTTP as JSON (strings or numbers). At that trust
+# boundary we must accept the JSON type system, so these Decimal fields opt out
+# of strict coercion-blocking (field-level strict=False overrides the model's
+# strict=True) while every range/precision constraint still applies.
+WireDecimal = Annotated[Decimal, Field(strict=False)]
+
 
 class AgentRole(str, Enum):
     ORCHESTRATOR = "orchestrator"
@@ -50,7 +56,7 @@ class Money(BaseModel):
     """USD with explicit Decimal precision — never float for dollars."""
 
     model_config = STRICT
-    amount: Decimal = Field(ge=Decimal("0"))
+    amount: WireDecimal = Field(ge=Decimal("0"))
     currency: Literal["USD"] = "USD"
 
 
@@ -97,10 +103,10 @@ class Task(BaseModel):
 
 class RoyaltyInput(BaseModel):
     model_config = STRICT
-    net_mineral_acres: Decimal = Field(gt=Decimal("0"))
-    spacing_unit_acres: Decimal = Field(gt=Decimal("0"))
-    royalty_rate: Decimal = Field(gt=Decimal("0"), le=Decimal("0.5"))
-    monthly_production_bbl: Decimal = Field(ge=Decimal("0"))
+    net_mineral_acres: WireDecimal = Field(gt=Decimal("0"))
+    spacing_unit_acres: WireDecimal = Field(gt=Decimal("0"))
+    royalty_rate: WireDecimal = Field(gt=Decimal("0"), le=Decimal("0.5"))
+    monthly_production_bbl: WireDecimal = Field(ge=Decimal("0"))
     price_per_bbl: Money
 
 

@@ -51,3 +51,23 @@ def test_strict_schema_rejects_unknown_field():
 def test_strict_schema_rejects_bad_legal():
     with pytest.raises(Exception):
         Task(county="Oklahoma", legal="not-a-legal", objective="x")
+
+
+def test_royalty_input_accepts_json_strings_at_wire_boundary():
+    # The UI POSTs Decimals as JSON strings; the boundary must coerce them.
+    inp = RoyaltyInput.model_validate({
+        "net_mineral_acres": "20", "spacing_unit_acres": "640",
+        "royalty_rate": "0.1875", "monthly_production_bbl": "1000",
+        "price_per_bbl": {"amount": "70.00", "currency": "USD"},
+    })
+    assert inp.royalty_rate == Decimal("0.1875")
+
+
+def test_royalty_input_still_enforces_constraints():
+    # Coercion on, but range validation must still reject an out-of-range rate.
+    with pytest.raises(Exception):
+        RoyaltyInput.model_validate({
+            "net_mineral_acres": "20", "spacing_unit_acres": "640",
+            "royalty_rate": "0.9", "monthly_production_bbl": "1000",
+            "price_per_bbl": {"amount": "70.00", "currency": "USD"},
+        })

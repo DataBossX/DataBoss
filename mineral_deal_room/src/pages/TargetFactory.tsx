@@ -3,6 +3,7 @@ import { SAMPLE_TARGETS } from '../data/sampleData'
 import type { Target, TargetStatus } from '../types'
 import StatusBadge from '../components/StatusBadge'
 import ScoreBadge from '../components/ScoreBadge'
+import RoyaltyAnalysis from '../components/RoyaltyAnalysis'
 import { Search, Download, Plus, ChevronDown, ChevronUp, X } from 'lucide-react'
 
 const STATUSES: TargetStatus[] = ['Identified','Contacted','Under Review','Offer Sent','Signed','Passed','On Hold']
@@ -215,6 +216,8 @@ export default function TargetFactory() {
                 </div>
               ))}
             </div>
+
+            <RoyaltyAnalysis target={selected} />
 
             {selected.curativesNeeded.length > 0 && (
               <div className="bg-yellow-50 rounded-lg p-3 mb-3 border border-yellow-200">

@@ -43,6 +43,7 @@ export interface Target {
   createdAt: string;
   wellsProducing: number;
   royaltyRate: string;
+  instrumentType?: string;
 }
 
 export interface ScoreComponent {

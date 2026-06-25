@@ -24,9 +24,17 @@ from openpyxl import load_workbook
 
 from .models import TitleReport
 from .sample_data import build_sample_report
+from .specimen_31_12N_24W import build_report as build_31_12n_24w
 from . import workbook as wbmod
 from . import deliverables as dl
 from . import qa as qamod
+
+# Tract registry: slug -> builder(report_date) -> TitleReport.
+TRACTS = {
+    "31-12N-24W": build_31_12n_24w,   # fully-populated specimen (default)
+    "31-11N-24W": build_sample_report,
+}
+DEFAULT_TRACT = "31-12N-24W"
 
 
 def _slug(rpt: TitleReport) -> str:
@@ -35,8 +43,15 @@ def _slug(rpt: TitleReport) -> str:
     return f"{cfg.section}-{cfg.township}-{cfg.range_}_{county}"
 
 
+_FOOTER_MARKERS = ("TOTALS", "Live formulas", "Derived columns", "(")
+
+
 def _workbook_counts(path: str) -> dict:
-    """Read back per-sheet data-row counts (excludes header) for reconciliation."""
+    """Read back per-sheet data-row counts for reconciliation.
+
+    Workbook layout: row 1 = nav, row 2 = header, data from row 3. Footer/notes
+    (e.g. the matrix TOTALS row) are excluded via marker tokens in column A.
+    """
     wb = load_workbook(path, read_only=True)
     counts = {}
     for name in ("Source Log", "Runsheet", "Abstractions", "Wells & HBP",
@@ -46,23 +61,31 @@ def _workbook_counts(path: str) -> dict:
             continue
         ws = wb[name]
         n = 0
-        for r, row in enumerate(ws.iter_rows(values_only=True)):
-            if r == 0:
-                continue                      # header
+        for r, row in enumerate(ws.iter_rows(values_only=True), start=1):
+            if r <= 2:                        # nav + header
+                continue
             first = row[0]
             if first is None or str(first).strip() == "":
-                continue                      # trailing note/blank rows
-            if str(first).startswith(("Derived columns", "(")):
-                continue                      # note / empty-table placeholder
+                continue
+            if str(first).startswith(_FOOTER_MARKERS):
+                continue
             n += 1
         counts[name] = n
     wb.close()
     return counts
 
 
+def build_tract(tract: str = DEFAULT_TRACT, report_date: Optional[str] = None) -> TitleReport:
+    """Build the TitleReport for a known tract slug."""
+    if tract not in TRACTS:
+        raise KeyError(f"unknown tract {tract!r}; known: {', '.join(TRACTS)}")
+    builder = TRACTS[tract]
+    return builder(report_date) if report_date else builder()
+
+
 def generate(rpt: Optional[TitleReport] = None, out_dir: str = "title_report_output",
              run_date: Optional[str] = None) -> dict:
-    rpt = rpt or build_sample_report()
+    rpt = rpt or build_tract()
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     run_date = run_date or rpt.config.report_date
@@ -96,6 +119,7 @@ def generate(rpt: Optional[TitleReport] = None, out_dir: str = "title_report_out
         "qa_results": str(out / "QA_RESULTS.md"),
         "qa_passed": qa_summary["passed"],
         "is_placeholder": rpt.config.is_placeholder,
+        "data_status": rpt.config.data_status,
         "counts": counts,
     }
 
@@ -104,10 +128,12 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Generate a cursory title report.")
     ap.add_argument("--out", default="title_report_output", help="output directory")
     ap.add_argument("--date", default=None, help="report/run date YYYY-MM-DD")
+    ap.add_argument("--tract", default=DEFAULT_TRACT, choices=list(TRACTS),
+                    help="tract to generate")
     args = ap.parse_args(argv)
 
-    rpt = build_sample_report(report_date=args.date) if args.date else build_sample_report()
-    result = generate(rpt, out_dir=args.out, run_date=args.date)
+    rpt = build_tract(args.tract, args.date)
+    result = generate(rpt, out_dir=args.out, run_date=args.date or rpt.config.report_date)
 
     print(f"Workbook:       {result['workbook']}")
     print(f"Source log:     {result['source_log']}")
@@ -116,9 +142,10 @@ def main(argv=None) -> int:
     print(f"Change summary: {result['change_summary']}")
     print(f"QA results:     {result['qa_results']}")
     status = "PASS" if result["qa_passed"] else "FAIL"
-    final = "NOT FINAL (placeholder data)" if result["is_placeholder"] else (
-        "FINAL-eligible" if result["qa_passed"] else "NOT FINAL (QA failed)")
-    print(f"QA: {status}  |  {final}")
+    final = (f"NOT FINAL ({result['data_status']} data)"
+             if result["data_status"] != "EXAMINED" else
+             ("FINAL-eligible" if result["qa_passed"] else "NOT FINAL (QA failed)"))
+    print(f"QA: {status}  |  {final}  |  counts={result['counts']}")
     return 0
 
 

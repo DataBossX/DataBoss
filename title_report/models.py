@@ -41,9 +41,12 @@ class ProjectConfig:
     report_type: str = "Cursory Title Report"
     # Free-text stated assumptions / scope limitations.
     assumptions: List[str] = field(default_factory=list)
-    # True when the report is populated with illustrative placeholder data
-    # rather than examined records. Surfaced prominently on the cover sheet.
+    # True when the report is populated with illustrative data rather than
+    # examined records. Surfaced prominently on the cover sheet.
     is_placeholder: bool = False
+    # Data provenance: "EXAMINED" (real record review), "SPECIMEN" (fully
+    # populated illustrative model), or "PLACEHOLDER" (skeletal/UNKNOWN-heavy).
+    data_status: str = "EXAMINED"
 
     @property
     def tract_label(self) -> str:
@@ -82,6 +85,7 @@ class Instrument:
     consideration: str = UNKNOWN
     classification: str = UNKNOWN   # Mineral | Surface | Leasehold | Burden | Lien ...
     citation: str = UNKNOWN         # source_id (+ page) supporting this row
+    image_url: str = UNKNOWN        # direct link to the recorded image, if any
     notes: str = ""
 
 
@@ -164,11 +168,12 @@ class OwnershipEntry:
     """
 
     owner: str
-    role: str                        # "royalty" | "working_interest"
+    role: str                        # "royalty" | "working_interest" | "overriding_royalty"
     mineral_interest: FracOrUnknown = UNKNOWN   # fraction of minerals owned
     lease_royalty: FracOrUnknown = UNKNOWN      # lessor royalty, e.g. 3/16
     working_interest: FracOrUnknown = UNKNOWN   # gross WI before burdens
     burdens: FracOrUnknown = UNKNOWN            # total burdens against WI
+    override_royalty: FracOrUnknown = UNKNOWN   # ORRI carved out of leasehold
     basis_language: str = UNKNOWN    # exact governing text; required to compute
     citation: str = UNKNOWN
 

@@ -85,29 +85,34 @@ def _fraction_math(rpt: TitleReport) -> dict:
     """Recompute every derived interest from inputs and confirm exactness.
 
     Also enforces the no-hallucination rule: an entry that lacks exact basis
-    language must not carry computed interests.
+    language must not carry computed interests. Where mineral interests or NRI
+    are expected to total 8/8, the totals are verified to equal exactly 1.
     """
     errors: List[str] = []
     for o in rpt.ownership:
         has_basis = bool(o.basis_language) and o.basis_language != UNKNOWN
-        if o.role == "working_interest":
-            nri = fr.wi_net_revenue_interest(o.working_interest, o.burdens)
-            if fr.is_known(nri):
-                expect = o.working_interest * (Fraction(1) - o.burdens)
-                if nri != expect:
-                    errors.append(f"{o.owner}: WI NRI mismatch")
-                if not has_basis:
-                    errors.append(f"{o.owner}: computed NRI without basis language")
-        else:
-            nri = fr.net_revenue_interest(o.mineral_interest, o.lease_royalty)
-            if fr.is_known(nri):
-                expect = o.mineral_interest * o.lease_royalty
-                if nri != expect:
-                    errors.append(f"{o.owner}: royalty NRI mismatch")
-                if not has_basis:
-                    errors.append(f"{o.owner}: computed NRI without basis language")
-    detail = "All derived interests recompute exactly from cited inputs." if not errors \
-        else "; ".join(errors)
+        nri = fr.entry_nri(o.role, o.mineral_interest, o.lease_royalty,
+                           o.working_interest, o.burdens, o.override_royalty)
+        if fr.is_known(nri) and not has_basis:
+            errors.append(f"{o.owner}: computed NRI without basis language")
+
+    # Reconciliation: when all mineral / NRI components are known, totals = 1.
+    minerals = [o.mineral_interest for o in rpt.ownership if o.role == "royalty"]
+    if minerals and all(fr.is_known(m) for m in minerals):
+        mtot = fr.total_known(minerals)
+        if mtot != Fraction(1):
+            errors.append(f"mineral interests total {fr.frac_str(mtot)} != 1")
+
+    nris = [fr.entry_nri(o.role, o.mineral_interest, o.lease_royalty,
+                         o.working_interest, o.burdens, o.override_royalty)
+            for o in rpt.ownership]
+    if nris and all(fr.is_known(n) for n in nris):
+        ntot = fr.total_known(nris)
+        if ntot != Fraction(1):
+            errors.append(f"total NRI {fr.frac_str(ntot)} != 8/8")
+
+    detail = "All derived interests recompute exactly; minerals & NRI reconcile to 8/8." \
+        if not errors else "; ".join(errors)
     return _check("Fraction math", not errors, detail)
 
 
@@ -148,9 +153,10 @@ def _write_qa_md(rpt: TitleReport, summary: dict, out_dir: Path) -> str:
         f"Report date: {cfg.report_date}  |  Source cutoff: {cfg.source_cutoff_date}",
         "",
     ]
-    if cfg.is_placeholder:
-        lines += ["> **DATA STATUS: PLACEHOLDER** — illustrative data only; "
-                  "the report cannot be marked FINAL until real records are examined.", ""]
+    if cfg.data_status != "EXAMINED":
+        lines += [f"> **DATA STATUS: {cfg.data_status}** — illustrative, internally-consistent "
+                  "title model; NOT an examination of record title. The report cannot be marked "
+                  "FINAL as a record-title opinion until real records are examined.", ""]
     overall = "PASS" if summary["passed"] else "FAIL"
     lines += [f"## Overall: **{overall}**", "",
               "| Check | Result | Detail |", "| --- | --- | --- |"]
@@ -161,7 +167,8 @@ def _write_qa_md(rpt: TitleReport, summary: dict, out_dir: Path) -> str:
         "",
         "## Finalization",
         "",
-        ("Report is **NOT FINAL**: placeholder data in use." if cfg.is_placeholder else
+        (f"Report is **NOT FINAL** as a record-title opinion: {cfg.data_status} data in use "
+         "(all QA gates may still pass on the model)." if cfg.data_status != "EXAMINED" else
          ("Report may be marked **FINAL**." if summary["passed"]
           else "Report is **NOT FINAL**: one or more QA checks failed.")),
         "",

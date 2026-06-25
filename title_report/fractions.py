@@ -77,6 +77,21 @@ def wi_net_revenue_interest(
     return UNKNOWN
 
 
+def entry_nri(role: str, mineral_interest, lease_royalty, working_interest,
+              burdens, override_royalty) -> FracOrUnknown:
+    """Net revenue interest for an ownership entry, dispatched by role.
+
+    * royalty            -> mineral interest x lessor royalty
+    * working_interest   -> WI x (1 - total burdens)
+    * overriding_royalty -> the ORRI fraction itself (already net)
+    """
+    if role == "working_interest":
+        return wi_net_revenue_interest(working_interest, burdens)
+    if role == "overriding_royalty":
+        return override_royalty if is_known(override_royalty) else UNKNOWN
+    return net_revenue_interest(mineral_interest, lease_royalty)
+
+
 def net_mineral_acres(
     mineral_interest: FracOrUnknown,
     gross_acres: FracOrUnknown,
@@ -111,3 +126,14 @@ def excel_nma_formula(mineral_cell: str, gross_acres_cell: str) -> str:
         f'=IF(OR({mineral_cell}="",{gross_acres_cell}=""),"UNKNOWN",'
         f"{mineral_cell}*{gross_acres_cell})"
     )
+
+
+def total_known(values) -> FracOrUnknown:
+    """Exact sum of the known fractions in ``values`` (ignores UNKNOWN)."""
+    known = [v for v in values if is_known(v)]
+    if not known:
+        return UNKNOWN
+    total = Fraction(0)
+    for v in known:
+        total += v
+    return total

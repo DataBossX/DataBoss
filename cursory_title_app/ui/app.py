@@ -144,3 +144,44 @@ with tab_build:
                     st.download_button(label, p.read_bytes(), file_name=p.name)
         except Exception as e:
             st.exception(e)
+
+    st.divider()
+    st.subheader("Open all curative items in my browser")
+    st.caption(f"Walks every VERIFY/NEED item, opens its OKCountyRecords search "
+               f"in your connected Chrome ({config.CDP_URL}), and saves a "
+               f"screenshot + page text into the local evidence store. Pauses for "
+               f"manual takeover on CAPTCHA/login/paywall. Never auto-fills the workbook.")
+    from cursory_title_app.browser import curative_walker
+    colA, colB, colC = st.columns(3)
+    max_items = colA.number_input("Max items", 1, 200, 31)
+    delay = colB.number_input("Delay between items (s)", 0.0, 30.0, 2.0, step=0.5)
+    pause = colC.checkbox("Pause on takeover", value=True)
+
+    if st.button("👀 Dry run (list only)", disabled=not wb_path):
+        plan = curative_walker.walk_curative(Path(wb_path), dry_run=True,
+                                             max_items=int(max_items))
+        st.write(f"Would open **{plan['planned']}** items:")
+        st.dataframe(plan["items"], use_container_width=True)
+
+    if st.button("▶ Open in my browser", type="primary", disabled=not wb_path):
+        bar = st.progress(0.0)
+        msg = st.empty()
+
+        def _prog(n, total, owner):
+            bar.progress(n / max(total, 1))
+            msg.write(f"{n}/{total}: {owner}")
+        try:
+            res = curative_walker.walk_curative(
+                Path(wb_path), cdp_url=config.CDP_URL, delay=float(delay),
+                max_items=int(max_items), pause_on_takeover=pause, progress=_prog)
+            st.success(f"Processed {res['processed']}, captured {res['captured']}.")
+            st.dataframe(res["results"], use_container_width=True)
+            for r in res["results"]:
+                shot = r.get("screenshot")
+                if shot and Path(shot).exists():
+                    st.image(shot, caption=f"#{r['id']} {r.get('owner','')}", width=480)
+        except Exception as e:
+            st.error("Browser walk failed. Is Chrome running with "
+                     f"--remote-debugging-port matching {config.CDP_URL}, and are "
+                     "you logged in?")
+            st.exception(e)

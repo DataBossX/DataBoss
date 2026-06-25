@@ -214,14 +214,15 @@ def build_ownership_reconciliation(source: Path, out_dir: Path) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-def build_curative_manifest(source: Path, out_dir: Path) -> dict:
+def curative_rows(source: Path) -> list[dict]:
+    """The curative items as data (shared by the file export and the browser
+    walker) — every Title cell that says VERIFY/NEED + the doc needed."""
     rec = ownership.reconcile(source)
     rows = []
     for sec in rec["title"]:
         for o in sec["owners"]:
             if not o["needs"]:
                 continue
-            need = o["net_acres_raw"]
             q = o["owner"] or o["ogl"]
             rows.append({
                 "tract": sec.get("tract_num"),
@@ -230,9 +231,14 @@ def build_curative_manifest(source: Path, out_dir: Path) -> dict:
                 "stated_net_acres": o["net_acres_raw"],
                 "ogl_or_bkpg": o["ogl"],
                 "royalty": o["royalty"],
-                "what_is_needed": need,
+                "what_is_needed": o["net_acres_raw"],
                 "okcountyrecords_search": f"{SEARCH}?q={quote(q)}" if q else SEARCH,
             })
+    return rows
+
+
+def build_curative_manifest(source: Path, out_dir: Path) -> dict:
+    rows = curative_rows(source)
     cols = ["tract", "legal", "owner", "stated_net_acres", "ogl_or_bkpg",
             "royalty", "what_is_needed", "okcountyrecords_search"]
     out_csv = out_dir / f"Section31_Curative_Manifest_{DATED}.csv"

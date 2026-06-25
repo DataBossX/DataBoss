@@ -1,0 +1,67 @@
+{
+  "_meta": {
+    "purpose": "Oklahoma legal authorities mapped to curative/chain defect categories.",
+    "disclaimer": "Research aid only — NOT legal advice and NOT a title opinion. Retrieved via Legal Data Hunter (CourtListener / Caselaw Access Project). Verify every pinpoint citation and current validity before relying on it. Jurisdiction confirmed Oklahoma for listed items; non-OK results were deliberately excluded.",
+    "retrieved": "2026-06-25"
+  },
+  "wild-deed": [
+    {
+      "cite": "Bennett v. Whitehouse, 690 F. Supp. 955 (W.D. Okla. 1988)",
+      "point": "Quiet-title action to a term mineral interest in Roger Mills County, OK under the Marketable Record Title Act, 16 O.S. §71 et seq.; framework for extinguishing stale unrecorded mineral claims against a 30-year record root of title.",
+      "url": "https://www.courtlistener.com/opinion/2358515/bennett-v-whitehouse/",
+      "confidence": "HIGH"
+    },
+    {
+      "cite": "Rocket Oil & Gas Co. v. Donabar, 2005 OK CIV APP ___",
+      "point": "Quiet-title / marketable title among competing mineral and leasehold claimants; illustrates curing gaps via judicial quiet title.",
+      "url": "https://www.courtlistener.com/opinion/2510421/rocket-oil-and-gas-co-v-donabar/",
+      "confidence": "MEDIUM"
+    },
+    {
+      "statute": "16 O.S. §71 et seq. (Marketable Record Title Act)",
+      "point": "A person with an unbroken record chain of title for 30 years has marketable record title, subject to stated exceptions; basis for extinguishing stale interests / wild deeds.",
+      "url": "https://www.courtlistener.com/opinion/2358515/bennett-v-whitehouse/",
+      "confidence": "MEDIUM"
+    }
+  ],
+  "probate": [
+    {
+      "cite": "Bennett v. Whitehouse, 690 F. Supp. 955 (W.D. Okla. 1988)",
+      "point": "Treatment of inherited/term mineral interests and record-title requirements when curing a decedent's interest.",
+      "url": "https://www.courtlistener.com/opinion/2358515/bennett-v-whitehouse/",
+      "confidence": "MEDIUM"
+    },
+    {
+      "cite": "Dearing v. State ex rel. Commissioners of the Land Office, 642 P.2d 226 (Okla. 1982)",
+      "point": "Oklahoma title litigation involving devised mineral interests; relevant to proving devolution through a will/estate.",
+      "url": "https://www.courtlistener.com/opinion/1187247/dearing-v-state-ex-rel-commissioners-of-the-land-office/",
+      "confidence": "MEDIUM"
+    }
+  ],
+  "entity-succession": [
+    {
+      "note": "No on-point Oklahoma authority retrieved for corporate-merger title vesting. Verify via the entity's recorded merger/name-change instrument and 18 O.S. (Oklahoma General Corporation Act) succession provisions. Do not rely without confirmation.",
+      "confidence": "LOW"
+    }
+  ],
+  "ogl-hbp": [
+    {
+      "cite": "Pack v. Santa Fe Minerals, 1994 OK 23, 869 P.2d 323",
+      "point": "Leading Oklahoma authority on the habendum clause and temporary cessation of production; a lease in its secondary term may terminate when production ceases, subject to the temporary-cessation doctrine.",
+      "url": "https://www.courtlistener.com/opinion/1230173/pack-v-santa-fe-minerals/",
+      "confidence": "HIGH"
+    },
+    {
+      "cite": "Hoyt v. Continental Oil Co., 606 P.2d 560 (Okla. 1980)",
+      "point": "Cancellation of an oil and gas lease and the lessee's duty to release; relevant to determining released vs. held-by-production status.",
+      "url": "https://www.courtlistener.com/opinion/1144983/hoyt-v-continental-oil-co/",
+      "confidence": "MEDIUM"
+    },
+    {
+      "cite": "Sun Oil Co. v. Samano (Okla. 1980)",
+      "point": "Oil and gas lease terminating by its own terms; secondary-term/production analysis.",
+      "url": "https://www.courtlistener.com/opinion/5228915/sun-oil-co-v-samano/",
+      "confidence": "MEDIUM"
+    }
+  ]
+}

@@ -58,6 +58,21 @@ def test_pipeline_never_targets_formula_columns():
         assert col not in FORMULA_COLUMNS
 
 
+def test_legal_authorities_load_and_are_oklahoma():
+    from cursory_title_app.legal import authorities as law
+    assert law.disclaimer()
+    # known categories resolve to authorities with verifiable URLs
+    wild = law.for_category("wild-deed")
+    assert any("Bennett v. Whitehouse" in (a.get("cite") or "") for a in wild)
+    for cat in ("wild-deed", "probate", "ogl-hbp"):
+        for a in law.for_category(cat):
+            if a.get("url"):
+                assert a["url"].startswith("https://")
+    # entity-succession is honestly empty of on-point authority (no fabrication)
+    ent = law.for_category("entity-succession")
+    assert all("note" in a for a in ent)
+
+
 def test_entity_resolution_matches_variants_not_strangers():
     from cursory_title_app.chain.entities import persons, any_match, is_sovereign
     assert any_match(persons("Marvin G. Mitchell and Carrie Lou"), persons("M. G. Mitchell"))

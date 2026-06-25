@@ -46,13 +46,15 @@ def build(source: Path, out_dir: Path = config.OUTPUT_DIR) -> dict:
     # --- Defects sheet ---
     ws = wb.active
     ws.title = "Defects"
+    from ..legal import authorities as law
     cols = ["row", "date", "doc", "bkpg", "tracts", "category", "issue",
-            "curative", "confidence", "grantor", "search"]
+            "curative", "OK authority (verify)", "confidence", "grantor", "search"]
     _hdr(ws, cols, fill="7F1D1D")
     for i, d in enumerate(rep["defects"], 2):
         link = f"{SEARCH}?q={quote(d['grantor'][:60])}" if d["grantor"] else SEARCH
         vals = [d["row"], d["date"], d["doc"], d["bkpg"], d["tracts"], d["category"],
-                d["issue"], d["curative"], d["confidence"], d["grantor"], link]
+                d["issue"], d["curative"], law.authorities_for(d["category"]),
+                d["confidence"], d["grantor"], link]
         for c, v in enumerate(vals, 1):
             cell = ws.cell(i, c, v)
             if cols[c - 1] == "category":
@@ -61,8 +63,8 @@ def build(source: Path, out_dir: Path = config.OUTPUT_DIR) -> dict:
                 cell.hyperlink = v
                 cell.font = Font(color="0563C1", underline="single")
     ws.auto_filter.ref = f"A1:{L(len(cols))}{len(rep['defects'])+1}"
-    for c, w in {1: 6, 2: 11, 3: 20, 4: 10, 5: 11, 6: 16, 7: 30, 8: 38,
-                 9: 11, 10: 34, 11: 40}.items():
+    for c, w in {1: 6, 2: 11, 3: 20, 4: 10, 5: 11, 6: 16, 7: 28, 8: 34,
+                 9: 46, 10: 10, 11: 32, 12: 38}.items():
         ws.column_dimensions[L(c)].width = w
 
     # --- Chain Timeline sheet ---

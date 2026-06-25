@@ -61,6 +61,16 @@ python -m cursory_title_app.index.run INDEX.pdf WB.xlsx --pages 1-3 --provider m
 Output: `_data/index_missing_report.json` (missing / conflict / present counts +
 the prioritized pull list). Every handwriting read is low-confidence and flagged.
 
+## Consolidated Title Report + legal authorities
+`reports/title_report.build()` writes `Section31_Title_Report_(6-25-2026).html`:
+executive summary, per-tract **entity-resolved** current ownership (variants like
+"M. G. Mitchell" merged) with which owners are missing from the curated Title
+summary, chain defects, and a curative checklist — each grounded in **verified
+Oklahoma authorities** (`legal/authorities.json`, retrieved via the Legal Data
+Hunter MCP; e.g. *Bennett v. Whitehouse*, a Roger Mills County MRTA case;
+*Pack v. Santa Fe Minerals* on cessation of production). Research aid, **not a
+title opinion** — every citation carries a URL to verify. Runs in the Tab-6 build.
+
 ## Chain-of-title reconstruction (from existing data)
 Independently rebuilds the mineral chain from the Runsheet conveyances, with
 entity resolution (so "M. G. Mitchell" == "Marvin G. Mitchell", "Jaques" ==

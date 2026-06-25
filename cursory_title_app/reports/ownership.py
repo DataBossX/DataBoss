@@ -92,6 +92,38 @@ def title_ownership(ws) -> list[dict]:
     return sections
 
 
+def consolidate_owners(owner_list: list[dict]) -> list[dict]:
+    """Cluster owners by resolved identity (M. G. Mitchell == Marvin G. Mitchell),
+    summing net acres / interest. Representative name = the longest variant."""
+    from ..chain.entities import persons, any_match
+    clusters: list[dict] = []
+    for o in owner_list:
+        op = persons(o["owner"])
+        hit = None
+        for cl in clusters:
+            if op and any_match(op, cl["_persons"]):
+                hit = cl
+                break
+        if hit is None:
+            clusters.append({"owner": o["owner"], "_persons": op,
+                             "variants": {o["owner"]},
+                             "net_acres": o.get("net_acres") or 0.0,
+                             "net_interest": o.get("net_interest") or 0.0})
+        else:
+            hit["variants"].add(o["owner"])
+            if len(o["owner"]) > len(hit["owner"]):
+                hit["owner"], hit["_persons"] = o["owner"], op
+            hit["net_acres"] += o.get("net_acres") or 0.0
+            hit["net_interest"] += o.get("net_interest") or 0.0
+    for cl in clusters:
+        cl.pop("_persons", None)
+        cl["variants"] = sorted(cl["variants"])
+        cl["net_acres"] = round(cl["net_acres"], 6)
+        cl["net_interest"] = round(cl["net_interest"], 8)
+    clusters.sort(key=lambda c: -c["net_acres"])
+    return clusters
+
+
 def reconcile(workbook: Path) -> dict:
     wb = openpyxl.load_workbook(workbook, data_only=True, keep_links=True)
     tracts = []
@@ -107,6 +139,7 @@ def reconcile(workbook: Path) -> dict:
     for idx, sec in enumerate(title):
         sec["tract_num"] = idx + 1 if idx < 8 else None
 
+    from ..chain.entities import persons, any_match
     summary = []
     for t in tracts:
         tnum = t["tract"]
@@ -116,14 +149,32 @@ def reconcile(workbook: Path) -> dict:
         gap = None
         if led_acres is not None and title_total is not None:
             gap = round(led_acres - title_total, 4)
+
+        # Entity-resolved current owners + which are already in the Title summary.
+        consolidated = consolidate_owners(t["owners"])
+        title_persons = [persons(o["owner"]) for o in (tsec["owners"] if tsec else [])]
+        missing_from_title = []
+        for c in consolidated:
+            cp = persons(c["owner"])
+            in_title = any(any_match(cp, tp) for tp in title_persons if tp)
+            c["in_title"] = in_title
+            if not in_title:
+                missing_from_title.append(c)
+        t["consolidated_owners"] = consolidated
+        t["missing_from_title"] = missing_from_title
+
         summary.append({
             "tract": tnum,
             "tract_acres": t.get("tract_acres"),
             "ledger_owners": len(t["owners"]),
+            "ledger_owners_resolved": len(consolidated),
             "ledger_net_acres": led_acres,
             "title_total": title_total,
             "title_owners_listed": len(tsec["owners"]) if tsec else 0,
             "title_verify_rows": sum(1 for o in tsec["owners"] if o["needs"]) if tsec else 0,
+            "owners_missing_from_title": len(missing_from_title),
+            "acres_missing_from_title": round(
+                sum(c["net_acres"] for c in missing_from_title), 4),
             "gap_acres": gap,
         })
     return {"tracts": tracts, "title": title, "summary": summary}

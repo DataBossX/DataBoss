@@ -141,7 +141,15 @@ with tab_build:
                         f"({ch['by_category']}); tracts without root: "
                         f"{ch['tracts_without_root'] or 'none'}.")
 
-            for label, p in [("📘 Dated report", dw["output"]),
+            tk = res["title_report"]["kpis"]
+            st.markdown(f"**Consolidated title report (HTML)** — ledger NMA "
+                        f"{tk['ledger_nma']}, Title NMA {tk['title_nma']}, "
+                        f"**{tk['missing_acres']} ac of current owners missing from "
+                        f"the Title summary**, {tk['chain_defects']} chain defects, "
+                        f"with verified Oklahoma authorities. Research aid — not a title opinion.")
+
+            for label, p in [("🏛️ Consolidated Title Report (HTML)", res["title_report"]["html"]),
+                             ("📘 Dated report", dw["output"]),
                              ("📊 Ownership reconciliation", o["output"]),
                              ("📋 Curative manifest (xlsx)", res["curative"]["xlsx"]),
                              ("📋 Curative manifest (csv)", res["curative"]["csv"]),

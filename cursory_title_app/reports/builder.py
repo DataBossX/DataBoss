@@ -220,11 +220,13 @@ def build_all(source: Path, out_dir: Path = config.OUTPUT_DIR,
     out_dir = Path(out_dir)
     config.ensure_dirs()
     from ..chain import report as chain_report
+    from . import title_report
     return {
         "dated_workbook": build_dated_workbook(source, out_dir, prefer=prefer),
         "ownership": build_ownership_reconciliation(source, out_dir),
         "curative": build_curative_manifest(source, out_dir),
         "chain": chain_report.build(source, out_dir),
+        "title_report": title_report.build(source, out_dir),
     }
 
 

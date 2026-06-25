@@ -36,10 +36,17 @@ logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
 # Initialize FastAPI app
 app = FastAPI(title="DataBossX API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware — restrict to configured origins.
+# NOTE: allow_origins=["*"] together with allow_credentials=True is invalid per
+# the CORS spec (browsers reject it) and is unsafe. Configure CORS_ALLOW_ORIGINS
+# as a comma-separated allowlist; defaults to common local dev origins.
+_default_cors = "http://localhost:3000,http://localhost:5173"
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", _default_cors).split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

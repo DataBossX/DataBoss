@@ -68,3 +68,21 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+
+# ===================
+# SECRETS & LOCAL DATA — never commit (see backend/.env.example for the contract)
+# ===================
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*credentials*.json
+*token*.json
+
+# Local databases / data artifacts
+*.db
+*.sqlite
+*.sqlite3
+databossx.db

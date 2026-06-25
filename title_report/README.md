@@ -55,8 +55,39 @@ python -m title_report.generate --tract 31-11N-24W --out title_report_output
 | `SOURCE_LOG.csv` | Every source consulted, with credential-required flag and page refs |
 | `CURATIVE_LIST.csv` | Encumbrances/curative items by materiality, priority, status, action |
 | `MISSING_OR_UNVERIFIED_INSTRUMENTS.csv` | Derived gaps: uncited rows, referenced-but-absent instruments, review flags |
+| `<TRACT>_Dashboard_<date>.html` | Self-contained interactive dashboard (nav, summary cards, computed-NRI ownership table with reconciliation, full schedules, QA badges) — no external assets |
 | `QA_RESULTS.md` | Results of every QA gate and the finalization decision |
 | `CHANGE_SUMMARY.md` | Change log; required for every revision after the first run |
+
+## Real data: the DOTO feed
+
+`title_report/adapters/doto.py` reads the **DOTO Image Commander** SQLite
+database (`analyses` joined to `image_queue` / `downloads`) and assembles an
+`EXAMINED` report for a Section-Township-Range from the actual analyzed
+instruments — runsheet, abstractions, and a chronological chain.
+
+```python
+from title_report.adapters.doto import available_tracts, build_report_from_db
+from title_report.generate import generate
+
+tracts = available_tracts("doto_commander.db")          # discover STR tracts in the DB
+rpt = build_report_from_db("doto_commander.db", "31", "12N", "24W",
+                           report_date="2026-06-25", source_cutoff_date="2026-06-24")
+generate(rpt, out_dir="title_report_output")            # workbook + HTML + CSVs + QA
+```
+
+The adapter uses only stdlib `sqlite3` (no dependency on the DOTO package) and
+**invents nothing**: ownership interests are left empty rather than synthesized
+without exact governing fractions, and that gap is flagged on the
+Missing/Unverified schedule.
+
+## In the app
+
+`doto_image_commander/pages/7_Title_Report.py` adds a **Cursory Title Report**
+page to the Streamlit app: pick a tract from the examined instruments in the DB
+(or a bundled illustrative dataset), generate the workbook + HTML dashboard +
+CSVs with QA in one click, preview the QA results and dashboard inline, and
+download every deliverable.
 
 ## Design rules (enforced by `qa.py`)
 

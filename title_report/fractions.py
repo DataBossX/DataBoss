@@ -39,7 +39,9 @@ def parse_fraction(text: str) -> Optional[Fraction]:
 
 
 def frac_str(value: FracOrUnknown) -> str:
-    """Render a fraction as 'num/den' (or the integer / UNKNOWN)."""
+    """Render a fraction (or plain int) as 'num/den' / integer, else UNKNOWN."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
     if not is_known(value):
         return UNKNOWN
     if value.denominator == 1:
@@ -48,7 +50,9 @@ def frac_str(value: FracOrUnknown) -> str:
 
 
 def decimal_str(value: FracOrUnknown, places: int = 8) -> str:
-    """Render a fraction as a fixed-precision decimal string (or UNKNOWN)."""
+    """Render a fraction (or plain int) as a fixed-precision decimal, else UNKNOWN."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return f"{float(value):.{places}f}"
     if not is_known(value):
         return UNKNOWN
     return f"{float(value):.{places}f}"

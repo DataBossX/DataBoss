@@ -207,3 +207,87 @@ def test_build_tract_registry():
     rpt = build_tract("31-12N-24W", "2026-06-25")
     assert rpt.config.report_date == "2026-06-25"
     assert rpt.config.section == "31" and rpt.config.township == "12N"
+
+
+def test_html_dashboard_generated(tmp_path):
+    result = _generate_specimen(tmp_path)
+    html_path = Path(result["html"])
+    assert html_path.exists()
+    text = html_path.read_text(encoding="utf-8")
+    assert "<html" in text.lower()
+    assert "RECONCILES 8/8" in text          # specimen reconciles
+    assert "31-12N-24W" in text
+
+
+# ── DOTO adapter ─────────────────────────────────────────────────────────────
+
+def _make_doto_db(path):
+    import sqlite3
+    con = sqlite3.connect(path)
+    con.executescript("""
+      CREATE TABLE image_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, dedup_key TEXT,
+        county TEXT, book TEXT, page TEXT, instrument_number TEXT, section TEXT,
+        township TEXT, range_val TEXT, status TEXT);
+      CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, queue_item_id INTEGER,
+        file_path TEXT, status TEXT);
+      CREATE TABLE analyses (id INTEGER PRIMARY KEY AUTOINCREMENT, download_id INTEGER,
+        queue_item_id INTEGER, instrument_type TEXT, instrument_number TEXT, book TEXT,
+        page TEXT, recording_date TEXT, instrument_date TEXT, grantors TEXT, grantees TEXT,
+        legal_description TEXT, section TEXT, township TEXT, range_val TEXT,
+        interest_conveyed TEXT, lease_royalty_terms TEXT, title_requirement_affected TEXT,
+        confidence_score REAL, needs_review INTEGER);
+    """)
+    con.execute("INSERT INTO image_queue (dedup_key,county,book,page,instrument_number,"
+                "section,township,range_val,status) VALUES "
+                "('k1','Roger Mills','100','5','I-100','31','12N','24W','analyzed')")
+    qid = con.execute("SELECT id FROM image_queue").fetchone()[0]
+    con.execute("INSERT INTO downloads (queue_item_id,file_path,status) VALUES (?,?,?)",
+                (qid, "/x/1.pdf", "success"))
+    did = con.execute("SELECT id FROM downloads").fetchone()[0]
+    con.execute(
+        "INSERT INTO analyses (download_id,queue_item_id,instrument_type,instrument_number,"
+        "book,page,recording_date,grantors,grantees,legal_description,section,township,"
+        "range_val,interest_conveyed,lease_royalty_terms,confidence_score,needs_review) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (did, qid, "Warranty Deed", "I-100", "100", "5", "1990-02-01",
+         '["A Smith"]', '["B Jones"]', "All of Sec 31-12N-24W", "31", "12N", "24W",
+         "Surface + minerals", "3/16", 0.92, 0))
+    con.commit()
+    con.close()
+
+
+def test_doto_available_tracts(tmp_path):
+    from title_report.adapters.doto import available_tracts
+    db = tmp_path / "doto.db"
+    _make_doto_db(str(db))
+    tracts = available_tracts(str(db))
+    assert len(tracts) == 1
+    assert tracts[0]["slug"] == "31-12N-24W"
+    assert tracts[0]["county"] == "Roger Mills"
+    assert available_tracts(str(tmp_path / "missing.db")) == []
+
+
+def test_doto_build_report_examined(tmp_path):
+    from title_report.adapters.doto import build_report_from_db
+    db = tmp_path / "doto.db"
+    _make_doto_db(str(db))
+    rpt = build_report_from_db(str(db), "31", "12N", "24W",
+                               report_date="2026-06-25", source_cutoff_date="2026-06-24")
+    assert rpt.config.data_status == "EXAMINED"
+    assert len(rpt.instruments) == 1
+    assert len(rpt.chain_links) == 1
+    assert rpt.instruments[0].grantors == ["A Smith"]
+    # no invented ownership / wells
+    assert rpt.ownership == [] and rpt.wells == []
+
+
+def test_doto_report_passes_qa_end_to_end(tmp_path):
+    from title_report.adapters.doto import build_report_from_db
+    db = tmp_path / "doto.db"
+    _make_doto_db(str(db))
+    rpt = build_report_from_db(str(db), "31", "12N", "24W",
+                               report_date="2026-06-25", source_cutoff_date="2026-06-24")
+    result = generate(rpt, out_dir=str(tmp_path / "out"))
+    assert result["qa_passed"] is True
+    assert result["data_status"] == "EXAMINED"
+    assert result["counts"]["Runsheet"] == 1

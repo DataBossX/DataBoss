@@ -28,6 +28,7 @@ from .specimen_31_12N_24W import build_report as build_31_12n_24w
 from . import workbook as wbmod
 from . import deliverables as dl
 from . import qa as qamod
+from . import html_report as htmlmod
 
 # Tract registry: slug -> builder(report_date) -> TitleReport.
 TRACTS = {
@@ -110,8 +111,13 @@ def generate(rpt: Optional[TitleReport] = None, out_dir: str = "title_report_out
     # 4. Rebuild workbook with the QA dashboard populated
     wbmod.build_workbook(rpt, xlsx_path, qa_summary=qa_summary, missing=missing)
 
+    # 5. Interactive HTML dashboard
+    html_path = str(out / f"{_slug(rpt)}_Dashboard_{run_date}.html")
+    htmlmod.write_html(rpt, html_path, qa_summary=qa_summary, missing=missing)
+
     return {
         "workbook": xlsx_path,
+        "html": html_path,
         "source_log": src_csv,
         "curative_list": cur_csv,
         "missing": mis_csv,
@@ -136,6 +142,7 @@ def main(argv=None) -> int:
     result = generate(rpt, out_dir=args.out, run_date=args.date or rpt.config.report_date)
 
     print(f"Workbook:       {result['workbook']}")
+    print(f"HTML dashboard: {result['html']}")
     print(f"Source log:     {result['source_log']}")
     print(f"Curative list:  {result['curative_list']}")
     print(f"Missing list:   {result['missing']}")

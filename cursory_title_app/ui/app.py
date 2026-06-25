@@ -50,8 +50,9 @@ c[4].metric("Review", s["review"])
 c[5].metric("Done", s["done"])
 c[6].metric("Pending", s["pending"])
 
-tab_idx, tab_an, tab_q, tab_write, tab_qa = st.tabs(
-    ["1. Read index", "2. Analyze runsheet", "3. Work queue", "4. Write", "5. QA"])
+tab_idx, tab_an, tab_q, tab_write, tab_qa, tab_build = st.tabs(
+    ["1. Read index", "2. Analyze runsheet", "3. Work queue", "4. Write", "5. QA",
+     "6. Build 6-25-2026 report"])
 
 with tab_idx:
     st.subheader("Read the handwritten index PDF")
@@ -99,3 +100,47 @@ with tab_qa:
         res = xlverify.verify_workbook(Path(out_file), Path(wb_path))
         (st.success if res["ok"] else st.error)("OK" if res["ok"] else "FAILED")
         st.json(res)
+
+with tab_build:
+    import platform
+    from cursory_title_app.reports import builder
+
+    st.subheader("Build the 6-25-2026 report (one click)")
+    on_windows = platform.system() == "Windows"
+    st.write(f"Excel-COM backend available: **{'yes (Windows)' if on_windows else 'no — will use openpyxl'}**")
+    st.caption("Produces 3 files in your output folder: the dated report "
+               "(format-preserved, links repaired, QC-flagged), the ownership "
+               "reconciliation, and the curative manifest. Nothing is fabricated; "
+               "a timestamped backup of your source is made first.")
+    backend_choice = st.radio("Excel write backend", ["auto", "com", "openpyxl"],
+                              horizontal=True,
+                              help="auto = Excel COM on Windows, else openpyxl.")
+    if st.button("🛠️ Build 6-25-2026 report", type="primary", disabled=not wb_path):
+        try:
+            with st.spinner("Building…"):
+                res = builder.build_all(Path(wb_path), prefer=backend_choice)
+            dw = res["dated_workbook"]
+            (st.success if dw["verify_ok"] else st.error)(
+                f"Dated workbook built via **{dw['backend']}** — "
+                f"verify {'PASSED' if dw['verify_ok'] else 'FAILED'}. "
+                f"{len(dw['link_fixes'])} links repaired, "
+                f"{len(dw['date_flags'])} date flags added.")
+
+            o = res["ownership"]
+            st.markdown(f"**Ownership reconciliation** — ledger NMA "
+                        f"`{o['ledger_total_nma']}` vs Title-tab `{o['title_total_nma']}` "
+                        f"of 640 total.")
+            st.dataframe(o["summary"], use_container_width=True)
+
+            st.markdown(f"**Curative manifest** — {res['curative']['items']} cells "
+                        f"need a document.")
+
+            for label, p in [("📘 Dated report", dw["output"]),
+                             ("📊 Ownership reconciliation", o["output"]),
+                             ("📋 Curative manifest (xlsx)", res["curative"]["xlsx"]),
+                             ("📋 Curative manifest (csv)", res["curative"]["csv"])]:
+                p = Path(p)
+                if p.exists():
+                    st.download_button(label, p.read_bytes(), file_name=p.name)
+        except Exception as e:
+            st.exception(e)

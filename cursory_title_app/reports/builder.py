@@ -44,28 +44,27 @@ def _last_runsheet_row(ws) -> int:
 
 
 # --------------------------------------------------------------------------- #
-def build_dated_workbook(source: Path, out_dir: Path) -> dict:
-    source = Path(source)
-    make_backup(source, config.BACKUP_DIR)
-    out = out_dir / f"31-12N-24W_Roger_Mills_Cursory_Title_Report_{DATED}.xlsx"
-
-    wbF = openpyxl.load_workbook(source, keep_links=True)          # formulas
+def _compute_dated_edits(source: Path) -> tuple[list[dict], list[int], list[int]]:
+    """Read-only analysis. Returns (edits, link_fix_rows, date_flag_rows).
+    Each edit: {cell, value, is_formula}. Backend-agnostic so it can be applied
+    via openpyxl OR Excel COM identically."""
+    wbF = openpyxl.load_workbook(source, keep_links=True)
     wbV = openpyxl.load_workbook(source, data_only=True, keep_links=True)
-    before_tabs = list(wbF.sheetnames)
-    ws = wbF["Runsheet"]
-    wv = wbV["Runsheet"]
+    ws, wv = wbF["Runsheet"], wbV["Runsheet"]
     last = _last_runsheet_row(ws)
 
+    edits: list[dict] = []
     link_fixes, date_flags = [], []
     for r in range(FIRST_DATA_ROW, last + 1):
         # (1) repair plain-text Document Link -> working HYPERLINK
         k = ws.cell(r, 11).value
         if isinstance(k, str) and not k.strip().upper().startswith("=HYPERLINK") \
                 and not k.strip().lower().startswith("http"):
-            instr = (str(ws.cell(r, 1).value or "").strip())
+            instr = str(ws.cell(r, 1).value or "").strip()
             if instr:
                 assert_writable("K")
-                ws.cell(r, 11).value = hyperlink_formula(DETAIL + quote(instr), k.strip())
+                edits.append({"cell": f"K{r}", "is_formula": True,
+                              "value": hyperlink_formula(DETAIL + quote(instr), k.strip())})
                 link_fixes.append(r)
 
         # (2) QC flag: effective date after recorded date (computed values)
@@ -74,20 +73,77 @@ def build_dated_workbook(source: Path, out_dir: Path) -> dict:
             t = ws.cell(r, 20).value
             note = "VERIFY: effective date after recorded date"
             if t in (None, ""):
-                assert_writable("T")
-                ws.cell(r, 20).value = note
+                newval = note
             elif note not in str(t):
-                ws.cell(r, 20).value = f"{t}; {note}"
+                newval = f"{t}; {note}"
+            else:
+                newval = t
+            if newval != t:
+                assert_writable("T")
+                edits.append({"cell": f"T{r}", "is_formula": False, "value": newval})
             date_flags.append(r)
+    return edits, link_fixes, date_flags
 
-    if list(wbF.sheetnames) != before_tabs:
+
+def _apply_openpyxl(source: Path, edits: list[dict], out: Path) -> None:
+    wb = openpyxl.load_workbook(source, keep_links=True)
+    before = list(wb.sheetnames)
+    ws = wb["Runsheet"]
+    for e in edits:
+        ws[e["cell"]] = e["value"]      # "=..." strings become formulas
+    if list(wb.sheetnames) != before:
         raise RuntimeError("Tab set changed during build!")
+    wb.save(out)
+
+
+def _apply_com(source: Path, edits: list[dict], out: Path) -> None:
+    import win32com.client as win32  # Windows + Excel only
+    excel = win32.gencache.EnsureDispatch("Excel.Application")
+    excel.Visible = False
+    excel.DisplayAlerts = False
+    wb = None
+    try:
+        wb = excel.Workbooks.Open(str(Path(source).resolve()))
+        before = [s.Name for s in wb.Worksheets]
+        ws = wb.Worksheets("Runsheet")
+        for e in edits:
+            if e["is_formula"]:
+                ws.Range(e["cell"]).Formula = e["value"]
+            else:
+                ws.Range(e["cell"]).Value = e["value"]
+        if [s.Name for s in wb.Worksheets] != before:
+            raise RuntimeError("Tab set changed during build!")
+        wb.SaveAs(str(Path(out).resolve()), FileFormat=51)  # 51 = .xlsx
+    finally:
+        if wb is not None:
+            wb.Close(SaveChanges=False)
+        excel.Quit()
+
+
+def build_dated_workbook(source: Path, out_dir: Path, prefer: str = "auto") -> dict:
+    source = Path(source)
+    make_backup(source, config.BACKUP_DIR)
+    out = out_dir / f"31-12N-24W_Roger_Mills_Cursory_Title_Report_{DATED}.xlsx"
     out_dir.mkdir(parents=True, exist_ok=True)
-    wbF.save(out)
+
+    edits, link_fixes, date_flags = _compute_dated_edits(source)
+
+    backend = "openpyxl"
+    if prefer in ("com", "auto"):
+        try:
+            import win32com.client  # noqa: F401
+            _apply_com(source, edits, out)
+            backend = "com"
+        except Exception:
+            if prefer == "com":
+                raise
+            _apply_openpyxl(source, edits, out)
+    else:
+        _apply_openpyxl(source, edits, out)
 
     res = xlverify.verify_workbook(out, source)
-    return {"output": str(out), "link_fixes": link_fixes, "date_flags": date_flags,
-            "verify_ok": res["ok"], "verify": res}
+    return {"output": str(out), "backend": backend, "link_fixes": link_fixes,
+            "date_flags": date_flags, "verify_ok": res["ok"], "verify": res}
 
 
 # --------------------------------------------------------------------------- #
@@ -200,11 +256,12 @@ def build_curative_manifest(source: Path, out_dir: Path) -> dict:
     return {"csv": str(out_csv), "xlsx": str(out_xlsx), "items": len(rows)}
 
 
-def build_all(source: Path, out_dir: Path = config.OUTPUT_DIR) -> dict:
+def build_all(source: Path, out_dir: Path = config.OUTPUT_DIR,
+              prefer: str = "auto") -> dict:
     out_dir = Path(out_dir)
     config.ensure_dirs()
     return {
-        "dated_workbook": build_dated_workbook(source, out_dir),
+        "dated_workbook": build_dated_workbook(source, out_dir, prefer=prefer),
         "ownership": build_ownership_reconciliation(source, out_dir),
         "curative": build_curative_manifest(source, out_dir),
     }

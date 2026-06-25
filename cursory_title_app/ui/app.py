@@ -135,10 +135,18 @@ with tab_build:
             st.markdown(f"**Curative manifest** — {res['curative']['items']} cells "
                         f"need a document.")
 
+            ch = res["chain"]["summary"]
+            st.markdown(f"**Chain-of-title** — {ch['events']} mineral instruments, "
+                        f"**{ch['defects']} missing-link defects** "
+                        f"({ch['by_category']}); tracts without root: "
+                        f"{ch['tracts_without_root'] or 'none'}.")
+
             for label, p in [("📘 Dated report", dw["output"]),
                              ("📊 Ownership reconciliation", o["output"]),
                              ("📋 Curative manifest (xlsx)", res["curative"]["xlsx"]),
-                             ("📋 Curative manifest (csv)", res["curative"]["csv"])]:
+                             ("📋 Curative manifest (csv)", res["curative"]["csv"]),
+                             ("🔗 Chain-of-title (xlsx)", res["chain"]["xlsx"]),
+                             ("🔗 Chain-of-title (md)", res["chain"]["md"])]:
                 p = Path(p)
                 if p.exists():
                     st.download_button(label, p.read_bytes(), file_name=p.name)

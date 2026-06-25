@@ -58,6 +58,28 @@ def test_pipeline_never_targets_formula_columns():
         assert col not in FORMULA_COLUMNS
 
 
+def test_entity_resolution_matches_variants_not_strangers():
+    from cursory_title_app.chain.entities import persons, any_match, is_sovereign
+    assert any_match(persons("Marvin G. Mitchell and Carrie Lou"), persons("M. G. Mitchell"))
+    assert any_match(persons("Louis E. Jaques"), persons("L. E. Jacques"))  # 1-edit surname
+    assert not any_match(persons("John Smith"), persons("M. G. Mitchell"))
+    assert is_sovereign("United States of America")
+    assert is_sovereign("General Land Office")
+    assert not is_sovereign("Marvin G. Mitchell")
+
+
+@pytest.mark.skipif(not os.getenv("CTA_TEST_WORKBOOK"),
+                    reason="set CTA_TEST_WORKBOOK to run chain")
+def test_chain_reconstruction_is_low_noise(tmp_path, monkeypatch):
+    monkeypatch.setenv("CTA_DATA_DIR", str(tmp_path))
+    from cursory_title_app.chain import reconstruct
+    rep = reconstruct.reconstruct(Path(os.environ["CTA_TEST_WORKBOOK"]))
+    # section-wide check must be far less noisy than the event count
+    assert rep["total_defects"] < rep["total_mineral_events"] * 0.30
+    assert all(t["has_root"] for t in rep["tracts"])  # every tract has a root grant
+    assert set(rep["defects_by_category"]) <= {"wild-deed", "probate", "entity-succession"}
+
+
 @pytest.mark.skipif(not os.getenv("CTA_TEST_WORKBOOK"),
                     reason="set CTA_TEST_WORKBOOK to run reimport")
 def test_reimport_appends_row_with_live_formulas(tmp_path, monkeypatch):

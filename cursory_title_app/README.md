@@ -61,6 +61,19 @@ python -m cursory_title_app.index.run INDEX.pdf WB.xlsx --pages 1-3 --provider m
 Output: `_data/index_missing_report.json` (missing / conflict / present counts +
 the prioritized pull list). Every handwriting read is low-confidence and flagged.
 
+## Chain-of-title reconstruction (from existing data)
+Independently rebuilds the mineral chain from the Runsheet conveyances, with
+entity resolution (so "M. G. Mitchell" == "Marvin G. Mitchell", "Jaques" ==
+"Jacques"), and flags grantors not vested earlier in the section — categorized
+as wild-deed / probate / entity-succession.
+```bash
+python -m cursory_title_app.chain.report "31-...xlsx"
+```
+Output: `Section31_Chain_of_Title_(6-25-2026).xlsx` (Defects + full Chain Timeline
+sheets) + `.md`. A "break" flags a link to verify, not a proven defect — it's a
+cursory report, so gaps are expected. Runs automatically inside the 6-25-2026
+build (Tab 6).
+
 ## Re-import reviewed picks → Runsheet (round-trip)
 Close the loop: export an editable template, work each document in your browser,
 paste real links + corrected fields, set `approve=yes`, then write back.

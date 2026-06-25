@@ -26,7 +26,7 @@ from openpyxl.utils import get_column_letter as L
 
 from .. import config
 from ..excel import verify as xlverify
-from ..excel.writer import hyperlink_formula, make_backup
+from ..excel.writer import hyperlink_formula, make_backup, apply_edits
 from ..runsheet.columns import assert_writable, FIRST_DATA_ROW
 from . import ownership
 
@@ -85,41 +85,6 @@ def _compute_dated_edits(source: Path) -> tuple[list[dict], list[int], list[int]
     return edits, link_fixes, date_flags
 
 
-def _apply_openpyxl(source: Path, edits: list[dict], out: Path) -> None:
-    wb = openpyxl.load_workbook(source, keep_links=True)
-    before = list(wb.sheetnames)
-    ws = wb["Runsheet"]
-    for e in edits:
-        ws[e["cell"]] = e["value"]      # "=..." strings become formulas
-    if list(wb.sheetnames) != before:
-        raise RuntimeError("Tab set changed during build!")
-    wb.save(out)
-
-
-def _apply_com(source: Path, edits: list[dict], out: Path) -> None:
-    import win32com.client as win32  # Windows + Excel only
-    excel = win32.gencache.EnsureDispatch("Excel.Application")
-    excel.Visible = False
-    excel.DisplayAlerts = False
-    wb = None
-    try:
-        wb = excel.Workbooks.Open(str(Path(source).resolve()))
-        before = [s.Name for s in wb.Worksheets]
-        ws = wb.Worksheets("Runsheet")
-        for e in edits:
-            if e["is_formula"]:
-                ws.Range(e["cell"]).Formula = e["value"]
-            else:
-                ws.Range(e["cell"]).Value = e["value"]
-        if [s.Name for s in wb.Worksheets] != before:
-            raise RuntimeError("Tab set changed during build!")
-        wb.SaveAs(str(Path(out).resolve()), FileFormat=51)  # 51 = .xlsx
-    finally:
-        if wb is not None:
-            wb.Close(SaveChanges=False)
-        excel.Quit()
-
-
 def build_dated_workbook(source: Path, out_dir: Path, prefer: str = "auto") -> dict:
     source = Path(source)
     make_backup(source, config.BACKUP_DIR)
@@ -127,19 +92,7 @@ def build_dated_workbook(source: Path, out_dir: Path, prefer: str = "auto") -> d
     out_dir.mkdir(parents=True, exist_ok=True)
 
     edits, link_fixes, date_flags = _compute_dated_edits(source)
-
-    backend = "openpyxl"
-    if prefer in ("com", "auto"):
-        try:
-            import win32com.client  # noqa: F401
-            _apply_com(source, edits, out)
-            backend = "com"
-        except Exception:
-            if prefer == "com":
-                raise
-            _apply_openpyxl(source, edits, out)
-    else:
-        _apply_openpyxl(source, edits, out)
+    backend = apply_edits(source, edits, out, prefer=prefer)
 
     res = xlverify.verify_workbook(out, source)
     return {"output": str(out), "backend": backend, "link_fixes": link_fixes,

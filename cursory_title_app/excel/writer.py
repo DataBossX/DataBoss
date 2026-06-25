@@ -164,6 +164,67 @@ class COMWriter(BaseWriter):
             excel.Quit()
 
 
+# --------------------------------------------------------------------------- #
+# Generic edit applier (used by the report builder and the re-importer).
+# An edit is {"sheet": "Runsheet", "cell": "K12", "value": ..., "is_formula": bool}.
+# Unlike write_runsheet(), this trusts the caller's edit list — callers MUST
+# guard formula columns themselves (the re-importer only writes O..S on rows it
+# has verified are previously blank, i.e. appended rows).
+# --------------------------------------------------------------------------- #
+def _apply_edits_openpyxl(source: Path, edits: list[dict], out: Path) -> None:
+    import openpyxl
+
+    wb = openpyxl.load_workbook(source, keep_links=True)
+    before = list(wb.sheetnames)
+    for e in edits:
+        ws = wb[e.get("sheet", "Runsheet")]
+        ws[e["cell"]] = e["value"]      # "=..." strings become formulas
+    if list(wb.sheetnames) != before:
+        raise RuntimeError("Tab set changed during edit apply!")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(out)
+
+
+def _apply_edits_com(source: Path, edits: list[dict], out: Path) -> None:
+    import win32com.client as win32
+
+    excel = win32.gencache.EnsureDispatch("Excel.Application")
+    excel.Visible = False
+    excel.DisplayAlerts = False
+    wb = None
+    try:
+        wb = excel.Workbooks.Open(str(Path(source).resolve()))
+        before = [s.Name for s in wb.Worksheets]
+        for e in edits:
+            ws = wb.Worksheets(e.get("sheet", "Runsheet"))
+            if e.get("is_formula"):
+                ws.Range(e["cell"]).Formula = e["value"]
+            else:
+                ws.Range(e["cell"]).Value = e["value"]
+        if [s.Name for s in wb.Worksheets] != before:
+            raise RuntimeError("Tab set changed during edit apply!")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        wb.SaveAs(str(Path(out).resolve()), FileFormat=51)
+    finally:
+        if wb is not None:
+            wb.Close(SaveChanges=False)
+        excel.Quit()
+
+
+def apply_edits(source: Path, edits: list[dict], out: Path, prefer: str = "auto") -> str:
+    """Apply a list of cell edits to a NEW output file. Returns backend used."""
+    if prefer in ("com", "auto"):
+        try:
+            import win32com.client  # noqa: F401
+            _apply_edits_com(Path(source), edits, Path(out))
+            return "com"
+        except Exception:
+            if prefer == "com":
+                raise
+    _apply_edits_openpyxl(Path(source), edits, Path(out))
+    return "openpyxl"
+
+
 def get_writer(source_path: Path, prefer: str = "auto") -> BaseWriter:
     """Pick the safest available backend. COM on Windows, else openpyxl."""
     if prefer in ("com", "auto"):

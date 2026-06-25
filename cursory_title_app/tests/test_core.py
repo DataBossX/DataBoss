@@ -59,6 +59,37 @@ def test_pipeline_never_targets_formula_columns():
 
 
 @pytest.mark.skipif(not os.getenv("CTA_TEST_WORKBOOK"),
+                    reason="set CTA_TEST_WORKBOOK to run reimport")
+def test_reimport_appends_row_with_live_formulas(tmp_path, monkeypatch):
+    monkeypatch.setenv("CTA_DATA_DIR", str(tmp_path))
+    import csv
+    import openpyxl
+    from cursory_title_app.reports import reimport
+    from cursory_title_app.db import store
+    store.init()
+
+    src = Path(os.environ["CTA_TEST_WORKBOOK"])
+    approved = tmp_path / "approved.csv"
+    with open(approved, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=reimport.CSV_COLUMNS)
+        w.writeheader()
+        row = {c: "" for c in reimport.CSV_COLUMNS}
+        row.update(action="add", approve="yes", instrument_number="TEST-1",
+                   doc_type="Mineral Deed", book_page="9999/1", grantor="G",
+                   grantee="H", legal_description="NE/4 of 31-12N-24W", tracts="3",
+                   conveyance_type="Mineral", conveyance_amount_dec="0.5",
+                   document_link="https://example.com/x")
+        w.writerow(row)
+    res = reimport.apply_csv(src, approved, out_dir=tmp_path, prefer="openpyxl")
+    assert res["verify_ok"], res["verify"]["errors"]
+    assert len(res["rows_added"]) == 1
+    nr = res["rows_added"][0]
+    wb = openpyxl.load_workbook(res["output"], keep_links=True)
+    o = wb["Runsheet"][f"O{nr}"].value
+    assert isinstance(o, str) and o.startswith("=") and str(nr) in o  # formula copied down
+
+
+@pytest.mark.skipif(not os.getenv("CTA_TEST_WORKBOOK"),
                     reason="set CTA_TEST_WORKBOOK to run round-trip")
 def test_roundtrip_preserves_workbook(tmp_path):
     from cursory_title_app.excel.writer import OpenpyxlWriter

@@ -50,9 +50,9 @@ c[4].metric("Review", s["review"])
 c[5].metric("Done", s["done"])
 c[6].metric("Pending", s["pending"])
 
-tab_idx, tab_an, tab_q, tab_write, tab_qa, tab_build = st.tabs(
+tab_idx, tab_an, tab_q, tab_write, tab_qa, tab_build, tab_reimp = st.tabs(
     ["1. Read index", "2. Analyze runsheet", "3. Work queue", "4. Write", "5. QA",
-     "6. Build 6-25-2026 report"])
+     "6. Build 6-25-2026 report", "7. Re-import & write"])
 
 with tab_idx:
     st.subheader("Read the handwritten index PDF")
@@ -184,4 +184,45 @@ with tab_build:
             st.error("Browser walk failed. Is Chrome running with "
                      f"--remote-debugging-port matching {config.CDP_URL}, and are "
                      "you logged in?")
+            st.exception(e)
+
+with tab_reimp:
+    import tempfile
+    from cursory_title_app.reports import reimport
+
+    st.subheader("Re-import reviewed picks → write to the Runsheet")
+    st.caption("1) Download the template. 2) Open each document in your browser, "
+               "paste the real document_link and any corrected fields, set "
+               "approve=yes on verified rows. 3) Upload it back — ONLY approved "
+               "rows are written, to a NEW workbook copy. 'add' rows are appended "
+               "with the O–S formulas copied down; 'update' rows touch A–N/T/U only.")
+
+    if st.button("⬇️ Generate re-import template", disabled=not wb_path):
+        tmp = Path(tempfile.gettempdir()) / "reimport_template.csv"
+        info = reimport.template_csv(Path(wb_path), tmp)
+        st.success(f"Template: {info['add_rows']} add rows, {info['update_rows']} update rows.")
+        st.download_button("Download template CSV", tmp.read_bytes(),
+                           file_name="reimport_template.csv", mime="text/csv")
+
+    st.divider()
+    up = st.file_uploader("Upload your edited (approved) CSV", type=["csv"])
+    backend_choice2 = st.radio("Write backend", ["auto", "com", "openpyxl"],
+                               horizontal=True, key="reimp_backend")
+    if up is not None and st.button("✍️ Write approved rows → new workbook",
+                                    type="primary", disabled=not wb_path):
+        tmp_csv = Path(tempfile.gettempdir()) / "reimport_approved.csv"
+        tmp_csv.write_bytes(up.getvalue())
+        try:
+            res = reimport.apply_csv(Path(wb_path), tmp_csv, prefer=backend_choice2)
+            (st.success if res["verify_ok"] else st.error)(
+                f"Wrote via {res['backend']}: {len(res['rows_added'])} added, "
+                f"{len(res['rows_updated'])} updated, {res['rows_skipped']} skipped "
+                f"(not approved). Verify {'PASSED' if res['verify_ok'] else 'FAILED'}.")
+            st.json({k: res[k] for k in ("rows_added", "rows_updated",
+                                         "rows_skipped", "cells_written")})
+            p = Path(res["output"])
+            if p.exists():
+                st.download_button("📘 Download updated workbook", p.read_bytes(),
+                                   file_name=p.name)
+        except Exception as e:
             st.exception(e)

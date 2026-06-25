@@ -61,6 +61,21 @@ python -m cursory_title_app.index.run INDEX.pdf WB.xlsx --pages 1-3 --provider m
 Output: `_data/index_missing_report.json` (missing / conflict / present counts +
 the prioritized pull list). Every handwriting read is low-confidence and flagged.
 
+## Re-import reviewed picks → Runsheet (round-trip)
+Close the loop: export an editable template, work each document in your browser,
+paste real links + corrected fields, set `approve=yes`, then write back.
+```bash
+python -c "from cursory_title_app.reports import reimport; from pathlib import Path; \
+print(reimport.template_csv(Path('31-...xlsx'), Path('reimport_template.csv')))"
+# edit the CSV, set approve=yes on verified rows, then:
+python -c "from cursory_title_app.reports import reimport; from pathlib import Path; \
+print(reimport.apply_csv(Path('31-...xlsx'), Path('reimport_template.csv')))"
+```
+Only approved rows are written, to a new `*.REIMPORT.xlsx`. `update` rows touch
+A–N/T/U only; `add` rows are appended at the next blank row with the O–S formulas
+copied down (via openpyxl `Translator`) so acreage/interest compute live. Or use
+**UI Tab 7** for the same flow with up/download buttons.
+
 ## Forensic QC audit (existing workbook)
 ```bash
 python -m cursory_title_app.audit.engine "31-...xlsx"

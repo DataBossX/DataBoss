@@ -1,0 +1,36 @@
+# Title Report Builder — example configuration
+# Copy to config.yml and edit. Secrets do NOT go here — they live in .env.
+
+project:
+  # Folder of source documents (read recursively).
+  project_dir: "D:/Desktop/Horizon/Roger Mills"
+  # Format-only template workbook (styles copied, never its data).
+  template_path: "D:/Desktop/Horizon/Roger Mills/27-15N-24W Cursory Title Report (2-5-25) - NHE test.xlsx"
+  output_path: "D:/Desktop/Horizon/Roger Mills/31-12N-24W_Roger_Mills_Cursory_Title_Report.xlsx"
+
+section:
+  section: "31"
+  township: "12N"
+  range: "24W"
+  county: "Roger Mills"
+  state: "Oklahoma"
+
+# Tract geometry: each tract -> the 40-acre aliquots it contains.
+# This drives both footing (acreage in D5) and instrument->tract assignment.
+tracts:
+  1: ["NE NE", "NW NE"]                 # N/2 NE/4 (80)
+  2: ["SW NE", "NW SE", "SW SE", "SE SE"]  # SW/4 NE/4, NW/4 SE/4, S/2 SE/4 (160)
+  3: ["SE NE"]                          # SE/4 NE/4 (40)
+  4: ["NE NW", "SE NW"]                 # E/2 NW/4 (80)
+  5: ["NW NW", "SW NW", "SE SW"]        # W/2 NW/4 (Lots 1&2) + SE/4 SW/4 (120)
+  6: ["NW SW", "SW SW"]                 # W/2 SW/4 (Lots 3&4) (80)
+  7: ["NE SW"]                          # NE/4 SW/4 (40)
+  8: ["NE SE"]                          # NE/4 SE/4 (40)
+
+ocr:
+  dpi: 300
+  enabled: true
+
+# Model routing order (only providers with keys in .env are used).
+models:
+  order: ["anthropic", "openai", "lmstudio", "offline"]

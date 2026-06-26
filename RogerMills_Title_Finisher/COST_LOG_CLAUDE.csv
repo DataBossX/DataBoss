@@ -1,0 +1,10 @@
+Phase,Date,Model,Activity,Tooling,Est_Input_Tokens,Est_Output_Tokens,Notes
+1,2026-06-26,claude-opus-4-8,Environment + source discovery,Bash/Glob/Drive search,18000,2500,Local D:\ paths unreachable in cloud; located real workbook on Google Drive
+2,2026-06-26,claude-opus-4-8,Download + decode workbook,Drive download_file_content + base64,40000,1500,1.17MB xlsx decoded; 20 sheets
+3,2026-06-26,claude-opus-4-8,Dump + structural review,openpyxl,30000,3000,Overview/Title/PLAT/Wells/OGLs read
+4,2026-06-26,claude-opus-4-8,Chain-of-title QA (8 tracts),openpyxl,22000,3500,0 unbalanced columns; current-owner + duplicate analysis
+5,2026-06-26,claude-opus-4-8,Link/format/integrity checks,zip+openpyxl,12000,1500,0 #REF!; 2 stale external links found; media/comments inventory
+6,2026-06-26,claude-opus-4-8,Build candidate + validate,Python zip XML edit,10000,1500,Removed external links; preserved images/comments/drawings
+7,2026-06-26,claude-opus-4-8,Source map + gap categorization,openpyxl/csv,9000,1200,1470 docs mapped; 239 gap-flagged
+8,2026-06-26,claude-opus-4-8,Documentation artifacts,Write,4000,6000,QA_LOG/GAP_LIST/CHANGELOG/CLAUDE.md/COST_LOG
+TOTAL,2026-06-26,claude-opus-4-8,Final landman review pass,,145000,20700,Token figures are good-faith estimates; no per-call metering available in session

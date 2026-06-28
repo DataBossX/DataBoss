@@ -9,6 +9,7 @@
 - `build_title_report.py` — deterministic, non-fabricating audit/repair pass.
 - `graft_media.py` — re-injects images/drawings openpyxl drops on save, fixes the
   `xmlns:r` binding, and sets `fullCalcOnLoad` so viewers recompute on open.
+- `audit_columns.py` — adversarial column-balance + over-conveyance sweep.
 
 Pipeline: `build_title_report.py` → `graft_media.py`. Validation recalcs run on a
 throwaway copy (LibreOffice round-trip strips images, so it is never run on the
@@ -35,14 +36,25 @@ the incomplete chain above"*. The canonical pro-rata NET ACRES formula was appli
 WI 2) — applying it to curated tracts would double-count. The `Summary`
 foots-check references each tract's true authority cell.
 
-## Yellow flags written (20 cells, all from the prescribed taxonomy)
+## Adversarial verification pass
+A full **661-instrument-column** balance sweep + over-conveyance scan was run
+(`audit_columns.py`) against a recalculated copy. Cross-checked against the
+workbook's own live integrity flags, it confirms **exactly two genuine column
+imbalances** — `Tract 2!AS6` and `CM6`. The other raw-sum "imbalances" are
+intentional structures the workbook's `SUBTOTAL`-based check correctly ignores:
+Tract 7 cols H/I are a mirrored sub-ledger (rows 161–194), and the WI sheets use
+non-conserved working-interest participation columns. One real item the sweep
+surfaced — WI 2 assignments granting WI to **unnamed** parties (col sums 5.0 /
+4.875) — is now flagged (`WI 2!H6, I6`).
+
+## Yellow flags written (22 cells, all from the prescribed taxonomy)
 | Count | Note |
 |---|---|
 | 9 | OVER-CONVEYANCE: owner nets >1 — examiner review |
 | 3 | HBP?: confirm lease still held by production |
+| 3 | GAP: chain break — examiner review |
 | 2 | CONFIRM: acreage vs legal description |
 | 2 | NAME CONFLICT: recorded spelling variant |
-| 1 | GAP: chain break — examiner review |
 | 1 | MISSING: NRI/WI calc pending |
 | 1 | VERIFY: pull OCC pooling/spacing |
 | 1 | VERIFY: pull OTC/GPT production status |
@@ -71,6 +83,11 @@ are the cells added/refreshed by this pass.)
    without inventing**; flagged, not guessed.
 8. **WI acreage confirmation** — `WI 1!D5` set to 448.333333 from the workbook's
    own `C6` / `Template.xlsx`; CONFIRM against the legal description.
+9. **WI 2 assignments to unnamed parties** — `WI 2!H6, I6`. Assignments 1608/0038
+   & 1567/0006 grant working interest to blank-named rows (column sums 5.0 /
+   4.875). EXAMINER REVIEW.
+10. **Tract 8 current-ownership overage** — `Tract 8!C97`. Curated current-mineral-
+    ownership total is 41.23 NMA against a 40-acre tract — reconcile.
 
 ## Blockers / honest limitations
 - The County Clerk PDF index (`12N_24W_31_-_Index.pdf`) and the Google Drive /

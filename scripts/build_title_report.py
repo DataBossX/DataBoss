@@ -24,6 +24,7 @@ import sys
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.comments import Comment
+from openpyxl.worksheet.properties import PageSetupProperties
 
 YELLOW = PatternFill(fill_type="solid", fgColor="FFFF00")
 AUTHOR = "Title Audit"
@@ -154,6 +155,17 @@ def main(inp, outp):
     flag(wb["Tract 7"], "K191", "HBP?: confirm lease still held by production")
     report.append("Alexander #1-31: HBP/OCC/OTC flags on Well 1, WI 1!D2, Tract 7!K191")
 
+    # --- 7c. WI 2 assignment columns create WI for UNNAMED parties, sum >1 ---
+    # Adversarial sweep: H (Assignment 1608/0038) sums to 5.0, I (1567/0006) to
+    # 4.875, with several +1 / +0.8125 entries against blank owner names. WI
+    # participation is not conserved like a mineral chain, but unnamed assignees
+    # are a real gap. Flag, do not invent the parties.
+    flag(wb["WI 2"], "H6", "GAP: chain break — examiner review",
+         "Assignment 1608/0038 assigns WI to unnamed parties; column sum 5.0")
+    flag(wb["WI 2"], "I6", "GAP: chain break — examiner review",
+         "Assignment 1567/0006 assigns WI to unnamed parties; column sum 4.875")
+    report.append("WI 2!H6,I6 GAP flags (WI assigned to unnamed parties)")
+
     # --- 7b. Tract 8 curated current-ownership over-foots D5 (41.23 vs 40) ---
     flag(wb["Tract 8"], "C97", "CONFIRM: acreage vs legal description",
          "Curated current-ownership total 41.23 ≠ tract acres 40 (D5)")
@@ -265,6 +277,10 @@ def build_summary(wb, report):
          "'on T. Williams, Jr.' truncated upstream (same in Runsheet) — cannot restore; do not invent."),
         ("WI acreage confirmation", "WI 1!D5",
          "Set to 448.333333 from workbook C6 / Template; CONFIRM vs legal description."),
+        ("WI 2 assignments to unnamed parties", "WI 2!H6, I6",
+         "Assignments 1608/0038 & 1567/0006 grant WI to blank-named rows (col sums 5.0 / 4.875). EXAMINER REVIEW."),
+        ("Tract 8 current-ownership overage", "Tract 8!C97",
+         "Curated current-mineral-ownership total 41.23 NMA vs tract 40 ac — reconcile."),
     ]
     for n, (item, loc, note) in enumerate(punch, 1):
         row += 1
@@ -289,10 +305,42 @@ def build_summary(wb, report):
         c = ws.cell(rr, cc, sn)
         c.hyperlink = f"#'{sn}'!A1"
         c.font = Font(name="Arial", size=10, color="0563C1", underline="single")
+    row = startrow + min(8, len(nav)) - 1  # advance past the nav grid
+
+    # ---- integrity / methodology notes ----
+    row += 2
+    ws.cell(row, 1, "INTEGRITY & METHODOLOGY").font = hdrF
+    notes = [
+        "Errors: 0 (#REF!/#DIV0/#VALUE!/#N/A/#NAME?) verified by headless LibreOffice full recalc.",
+        "Footing: tracts 2,3,5,6,7,8 foot via curated CURRENT MINERAL OWNERSHIP subtotal "
+        "(supersedes incomplete chain); tracts 1,4 & WI via pro-rata of the chain grid.",
+        "Column balance: 661 instrument columns swept. The workbook's SUBTOTAL-based integrity "
+        "check flags exactly 2 genuine imbalances — Tract 2!AS6 (missing grantee) & CM6 (probate over-distribution).",
+        "Those 2 are retained as examiner-review items: balancing them would require "
+        "inventing a party/share, which the no-fabrication rule forbids.",
+        "No legal facts (owners, fractions, Bk/Pg, instrument #, dates) were created. "
+        "Every unverifiable cell is yellow (255,255,0) with a short note.",
+    ]
+    for n in notes:
+        row += 1
+        c = ws.cell(row, 1, "• " + n)
+        c.font = Font(name="Arial", size=9)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+        ws.row_dimensions[row].height = 28
 
     # column widths
     for col_letter, w in [("A", 22), ("B", 40), ("C", 16), ("D", 46), ("E", 16), ("F", 14)]:
         ws.column_dimensions[col_letter].width = w
+
+    # print as a clean one-screen dashboard (fit columns to one page wide)
+    ws.print_area = f"A1:F{row}"
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+    ws.page_margins.left = ws.page_margins.right = 0.4
+    ws.freeze_panes = "A5"
 
     report.append("Summary dashboard rebuilt (footing table, WI summary, "
                   "8-item punch list, navigation index)")

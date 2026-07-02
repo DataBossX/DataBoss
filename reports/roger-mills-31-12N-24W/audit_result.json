@@ -1,0 +1,17 @@
+{
+ "ok": [
+  "zip part sets identical (113 parts)",
+  "only sheet/styles/workbook XML changed (19 parts); all media/comments/VML byte-identical",
+  "19-sheet structure identical: True",
+  "zero TBD strings workbook-wide",
+  "Title : all OGL refs numeric-only, in register 1-69, no Bk/Pg lease citations, no legacy 109-114",
+  "ten tracts tie to 637.42; per-tract C footing: Tract 1=80.00/80, Tract 2=160.00/160, Tract 3=40.00/40, Tract 4=80.00/80, Tract 5=38.28/38.28, Tract 6=51.00/51, Tract 7=40.00/40, Tract 8=32.80/32.8, Tract 9=75.34/75.34, Tract 10=40.00/40",
+  "Runsheet duplicate rows 566-573 and excluded rows 399/440 cleared",
+  "highlights: exactly OGL!P1:V1 stale flags removed; 96 unresolved gap highlights preserved",
+  "read-back verified 40 edited cells match intent",
+  "zero #REF!/#VALUE!/#NAME?/#DIV/0!/#N/A cached errors"
+ ],
+ "issues": [
+  "non-zero instrument columns (open imbalances, examiner-visible): ['Tract 1!G=1.000000', 'Tract 2!H=1.000000', 'Tract 2!AE=0.001263', 'Tract 3!H=1.000000', 'Tract 4!H=1.000000', 'Tract 5!H=1.000000', 'Tract 5!I=1.000000', 'Tract 6!G=1.000000', 'Tract 7!I=1.000000', 'Tract 8!G=1.000000', 'Tract 9!G=1.000000', 'Tract 10!H=1.000000']"
+ ]
+}

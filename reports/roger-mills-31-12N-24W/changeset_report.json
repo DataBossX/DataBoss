@@ -1,0 +1,64 @@
+{
+ "OGL": {
+  "adopted-byfable": 539,
+  "stale-highlight-removed": 7
+ },
+ "PLAT": {
+  "adopted-byfable": 73
+ },
+ "Well 1": {
+  "adopted-byfable": 13
+ },
+ "WI 1": {
+  "adopted-byfable": 22,
+  "tbd-resolved": 32
+ },
+ "WI 2": {
+  "adopted-byfable": 80,
+  "tbd-resolved": 8
+ },
+ "Title ": {
+  "adopted-byfable": 18,
+  "bkpg-stripped": 21,
+  "tbd-resolved": 11,
+  "qa-note": 1
+ },
+ "Tract 1": {
+  "adopted-byfable": 196
+ },
+ "Tract 2": {
+  "adopted-byfable": 198
+ },
+ "Tract 3": {
+  "adopted-byfable": 197,
+  "rejected-byfable": 90
+ },
+ "Tract 4": {
+  "adopted-byfable": 197,
+  "rejected-byfable": 52
+ },
+ "Tract 5": {
+  "adopted-byfable": 197
+ },
+ "Tract 6": {
+  "adopted-byfable": 197
+ },
+ "Tract 7": {
+  "adopted-byfable": 194
+ },
+ "Tract 8": {
+  "adopted-byfable": 194
+ },
+ "Tract 9": {
+  "adopted-byfable": 196
+ },
+ "Tract 10": {
+  "adopted-byfable": 198,
+  "rejected-byfable": 73
+ },
+ "Runsheet": {
+  "phantom-OGL-ref-cleared": 2,
+  "dup-row-cleared": 8,
+  "excluded-doc-row-cleared": 2
+ }
+}

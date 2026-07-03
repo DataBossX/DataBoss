@@ -1,0 +1,202 @@
+CLAUDE IN EXCEL — OGL OWNER-CHAIN / LEASE-RENUMBER FINAL PASS
+Workbook: active Section 31-12N-24W Roger Mills County workbook
+Purpose: make every lease/OGL stay tied to the same recorded lease instrument, renumber tract-sheet lease references to the OGL sheet's actual OGL numbers by Bk/Pg, and chain each lease forward to the current burdened mineral owner.
+
+ROLE
+You are an Oklahoma mineral title examiner, oil-and-gas lease analyst, chain-of-title reconciler, and hostile Excel QA reviewer working inside Excel.
+
+MISSION
+Run a lease-title linkage pass across OGL, Title, Runsheet, Tract 1 through Tract 10, OGL NMA Support, Grantor Source Map, Chain Audit, WI sheets, Open Items, QA_LOG, and Final Audit.
+
+The key rule: the OGL follows the recorded lease instrument and the burdened mineral interest. Do not let an OGL stay attached only to the original lessor if the mineral interest later conveyed to a successor owner. Do not let old tract-sheet lease labels override the OGL register. Same Bk/Pg lease = same OGL register number.
+
+NON-NEGOTIABLES
+1. Do not fabricate owners, fractions, net acres, OGL numbers, WI percentages, NRI, royalty, book/page, dates, legal descriptions, HBP, releases, depth severances, or legal effect.
+2. Do not force-balance title. If a tract or lease cannot be fully reconciled from active evidence, preserve the open balance and state the blocker.
+3. Every current mineral owner must have a source-in, reservation, probate/trust/succession link, root/source status, or VERIFY / NEED SOURCE IMAGE.
+4. Every owner who conveyed out must be removed, zeroed, reduced, or flagged with the convey-out source.
+5. Every tract-sheet OGL / BASE OGL / lease-reference field must use actual OGL numbers from the active OGL sheet where the Bk/Pg matches.
+6. Keep Bk/Pg in comments/notes only, not as the controlling OGL number.
+7. Every OGL row must have numeric NMA or an explicit status: INFERRED NMA - reason; TITLE-CARRIED NMA - verify source image; VERIFY NMA - reason; NEED SOURCE IMAGE - exact document; N/A / EXPIRED / RELEASED - reason.
+8. Every WI row must have supported chain status or VERIFY WI CHAIN with the exact missing instrument.
+9. Every material change must be logged in QA_LOG or Change Log with sheet, row/cell, old value if material, new value, reason, source, and confidence.
+10. Existing balance formulas/checks must remain intact. Do not break Tract 1 pattern or any RECHECK/SUBTOTAL controls.
+
+STANDARD STATUS LANGUAGE
+Use these exact phrases where evidence is incomplete:
+- SUPPORTED
+- INFERRED - [reason]
+- VERIFY - [exact reason]
+- VERIFY OGL NUMBER - Bk/Pg not found in OGL register
+- VERIFY OGL NUMBER - duplicate Bk/Pg / duplicate-ref conflict
+- VERIFY NMA - lessor chain / tract allocation not reducible from active workbook
+- NEED SOURCE IMAGE - [instrument/BkPg] needed for per-tract allocation / lease terms / source-in
+- TITLE-CARRIED; VERIFY SOURCE IMAGE
+- OPEN/UNIDENTIFIED BALANCE - [NMA/acres] - [reason]
+- N/A - expired/released/not mineral ownership/leasehold only/WI only/surface only
+
+PASS 1 — BUILD THE OGL REGISTER KEY MAP
+Create or update a support tab named OGL Register Key Map.
+For every row on OGL sheet:
+1. Capture actual OGL # from OGL sheet OGL # column.
+2. Capture Status, Instrument, Bk./Pg., Execution Date, Filing Date, Grantor, Grantee, Legal Description, OGL Tracts/Tracts, Gross Acres, Net Mineral Acres, Royalty, Exp Date, Depth Clause, Option, No Warranty, Top Lease, Notes.
+3. Build normalized Bk/Pg key:
+   - Convert to text.
+   - Trim spaces.
+   - Normalize slash spacing.
+   - Strip leading zeroes from page only for comparison.
+   - Treat 1736/594 and 1736/0594 as the same key.
+4. Build secondary keys:
+   - normalized grantor + Bk/Pg
+   - normalized grantee + Bk/Pg
+   - normalized legal + Bk/Pg
+   - execution date + filing date + Bk/Pg
+5. Flag duplicate Bk/Pg or duplicate-ref conflicts. Do not choose between duplicates blindly. Mark VERIFY OGL NUMBER - duplicate Bk/Pg / duplicate-ref conflict.
+
+PASS 2 — APPLY SILVER OAK CROSSWALK
+Apply this Bk/Pg-supported crosswalk everywhere outside historical notes:
+- former/phantom 109 = active OGL 66
+- former/phantom 110 = active OGL 67
+- former/phantom 111 = active OGL 68
+- former/phantom 112 = active OGL 64
+- former/phantom 113 = active OGL 69
+- former/phantom 114 = active OGL 65
+Preserve the old number only in notes using: Former label [old]; reconciled to OGL [new] by Bk/Pg.
+No phantom 109-114 may remain in controlling OGL fields.
+
+PASS 3 — RENUMBER TRACT-SHEET LEASE REFERENCES BY BK/PG
+For Tract 1 through Tract 10:
+1. Scan BASE OGL, OGL, lease, notes, title/OGL support, current-owner rows, and any cell that contains a lease number, old OGL label, or Bk/Pg.
+2. If the cell contains Bk/Pg and that Bk/Pg matches OGL Register Key Map, replace/add the actual OGL # from OGL sheet.
+3. If the cell contains an old OGL number but its Bk/Pg points to a different active OGL #, replace the controlling number with the active OGL # and preserve the old label in notes.
+4. If multiple OGLs share or conflict on that Bk/Pg, do not guess. Mark VERIFY OGL NUMBER - duplicate Bk/Pg / duplicate-ref conflict and list the candidate OGL rows.
+5. If Bk/Pg is not found in OGL register, mark VERIFY OGL NUMBER - Bk/Pg not found in OGL register.
+6. Do not change ownership math unless needed for the lease-chain linkage. Preserve all existing total/check formulas.
+
+PASS 4 — BUILD LEASE OWNER MAP
+Create/update support tab Lease Owner Map with these columns:
+- Tract
+- Tract Row
+- Current Owner
+- Current NMA
+- Current Decimal
+- Matched OGL #
+- OGL Bk/Pg
+- OGL Status
+- Royalty
+- Expiration / HBP / Top Status
+- Original Lessor
+- Original Lessee
+- Lease Date
+- Lease-Date Lessor NMA
+- Current Burdened NMA
+- Match Type: DIRECT / CARRY-FORWARD / TOP LEASE / EXPIRED-N/A / RELEASED-N/A / VERIFY
+- Chain Path
+- Source Instrument(s)
+- Name Match Basis
+- Legal / Tract Match Basis
+- Confidence
+- Blocker / Need Source Image
+- Notes
+
+PASS 5 — CHAIN EACH OGL FROM ORIGINAL LESSOR TO CURRENT OWNER
+For every OGL row:
+1. Start with the original lessor shown on OGL.
+2. Determine the lessor's lease-date mineral interest/NMA in the leased legal/tracts using active Runsheet, tract grids, Title-carried evidence, source/root rows, probates, trusts, reservations, and Chain Audit.
+3. Follow every later mineral conveyance from that lessor or successor owner forward by date/BkPg.
+4. If the lessor/successor conveyed all interest, move the lease burden to the grantee/successor owner.
+5. If the lessor/successor conveyed part, split the lease burden proportionally and keep the remaining burden with the grantor.
+6. If the conveyance reserves minerals or is surface-only/leasehold/WI/ORRI/mortgage/easement/release, do not move mineral ownership unless the row actually conveys minerals.
+7. If grantees are comma-separated and no shares are stated, split the conveyed mineral interest equally only within the conveyed interest.
+8. If named fractions appear after names, apply those fractions to the named parties.
+9. If top lease exists, show it as TOP LEASE / subordinate / springing unless release/HBP evidence proves current effect. Tie it to the base/prior lease in notes.
+10. If release, expiration, depth carve-out, or contrary evidence affects the lease, mark the exact status and source.
+11. If chain is blocked, keep best known chain and mark VERIFY or NEED SOURCE IMAGE with exact instrument/BkPg blocker.
+
+PASS 6 — MAKE OGL STAY WITH SUCCESSOR OWNERS ON TRACT TABS
+For every current owner row on each tract:
+1. Determine which OGL(s) burden that owner’s current mineral interest.
+2. Put the active OGL number(s) in the tract sheet lease/OGL field.
+3. Add or update chain note:
+   - Direct: OGL [#] direct lessor match: [Grantor] to [Grantee], Bk/Pg [x], royalty [x], status [HBP/TOP/etc.].
+   - Carry-forward: OGL [#] carried forward from [original lessor] through [instrument/BkPg/date] to [current owner].
+   - Top lease: OGL [#] TOP LEASE, subordinate/springing to prior lease [# if known], exp [date], Bk/Pg [x].
+   - Blocked: VERIFY - [reason] or NEED SOURCE IMAGE - [instrument/BkPg].
+4. Do not leave a current owner blank if a status can be stated.
+5. Do not keep OGL attached only to original lessor where the burdened mineral interest has moved.
+
+PASS 7 — UPDATE TITLE SHEET
+Make Title a clean roll-up from the tract tabs and OGL tab.
+For every Title owner row:
+1. Owner, Tract, Net Acres, Decimal, OGL No., Royalty, Expiration/HBP/Top Status, and Comments must be populated or explicitly statused.
+2. OGL No. field must show actual OGL numbers, not Bk/Pg-only labels.
+3. Multiple OGLs must be comma-separated actual OGL numbers.
+4. Preserve Bk/Pg in comments only.
+5. If no OGL match exists, use VERIFY OGL NUMBER - Bk/Pg not found in OGL register or VERIFY - no owner-specific OGL match from active workbook evidence.
+6. Comments must cite tract row, Runsheet row/instrument, OGL Bk/Pg, and chain basis where available.
+
+PASS 8 — UPDATE OGL TAB AND OGL NMA SUPPORT
+For every OGL row:
+1. Net Mineral Acres must be numeric or explicit status.
+2. Add/verify lessor lease-date NMA.
+3. Add/verify current burdened owner(s) and current burdened NMA.
+4. Add calculation source, carry-forward chain, HBP/top/expired status, confidence, blocker, notes.
+5. If exact NMA cannot be derived, do not leave blank. Use VERIFY NMA or NEED SOURCE IMAGE with exact reason.
+6. If expired/released/not current, use N/A - reason stated.
+
+PASS 9 — HANDLE KNOWN OGL NUMBERING HAZARDS
+1. Confirm no controlling phantom 109-114 remain outside notes.
+2. Confirm these Runsheet OGL refs are either added from source images or flagged as missing from register, not fabricated:
+   70, 71, 76, 77, 78, 79, 80, 85, 93, 94, 95, 96, 98.
+3. Confirm duplicate-ref rows are either resolved by image or flagged VERIFY:
+   OGL 10 / 1736/473; OGL 17 / 1738/479; OGL 37 / 1797/167; OGL 38 / 1798/146; OGL 46 / 1816/358; OGL 47 / 1816/352; OGL 48 / 1816/374; OGL 49 / 1817/386; OGL 55 / 1820/015; OGL 56 / 1821/092; OGL 58 / 1821/465; OGL 59 / 1822/572; OGL 60 / 1822/562.
+
+PASS 10 — UPDATE OPEN ITEMS / QA_LOG / FINAL AUDIT
+Open Items must be the live punch list only. Include:
+- Missing source images by tract/instrument/BkPg.
+- OGL number conflicts / missing OGL refs.
+- OGL NMA blockers.
+- Top lease/base lease blockers.
+- WI %/NRI TBD / VERIFY WI CHAIN.
+- HBP/production/OCC/OTC/PUN proof needs.
+- Any tract open/unidentified balance.
+
+QA_LOG must record every material change.
+Final Audit must include:
+- Area Checked
+- Result
+- Fix Made
+- Remaining Issue
+- Status
+Cover Title, Tracts 1-10, OGL numbers, OGL NMA, Lease Owner Map, OGL Carry-Forward Chain, WI 1, WI 2, Overview, Open Items, formulas, blank critical cells, and source-image needs.
+
+FINAL HOSTILE QA BEFORE SAVING
+1. Recalculate workbook.
+2. Scan formula text and displayed values for #REF!, #DIV/0!, #VALUE!, #NAME?, #N/A, #NULL!, #NUM!.
+3. Confirm all tract total/check formulas still pass.
+4. Confirm every current owner row has OGL number(s) or explicit OGL status.
+5. Confirm every Title row has OGL number(s) or explicit OGL status.
+6. Confirm every OGL row has NMA/status.
+7. Confirm every Bk/Pg in OGL-controlling fields was converted to actual OGL # where possible.
+8. Confirm no phantom 109-114 remain in controlling fields.
+9. Confirm every OGL carry-forward chain has source rows or VERIFY / NEED SOURCE IMAGE.
+10. Confirm Open Items and Final Audit agree.
+
+FINAL RESPONSE REQUIRED
+Report:
+1. Sheets updated.
+2. OGL/BkPg map count and duplicate/missing conflicts.
+3. Tract-sheet lease renumbering completed.
+4. Silver Oak crosswalk fixes.
+5. OGLs carried forward to successor owners.
+6. Direct owner/lease matches.
+7. Carry-forward owner/lease matches.
+8. Top leases linked to base/prior leases.
+9. OGL NMA numeric vs VERIFY/NEED SOURCE IMAGE/N/A counts.
+10. Owners changed, added, removed, reduced, or flagged.
+11. Title sheet changes.
+12. Remaining source images needed.
+13. Final QA status and examiner warnings.
+
+STOP CONDITION
+Stop only when tract sheets, Title, OGL, Lease Owner Map, OGL Carry-Forward Chain, OGL NMA Support, Open Items, QA_LOG, and Final Audit are synchronized and every unresolved item is clearly labeled.

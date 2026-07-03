@@ -1,0 +1,5 @@
+# DataBossX Validation & Repair Agent -- Python dependencies.
+# LibreOffice (soffice) and curl are external system binaries, not pip packages.
+openpyxl>=3.1.5
+lxml>=4.9.0
+streamlit>=1.30.0

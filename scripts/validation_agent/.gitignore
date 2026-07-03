@@ -1,0 +1,8 @@
+# Generated run artifacts and the append-only memory DB are never committed.
+outputs/*
+!outputs/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+__pycache__/
+*.pyc

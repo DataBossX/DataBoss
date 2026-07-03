@@ -76,3 +76,27 @@ recorded instrument images unavailable in this session — each is documented in
 `GAP_LIST_CLAUDE.md` as Open / Needs Verification with a reason. QA loop therefore
 terminates per the rule "no high-severity errors remain or every remaining issue
 is documented as a true evidence gap."
+
+---
+
+## Addendum — 2026‑07‑03 · Export-consistency QA (`scripts/qa_exports.py`)
+
+Added a committed, stdlib-only regression guard that re-derives the ownership
+math from the CSV exports independently and asserts the invariants a title report
+must never violate. Run with `python3 scripts/qa_exports.py` after any export
+regeneration (`report/gen_exports.py`); non-zero exit on any failure so it can
+gate CI.
+
+| Check | Result |
+|---|---|
+| Every tract foots: identified NMA + open NMA == gross ac (10/10) | **PASS** |
+| Every tract's decimal interests sum to 1.000000 (10/10) | **PASS** |
+| Section gross == 637.42; identified 302.16 + open 335.26 == gross | **PASS** |
+| `ownership_by_tract.csv` ↔ `section_net_acre_summary.csv` agree per-tract and on totals | **PASS** (all rows) |
+| Pull list = 63 rows (35 conveyed-fraction, 23 source-in, 5 regulatory) | **PASS** |
+| OGL register = 69 leases | **PASS** |
+
+**Result: 60/60 checks green (exit 0).** This confirms the four "best-moves"
+exports are internally consistent and cross-agree; it does **not** close any
+evidence gap — the 335.26 open NMA remain Open pending the recorded images listed
+in `open_items_pull_list.csv`, exactly as required by the review contract.

@@ -157,7 +157,7 @@ Fee mineral ownership is a family mosaic dominated by the **Mitchell / Williams 
 | 12 | Oil and Gas Lease | 1737/580 | Sandra Lorrain York | Kodiak Production Company | All (1-8) | 3/16 | 2/15/2007 |
 | 13 | Oil and Gas Lease | 1780/409 | Jesse W. Fuchs | N/g Discovery, LLC | 2 | 1/4 | 2/24/2007 |
 | 14 | Oil and Gas Lease | 1782/261 | Isa May Smith | N/g Discovery, LLC | 2 | 1/4 | 2/25/2007 |
-| 15 | Oil and Gas Lease | 1781/204 | Raymond M. Fuchs | N/g Discovery, LLC | 3 | 3/16 | 3/1/2007 |
+| 15 | Oil and Gas Lease | 1781/204 | Raymond M. Fuchs | N/g Discovery, LLC | 2 | 3/16 | 3/1/2007 |
 | 16 | Oil and Gas Lease | 1782/267 | Mark J. Fuchs | N/g Discovery, LLC | 2 | 1/4 | 3/1/2007 |
 | 17 | Oil and Gas Lease | 1738/479 | Lola F. Richards | R. Michael Lortz | 2 | 3/16 | 2/6/2007 |
 | 18 | Oil and Gas Lease | 1764/122 | Farrell E. Hamilton | R. Michael Lortz | 2 | 3/16 | 9/21/2007 |

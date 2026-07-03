@@ -23,7 +23,7 @@ def load_ogl():
         def tract_fix(v):
             # some cells store the tract list as an Excel date-serial (e.g. 1900-01-02 -> 2)
             if isinstance(v,datetime.datetime):
-                return str((v - datetime.datetime(1899,12,30)).days)
+                return str((v - datetime.datetime(1900,1,1)).days + 1)  # recover small Excel serial (tract #)
             return v
         rows.append(dict(
             ogl=g(1), lh=g(2), instr=g(4), bp=g(5),

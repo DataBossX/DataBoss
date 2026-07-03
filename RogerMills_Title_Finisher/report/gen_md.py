@@ -7,7 +7,7 @@ def royf(v):
     try:return {0.1875:'3/16',0.25:'1/4',0.125:'1/8'}.get(round(float(v),4),f'{float(v):.4f}')
     except:return v or ''
 def trf(v):
-    if isinstance(v,datetime.datetime): return str((v-datetime.datetime(1899,12,30)).days)
+    if isinstance(v,datetime.datetime): return str((v-datetime.datetime(1900,1,1)).days+1)
     return v or ''
 ogl=[]
 for r in range(2,ws.max_row+1):

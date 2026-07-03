@@ -31,14 +31,27 @@ anywhere without installing dependencies.
 - **Every action leaves proof** — agents write JSONL; workflows log every step;
   the DB has an `audit_log` table.
 
+| Recorder | `tools/weld_client.py` | Weld County client — **network OFF by default** (opt in via `allow_network`/`DATABOSSX_ALLOW_NETWORK=1`); throttled, polite UA; captures raw docs to `quarantine/` as wrapped untrusted data. |
+| Driver | `workflows/notice_list_driver.py` | Turns notice-list rows into pipeline runs via a pluggable `resolver` (inline corpus, local files, or the live recorder client). |
+| Report | `app/report.py` | Renders a title-review markdown report; written via `safe_write` (never overwrites). |
+| CLI | `app/cli.py` | `health` / `initdb` / `ingest` / `run-section` — argparse entrypoint. |
+
 ## Running things
 
 ```bash
 python scripts/init_db.py                       # create/verify the master DB
-python -m unittest discover -s tests -p "test_*.py"   # run the test suite
+python -m unittest discover -s tests -p "test_*.py"   # run the test suite (30 tests)
 python scripts/health_check.py                  # baseline health check
 python -m agents.example_echo_agent             # see the agent contract in action
+
+# CLI
+python -m app.cli ingest data/notice_list.csv
+python -m app.cli run-section --owner "Rodney Gille" --section "Sec 1" \
+    --docs docs.json --out reports
 ```
+
+`run-section` reads `docs.json` = `[{"source": "...", "text": "..."}, ...]` and
+writes `reports/<Section>_REVIEW_<ts>.md`.
 
 ## Dependency note
 

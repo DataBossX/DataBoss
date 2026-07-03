@@ -53,6 +53,19 @@ Wired the real domain agents against the existing prompt contracts, guarded and 
 
 **Verification:** `python -m unittest discover -s tests` → **Ran 21 tests … OK** (fully offline, no keys, no network).
 
+## Recorder client, notice-list driver, CLI & reports (build round 4)
+- `tools/weld_client.py` — Weld County recorder client, **network OFF by default** (opt in via `allow_network` / `DATABOSSX_ALLOW_NETWORK=1`); throttled + polite User-Agent; raw responses captured to `quarantine/` as wrapped untrusted data, never overwritten.
+- `workflows/notice_list_driver.py` — drives the pipeline from notice-list rows via a pluggable document `resolver`.
+- `app/report.py` — renders title-review markdown; written via `safe_write` (no overwrite).
+- `app/cli.py` — `health` / `initdb` / `ingest` / `run-section` argparse entrypoint.
+- Tests for the client (incl. network-guard + quarantine no-overwrite), report, driver, and CLI.
+
+**Verification:** `python -m unittest discover -s tests` → **Ran 30 tests … OK**. End-to-end CLI demo
+produced a correct **Leased HBP** decision and a title-review report — fully offline, no network, no secrets.
+
+> Safety note on the recorder client: it is built but does **not** hit the live county site.
+> Live fetching stays disabled until explicitly enabled and confirmed with Rodney.
+
 ## Environment note
 This baseline was executed inside the remote cloud workspace for the
 `databossx/databoss` repository (Linux container, working dir `/home/user/DataBoss`),

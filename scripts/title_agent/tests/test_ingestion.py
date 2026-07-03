@@ -51,8 +51,8 @@ def test_classifies_special_tabs(tmp: Path) -> None:
     p = tmp / "report.xlsx"
     _build(p)
     topo = WorkbookMapper().map(p)
-    assert topo.ogl_register() is not None
-    assert topo.ogl_register().kind == SheetKind.OGL_REGISTER
+    ogl = topo.ogl_register()
+    assert ogl is not None and ogl.kind == SheetKind.OGL_REGISTER
     assert len(topo.working_interest_sheets()) == 1
     well = topo.well_tab()
     assert well is not None and well.name == "Alexander 1-31"

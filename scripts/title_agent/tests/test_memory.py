@@ -78,7 +78,8 @@ def test_versions_are_strictly_sequential(tmp: Path) -> None:
     assert (v1.version_number, v2.version_number) == (1, 2)
     assert v1.version_label == "_v001" and v2.version_label == "_v002"
     assert v2.parent_version == 1
-    assert versions.get_latest_version(key).version_number == 2
+    latest = versions.get_latest_version(key)
+    assert latest is not None and latest.version_number == 2
     assert [v.version_number for v in versions.history(key)] == [1, 2]
 
 
@@ -97,7 +98,8 @@ def test_mint_refuses_to_overwrite_existing_file(tmp: Path) -> None:
     else:
         raise AssertionError("mint should refuse to overwrite an existing file")
     # The prohibited mint must not have left a phantom DB row.
-    assert versions.get_latest_version(key).version_number == 1
+    latest = versions.get_latest_version(key)
+    assert latest is not None and latest.version_number == 1
 
 
 def test_two_artifacts_track_independently(tmp: Path) -> None:

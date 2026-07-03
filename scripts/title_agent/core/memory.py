@@ -497,3 +497,126 @@ class VersionController:
             reason=row["reason"],
             created_at=row["created_at"],
         )
+
+
+# --------------------------------------------------------------------------- #
+# EscalationStore
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Escalation:
+    """A Category B failure awaiting an Examiner decision."""
+
+    id: int
+    category: str
+    gate: str
+    reference: str
+    proof: dict[str, Any]
+    status: str
+    resolution: Optional[str]
+    examiner_id: Optional[str]
+    created_at: str
+    resolved_at: Optional[str]
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == "open"
+
+
+class EscalationStore:
+    """The HITL escalation queue.
+
+    Unlike the audit log, an escalation is *working state*: it legitimately
+    transitions ``open -> resolved`` when the Examiner acts. That transition is
+    the only mutation allowed, and it is always accompanied by an immutable
+    ``EXAMINER_OVERRIDE`` entry in the (append-only) audit log, so the record
+    of *who decided what, when* can never be edited away.
+    """
+
+    def __init__(self, manager: SQLiteManager, audit: Optional[AuditLogger] = None) -> None:
+        self._db = manager
+        self._audit = audit or AuditLogger(manager)
+
+    def open_escalation(
+        self, category: str, gate: str, reference: str, proof: dict[str, Any]
+    ) -> Escalation:
+        created = _utc_now()
+        proof_json = json.dumps(proof, sort_keys=True, default=str)
+        with self._db.transaction() as conn:
+            cur = conn.execute(
+                "INSERT INTO escalations (category, gate, reference, proof, status, created_at) "
+                "VALUES (?, ?, ?, ?, 'open', ?)",
+                (category, gate, reference, proof_json, created),
+            )
+            esc_id = _last_row_id(cur)
+        self._audit.log_action(
+            "ESCALATION_OPENED", reference, category,
+            metadata={"gate": gate, "escalation_id": esc_id},
+        )
+        return self.get(esc_id)
+
+    def resolve(self, escalation_id: int, examiner_id: str, resolution: str) -> Escalation:
+        """Mark an escalation resolved and record the Examiner override.
+
+        The ownership of the decision is the Examiner's — this method only
+        stores the human's stated resolution verbatim; it does not derive or
+        infer any fact on their behalf.
+        """
+        resolved = _utc_now()
+        with self._db.transaction() as conn:
+            row = conn.execute(
+                "SELECT reference, status FROM escalations WHERE id = ?", (escalation_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"no such escalation: {escalation_id}")
+            if row["status"] != "open":
+                raise ValueError(f"escalation {escalation_id} is already {row['status']}")
+            conn.execute(
+                "UPDATE escalations SET status='resolved', resolution=?, examiner_id=?, "
+                "resolved_at=? WHERE id=?",
+                (resolution, examiner_id, resolved, escalation_id),
+            )
+            reference = row["reference"]
+        self._audit.log_examiner_override(
+            examiner_id, reference, resolution,
+            metadata={"escalation_id": escalation_id},
+        )
+        return self.get(escalation_id)
+
+    def get(self, escalation_id: int) -> Escalation:
+        with self._db.connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM escalations WHERE id = ?", (escalation_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"no such escalation: {escalation_id}")
+        return self._to_escalation(row)
+
+    def list_open(self) -> list[Escalation]:
+        return self._list("WHERE status = 'open'")
+
+    def list_all(self) -> list[Escalation]:
+        return self._list("")
+
+    def _list(self, where: str) -> list[Escalation]:
+        with self._db.connection() as conn:
+            rows = conn.execute(
+                f"SELECT * FROM escalations {where} ORDER BY id ASC"
+            ).fetchall()
+        return [self._to_escalation(r) for r in rows]
+
+    @staticmethod
+    def _to_escalation(row: sqlite3.Row) -> Escalation:
+        return Escalation(
+            id=int(row["id"]),
+            category=row["category"],
+            gate=row["gate"],
+            reference=row["reference"],
+            proof=json.loads(row["proof"]) if row["proof"] else {},
+            status=row["status"],
+            resolution=row["resolution"],
+            examiner_id=row["examiner_id"],
+            created_at=row["created_at"],
+            resolved_at=row["resolved_at"],
+        )

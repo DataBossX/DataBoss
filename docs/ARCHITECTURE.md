@@ -1,0 +1,43 @@
+# DataBossX Foundation Architecture
+
+This document describes the baseline application layer scaffolded on top of the
+project structure. Everything here is **stdlib-only** so it runs and tests
+anywhere without installing dependencies.
+
+## Layers
+
+| Layer | Module | Responsibility |
+|-------|--------|----------------|
+| Config | `app/config.py` | Load non-secret settings from `config/settings.toml`; read secrets **only** from the process environment on demand; never log or return raw secret values (`redact`, `secret_status`). |
+| Logging | `app/logging_setup.py` | Single shared audit trail to `logs/databossx.log` + console. |
+| Guardrails | `tools/guardrails.py` | The Golden Law in code: `safe_write` (never overwrites, writes `_REVIEW_<ts>`), `is_protected_path` (blocks Horizon/Penterra), `timestamped_backup`, `wrap_untrusted` / `scan_for_injection`. |
+| Tools | `tools/registry.py` | Declarative `name -> callable` registry for agents/workflows. |
+| Agents | `agents/base.py` | `BaseAgent`: every action appends a JSONL proof record to `agent_outputs/<name>.jsonl`. Example: `agents/example_echo_agent.py`. |
+| Workflows | `workflows/runner.py` | Sequential runner with per-step audit logging; halts on first failure and returns a complete `RunResult`. |
+| Data | `scripts/init_db.py` | Idempotent SQLite schema (`documents`, `extractions`, `audit_log`) at `DB_PATH`. |
+
+## Security invariants (enforced, not just documented)
+
+- **No overwrites** — `safe_write` is the only sanctioned write path; it refuses
+  to clobber existing files and refuses protected roots entirely.
+- **No secrets** — config never parses `.env`; it only checks env-var presence.
+- **Untrusted by default** — county documents / OCR text pass through
+  `wrap_untrusted`, which delimits them as data and counts injection flags.
+- **Every action leaves proof** — agents write JSONL; workflows log every step;
+  the DB has an `audit_log` table.
+
+## Running things
+
+```bash
+python scripts/init_db.py                       # create/verify the master DB
+python -m unittest discover -s tests -p "test_*.py"   # run the test suite
+python scripts/health_check.py                  # baseline health check
+python -m agents.example_echo_agent             # see the agent contract in action
+```
+
+## Dependency note
+
+The container this was built in has only the Python 3.11 standard library
+available (`tomllib`, `sqlite3`, `logging`, `unittest`). Heavier libraries listed
+in `requirements.txt` (pandas, openpyxl, litellm, playwright, OCR) are for the
+full pipeline and are not required by this foundation layer or its tests.

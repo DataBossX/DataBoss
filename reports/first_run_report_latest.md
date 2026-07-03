@@ -20,6 +20,26 @@ AI handles labor. Rodney approves risk. Every action leaves proof.
 - **No secret values were read, printed, or exposed.**
 - **Protected/legacy Windows roots** (Horizon, Penterra, and the legacy `DataBossX_Final_Modular` paths) were not touched.
 
+## Foundation layer (build round 2)
+A stdlib-only application foundation was added on top of the scaffold, with tests:
+
+- `app/config.py` — settings loader; secrets read from env only, never logged (`redact`, `secret_status`).
+- `app/logging_setup.py` — shared audit log to `logs/databossx.log`.
+- `tools/guardrails.py` — Golden Law in code: `safe_write` (no overwrite / `_REVIEW_<ts>`), `is_protected_path` (Horizon/Penterra, cross-OS), `timestamped_backup`, `wrap_untrusted` / `scan_for_injection`.
+- `tools/registry.py` — tool registry.
+- `agents/base.py` + `agents/example_echo_agent.py` — agents that leave JSONL proof.
+- `workflows/runner.py` — sequential runner with per-step logging.
+- `scripts/init_db.py` — idempotent SQLite schema (`documents`, `extractions`, `audit_log`).
+- `tests/` — 12 `unittest` cases; **all passing**.
+- `docs/ARCHITECTURE.md` — layer map and invariants.
+
+Two safety bugs were caught by the tests and fixed before commit: `is_protected_path`
+now detects Windows-style protected roots when running on Linux, and the injection
+heuristic now catches "ignore all previous instructions"-style phrasing.
+
+**Verification:** `python -m unittest discover -s tests` → `Ran 12 tests … OK`.
+`python scripts/init_db.py` → DB created. `python scripts/health_check.py` → all PASS.
+
 ## Environment note
 This baseline was executed inside the remote cloud workspace for the
 `databossx/databoss` repository (Linux container, working dir `/home/user/DataBoss`),

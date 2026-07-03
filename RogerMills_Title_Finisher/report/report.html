@@ -1,0 +1,434 @@
+<title>Section 31-12N-24W Roger Mills — Mineral &amp; Leasehold Ownership</title>
+<style>/* Section 31-12N-24W ownership report — "petroleum ledger" identity */
+:root{
+  --paper:#F5F2EB; --surface:#FFFFFF; --raise:#FBF9F4;
+  --ink:#1B2A2E; --body:#33403F; --muted:#6A716E; --line:#E4DED1; --line2:#D5CDBB;
+  --accent:#B0682B; --accent-soft:#f0e2d0; --structure:#2A5560;
+  --ok:#3C7A54; --ok-bg:#e6efe6; --warn:#B4801F; --warn-bg:#f6ecd4; --defect:#AF4A32; --defect-bg:#f6e2da;
+  --shadow:0 1px 2px rgba(27,42,46,.06),0 6px 20px rgba(27,42,46,.06);
+  --mono:ui-monospace,"SFMono-Regular","Cascadia Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#0E1315; --surface:#151C1E; --raise:#192124; --ink:#EBE8E0; --body:#C9CDC9; --muted:#8D948F;
+  --line:#25302F; --line2:#33403E; --accent:#D08A46; --accent-soft:#2a2118; --structure:#4E8C9A;
+  --ok:#5DA277; --ok-bg:#16241c; --warn:#D3A54A; --warn-bg:#2a2213; --defect:#D06B4F; --defect-bg:#2b1a14;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+}}
+:root[data-theme="light"]{--paper:#F5F2EB;--surface:#FFFFFF;--raise:#FBF9F4;--ink:#1B2A2E;--body:#33403F;--muted:#6A716E;--line:#E4DED1;--line2:#D5CDBB;--accent:#B0682B;--structure:#2A5560;--ok:#3C7A54;--ok-bg:#e6efe6;--warn:#B4801F;--warn-bg:#f6ecd4;--defect:#AF4A32;--defect-bg:#f6e2da;--accent-soft:#f0e2d0;}
+:root[data-theme="dark"]{--paper:#0E1315;--surface:#151C1E;--raise:#192124;--ink:#EBE8E0;--body:#C9CDC9;--muted:#8D948F;--line:#25302F;--line2:#33403E;--accent:#D08A46;--structure:#4E8C9A;--ok:#5DA277;--ok-bg:#16241c;--warn:#D3A54A;--warn-bg:#2a2213;--defect:#D06B4F;--defect-bg:#2b1a14;--accent-soft:#2a2118;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--body);font-family:var(--sans);line-height:1.6;
+  font-size:16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px 80px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+h1,h2,h3,h4{color:var(--ink);text-wrap:balance;line-height:1.15}
+a{color:var(--accent);text-decoration:none}
+::selection{background:var(--accent-soft)}
+
+/* masthead */
+.mast{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;
+  padding:38px 0 22px;border-bottom:3px solid var(--structure)}
+.eyebrow{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.mast h1{font-size:clamp(1.9rem,4.5vw,3rem);margin:.25em 0 0;font-weight:800;letter-spacing:-.02em}
+.mast h1 span{display:block;font-size:.42em;font-weight:600;letter-spacing:.01em;color:var(--muted);margin-top:.3em}
+.mast-r{display:grid;grid-template-columns:1fr 1fr;gap:2px 26px;font-size:.82rem;color:var(--ink)}
+.mast-r span{color:var(--muted);display:inline-block;min-width:64px}
+.disclaimer{margin:14px 0 0;padding:10px 14px;background:var(--warn-bg);border-left:3px solid var(--warn);
+  color:var(--ink);font-size:.82rem;border-radius:0 4px 4px 0}
+
+/* sticky nav */
+.tnav{position:sticky;top:0;z-index:20;display:flex;gap:2px;flex-wrap:wrap;margin:18px -22px 0;padding:8px 22px;
+  background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.tnav a{font-size:.78rem;padding:5px 11px;border-radius:20px;color:var(--muted);font-weight:600}
+.tnav a:hover{color:var(--ink);background:var(--raise)}
+
+section{scroll-margin-top:52px}
+.sec{padding:40px 0 8px;border-top:1px solid var(--line);margin-top:26px}
+.sec:first-of-type{border-top:none}
+h2{font-size:1.5rem;font-weight:800;letter-spacing:-.01em;margin:0 0 6px;position:relative;padding-left:16px}
+h2::before{content:"";position:absolute;left:0;top:.14em;bottom:.14em;width:4px;background:var(--accent);border-radius:2px}
+h3{font-size:1.06rem;font-weight:700;margin:26px 0 4px}
+.note{font-size:.86rem;color:var(--muted);max-width:74ch;margin:.3em 0 1em}
+.open-key{color:var(--warn);font-weight:600}
+
+/* summary band */
+.band{padding-top:30px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:6px 0 22px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
+.stat-v{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat-l{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:2px}
+.stat.ok .stat-v{color:var(--ok)} .stat.warn .stat-v{color:var(--warn)}
+.lede{columns:2;column-gap:38px;font-size:.94rem}
+.lede p{margin:0 0 .9em;break-inside:avoid}
+.lede b{color:var(--ink)}
+
+/* plat */
+.plat-wrap{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.plat{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}
+.qq{stroke:var(--surface);stroke-width:2;opacity:.9}
+.qq.irregular{opacity:.62}
+.qq-tract{font-family:var(--mono);font-size:20px;font-weight:700;fill:#10201f}
+.qq-leg{font-family:var(--mono);font-size:8.5px;fill:#1a2b2a;opacity:.85}
+.qq-note{font-family:var(--sans);font-size:7.5px;fill:#243534;opacity:.7;font-style:italic}
+.lot-band{fill:none;stroke:var(--structure);stroke-width:2;stroke-dasharray:5 4;opacity:.7}
+.plat-frame{fill:none;stroke:var(--ink);stroke-width:2.5}
+.plat-n{font-family:var(--mono);font-size:13px;fill:var(--muted);font-weight:600}
+.well-dot{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.well-lbl{font-family:var(--mono);font-size:10px;fill:var(--ink);font-weight:600}
+.plat-cap{font-family:var(--sans);font-size:9px;fill:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.lg{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted);font-family:var(--mono)}
+.lg i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+/* tract cards */
+.tracts{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.tract{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.tract-h{display:flex;gap:14px;align-items:flex-start;margin-bottom:10px}
+.tract-id{font-family:var(--mono);font-weight:700;font-size:.78rem;color:#fff;background:var(--structure);
+  padding:5px 9px;border-radius:7px;white-space:nowrap}
+.tract-legal{font-weight:700;color:var(--ink);font-size:.92rem;line-height:1.3}
+.tract-sub{display:flex;gap:10px;align-items:center;margin-top:3px;font-size:.8rem;color:var(--muted)}
+.badge{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+.badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warn{background:var(--warn-bg);color:var(--warn)}
+
+/* tables */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:6px 0 4px;box-shadow:var(--shadow)}
+.tbl{width:100%;border-collapse:collapse;font-size:.82rem;background:var(--surface)}
+.tract .tbl{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tbl th{background:var(--raise);color:var(--muted);text-align:left;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.06em;padding:8px 11px;border-bottom:1px solid var(--line2);white-space:nowrap;position:sticky;top:0}
+.tbl td{padding:7px 11px;border-bottom:1px solid var(--line);color:var(--body);vertical-align:top}
+.tbl tbody tr:last-child td,.tbl tr:last-child td{border-bottom:none}
+.tbl td.num,.tbl th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl td.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink)}
+.tbl.compact td,.tbl.compact th{padding:5px 9px;font-size:.76rem}
+.tbl tr.open td{background:var(--warn-bg);font-style:italic}
+.tbl tr.open td.num{color:var(--warn);font-weight:600;font-style:normal}
+.tbl tr:hover td{background:color-mix(in srgb,var(--accent-soft) 30%,transparent)}
+
+/* wi chain */
+.chain{list-style:none;counter-reset:c;padding:0;margin:8px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chain li{counter-increment:c;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:8px 12px 8px 30px;position:relative;font-size:.82rem;color:var(--ink);box-shadow:var(--shadow)}
+.chain li::before{content:counter(c);position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:.7rem;color:var(--accent);font-weight:700}
+.chain li:not(:last-child)::after{content:"\2192";position:absolute;right:-11px;top:50%;transform:translateY(-50%);color:var(--muted);z-index:1}
+.chain li:last-child{border-color:var(--accent);background:var(--accent-soft)}
+
+/* well */
+.well-grid{display:grid;grid-template-columns:minmax(280px,1fr) 1.4fr;gap:16px}
+.well-panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 18px;box-shadow:var(--shadow)}
+.wr{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.wr:last-child{border-bottom:none}
+.wr span{color:var(--muted)} .wr b{color:var(--ink);text-align:right}
+.well-note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px 20px 16px;box-shadow:var(--shadow)}
+.well-note h3{margin-top:16px}
+.well-note p{font-size:.88rem;margin:.5em 0}
+.flag{background:var(--defect-bg);border-left:3px solid var(--defect);padding:10px 13px;border-radius:0 4px 4px 0;color:var(--ink)}
+
+/* risk */
+.risk{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.rcard{background:var(--surface);border:1px solid var(--line);border-top-width:3px;border-radius:10px;padding:14px 16px;box-shadow:var(--shadow)}
+.rcard h4{margin:0 0 6px;font-size:.92rem}
+.rcard p{margin:0;font-size:.82rem;color:var(--muted)}
+.rcard.defect{border-top-color:var(--defect)} .rcard.warn{border-top-color:var(--warn)} .rcard.ok{border-top-color:var(--ok)}
+
+/* research list */
+.rlist{margin:8px 0;padding-left:0;list-style:none;display:grid;gap:10px}
+.rlist li{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:11px 15px;font-size:.85rem;box-shadow:var(--shadow)}
+.rlist b{color:var(--ink)} .rlist i{color:var(--muted);font-size:.92em}
+
+.foot{margin-top:40px;padding-top:20px;border-top:3px solid var(--structure);font-size:.8rem;color:var(--muted)}
+.foot p{margin:.5em 0}
+.foot b{color:var(--ink)}
+
+@media(max-width:820px){
+  .stats{grid-template-columns:repeat(2,1fr)} .lede{columns:1}
+  .tracts{grid-template-columns:1fr} .risk{grid-template-columns:1fr} .well-grid{grid-template-columns:1fr}
+  .mast-r{grid-template-columns:1fr 1fr}
+}
+@media print{.tnav{display:none}.wrap{max-width:none}body{font-size:11pt}.stat,.tract,.rcard,.scroll{box-shadow:none}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+<div class="wrap">
+
+<header class="mast">
+  <div class="mast-l">
+    <div class="eyebrow">Cursory Mineral &amp; Leasehold Ownership Report</div>
+    <h1>Section 31, T12N&#8211;R24W<span>Roger Mills County, Oklahoma</span></h1>
+  </div>
+  <div class="mast-r mono">
+    <div><span>Prospect</span>25-004</div>
+    <div><span>Gross</span>637.42 ac</div>
+    <div><span>Report</span>July 3, 2026</div>
+    <div><span>Examiner</span>RG</div>
+  </div>
+</header>
+
+<div class="disclaimer">Cursory &#8212; not a certified title opinion. Interests shown are subject to curative requirements; confirm every interest against the recorded instruments before relying on this for a transaction.</div>
+
+<nav class="tnav"><a href="#summary">Summary</a><a href="#plat">Plat</a><a href="#ownership">Minerals</a><a href="#leasehold">Leasehold</a><a href="#depth">Depth</a><a href="#wi">Working interest</a><a href="#well">Well &amp; HBP</a><a href="#risk">Risk</a><a href="#open">Open items</a><a href="#research">Research</a></nav>
+
+<section id="summary" class="band">
+  <div class="stats">
+    <div class="stat "><div class="stat-v">637.42</div><div class="stat-l">gross acres</div></div>
+    <div class="stat "><div class="stat-v">10</div><div class="stat-l">tracts</div></div>
+    <div class="stat "><div class="stat-v">63+6</div><div class="stat-l">OGLs (base + top)</div></div>
+    <div class="stat ok"><div class="stat-v">1</div><div class="stat-l">active unit well</div></div>
+    <div class="stat ok"><div class="stat-v">100%</div><div class="stat-l">leased &amp;middot; HBP</div></div>
+    <div class="stat "><div class="stat-v">519</div><div class="stat-l">indexed instruments</div></div>
+    <div class="stat warn"><div class="stat-v">23</div><div class="stat-l">source-in gaps</div></div>
+    <div class="stat "><div class="stat-v">2</div><div class="stat-l">tracts reconciled</div></div>
+  </div>
+  <div class="lede">
+    <p><b>Section 31 is a fully-leased, held-by-production Cherokee section.</b> Every net mineral acre sits under one of <b>63 base oil-and-gas leases</b> (the 2004&#8211;2006 EOG / Arrowhead play, OGL 1&#8211;63), all carried <b>HBP</b> by the single active <b>Alexander 1-31</b> unit well. In 2026 <b>Silver Oak Natural Resources, LLC</b> took a six-lease <b>top-lease sweep</b> (OGL 64&#8211;69, 3/16 royalty) over the principal current owners &#8212; subordinate and springing until the base leases terminate.</p>
+    <p>Fee mineral ownership is a family mosaic dominated by the <b>Mitchell / Williams / Moore</b>, <b>Bain</b>, <b>Kirk</b>, and <b>Daigle / Sorenson / Johnson</b> families, with modern mineral-fund buyers layered on top. All ten tracts foot to the section total of <b>637.42</b> acres; Tracts 1, 2, 6 and 8 are owner-reconciled, and carried HBP balances on the remaining tracts are shown as explicit open lines &#8212; never distributed to look finished.</p>
+  </div>
+</section>
+
+<section id="plat" class="sec">
+  <h2>Section plat</h2>
+  <div class="plat-wrap"><svg viewBox="0 0 460 490" role="img" aria-label="Section 31 aliquot plat" class="plat">
+<text x="230" y="26" text-anchor="middle" class="plat-n">N &#8593;</text>
+<rect x="54" y="54" width="88" height="88" fill="#9db98f" class="qq irregular"/>
+<text x="98.0" y="92.0" text-anchor="middle" class="qq-tract">5</text>
+<text x="98.0" y="108.0" text-anchor="middle" class="qq-leg">NW/4 NW/4</text>
+<text x="98.0" y="134" text-anchor="middle" class="qq-note">Gov Lots</text>
+<rect x="142" y="54" width="88" height="88" fill="#b8926a" class="qq "/>
+<text x="186.0" y="92.0" text-anchor="middle" class="qq-tract">4</text>
+<text x="186.0" y="108.0" text-anchor="middle" class="qq-leg">NE/4 NW/4</text>
+<rect x="230" y="54" width="88" height="88" fill="#8fb0a6" class="qq "/>
+<text x="274.0" y="92.0" text-anchor="middle" class="qq-tract">1</text>
+<text x="274.0" y="108.0" text-anchor="middle" class="qq-leg">NW/4 NE/4</text>
+<rect x="318" y="54" width="88" height="88" fill="#8fb0a6" class="qq "/>
+<text x="362.0" y="92.0" text-anchor="middle" class="qq-tract">1</text>
+<text x="362.0" y="108.0" text-anchor="middle" class="qq-leg">NE/4 NE/4</text>
+<rect x="54" y="142" width="88" height="88" fill="#9db98f" class="qq irregular"/>
+<text x="98.0" y="180.0" text-anchor="middle" class="qq-tract">5</text>
+<text x="98.0" y="196.0" text-anchor="middle" class="qq-leg">SW/4 NW/4</text>
+<text x="98.0" y="222" text-anchor="middle" class="qq-note">Gov Lots</text>
+<rect x="142" y="142" width="88" height="88" fill="#b8926a" class="qq "/>
+<text x="186.0" y="180.0" text-anchor="middle" class="qq-tract">4</text>
+<text x="186.0" y="196.0" text-anchor="middle" class="qq-leg">SE/4 NW/4</text>
+<rect x="230" y="142" width="88" height="88" fill="#c9a15a" class="qq "/>
+<text x="274.0" y="180.0" text-anchor="middle" class="qq-tract">2</text>
+<text x="274.0" y="196.0" text-anchor="middle" class="qq-leg">SW/4 NE/4</text>
+<rect x="318" y="142" width="88" height="88" fill="#a7bcc9" class="qq "/>
+<text x="362.0" y="180.0" text-anchor="middle" class="qq-tract">3</text>
+<text x="362.0" y="196.0" text-anchor="middle" class="qq-leg">SE/4 NE/4</text>
+<rect x="54" y="230" width="88" height="88" fill="#c98f6f" class="qq irregular"/>
+<text x="98.0" y="268.0" text-anchor="middle" class="qq-tract">6</text>
+<text x="98.0" y="284.0" text-anchor="middle" class="qq-leg">NW/4 SW/4</text>
+<text x="98.0" y="310" text-anchor="middle" class="qq-note">M&amp;B strip</text>
+<rect x="142" y="230" width="88" height="88" fill="#7fa0b3" class="qq "/>
+<text x="186.0" y="268.0" text-anchor="middle" class="qq-tract">7</text>
+<text x="186.0" y="284.0" text-anchor="middle" class="qq-leg">NE/4 SW/4</text>
+<rect x="230" y="230" width="88" height="88" fill="#c9a15a" class="qq "/>
+<text x="274.0" y="268.0" text-anchor="middle" class="qq-tract">2</text>
+<text x="274.0" y="284.0" text-anchor="middle" class="qq-leg">NW/4 SE/4</text>
+<rect x="318" y="230" width="88" height="88" fill="#b0a2c0" class="qq "/>
+<text x="362.0" y="268.0" text-anchor="middle" class="qq-tract">10</text>
+<text x="362.0" y="284.0" text-anchor="middle" class="qq-leg">NE/4 SE/4</text>
+<rect x="54" y="318" width="88" height="88" fill="#c98f6f" class="qq irregular"/>
+<text x="98.0" y="356.0" text-anchor="middle" class="qq-tract">6</text>
+<text x="98.0" y="372.0" text-anchor="middle" class="qq-leg">SW/4 SW/4</text>
+<text x="98.0" y="398" text-anchor="middle" class="qq-note">M&amp;B strip</text>
+<rect x="142" y="318" width="88" height="88" fill="#9db98f" class="qq "/>
+<text x="186.0" y="356.0" text-anchor="middle" class="qq-tract">5</text>
+<text x="186.0" y="372.0" text-anchor="middle" class="qq-leg">SE/4 SW/4</text>
+<rect x="230" y="318" width="88" height="88" fill="#c9a15a" class="qq "/>
+<text x="274.0" y="356.0" text-anchor="middle" class="qq-tract">2</text>
+<text x="274.0" y="372.0" text-anchor="middle" class="qq-leg">SW/4 SE/4</text>
+<rect x="318" y="318" width="88" height="88" fill="#c9a15a" class="qq "/>
+<text x="362.0" y="356.0" text-anchor="middle" class="qq-tract">2</text>
+<text x="362.0" y="372.0" text-anchor="middle" class="qq-leg">SE/4 SE/4</text>
+<rect x="54" y="54" width="88" height="352" class="lot-band"/>
+<circle cx="274.0" cy="256.4" r="7" class="well-dot"/>
+<text x="286.0" y="260.4" class="well-lbl">Alexander 1-31</text>
+<rect x="54" y="54" width="352" height="352" class="plat-frame"/>
+<text x="54" y="428" class="plat-cap">Schematic aliquot map &#183; north up &#183; not a survey. West &amp; south tiers are government lots; Tracts 6 &amp; 8 are metes-and-bounds strips.</text>
+</svg>
+    <div class="legend">
+      <span class="lg"><i style="background:#8fb0a6"></i>T1 &middot; N/2 NE/4</span><span class="lg"><i style="background:#c9a15a"></i>T2 &middot; SW/4 NE/4 + NW/4 SE/4 + S/</span><span class="lg"><i style="background:#a7bcc9"></i>T3 &middot; SE/4 NE/4</span><span class="lg"><i style="background:#b8926a"></i>T4 &middot; E/2 NW/4</span><span class="lg"><i style="background:#9db98f"></i>T5 &middot; SE/4 SW/4 + residual in Go</span><span class="lg"><i style="background:#c98f6f"></i>T6 &middot; S 51 ac of the W. 18.20-ch</span><span class="lg"><i style="background:#7fa0b3"></i>T7 &middot; NE/4 SW/4</span><span class="lg"><i style="background:#c9b06f"></i>T8 &middot; S 32.80 ac of the W. 18.20</span><span class="lg"><i style="background:#93a77e"></i>T9 &middot; Gov Lot 4 + S/2 Gov Lot 3</span><span class="lg"><i style="background:#b0a2c0"></i>T10 &middot; NE/4 SE/4</span>
+    </div>
+  </div>
+</section>
+
+<section id="ownership" class="sec">
+  <h2>Mineral ownership by tract</h2>
+  <p class="note">Identified record owners are shown with net mineral acres, their base lease (OGL #) and any 2026 Silver Oak top lease. Where the chain does not yet reconcile to gross, the <span class="open-key">open / unreconciled balance</span> is carried as an explicit line pending the source instruments listed under Open Items &#8212; it is never spread across owners to force a footing. The deep historical chain (Panhandle Royalty, ETA-Flag, Arrowhead, Crusader, Prism, &amp;c.) reflects prior leasehold-era holders whose carry-forward to present ownership requires those same instruments.</p>
+  <div class="tracts"><article class="tract" id="tract-1">
+          <header class="tract-h">
+            <div class="tract-id">Tract 1</div>
+            <div class="tract-meta"><div class="tract-legal">N/2 NE/4</div>
+            <div class="tract-sub"><span class="mono">80.00 gross ac</span> <span class="badge ok">Reconciled</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Gena W. Moore (a/k/a Gena Mitchell Williams)</td><td class="num">40.00</td><td class="mono">4</td><td class="mono">66</td><td class="mono">3/16</td></tr><tr><td>Mitchell-Buonaccorsi Living Trust</td><td class="num">20.00</td><td class="mono">1</td><td class="mono">64</td><td class="mono">3/16</td></tr><tr><td>Ronald Paul Dold</td><td class="num">10.00</td><td class="mono">2</td><td class="mono">65</td><td class="mono">3/16</td></tr><tr><td>Kevin Warner Johnson Trust</td><td class="num">10.00</td><td class="mono">24</td><td class="mono">69</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-2">
+          <header class="tract-h">
+            <div class="tract-id">Tract 2</div>
+            <div class="tract-meta"><div class="tract-legal">SW/4 NE/4 + NW/4 SE/4 + S/2 SE/4</div>
+            <div class="tract-sub"><span class="mono">160.00 gross ac</span> <span class="badge ok">Reconciled</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Paul M. Bain GST Tax-Exempt Trust</td><td class="num">5.41</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Anna T. Bain Gibson</td><td class="num">4.44</td><td class="mono">56/57</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Michael L. / William C. / Paul M. Bain GST Trusts (aggregate)</td><td class="num">16.23</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Hans W. &amp; Tim E. Jensen (aggregate)</td><td class="num">16.53</td><td class="mono">51/52</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Dow C. &amp; Edris O. Bain, Trustees</td><td class="num">9.74</td><td class="mono">6</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Cardinal Land Company, LLC</td><td class="num">1.50</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Royfin Natural Gas, LLC</td><td class="num">1.29</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Del Monte Royalty Partners, LLC</td><td class="num">0.75</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>OKKI Industries, LLC</td><td class="num">0.75</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>William A. &amp; Isa May Smith Family Rev. Trust</td><td class="num">0.75</td><td class="mono">14</td><td class="mono">—</td><td class="mono">1/4</td></tr><tr><td>Longreach Energy 2, LLC</td><td class="num">0.55</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Eric Jansen</td><td class="num">0.40</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Brian Herman Kortright</td><td class="num">0.20</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr class="open"><td>Open / unreconciled balance (needs source images)</td><td class="num">99.71</td><td class="mono">HBP base</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-3">
+          <header class="tract-h">
+            <div class="tract-id">Tract 3</div>
+            <div class="tract-meta"><div class="tract-legal">SE/4 NE/4</div>
+            <div class="tract-sub"><span class="mono">40.00 gross ac</span> <span class="badge warn">Open balance</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Mark Ashley Daigle Trust</td><td class="num">7.69</td><td class="mono">24</td><td class="mono">68</td><td class="mono">3/16</td></tr><tr><td>Gena W. Moore</td><td class="num">5.39</td><td class="mono">4</td><td class="mono">66</td><td class="mono">3/16</td></tr><tr><td>Mitchell-Buonaccorsi Living Trust</td><td class="num">5.39</td><td class="mono">1</td><td class="mono">64</td><td class="mono">3/16</td></tr><tr><td>Keri Lee Daigle Tucker Trust</td><td class="num">5.39</td><td class="mono">24</td><td class="mono">67</td><td class="mono">3/16</td></tr><tr><td>Ronald Paul Dold</td><td class="num">5.38</td><td class="mono">2</td><td class="mono">65</td><td class="mono">3/16</td></tr><tr><td>Kevin Warner Johnson Trust</td><td class="num">5.38</td><td class="mono">24</td><td class="mono">69</td><td class="mono">3/16</td></tr><tr><td>Carrie Leeann Mitchell</td><td class="num">5.38</td><td class="mono">1, 2</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-4">
+          <header class="tract-h">
+            <div class="tract-id">Tract 4</div>
+            <div class="tract-meta"><div class="tract-legal">E/2 NW/4</div>
+            <div class="tract-sub"><span class="mono">80.00 gross ac</span> <span class="badge warn">Open balance</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Dustin Deal, LLC</td><td class="num">2.10</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Calvin Wayne Kirk</td><td class="num">2.10</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>William / Kathy Bryant</td><td class="num">2.10</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Ronald Paul Dold → Silver Oak</td><td class="num">2.10</td><td class="mono">2</td><td class="mono">65</td><td class="mono">3/16</td></tr><tr class="open"><td>Open / unreconciled balance (candidate: MD 2022-000185, Psi Lke → Cummins/Eagle Owl)</td><td class="num">71.60</td><td class="mono">HBP base</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-5">
+          <header class="tract-h">
+            <div class="tract-id">Tract 5</div>
+            <div class="tract-meta"><div class="tract-legal">SE/4 SW/4 + residual in Gov Lots 1 &amp; 2</div>
+            <div class="tract-sub"><span class="mono">38.28 gross ac</span> <span class="badge warn">Open balance</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>William / Kathy Bryant</td><td class="num">0.74</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr class="open"><td>Open / unreconciled balance (gov-lot / exception allocation)</td><td class="num">37.54</td><td class="mono">HBP base</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-6">
+          <header class="tract-h">
+            <div class="tract-id">Tract 6</div>
+            <div class="tract-meta"><div class="tract-legal">S 51 ac of the W. 18.20-chain metes-and-bounds strip (W/2 NW/4 &amp; N/2 NW/4 SW/4)</div>
+            <div class="tract-sub"><span class="mono">51.00 gross ac</span> <span class="badge warn">Estate / heirship</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Calvin Wayne Kirk (MD 2017-000951, Bk 2365/338)</td><td class="num">2.20</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Ella Pearl Kirk estate / heirs — retained balance (probate needed)</td><td class="num">48.80</td><td class="mono">HBP base</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-7">
+          <header class="tract-h">
+            <div class="tract-id">Tract 7</div>
+            <div class="tract-meta"><div class="tract-legal">NE/4 SW/4</div>
+            <div class="tract-sub"><span class="mono">40.00 gross ac</span> <span class="badge warn">Open balance</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Pine Tree Energy Partners, LLC (Clint Roy Kirk → J&amp;A Minerals → Pine Tree)</td><td class="num">1.14</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td></tr><tr><td>Gene G. Williams</td><td class="num">1.14</td><td class="mono">HBP</td><td class="mono">—</td><td class="mono">3/16</td></tr><tr><td>Williams heirs</td><td class="num">0.87</td><td class="mono">HBP</td><td class="mono">64–69</td><td class="mono">3/16</td></tr><tr class="open"><td>Open / unreconciled balance</td><td class="num">36.85</td><td class="mono">HBP base</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-8">
+          <header class="tract-h">
+            <div class="tract-id">Tract 8</div>
+            <div class="tract-meta"><div class="tract-legal">S 32.80 ac of the W. 18.20-chain metes-and-bounds strip</div>
+            <div class="tract-sub"><span class="mono">32.80 gross ac</span> <span class="badge warn">Estate / heirship</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Ella Pearl Kirk (estate / heirship to verify)</td><td class="num">32.80</td><td class="mono">62</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-9">
+          <header class="tract-h">
+            <div class="tract-id">Tract 9</div>
+            <div class="tract-meta"><div class="tract-legal">Gov Lot 4 + S/2 Gov Lot 3</div>
+            <div class="tract-sub"><span class="mono">75.34 gross ac</span> <span class="badge warn">Succession verify</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Ronald Paul Dold (Nancy Susan Mitchell successor chain; AoH 2026-002509, Bk 2697/517)</td><td class="num">75.34</td><td class="mono">2</td><td class="mono">65</td><td class="mono">3/16</td></tr></tbody></table>
+        </article>
+<article class="tract" id="tract-10">
+          <header class="tract-h">
+            <div class="tract-id">Tract 10</div>
+            <div class="tract-meta"><div class="tract-legal">NE/4 SE/4</div>
+            <div class="tract-sub"><span class="mono">40.00 gross ac</span> <span class="badge warn">Open balance</span></div></div>
+          </header>
+          <table class="tbl"><thead><tr><th>Identified record owner</th><th class="num">Net ac</th><th>Base&nbsp;OGL</th><th>Top</th><th>Roy.</th></tr></thead><tbody><tr><td>Keri Lee Daigle Tucker Trust</td><td class="num">0.33</td><td class="mono">24</td><td class="mono">67</td><td class="mono">3/16</td></tr><tr><td>Mark Ashley Daigle Trust</td><td class="num">0.33</td><td class="mono">24</td><td class="mono">68</td><td class="mono">3/16</td></tr><tr><td>Kevin Warner Johnson Trust</td><td class="num">0.33</td><td class="mono">24</td><td class="mono">69</td><td class="mono">3/16</td></tr><tr class="open"><td>Open / unreconciled balance</td><td class="num">39.01</td><td class="mono">HBP base</td><td class="mono">—</td><td class="mono">3/16</td></tr></tbody></table>
+        </article></div>
+</section>
+
+<section id="leasehold" class="sec">
+  <h2>Leasehold</h2>
+  <h3>Silver Oak top-lease sweep &#8212; OGL 64&#8211;69 (2026, 3/16, springing)</h3>
+  <p class="note">Paid-up top leases over the principal current owners, <b>subordinate to and springing upon termination of the 2004-era base leases</b>. Because a lessor can only lease what it owns, these six 2026 lessors are the highest-confidence signal of <b>current</b> mineral ownership in the section.</p>
+  <div class="scroll"><table class="tbl"><thead><tr><th>OGL</th><th>Top lessor (current owner)</th><th>Bk/Pg</th><th>Executed</th><th>Expires</th><th>Term</th></tr></thead><tbody><tr><td class="mono">64</td><td>James Gerard Buonaccorsi — Mitchell-Buonaccorsi Living Trust (Carrie Leeann Mitchell, Trustee)</td><td class="mono">2693/337</td><td class="mono">2-23-2026</td><td class="mono">2-22-2029</td><td class="mono">3 yr</td></tr><tr><td class="mono">65</td><td>Ronald Paul Dold</td><td class="mono">2697/524</td><td class="mono">3-31-2026</td><td class="mono">3-30-2029</td><td class="mono">3 yr</td></tr><tr><td class="mono">66</td><td>Gena W. Moore, a/k/a Gena Mitchell Williams</td><td class="mono">2702/505</td><td class="mono">2-11-2026</td><td class="mono">2-10-2031</td><td class="mono">5 yr</td></tr><tr><td class="mono">67</td><td>Keri Lee Daigle Tucker Trust</td><td class="mono">2697/520</td><td class="mono">2-17-2026</td><td class="mono">2-17-2031</td><td class="mono">5 yr</td></tr><tr><td class="mono">68</td><td>Mark Ashley Daigle Trust</td><td class="mono">2693/349</td><td class="mono">2-23-2026</td><td class="mono">2-23-2031</td><td class="mono">5 yr</td></tr><tr><td class="mono">69</td><td>Kevin Warner Johnson Trust</td><td class="mono">2693/345</td><td class="mono">2-27-2026</td><td class="mono">2-27-2031</td><td class="mono">5 yr</td></tr></tbody></table></div>
+
+  <h3>Base lease register &#8212; OGL 1&#8211;63 (2004&#8211;2006, all HBP)</h3>
+  <p class="note">The complete base register, verbatim from the workbook OGL tab. All are held by production by the Alexander 1-31. Non-3/16 royalties (several 1/4 leases in the Bain / Fuchs / Deutsch chain) and depth-limited leases are itemized under Depth Severances.</p>
+  <div class="scroll"><table class="tbl compact"><thead><tr><th>OGL</th><th>Instrument</th><th>Bk/Pg</th><th>Lessor</th><th>Lessee</th><th>Tracts</th><th>Roy.</th><th>Exp.</th></tr></thead><tbody><tr><td class="mono">1</td><td>Oil and Gas Lease</td><td class="mono">1736/594</td><td>Carrie Leeann Mitchell</td><td>R. Michael Lortz</td><td class="mono">All (1-8)</td><td class="mono">3/16</td><td class="mono">1/14/2007</td></tr><tr><td class="mono">2</td><td>Oil and Gas Lease</td><td class="mono">1736/600</td><td>Nancy Susan Mitchell</td><td>R. Michael Lortz</td><td class="mono">All (1-8)</td><td class="mono">3/16</td><td class="mono">1/14/2007</td></tr><tr><td class="mono">3</td><td>Oil and Gas Lease</td><td class="mono">1736/602</td><td>Gena W. Moore</td><td>R. Michael Lortz</td><td class="mono">All (1-8)</td><td class="mono">3/16</td><td class="mono">1/14/2007</td></tr><tr><td class="mono">4</td><td>Oil and Gas Lease</td><td class="mono">1736/592</td><td>Nancy Mitchell Williams</td><td>R. Michael Lortz</td><td class="mono">All (1-8)</td><td class="mono">3/16</td><td class="mono">1/14/2007</td></tr><tr><td class="mono">5</td><td>Oil and Gas Lease</td><td class="mono">1736/193</td><td>Wilda E. Jensen</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">6</td><td>Oil and Gas Lease</td><td class="mono">1736/598</td><td>Dow C. Bain, et ux</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">7</td><td>Oil and Gas Lease</td><td class="mono">1824/181</td><td>Wilda E. Jensen</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">8</td><td>Oil and Gas Lease</td><td class="mono">1736/485</td><td>L. E. Thurman</td><td>R. Michael Lortz</td><td class="mono">1, 3, 4, 7, 8</td><td class="mono">3/16</td><td class="mono">2/3/2007</td></tr><tr><td class="mono">9</td><td>Oil and Gas Lease</td><td class="mono">1736/197</td><td>A. C. Campbell</td><td>R. Michael Lortz</td><td class="mono">2, 3, 5, 6, 7</td><td class="mono">3/16</td><td class="mono">2/3/2007</td></tr><tr><td class="mono">10</td><td>Oil and Gas Lease</td><td class="mono">1736/473</td><td>Charles Allen Atha</td><td>R. Michael Lortz</td><td class="mono">5, 6</td><td class="mono">3/16</td><td class="mono">2/9/2007</td></tr><tr><td class="mono">11</td><td>Oil and Gas Lease</td><td class="mono">1736/588</td><td>Clarence C. Bain</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/21/2007</td></tr><tr><td class="mono">12</td><td>Oil and Gas Lease</td><td class="mono">1737/580</td><td>Sandra Lorrain York</td><td>Kodiak Production Company</td><td class="mono">All (1-8)</td><td class="mono">3/16</td><td class="mono">2/15/2007</td></tr><tr><td class="mono">13</td><td>Oil and Gas Lease</td><td class="mono">1780/409</td><td>Jesse W. Fuchs</td><td>N/g Discovery, LLC</td><td class="mono">2</td><td class="mono">1/4</td><td class="mono">2/24/2007</td></tr><tr><td class="mono">14</td><td>Oil and Gas Lease</td><td class="mono">1782/261</td><td>Isa May Smith</td><td>N/g Discovery, LLC</td><td class="mono">2</td><td class="mono">1/4</td><td class="mono">2/25/2007</td></tr><tr><td class="mono">15</td><td>Oil and Gas Lease</td><td class="mono">1781/204</td><td>Raymond M. Fuchs</td><td>N/g Discovery, LLC</td><td class="mono">3</td><td class="mono">3/16</td><td class="mono">3/1/2007</td></tr><tr><td class="mono">16</td><td>Oil and Gas Lease</td><td class="mono">1782/267</td><td>Mark J. Fuchs</td><td>N/g Discovery, LLC</td><td class="mono">2</td><td class="mono">1/4</td><td class="mono">3/1/2007</td></tr><tr><td class="mono">17</td><td>Oil and Gas Lease</td><td class="mono">1738/479</td><td>Lola F. Richards</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">2/6/2007</td></tr><tr><td class="mono">18</td><td>Oil and Gas Lease</td><td class="mono">1764/122</td><td>Farrell E. Hamilton</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">9/21/2007</td></tr><tr><td class="mono">19</td><td>Oil and Gas Lease</td><td class="mono">1764/124</td><td>Deeanne Browning</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">9/21/2007</td></tr><tr><td class="mono">20</td><td>Oil and Gas Lease</td><td class="mono">1764/128</td><td>Travis L. Smith</td><td>R. Michael Lortz</td><td class="mono">2, 5</td><td class="mono">3/16</td><td class="mono">9/21/2007</td></tr><tr><td class="mono">21</td><td>Oil and Gas Lease</td><td class="mono">1785/274</td><td>Joe Devenas, Jr.</td><td>EOG Resources, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">3/8/2008</td></tr><tr><td class="mono">22</td><td>Oil and Gas Lease</td><td class="mono">1785/278</td><td>Joseph Devenas</td><td>EOG Resources, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">3/8/2008</td></tr><tr><td class="mono">23</td><td>Oil and Gas Lease</td><td class="mono">1785/276</td><td>Eleanore Wheeler</td><td>EOG Resources, Inc.</td><td class="mono">2, 3, 5, 6, 7</td><td class="mono">3/16</td><td class="mono">3/9/2008</td></tr><tr><td class="mono">24</td><td>Oil and Gas Lease</td><td class="mono">1787/47</td><td>Marchelle Sorenson Daigle, Michelle Sorenson Johnson, Trustee of The Sorenson Oil &amp; Gas Trust</td><td>N/g Discovery, LLC</td><td class="mono">1, 3, 4, 7, 8</td><td class="mono">3/16</td><td class="mono">3/25/2008</td></tr><tr><td class="mono">25</td><td>Oil and Gas Lease</td><td class="mono">1786/335</td><td>Linda Klopfenstein, Roger Klopfenstein</td><td>Chesapeake Explor, Ltd. Ptnrshp</td><td class="mono">2, 3, 5, 7</td><td class="mono">3/16</td><td class="mono">4/5/2008</td></tr><tr><td class="mono">26</td><td>Oil and Gas Lease</td><td class="mono">1798/148</td><td>Dwight J. Williams</td><td>Chesapeake Explor Ltd. Ptnrshp</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">4/26/2008</td></tr><tr><td class="mono">27</td><td>Oil and Gas Lease</td><td class="mono">1798/150</td><td>Stephen M. Criser, Trustee of The McCaul Rive Lind Trust</td><td>Chesapeake Explor Ltd. Ptnrshp</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">4/26/2008</td></tr><tr><td class="mono">28</td><td>Oil and Gas Lease</td><td class="mono">1798/292</td><td>Jan A. Schroff</td><td>Chesapeake Explor Ltd. Ptnrsh</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">4/26/2008</td></tr><tr><td class="mono">29</td><td>Oil and Gas Lease</td><td class="mono">1798/573</td><td>Leona I. De Grande</td><td>EOG Resources, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">6/19/2008</td></tr><tr><td class="mono">30</td><td>Oil and Gas Lease</td><td class="mono">1798/576</td><td>Donald R. Bain</td><td>EOG Resources, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">6/19/2008</td></tr><tr><td class="mono">31</td><td>Oil and Gas Lease</td><td class="mono">1798/579</td><td>Charlotte F. Willert</td><td>EOG Resources, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">6/19/2008</td></tr><tr><td class="mono">32</td><td>Oil and Gas Lease</td><td class="mono">1798/582</td><td>Melvin F. Bain</td><td>EOG Resources, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">6/19/2008</td></tr><tr><td class="mono">33</td><td>Oil and Gas Lease</td><td class="mono">1799/30</td><td>Marilyn L. Broyles</td><td>EOG Resources, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">6/19/2008</td></tr><tr><td class="mono">34</td><td>Oil and Gas Lease</td><td class="mono">1792/517</td><td>Martha Ann Devenas</td><td>EOG Resources, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">3/30/2008</td></tr><tr><td class="mono">35</td><td>Ratification of Oil and Gas Lease</td><td class="mono">1793/501</td><td>Molly Devenas</td><td>EOG Resources, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">3/30/2008</td></tr><tr><td class="mono">36</td><td>Ratification</td><td class="mono">1793/502</td><td>Joe Deveanas</td><td>EOG Resources, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">3/30/2008</td></tr><tr><td class="mono">37</td><td>Oil and Gas Lease</td><td class="mono">1797/167</td><td>Peggy J. Brawner</td><td>EOG Resources, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">6/19/2007</td></tr><tr><td class="mono">38</td><td>Oil and Gas Lease</td><td class="mono">1798/146</td><td>The Williams Jon T. Trust, the Rogene E. Williams Trust, Rogene E. Williams</td><td>Chesapeake Exploration, Ltd. Partnership</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">4/26/2008</td></tr><tr><td class="mono">39</td><td>Oil and Gas Lease</td><td class="mono">1817/388</td><td>James E. Menehan</td><td>Todco Properties Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">9/26/2008</td></tr><tr><td class="mono">40</td><td>Oil and Gas Lease</td><td class="mono">1810/310</td><td>Hayhurst Peggy J., Trustee of The Hayhurst Peggy J. Revoc Trust</td><td>Fleshman Agency Inc.</td><td class="mono">1, 3, 4, 7, 8</td><td class="mono">1/4</td><td class="mono">10/7/2008</td></tr><tr><td class="mono">41</td><td>Oil and Gas Lease</td><td class="mono">1816/389</td><td>Gregory J. Wiinneke</td><td>Jess Harris, III, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">10/28/2008</td></tr><tr><td class="mono">42</td><td>Oil and Gas Lease</td><td class="mono">1816/376</td><td>Deborah A. Deutsch, Paul R. Deutsch</td><td>Harris Jess III, Inc.</td><td class="mono">2</td><td class="mono">1/4</td><td class="mono">11/1/2008</td></tr><tr><td class="mono">43</td><td>Oil and Gas Lease</td><td class="mono">1822/574</td><td>Mary Ellen Sitzmann</td><td>Jess Harris, III, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">11/2/2008</td></tr><tr><td class="mono">44</td><td>Oil and Gas Lease</td><td class="mono">1822/578</td><td>Lyle T. Ibeling</td><td>Jess Harris, III, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">11/2/2008</td></tr><tr><td class="mono">45</td><td>Oil and Gas Lease</td><td class="mono">1822/576</td><td>Charles D. Ray</td><td>Jess Harris, III, Inc.</td><td class="mono">4</td><td class="mono">1/4</td><td class="mono">11/22/2008</td></tr><tr><td class="mono">46</td><td>Oil and Gas Lease</td><td class="mono">1816/358</td><td>Eddie Tom Lakey</td><td>Jess Harris, III, Inc.</td><td class="mono">All (1-8)</td><td class="mono">3/16</td><td class="mono">10/11/2008</td></tr><tr><td class="mono">47</td><td>Oil and Gas Lease</td><td class="mono">1816/352</td><td>Shawn S. Walters</td><td>Jess Harris, III, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">10/11/2007</td></tr><tr><td class="mono">48</td><td>Oil and Gas Lease</td><td class="mono">1816/374</td><td>Margaret Kirk</td><td>Jess Harris, III, Inc.</td><td class="mono">5, 6, 7</td><td class="mono">3/16</td><td class="mono">11/14/2008</td></tr><tr><td class="mono">49</td><td>Oil and Gas Lease</td><td class="mono">1817/386</td><td>Joe H. Britton</td><td>Todco Properties, Inc.</td><td class="mono">1, 3, 4, 7, 8</td><td class="mono">3/16</td><td class="mono">9/26/2008</td></tr><tr><td class="mono">50</td><td>Oil and Gas Lease</td><td class="mono">1827/548</td><td>B H C H Mineral Ltd.,
+B H C H Properties Ltd.</td><td>Jess Harris, III, Inc.</td><td class="mono">1, 3, 4, 7, 8</td><td class="mono">3/16</td><td class="mono">1/3/2009</td></tr><tr><td class="mono">51</td><td>Oil and Gas Lease</td><td class="mono">1736/195</td><td>Hans W. Jensen</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">52</td><td>Oil and Gas Lease</td><td class="mono">1736/199</td><td>Tim E. Jensen</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">53</td><td>Oil and Gas Lease</td><td class="mono">1736/590</td><td>Juanita M. Wolff</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">54</td><td>Oil and Gas Lease</td><td class="mono">1736/596</td><td>Carl L. Bain</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/16/2007</td></tr><tr><td class="mono">55</td><td>Oil and Gas Lease</td><td class="mono">1820/15</td><td>Myron V. Slobin</td><td>Devon Energy Production Co.. L.P.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">12/23/2008</td></tr><tr><td class="mono">56</td><td>Oil and Gas Lease</td><td class="mono">1821/92</td><td>Anna Tamise Gibson</td><td>Devon Energy Production Co.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/9/2009</td></tr><tr><td class="mono">57</td><td>Oil and Gas Lease</td><td class="mono">1736/496</td><td>John W. Bain, Joseph A. Bain, Anna T. Gibson</td><td>R. Michael Lortz</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">1/27/2007</td></tr><tr><td class="mono">58</td><td>Oil and Gas Lease</td><td class="mono">1821/465</td><td>James M. Robertson, Rose Elaine Robertson</td><td>Devon Energy Prod Co.</td><td class="mono">2</td><td class="mono">1/4</td><td class="mono">7/16/2007</td></tr><tr><td class="mono">59</td><td>Oil and Gas Lease</td><td class="mono">1822/572</td><td>David S. Silverberg</td><td>Jess Harris, III, Inc.</td><td class="mono">2</td><td class="mono">3/16</td><td class="mono">11/2/2008</td></tr><tr><td class="mono">60</td><td>Oil and Gas Lease</td><td class="mono">1822/562</td><td>Clyde A. Pine</td><td>Jess Harris, III, Inc.</td><td class="mono">4</td><td class="mono">1/4</td><td class="mono">12/7/2008</td></tr><tr><td class="mono">61</td><td>Oil and Gas Lease</td><td class="mono">1829/26</td><td>Termo Company</td><td>Devon Energy Production Co.</td><td class="mono">1, 3, 4, 7, 8</td><td class="mono">1/4</td><td class="mono">2/12/2009</td></tr><tr><td class="mono">62</td><td>Oil and Gas Lease</td><td class="mono">1833/218</td><td>Ella Pearl Kirk</td><td>Jess Harris, III, Inc.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">1/17/2009</td></tr><tr><td class="mono">63</td><td>Oil and Gas Lease</td><td class="mono">1788/24</td><td>Arrowhead Resources Inc.</td><td>Arrowhead Explor &amp; Prod Co.</td><td class="mono">5</td><td class="mono">3/16</td><td class="mono">4/15/2010</td></tr></tbody></table></div>
+</section>
+
+<section id="depth" class="sec">
+  <h2>Depth severances &amp; non-standard royalty</h2>
+  <p class="note">Leases in the register that carry an express depth limitation or a non-3/16 royalty. Depth-limited rights are kept separate where the instrument supports it; no depth limit is inferred where the record is silent.</p>
+  <div class="scroll"><table class="tbl"><thead><tr><th>OGL</th><th>Lessor &#8594; Lessee</th><th>Roy.</th><th>Depth / term provision</th></tr></thead><tbody><tr><td class="mono">13</td><td>Jesse W. Fuchs → N/G Discovery</td><td class="mono">1/4</td><td>All formations 100 ft below deepest depth drilled released at end of primary term</td></tr><tr><td class="mono">14</td><td>Isa May Smith → N/G Discovery</td><td class="mono">1/4</td><td>Same 100-ft-below-deepest depth limitation</td></tr><tr><td class="mono">15</td><td>Raymond M. Fuchs → N/G Discovery</td><td class="mono">3/16</td><td>Same 100-ft-below-deepest depth limitation</td></tr><tr><td class="mono">16</td><td>Mark J. Fuchs → N/G Discovery</td><td class="mono">1/4</td><td>Same 100-ft-below-deepest depth limitation</td></tr><tr><td class="mono">25</td><td>Linda / Roger Klopfenstein → Chesapeake</td><td class="mono">3/16</td><td>Terminates below 100 ft under deepest formation after primary term</td></tr><tr><td class="mono">29</td><td>Leona I. De Grande → EOG</td><td class="mono">3/16</td><td>Limited from surface to stratigraphic equivalent of 20,000 ft</td></tr><tr><td class="mono">30–34</td><td>Bain family (Donald, Charlotte, Melvin, Marilyn) → EOG</td><td class="mono">3/16</td><td>Limited to stratigraphic equivalent of 20,000 ft</td></tr><tr><td class="mono">37</td><td>Peggy J. Brawner → EOG</td><td class="mono">3/16</td><td>Limited to 20,000 ft; 2-yr term</td></tr><tr><td class="mono">46</td><td>Eddie Tom Lakey → Jess Harris III</td><td class="mono">3/16</td><td>M&amp;B strip; 100-ft-below-deepest release on extension</td></tr><tr><td class="mono">47</td><td>Shawn S. Walters → Jess Harris III</td><td class="mono">3/16</td><td>100-ft-below-deepest release; 2-yr term</td></tr></tbody></table></div>
+</section>
+
+<section id="wi" class="sec">
+  <h2>Working interest &#8212; wellbore chain</h2>
+  <p class="note">The wellbore leasehold / working-interest chain traced through the recorded assignments to the current holder (5-4-2026). Mortgages, releases and ORRI-only conveyances are excluded from the title chain and retained on rawdata only.</p>
+  <ol class="chain"><li>R. Michael Lortz</li><li>Lariat Petroleum</li><li>Ocean Energy</li><li>Devon Energy</li><li>Chesapeake / EOG era</li><li>FourPoint / Unbridled</li><li>Presidio / MidCon</li><li>Martin&#x27;s Empire, LLC</li><li>Stride Bank, N.A., Trustee (Umbrella Trust)</li></ol>
+  <p class="note">Current wellbore assignment: <span class="mono">Instr. 2026-002547, Bk 2698/069</span> (executed 5-4-2026), Martin&#8217;s Empire, LLC &#8594; Stride Bank, N.A., Trustee of the Umbrella Trust. <b>Reconcile against OCC Form 1073:</b> the well of record shows operator <b>Martin&#8217;s Resources LLC</b> (a confirmed active but marginal Roger Mills operator), while &#8220;Martin&#8217;s Empire, LLC&#8221; did not surface in any public operator or entity index this session &#8212; verify the entity and the operator-of-record link.</p>
+</section>
+
+<section id="well" class="sec">
+  <h2>Unit well &amp; HBP</h2>
+  <div class="well-grid">
+    <div class="well-panel">
+      <div class="wr"><span>Well</span><b>Alexander 1-31</b></div>
+      <div class="wr"><span>API</span><b class="mono">35-129-22925</b></div>
+      <div class="wr"><span>Operator of record</span><b>Martin&#8217;s Resources LLC</b></div>
+      <div class="wr"><span>Formation</span><b>Cherokee</b></div>
+      <div class="wr"><span>Type</span><b>Oil</b></div>
+      <div class="wr"><span>Surface</span><b class="mono">C NW/4 SE/4 &#183; 660&#8242; FWL &times; 1980&#8242; FSL</b></div>
+      <div class="wr"><span>Completed</span><b class="mono">5/19/2006</b></div>
+      <div class="wr"><span>Last production</span><b class="mono">3/1/2026</b></div>
+      <div class="wr"><span>OCC status</span><b>Active (AC)</b></div>
+      <div class="wr"><span>Spacing</span><b>640 ac (order not of record)</b></div>
+    </div>
+    <div class="well-note">
+      <h3>HBP analysis</h3>
+      <p>A single active vertical well holds the entire base register (OGL 1&#8211;63) by production; the Silver Oak top leases (OGL 64&#8211;69) remain subordinate and springing. Independent research this session confirms operator <b>Martin&#8217;s Resources LLC</b> reports production across only three Oklahoma wells (~2,792 BOE/month &#8212; marginal/stripper), which is <b>consistent with continuous-but-low production holding the section</b>, but the well-level volumes were not retrievable.</p>
+      <p class="flag"><b>Reserve for examiner &#8212; pull to certify:</b> OTC gross production by PUN for API 35-129-22925 (continuous-production proof); OCC Form 1002A (spud, perforations, TD/TVD); OCC Form 1073 (operator of record). <b>Location discrepancy:</b> the quarter call &#8220;C NW/4 SE/4&#8221; conflicts with the footages (660&#8242; FWL &times; 1980&#8242; FSL fall in C NW/4 SW/4) &#8212; reconcile against the plat / 1002A.</p>
+    </div>
+  </div>
+</section>
+
+<section id="risk" class="sec">
+  <h2>Title issues &amp; risk register</h2>
+  <div class="risk">
+    <div class="rcard defect"><h4>Root-of-title gaps (pre-2000)</h4><p>23 conveying parties whose acquiring instrument predates the OCR&#8217;d index (which reaches only to 2/8/2000). Each needs its prior deed, probate decree, or heirship affidavit &#8212; see Open Items.</p></div>
+    <div class="rcard warn"><h4>Estate / probate</h4><p>Ella Pearl Kirk estate carries ~48.80 NMA on Tract 6 and 32.80 on Tract 8 &#8212; probate / heirship required. Nancy Susan Mitchell &#8594; Dold succession on Tract 9 rests on AoH 2026-002509.</p></div>
+    <div class="rcard warn"><h4>Unreconciled acreage</h4><p>Carried HBP open balances on Tracts 2, 4, 5, 6, 7 and 10 &#8212; shown as explicit lines, not distributed. Candidate: Psi Lke &#8594; Cummins/Eagle Owl &#8220;all of section&#8221; (MD 2022-000185) on Tract 4.</p></div>
+    <div class="rcard warn"><h4>Conveyed fractions</h4><p>39 instrument columns need the granting fraction read from the image before net acres are final &#8212; itemized under Open Items.</p></div>
+    <div class="rcard ok"><h4>Depth &amp; royalty preserved</h4><p>Depth-limited leases (20,000&#8242; and 100-ft-below-deepest) and 1/4-royalty leases in the Fuchs / Bain / Deutsch chains are carried separately; NPRI and reservations retained on rawdata.</p></div>
+    <div class="rcard ok"><h4>Chain integrity</h4><p>All ten tract grids foot to gross and tie to 637.42; no mortgage / lien / ROW / ORRI-only rows on the title tabs; Title lease references normalized to OGL register numbers.</p></div>
+  </div>
+</section>
+
+<section id="open" class="sec">
+  <h2>Open items &#8212; what to pull to certify</h2>
+  <p class="note">Every item below requires a source document that this cloud session&#8217;s egress policy blocked (okcountyrecords.com, OCC imaging/RBDMS, OTC all returned proxy 403). Nothing is fabricated to fill them; pull each on an unrestricted machine.</p>
+
+  <h3>Source-in gaps &#8212; pull the grantor&#8217;s vesting instrument (23)</h3>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Conveying party (no source-in located)</th><th>Instrument out</th><th>Why open</th></tr></thead><tbody><tr><td>H. L. &amp; Myrtie Rowley</td><td class="mono">Deed 1916-000332, Bk D22/248</td><td>1916 root of title</td></tr><tr><td>Lawrence E. &amp; Ethel Shotwell</td><td class="mono">QCD 1931-000994, Bk D43/608</td><td>1931 root</td></tr><tr><td>Thomas O. &amp; Flora E. Hambrook</td><td class="mono">Deed 1931-000573, Bk D41/447</td><td>1931 root</td></tr><tr><td>Elvin J. &amp; Dorothy Jean Ridling</td><td class="mono">WD 1953-000493, Bk D67/154</td><td>1953 root</td></tr><tr><td>L. E. &amp; Veronica Thurman</td><td class="mono">MD 1974-001639, Bk 163/565</td><td>1974 root (2014 same-surname trust ≠ back-fill)</td></tr><tr><td>Elmo W. &amp; Freeda Kirk</td><td class="mono">WD 1976-003251, Bk 197/116</td><td>1976 root</td></tr><tr><td>Billy N. Bein</td><td class="mono">MD 1987-005625, Bk 913/261</td><td>pre-index</td></tr><tr><td>Alfred William Standiford</td><td class="mono">MD 1989-001220, Bk 1038/219</td><td>1989 conveyance predates 1994 decree</td></tr><tr><td>Federal Deposit Insurance Corporation</td><td class="mono">Mineral QCD 1990-001925, Bk 1126/98</td><td>FDIC receivership</td></tr><tr><td>Charles O. Burckhalter</td><td class="mono">QCD 1990-004213, Bk 1151/107</td><td>pre-index</td></tr><tr><td>Eula G. Cross</td><td class="mono">QCD 1997-006370, Bk 1510/566</td><td>pre-index</td></tr><tr><td>Oleta Florene Flanagan (f/k/a Stewart)</td><td class="mono">MD 2002-003563, Bk 1688/374</td><td>name-change link</td></tr><tr><td>Sandra Lorraine York</td><td class="mono">OGL 2004-000880, Bk 1737/580</td><td>2005 decree postdates 2004 lease</td></tr><tr><td>Estate of Barbara Fasken</td><td class="mono">Blanket Deed 2005-000347, Bk 1775/296</td><td>estate</td></tr><tr><td>Molly Devenas</td><td class="mono">Ratification 2005-003939, Bk 1793/501</td><td>ratification only</td></tr><tr><td>John William Bain</td><td class="mono">MD 2005-001909, Bk 1783/306</td><td>Bain family</td></tr><tr><td>Leona I. De Grande</td><td class="mono">OGL 2005-004938, Bk 1798/573</td><td>lessor vesting</td></tr><tr><td>Joseph A. &amp; Doris Bain</td><td class="mono">MD 2012-002930, Bk 2131/599</td><td>Bain family</td></tr><tr><td>Mary Ellen Silverberg (a/k/a Sitzmann)</td><td class="mono">MD 2013-006502, Bk 2223/307</td><td>a/k/a link</td></tr><tr><td>Jon N. Wilkerson</td><td class="mono">MD 2017-001880, Bk 2376/100</td><td>modern buyer</td></tr><tr><td>Payday Holdings, LLC</td><td class="mono">MD &amp; Assignment 2020-001708, Bk 2453/452</td><td>entity vesting</td></tr><tr><td>Onigbe Consulting, LLC</td><td class="mono">Conveyance 2024-007198, Bk 2599/463</td><td>entity vesting</td></tr><tr><td>Jesse Joe Newell (a/k/a Jesse J. Newell)</td><td class="mono">WD 2025-003963, Bk 2638/58</td><td>recent</td></tr></tbody></table></div>
+
+  <h3>Conveyed-fraction gaps &#8212; read the granting language (39)</h3>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Tract</th><th>Instruments needing the conveyed fraction</th></tr></thead><tbody><tr><td class="mono">Tract 2</td><td>2005-007117, -007116, -007119, -007120 (MD, confirm); 2013-006585, 2025-002463 (empty); 2025-002464 (confirm)</td></tr><tr><td class="mono">Tract 3</td><td>1993-000918 (Probate, empty); 2002-004595 (MD, empty)</td></tr><tr><td class="mono">Tract 4</td><td>1982-007158; 2002-004595; 2004-005738; 2004-005739; 2008-006536 (all empty)</td></tr><tr><td class="mono">Tract 5</td><td>1982-007158; 1992-003373; 1993-000918; 2004-005738/739; 2008-006536; 2005-004793; 2005-005251; 2006-000153; 2006-000870; 2013-001724; 2013-006585; 2025-003963 (all empty)</td></tr><tr><td class="mono">Tract 7</td><td>1992-003373 (confirm); 1993-000918 (empty); 2002-004595 (confirm); 2013-006585 (confirm)</td></tr><tr><td class="mono">Tract 10</td><td>2002-004595; 2011-005695; 2011-005926; 2013-001272; 2015-003022; 2015-003023; 2017-000951; 2021-001486 (all empty)</td></tr></tbody></table></div>
+
+  <h3>Resolved this engagement (11 parties, from the index + Runsheet cross-reference)</h3>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Party</th><th>Source-in located (grantee-side)</th></tr></thead><tbody><tr><td>Hazel A. Hamilton</td><td class="mono">MD 1978-002576, Bk 237/367</td></tr><tr><td>Billy W. Bain</td><td class="mono">MD 1978-002585 Bk 237/376; Trust Agmt 1983-001668</td></tr><tr><td>Gregory J. Winneke</td><td class="mono">MD 1982-011143, Bk 480/71 (conf. 2012/2019)</td></tr><tr><td>Bary Ellen Sitzman</td><td class="mono">MD 1987-005625, Bk 913/261</td></tr><tr><td>Cimarron Mineral Corporation</td><td class="mono">Assignment 1987-003826, Bk 897/244</td></tr><tr><td>Koala Production Company</td><td class="mono">MD 2004-005738/739, Bk 1764/344-345</td></tr><tr><td>Glenn D. Mitchel</td><td class="mono">MD 1949-001867 Bk D63/97; Order 1990-006747</td></tr><tr><td>Lola F. Richards</td><td class="mono">MD 1999-003363, Bk 1583/391 (Opal Fuchs estate)</td></tr><tr><td>Keri Lee Daigle Trust</td><td class="mono">MD 2011-005695 Bk 2092/134 &amp; 2011-008366</td></tr><tr><td>Mitchell-Buonaccorsi Living Trust</td><td class="mono">MD 2024-007338, Bk 2600/472</td></tr><tr><td>Michael Best et al / Crouse Family Trust</td><td class="mono">Order 2001-000618, Bk 1634/353</td></tr></tbody></table></div>
+</section>
+
+<section id="research" class="sec">
+  <h2>Well &amp; regulatory research addendum</h2>
+  <p class="note">Independent research, 7/3/2026. This session&#8217;s egress proxy blocked OCC RBDMS/imaging, OTC, ShaleXP and DrillingEdge (WebFetch 403 globally), so operational well facts below are from search snippets and must be re-pulled with direct access.</p>
+  <ul class="rlist">
+    <li><b>Operator &#8212; Martin&#8217;s Resources LLC (confirmed active):</b> Oklahoma producer id 23562; ~2,792 BOE reported for 8/2025; <b>3 producing wells</b>; operates in Roger Mills &amp; Custer counties; no future permits on file. Marginal/stripper profile consistent with HBP-holding production. <i>(mineralanswers.com, shalexp.com)</i></li>
+    <li><b>&#8220;Martin&#8217;s Empire, LLC&#8221; &#8212; not found:</b> no OK Secretary of State entity, OCC operator record, or O&amp;G profile surfaced. Verify existence &amp; relationship to Martin&#8217;s Resources via OK SOS + OCC operator list. <i>(flag)</i></li>
+    <li><b>Offset activity:</b> Charter Oak Production &#8220;Solo 1-8H,&#8221; a horizontal Cottage Grove test in 8-12N-24W (MD ~16,230&#8242;, TVD ~10,850&#8242;, spud ~Aug 2025). Roger Mills is currently the busiest OK permit county. <i>(mineralrightsforum.com, shaleexperts.com)</i></li>
+    <li><b>Regional targets (context, not section fact):</b> Cottage Grove, Tonkawa, Cleveland, Marmaton and the Granite Wash are the productive/leased pays here; deeper Morrow / Springer / Chester / Hunton / Woodford gas targets exist basin-wide.</li>
+    <li><b>Spacing pattern:</b> 640-acre horizontal units are standard in this township; no order specific to Section 31 was retrievable &#8212; pull OCC Case Processing by legal 31-12N-24W.</li>
+  </ul>
+</section>
+
+<footer class="foot">
+  <p class="mono">Basis: 7-3-2026 NHE cursory workbook (19 sheets) &#183; Roger Mills County Unplatted Legal Index (OCR, 519 instruments, 2000&#8211;2026) &#183; OGL register (69 leases) &#183; independent OCC / operator research. Last index entry: Instr. 2026-003315 · Bk 2704/142 (filed 6/5/2026).</p>
+  <p><b>Cursory cleanup only. Not a certified title opinion.</b> Open and verify items remain only where source evidence was insufficient. Confirm all interests against the recorded instruments before relying on this report for a transaction.</p>
+</footer>
+</div>

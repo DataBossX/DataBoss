@@ -1,0 +1,71 @@
+# DataBossX — Title Validation & Repair Agent
+
+Autonomous validation and safe auto-repair of the cursory title report for
+**Section 31-12N-24W, Roger Mills County, Oklahoma** (Prospect 25-004 · 637.42
+gross acres · 10 tracts · Alexander 1-31 well).
+
+## The Golden Law
+
+> AI handles the labor, the human Examiner approves the risk.
+
+No quality gate is ever cleared by fabricating a legal fact. Concretely:
+
+- **Append-only audit** — `audit_log` and `budget_ledger` are guarded by SQLite
+  triggers that reject every `UPDATE`/`DELETE`. History cannot be edited, even
+  by code that bypasses the Python layer.
+- **No overwrites** — every automated fix mints a new `_vNNN` file; the
+  `VersionController` refuses any path that already exists on disk.
+- **Escalate, don't invent** — failures that would require an assumed heir,
+  deed, Book/Page, or royalty halt the loop for the Examiner (Category B).
+  Ambiguous failures escalate by default.
+
+## Layout
+
+| Module | Responsibility |
+| --- | --- |
+| `core/config.py` | Env-overridable paths and prospect constants |
+| `core/memory.py` | `SQLiteManager`, `AuditLogger`, `VersionController`, `EscalationStore` |
+| `core/taxonomy.py` | `Gate` and `FailureCategory` (the A/B split) |
+| `core/loop.py` | `PerfectionLoop` state machine + `TaxonomyRouter` |
+| `api/okcounty.py` | `CurlClient` (subprocess curl, Basic Auth), `DocumentVerifier`, `BudgetManager` ($100 cap) |
+| `excel/xml_surgeon.py` | `ArchiveManager`, `CalcChainDestroyer`, `XMLPatcher` |
+| `excel/recalc.py` | `LibreOfficeEngine` headless recalc + error scan |
+| `data/ingestion.py` | `WorkbookMapper` — non-destructive topology of the 10 tracts, OGL, WI, runsheets, well tab |
+| `validators/rules.py` | The six quality gates |
+| `frontend/dashboard_data.py` | Tested read/resolve model for the UI |
+| `frontend/app.py` | Streamlit dashboard (Scorecard, Audit Trail, HITL forms) |
+
+## The six gates
+
+1. **Interest Conservation** — every instrument column nets to `0.00000000`.
+2. **Acreage Footing** — pro-rata net acres tie to each tract; gross sums to `637.42`.
+3. **Chain Continuity** — grantor N == grantee N-1, no chronological gap.
+4. **Source Verification** — every runsheet line traces to a verified OKCounty document.
+5. **OGL Parity** — the OGL register reconciles with the WI sheets and runsheets.
+6. **Execution** — LibreOffice recalc yields zero `#REF!`/`#N/A`/OOM.
+
+## Configuration (environment)
+
+| Variable | Purpose |
+| --- | --- |
+| `TITLE_AGENT_BASE_DIR` | Root for state (default: this package). Set to `D:/Desktop/DataBossX/scripts/title_agent` on the Examiner's workstation. |
+| `TITLE_AGENT_DB_PATH` / `TITLE_AGENT_WORKBOOK_DIR` / `TITLE_AGENT_AUDIT_LOG` | Override individual state locations |
+| `TITLE_AGENT_BUDGET_CAP` | Hard spend ceiling (default `100.00`) |
+| `OKCOUNTY_API_KEY` | OKCountyRecords key (Basic Auth username, empty password) |
+
+## Running
+
+```bash
+# Tests (also runnable per-module: python -m scripts.title_agent.tests.test_loop)
+pytest scripts/title_agent/tests
+
+# Dashboard
+streamlit run scripts/title_agent/frontend/app.py
+```
+
+## Note on Gate 6 in CI
+
+`LibreOfficeEngine.conversion_works()` is a functional probe. Some sandboxed
+containers ship a `soffice` that runs but cannot load documents; there the live
+recalc round-trip test skips honestly rather than fake a pass. On a workstation
+with a working LibreOffice the full round-trip runs.

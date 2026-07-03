@@ -45,3 +45,7 @@ Pillow==10.4.0
 pytesseract==0.3.13
 paddlepaddle>=2.6.2; sys_platform != 'win32'
 paddleocr==2.7.0.3; sys_platform != 'win32'
+# Title Agent (scripts/title_agent): lxml for XML surgery, streamlit for the
+# Examiner dashboard.
+lxml>=5.2.0
+streamlit>=1.36.0

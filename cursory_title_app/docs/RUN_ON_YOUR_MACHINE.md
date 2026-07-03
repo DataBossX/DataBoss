@@ -56,10 +56,24 @@ python -c "from cursory_title_app.reports import builder; from pathlib import Pa
 Regenerates the dated workbook, ownership reconciliation, chain-of-title, curative
 manifest, and the consolidated HTML report — now with the newly-closed items.
 
-## What this CANNOT pull (different sources)
-- **Base-lease HBP** → OTC gross production by PUN (tax.ok.gov / OTC portal).
-- **Well completion / operator** → OCC Form 1002A & 1073 (imaging.occ.ok.gov).
-These are not in the county records API; pull them from OTC/OCC in your browser.
+## 1b. Well completion + production (OCC / OTC) — browser, no API key
+These portals have no REST API, so they run through your connected Chrome:
+```bat
+:: start Chrome with debugging and log into OCC/OTC if needed
+chrome.exe --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\CTA\chrome"
+python -m cursory_title_app.occ_otc.browser_fetch --list     :: show targets
+python -m cursory_title_app.occ_otc.browser_fetch            :: open + screenshot each
+```
+It opens the OCC well-records (Form 1002A/1073 for API 3512922925), the OCC
+spacing order, and the OTC gross-production (HBP) lookup, capturing each page to
+`_data/evidence/`. You read production continuity + form values; HBP remains an
+examiner conclusion.
+
+## Orchestrator / status board
+```bat
+python -m cursory_title_app.close_section31 --status        :: where am I in the loop
+python -m cursory_title_app.close_section31 --report WB.xlsx :: rebuild all reports
+```
 
 > Cursory research/drafting aid. Not a title opinion. Verify every extracted field
 > against the recorded image before relying on it.

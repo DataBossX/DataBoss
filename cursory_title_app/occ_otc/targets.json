@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "purpose": "OCC (well records) and OTC (production) lookups that close the highest-priority open items (HBP + well completion). These are browser-portal sources — no REST API key — so they are opened in YOUR connected Chrome and captured to the evidence store. Portal landing URLs are marked 'verify' because deep-links change; search each portal for the API/PUN below.",
+    "well": {
+      "name": "Alexander 1-31",
+      "api14": "35129229250000",
+      "api10": "3512922925",
+      "formation": "Cherokee",
+      "occ_status": "AC (active)",
+      "completed": "2006-05-19",
+      "last_reported_production": "2026-03-01",
+      "section": "31-12N-24W",
+      "county": "Roger Mills"
+    }
+  },
+  "occ": [
+    {
+      "label": "OCC Well Records Imaging — Form 1002A (completion) + 1073 (operator)",
+      "search_for": "API 3512922925",
+      "captures": ["Form 1002A: spud date, perforated intervals, TD/TVD", "Form 1073: operator of record"],
+      "portal_url": "https://oklahoma.gov/occ/divisions/oil-gas/oil-gas-data.html",
+      "note": "verify — use the OCC Well Records Imaging / RBDMS well search for the API"
+    },
+    {
+      "label": "OCC spacing / DSU order for 31-12N-24W",
+      "search_for": "Location 31-12N-24W Roger Mills; Cherokee DSU",
+      "captures": ["DSU acreage (confirm 640) and order number"],
+      "portal_url": "https://oklahoma.gov/occ/divisions/oil-gas/oil-gas-case-processing.html",
+      "note": "verify — OCC case records / spacing orders"
+    }
+  ],
+  "otc": [
+    {
+      "label": "OTC gross production by PUN (base-lease HBP)",
+      "search_for": "PUN for Alexander 1-31 / API 3512922925, Roger Mills",
+      "captures": ["Monthly gross production history — confirm continuous production through last month; flag any gap"],
+      "portal_url": "https://oktap.tax.ok.gov/oktap/web/_/",
+      "note": "verify — Oklahoma Tax Commission gross production / OkTAP PUN lookup"
+    }
+  ]
+}

@@ -1,0 +1,530 @@
+<title>Section 31-12N-24W Roger Mills — Mineral & Leasehold Ownership</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --paper:#f4f5f3; --surface:#ffffff; --surface-2:#eef0ec; --line:#d8dcd5;
+  --ink:#16201c; --ink-soft:#48544e; --ink-faint:#727d76;
+  --accent:#0f5c4d; --accent-soft:#dcebe6; --sienna:#9a5b3b;
+  --good:#2f7d4f; --good-bg:#e4f0e7; --warn:#9a6a12; --warn-bg:#f6ecd6; --open:#a83f30; --open-bg:#f3e0dc;
+  --serif:"Iowan Old Style",Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#0f1512; --surface:#161d19; --surface-2:#1c2420; --line:#2b352f;
+  --ink:#e8ece7; --ink-soft:#a9b3ac; --ink-faint:#7d877f;
+  --accent:#54c3aa; --accent-soft:#16302a; --sienna:#c98a63;
+  --good:#5cbd85; --good-bg:#173226; --warn:#d8ab52; --warn-bg:#33280f; --open:#e08575; --open-bg:#37211c;
+}}
+:root[data-theme="dark"]{
+  --paper:#0f1512; --surface:#161d19; --surface-2:#1c2420; --line:#2b352f;
+  --ink:#e8ece7; --ink-soft:#a9b3ac; --ink-faint:#7d877f;
+  --accent:#54c3aa; --accent-soft:#16302a; --sienna:#c98a63;
+  --good:#5cbd85; --good-bg:#173226; --warn:#d8ab52; --warn-bg:#33280f; --open:#e08575; --open-bg:#37211c;
+}
+:root[data-theme="light"]{
+  --paper:#f4f5f3; --surface:#ffffff; --surface-2:#eef0ec; --line:#d8dcd5;
+  --ink:#16201c; --ink-soft:#48544e; --ink-faint:#727d76;
+  --accent:#0f5c4d; --accent-soft:#dcebe6; --sienna:#9a5b3b;
+  --good:#2f7d4f; --good-bg:#e4f0e7; --warn:#9a6a12; --warn-bg:#f6ecd6; --open:#a83f30; --open-bg:#f3e0dc;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:var(--serif);font-weight:600;text-wrap:balance;line-height:1.15}
+a{color:var(--accent)}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--sans);text-transform:uppercase;letter-spacing:.14em;font-size:.7rem;
+  font-weight:700;color:var(--accent)}
+
+/* masthead */
+header.mast{border-bottom:2px solid var(--ink);padding:40px 0 26px;margin-top:8px}
+.mast .eyebrow{margin-bottom:10px}
+.mast h1{font-size:clamp(1.7rem,4vw,2.6rem);margin:.1em 0 .35em}
+.mast .sub{color:var(--ink-soft);font-size:1rem;max-width:64ch}
+.mast .meta{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:18px;font-size:.82rem;color:var(--ink-soft)}
+.mast .meta b{color:var(--ink);font-weight:600}
+.stamp{display:inline-block;margin-top:16px;border:1.5px solid var(--open);color:var(--open);
+  border-radius:3px;padding:5px 11px;font-size:.72rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;transform:rotate(-1.2deg)}
+
+/* kpi */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);margin:34px 0;border-radius:8px;overflow:hidden}
+.kpi{background:var(--surface);padding:18px 16px}
+.kpi .v{font-family:var(--serif);font-size:1.6rem;font-weight:600;color:var(--accent);line-height:1}
+.kpi .l{font-size:.72rem;color:var(--ink-soft);margin-top:7px;text-transform:uppercase;letter-spacing:.05em}
+@media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
+section{padding:34px 0;border-top:1px solid var(--line)}
+section > .eyebrow{display:block;margin-bottom:6px}
+h2{font-size:1.5rem;margin:0 0 6px}
+.lead{color:var(--ink-soft);max-width:70ch;margin:0 0 20px}
+
+/* plat */
+.plat-wrap{overflow-x:auto}
+.plat{width:100%;max-width:560px;margin:0 auto;display:block;height:auto;
+  border:1px solid var(--line);background:var(--surface);border-radius:6px}
+.plat text{font-family:var(--sans)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:center;margin-top:16px;font-size:.78rem;color:var(--ink-soft)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:.86rem;margin:8px 0}
+.tbl th{text-align:left;font-family:var(--sans);font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--ink-faint);font-weight:700;padding:8px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl td.r,.tbl th.r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .tot td{font-weight:700;border-top:2px solid var(--ink);background:var(--surface-2)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.scroll .tbl{margin:0}
+.scroll .tbl th,.scroll .tbl td{padding-left:14px;padding-right:14px}
+
+/* tract cards */
+.tract{border:1px solid var(--line);border-radius:8px;background:var(--surface);margin:14px 0;overflow:hidden}
+.tract > .hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;padding:14px 16px;
+  background:var(--surface-2);border-bottom:1px solid var(--line)}
+.tract .hd h3{font-size:1.08rem;margin:0}
+.tract .hd .legal{font-family:var(--mono);font-size:.76rem;color:var(--ink-soft)}
+.tract .hd .ac{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
+.tract .bd{padding:4px 16px 12px}
+
+.chip{display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.03em;padding:2px 8px;
+  border-radius:100px;text-transform:uppercase;white-space:nowrap}
+.chip.good{background:var(--good-bg);color:var(--good)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.open{background:var(--open-bg);color:var(--open)}
+.chip.base{background:var(--accent-soft);color:var(--accent)}
+
+.callout{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:6px;padding:14px 16px;margin:14px 0;font-size:.9rem}
+.callout.open{border-left-color:var(--open)}
+.callout.warn{border-left-color:var(--warn)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+.kv{font-size:.86rem}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv div:last-child{border-bottom:none}
+.kv b{font-weight:600}
+.kv .mono{font-size:.82rem}
+
+/* chain */
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.8rem;margin-top:6px}
+.chain .node{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:4px 9px;white-space:nowrap}
+.chain .node.cur{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
+.chain .arw{color:var(--ink-faint)}
+footer{border-top:2px solid var(--ink);padding:28px 0 60px;color:var(--ink-soft);font-size:.82rem}
+.toggle{position:fixed;top:14px;right:14px;background:var(--surface);border:1px solid var(--line);
+  color:var(--ink-soft);border-radius:100px;padding:7px 13px;font-size:.74rem;cursor:pointer;z-index:5;font-family:var(--sans)}
+.toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:.78rem;color:var(--ink-faint);margin-top:6px}
+ul.tight{margin:6px 0;padding-left:20px}
+ul.tight li{margin:3px 0}
+</style>
+
+<button class="toggle" onclick="var r=document.documentElement,d=r.getAttribute('data-theme')==='dark';r.setAttribute('data-theme',d?'light':'dark')">◐ theme</button>
+
+<div class="wrap">
+<header class="mast">
+  <span class="eyebrow">Cursory Mineral &amp; Leasehold Ownership Report</span>
+  <h1>Section 31, T12N–R24W<br>Roger Mills County, Oklahoma</h1>
+  <p class="sub">All minerals and leasehold ownership across the ten tracts of the section
+  (637.42 gross acres), the oil-and-gas lease register, the wellbore working-interest chain,
+  and the Alexander 1-31 unit — synthesized from the working title workbook, the county
+  Unplatted Legal Index, and the OGL register.</p>
+  <div class="meta">
+    <span><b>Prospect</b> 25-004</span>
+    <span><b>Report date</b> 7-1-2026</span>
+    <span><b>Well</b> Alexander 1-31 · API 35-129-22925</span>
+    <span><b>Last index entry</b> 2026-003315 · Bk 2704/142 (6-5-2026)</span>
+  </div>
+  <div class="stamp">Cursory — not a certified title opinion</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="v num">637.42</div><div class="l">Gross acres · 10 tracts</div></div>
+  <div class="kpi"><div class="v num">69</div><div class="l">OGLs — 63 base (HBP) + 6 top</div></div>
+  <div class="kpi"><div class="v">100%</div><div class="l">Section under lease</div></div>
+  <div class="kpi"><div class="v">Active</div><div class="l">Alexander 1-31 · HBP</div></div>
+</div>
+
+<section>
+  <span class="eyebrow">Executive Summary</span>
+  <h2>The whole section is leased and held by production; ownership is a family-mineral mosaic under a 2026 Silver Oak top-lease sweep</h2>
+  <p class="lead">Section 31 is a fully-leased, held-by-production Cherokee section. Every net
+  mineral acre sits under one of 63 base oil-and-gas leases (the 2004–2006 EOG / Arrowhead
+  play, OGL 1–63), all held by production by the active <b>Alexander 1-31</b> unit well. In
+  2026 <b>Silver Oak Natural Resources, LLC</b> took a six-lease <em>top-lease</em> sweep
+  (OGL 64–69, 3/16 royalty) over the principal family mineral interests — subordinate and
+  springing until the base leases terminate. Fee mineral ownership is a mosaic dominated by
+  the <b>Mitchell / Williams / Moore</b>, <b>Bain</b>, <b>Kirk</b>, and
+  <b>Daigle / Sorenson / Johnson</b> families, with modern mineral-fund buyers layered on top.</p>
+  <div class="grid2">
+    <div class="callout good"><b>What is firm.</b> The section is 100% leased; base leases are
+    HBP by the Alexander 1-31 unit (OCC status active, last reported production 3-1-2026);
+    the Silver Oak top-lease package (OGL 64–69) is recorded and mapped to its lessors; the
+    wellbore working-interest chain is traced to its current holder; four tracts (1, 3, 8, 9)
+    are fully owner-reconciled and every tract grid foots to its gross acreage.</p>
+    <div class="callout open"><b>What remains open.</b> Exact conveyed fractions on some
+    instruments, formal HBP confirmation via OTC production, well-completion detail (Form
+    1002A), and a set of pre-2000 root-of-title source-in links require recorded instrument
+    images not obtainable in the preparation environment. These are itemized in
+    <a href="#open">Open Items</a> — none are fabricated; each names the document to pull.</p>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Section Plat</span>
+  <h2>Ten tracts across Section 31</h2>
+  <p class="lead">Schematic aliquot layout (not a survey). Government Lots 1–4 run down the
+  west tier; Tracts 6 and 8 are metes-and-bounds strips inside the west half; Tract 5 carries
+  a residual band within Lots 1 &amp; 2. Acreages are the tract controls the ownership grids foot to.</p>
+  <div class="plat-wrap">
+  <svg class="plat" viewBox="0 0 480 480" role="img" aria-label="Schematic plat of Section 31 showing ten tracts">
+    <defs>
+      <style>
+        .cell{fill:var(--surface);stroke:var(--line);stroke-width:1}
+        .cellb{fill:var(--accent-soft)}
+        .mb{fill:none;stroke:var(--sienna);stroke-width:2.4;stroke-dasharray:6 4}
+        .tn{font-size:15px;font-weight:700;fill:var(--accent);font-family:var(--serif)}
+        .tl{font-size:9px;fill:var(--ink-soft)}
+        .ac{font-size:9px;fill:var(--ink-faint)}
+        .lot{font-size:9px;fill:var(--sienna);font-weight:700}
+        .frame{fill:none;stroke:var(--ink);stroke-width:2}
+      </style>
+    </defs>
+    <!-- outer section frame -->
+    <rect class="frame" x="20" y="20" width="440" height="440"/>
+    <!-- quarter grid lines -->
+    <line x1="240" y1="20" x2="240" y2="460" stroke="var(--line)"/>
+    <line x1="20" y1="240" x2="460" y2="240" stroke="var(--line)"/>
+    <!-- NE/4 : Tract 1 (N/2 NE/4) top, Tract 3 (SE/4 NE/4), Tract 2 (SW/4 NE/4) -->
+    <rect class="cell cellb" x="240" y="20" width="220" height="110"/>
+    <text class="tn" x="350" y="66" text-anchor="middle">T1</text>
+    <text class="tl" x="350" y="82" text-anchor="middle">N/2 NE/4</text>
+    <text class="ac" x="350" y="95" text-anchor="middle">80.00 ac</text>
+    <rect class="cell" x="240" y="130" width="110" height="110"/>
+    <text class="tn" x="295" y="180" text-anchor="middle">T2</text>
+    <text class="tl" x="295" y="195" text-anchor="middle">SW/4 NE/4</text>
+    <rect class="cell cellb" x="350" y="130" width="110" height="110"/>
+    <text class="tn" x="405" y="180" text-anchor="middle">T3</text>
+    <text class="tl" x="405" y="195" text-anchor="middle">SE/4 NE/4</text>
+    <text class="ac" x="405" y="207" text-anchor="middle">40.00</text>
+    <!-- NW/4 : Tract 4 (E/2 NW/4) + Lots 1,2 (west tier) -->
+    <rect class="cell cellb" x="130" y="20" width="110" height="220"/>
+    <text class="tn" x="185" y="120" text-anchor="middle">T4</text>
+    <text class="tl" x="185" y="135" text-anchor="middle">E/2 NW/4</text>
+    <text class="ac" x="185" y="148" text-anchor="middle">80.00 ac</text>
+    <rect class="cell" x="20" y="20" width="110" height="110"/>
+    <text class="lot" x="30" y="36">LOT 1</text>
+    <rect class="cell" x="20" y="130" width="110" height="110"/>
+    <text class="lot" x="30" y="146">LOT 2</text>
+    <!-- SE/4 : Tract 2 (NW/4 SE/4 + S/2 SE/4) & Tract 10 (NE/4 SE/4) -->
+    <rect class="cell" x="240" y="240" width="110" height="110"/>
+    <text class="tn" x="295" y="290" text-anchor="middle">T2</text>
+    <text class="tl" x="295" y="305" text-anchor="middle">NW/4 SE/4</text>
+    <rect class="cell cellb" x="350" y="240" width="110" height="110"/>
+    <text class="tn" x="405" y="290" text-anchor="middle">T10</text>
+    <text class="tl" x="405" y="305" text-anchor="middle">NE/4 SE/4</text>
+    <text class="ac" x="405" y="317" text-anchor="middle">40.00</text>
+    <rect class="cell" x="240" y="350" width="220" height="110"/>
+    <text class="tn" x="350" y="400" text-anchor="middle">T2</text>
+    <text class="tl" x="350" y="415" text-anchor="middle">S/2 SE/4 — Tract 2 total 160.00 ac</text>
+    <!-- SW/4 : Tract 7 (NE/4 SW/4), Tract 5 (SE/4 SW/4), Lots 3,4 (west tier) -->
+    <rect class="cell cellb" x="130" y="240" width="110" height="110"/>
+    <text class="tn" x="185" y="290" text-anchor="middle">T7</text>
+    <text class="tl" x="185" y="305" text-anchor="middle">NE/4 SW/4</text>
+    <text class="ac" x="185" y="317" text-anchor="middle">40.00</text>
+    <rect class="cell cellb" x="130" y="350" width="110" height="110"/>
+    <text class="tn" x="185" y="400" text-anchor="middle">T5</text>
+    <text class="tl" x="185" y="415" text-anchor="middle">SE/4 SW/4 +resid</text>
+    <text class="ac" x="185" y="427" text-anchor="middle">38.28</text>
+    <rect class="cell" x="20" y="240" width="110" height="110"/>
+    <text class="lot" x="30" y="256">LOT 3</text>
+    <rect class="cell" x="20" y="350" width="110" height="110"/>
+    <text class="lot" x="30" y="366">LOT 4</text>
+    <text class="tl" x="75" y="440" text-anchor="middle">T9: Lot 4 + S/2 Lot 3 · 75.34 ac</text>
+    <!-- M&B west strip (Tracts 6 & 8) -->
+    <line class="mb" x1="66" y1="20" x2="66" y2="460"/>
+    <text class="lot" x="72" y="250" transform="rotate(90,72,250)">T6 (S 51 ac) · T8 (S 32.8 ac) — W. 18.20-ch M&amp;B strip</text>
+  </svg>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--accent-soft);border:1px solid var(--accent)"></i> Owner-reconciled &amp; leased</span>
+    <span><i style="background:var(--surface);border:1px solid var(--line)"></i> Government Lot / open balance</span>
+    <span><i style="background:var(--sienna)"></i> Metes-and-bounds strip (T6/T8)</span>
+  </div>
+  <p class="note">Schematic only — quarter divisions are shown regular; the recorded metes-and-bounds
+  calls for the west-side strips and the government-lot residuals govern.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Leasehold Structure</span>
+  <h2>63 base leases held by production, under a 2026 Silver Oak top-lease sweep</h2>
+  <p class="lead">The section is fully leased. The base register (OGL 1–63) is the original
+  2004–2006 leasing of the family and successor minerals; all are carried HBP by the Alexander
+  1-31 unit. In 2026 Silver Oak Natural Resources took six paid-up top leases (OGL 64–69) over
+  the principal current owners — each 3/16 royalty, subordinate and springing until the
+  underlying base lease terminates, expires, is released, or HBP fails.</p>
+
+  <div class="scroll">
+  <table class="tbl">
+    <thead><tr><th>OGL</th><th>Top lessor (current owner)</th><th>Bk/Pg</th><th class="r">Royalty</th><th>Expiration / status</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">64</td><td>James Gerard Buonaccorsi — Mitchell Buonaccorsi Living Trust</td><td class="mono">2693/337</td><td class="r">3/16</td><td>exp 2-22-2029 · springing</td></tr>
+      <tr><td class="mono">65</td><td>Ronald Paul Dold</td><td class="mono">2697/524</td><td class="r">3/16</td><td>exp 3-30-2029 · springing</td></tr>
+      <tr><td class="mono">66</td><td>Gena W. Moore, a/k/a Gena Mitchell Williams</td><td class="mono">2702/505</td><td class="r">3/16</td><td>exp 2-10-2031 · springing</td></tr>
+      <tr><td class="mono">67</td><td>Keri Lee Daigle Tucker Trust</td><td class="mono">2697/520</td><td class="r">3/16</td><td>exp 2-17-2031 · springing</td></tr>
+      <tr><td class="mono">68</td><td>Mark Ashley Daigle Trust</td><td class="mono">2693/349</td><td class="r">3/16</td><td>exp 2-23-2031 · springing</td></tr>
+      <tr><td class="mono">69</td><td>Kevin Warner Johnson Trust</td><td class="mono">2693/345</td><td class="r">3/16</td><td>exp 2-27-2031 · springing</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">Base register OGL 1–63 (Bk 1736–1833, 2004–2006) — carried on the OGL tab with
+  book/page and per-lessor coverage; lessors include Carrie Leeann &amp; Nancy Susan Mitchell,
+  Gena Moore, the Bain family, Jensen, Fuchs, Devenas, Kirk (OGL 62 — Ella Pearl Kirk), and
+  the Marchelle Sorenson Daigle trust (OGL 24). All shown HBP.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Mineral Ownership by Tract</span>
+  <h2>Current fee mineral owners</h2>
+  <p class="lead">Net mineral acres of the identified current owners per tract, with the base
+  lease (OGL) each holds under and the Silver Oak top lease where applicable. Where identified
+  owners do not yet sum to the tract gross, the balance is carried as HBP base-lease minerals
+  pending source-image confirmation and shown as an explicit open line — not distributed.
+  Every tract grid in the workbook foots to its gross acreage.</p>
+
+  <!-- T1 -->
+  <div class="tract"><div class="hd"><h3>Tract 1</h3><span class="legal mono">N/2 NE/4</span>
+    <span class="chip good">reconciled</span><span class="ac num">80.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Owner</th><th class="r">Net ac</th><th>Base OGL</th><th>Top</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Gena W. Moore (a/k/a Gena Mitchell Williams)</td><td class="r num">40.00</td><td class="mono">4</td><td class="mono">66</td><td class="r">3/16</td></tr>
+      <tr><td>Mitchell Buonaccorsi Living Trust</td><td class="r num">20.00</td><td class="mono">1</td><td class="mono">64</td><td class="r">3/16</td></tr>
+      <tr><td>Ronald Paul Dold</td><td class="r num">10.00</td><td class="mono">2</td><td class="mono">65</td><td class="r">3/16</td></tr>
+      <tr><td>Kevin Warner Johnson Trust</td><td class="r num">10.00</td><td class="mono">24</td><td class="mono">69</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Total</td><td class="r num">80.00</td><td colspan="3"></td></tr>
+    </tbody></table></div></div>
+
+  <!-- T3 -->
+  <div class="tract"><div class="hd"><h3>Tract 3</h3><span class="legal mono">SE/4 NE/4</span>
+    <span class="chip good">reconciled</span><span class="ac num">40.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Owner</th><th class="r">Net ac</th><th>Base OGL</th><th>Top</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Mark Ashley Daigle Trust</td><td class="r num">7.69</td><td class="mono">24</td><td class="mono">68</td><td class="r">3/16</td></tr>
+      <tr><td>Gena W. Moore</td><td class="r num">5.39</td><td class="mono">4</td><td class="mono">66</td><td class="r">3/16</td></tr>
+      <tr><td>Mitchell Buonaccorsi Living Trust</td><td class="r num">5.39</td><td class="mono">1</td><td class="mono">64</td><td class="r">3/16</td></tr>
+      <tr><td>Keri Lee Daigle Tucker Trust</td><td class="r num">5.39</td><td class="mono">24</td><td class="mono">67</td><td class="r">3/16</td></tr>
+      <tr><td>Ronald Paul Dold</td><td class="r num">5.38</td><td class="mono">2</td><td class="mono">65</td><td class="r">3/16</td></tr>
+      <tr><td>Kevin Warner Johnson Trust</td><td class="r num">5.38</td><td class="mono">24</td><td class="mono">69</td><td class="r">3/16</td></tr>
+      <tr><td>Carrie Leeann Mitchell</td><td class="r num">5.38</td><td class="mono">1, 2</td><td class="mono">—</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Total</td><td class="r num">40.00</td><td colspan="3"></td></tr>
+    </tbody></table></div></div>
+
+  <!-- T8 -->
+  <div class="tract"><div class="hd"><h3>Tract 8</h3><span class="legal mono">W. 18.20-ch M&amp;B strip — S 32.8 ac</span>
+    <span class="chip warn">verify estate</span><span class="ac num">32.80 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Owner</th><th class="r">Net ac</th><th>Base OGL</th><th>Top</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Ella Pearl Kirk <span class="chip warn">estate/heirship</span></td><td class="r num">32.80</td><td class="mono">62</td><td class="mono">—</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Total</td><td class="r num">32.80</td><td colspan="3"></td></tr>
+    </tbody></table>
+    <p class="note">OGL 62 (Bk 1833/218) is the Ella Pearl Kirk base lease over the S 32.8-acre
+    strip. Later probate / heirship of the Ella Pearl Kirk estate is not of record here — see Open Items.</p></div></div>
+
+  <!-- T9 -->
+  <div class="tract"><div class="hd"><h3>Tract 9</h3><span class="legal mono">Lot 4 + S/2 Lot 3</span>
+    <span class="chip warn">succession verify</span><span class="ac num">75.34 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Owner</th><th class="r">Net ac</th><th>Base OGL</th><th>Top</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Ronald Paul Dold (Nancy Susan Mitchell successor chain)</td><td class="r num">75.34</td><td class="mono">2</td><td class="mono">65</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Total</td><td class="r num">75.34</td><td colspan="3"></td></tr>
+    </tbody></table>
+    <p class="note">Carried to Dold via the Nancy Susan Mitchell successor chain (AOH 2026-002509,
+    Bk 2697/517). Confirm the heirship/probate and the exact Lot 4 / S/2 Lot 3 allocation.</p></div></div>
+
+  <!-- T2 -->
+  <div class="tract"><div class="hd"><h3>Tract 2</h3><span class="legal mono">SW/4 NE/4 + NW/4 SE/4 + S/2 SE/4</span>
+    <span class="chip open">partial — open balance</span><span class="ac num">160.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Identified owner</th><th class="r">Net ac</th><th>Base OGL</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Paul M. Bain GST Tax-Exempt Trust</td><td class="r num">5.41</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Anna T. Bain Gibson</td><td class="r num">4.44</td><td class="mono">56/57</td><td class="r">3/16</td></tr>
+      <tr><td>Cardinal Land Company, LLC</td><td class="r num">1.50</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Royfin Natural Gas, LLC</td><td class="r num">1.29</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Del Monte Royalty Partners, LLC</td><td class="r num">0.75</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>OKKI Industries, LLC</td><td class="r num">0.75</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>William A. &amp; Isa May Smith Family Rev. Trust</td><td class="r num">0.75</td><td class="mono">14</td><td class="r">1/4</td></tr>
+      <tr><td>Longreach Energy 2, LLC</td><td class="r num">0.55</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Eric Jansen</td><td class="r num">0.40</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Keri Lee Daigle Tucker Trust</td><td class="r num">0.33</td><td class="mono">24/67</td><td class="r">3/16</td></tr>
+      <tr><td>Brian Herman Kortright</td><td class="r num">0.20</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Paul R. &amp; Deborah A. Deutsch / Jesse W. Fuchs</td><td class="r num">0.00</td><td class="mono">42/—</td><td class="r">1/4</td></tr>
+      <tr><td>Open / unreconciled balance <span class="chip open">needs source images</span></td><td class="r num">~143.63</td><td class="mono">HBP base</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Tract control</td><td class="r num">160.00</td><td colspan="2"></td></tr>
+    </tbody></table>
+    <p class="note">Highest-owner-count tract. Identified interests ≈ 16.4 net ac; the balance is
+    carried under the HBP base leases pending recorded conveyance images (Bain / Jensen / Fuchs /
+    Devenas family chains).</p></div></div>
+
+  <!-- T4 -->
+  <div class="tract"><div class="hd"><h3>Tract 4</h3><span class="legal mono">E/2 NW/4</span>
+    <span class="chip open">partial — open balance</span><span class="ac num">80.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Identified owner</th><th class="r">Net ac</th><th>Base OGL</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Dustin Deal, LLC</td><td class="r num">2.10</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Calvin Wayne Kirk</td><td class="r num">2.10</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>William / Kathy Bryant</td><td class="r num">2.10</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Ronald Paul Dold → Silver Oak (E/2 NW/4)</td><td class="r num">2.10</td><td class="mono">2/65</td><td class="r">3/16</td></tr>
+      <tr><td>Open / unreconciled balance <span class="chip open">needs source images</span></td><td class="r num">~71.60</td><td class="mono">HBP base</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Tract control</td><td class="r num">80.00</td><td colspan="2"></td></tr>
+    </tbody></table>
+    <p class="note">A 2022 mineral deed (2022-000185, Bk 2486/262) conveyed "All of 31-12N-24W"
+    from Psi Lke, LLC to Cummins Minerals, Ltd. (70%) / Eagle Owl, LP (30%) — a candidate current
+    owner for much of the open balance; confirm the conveyed fraction against the recorded image.</p></div></div>
+
+  <!-- T7 -->
+  <div class="tract"><div class="hd"><h3>Tract 7</h3><span class="legal mono">NE/4 SW/4</span>
+    <span class="chip open">partial — open balance</span><span class="ac num">40.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Identified owner</th><th class="r">Net ac</th><th>Base OGL</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Pine Tree Energy Partners, LLC (Clint Roy Kirk → J&amp;A Minerals → Pine Tree)</td><td class="r num">1.14</td><td class="mono">—</td><td class="r">—</td></tr>
+      <tr><td>Gene G. Williams</td><td class="r num">1.14</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Williams heirs (Gena / Carrie Leeann Williams &amp; Nancy Susan Mitchell)</td><td class="r num">0.87</td><td class="mono">64–69?</td><td class="r">3/16</td></tr>
+      <tr><td>Open / unreconciled balance <span class="chip open">needs source images</span></td><td class="r num">~36.85</td><td class="mono">HBP base</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Tract control</td><td class="r num">40.00</td><td colspan="2"></td></tr>
+    </tbody></table></div></div>
+
+  <!-- T5 -->
+  <div class="tract"><div class="hd"><h3>Tract 5</h3><span class="legal mono">SE/4 SW/4 + residual in Lots 1 &amp; 2</span>
+    <span class="chip open">partial — open balance</span><span class="ac num">38.28 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Identified owner</th><th class="r">Net ac</th><th>Base OGL</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>William / Kathy Bryant</td><td class="r num">0.74</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Open / unreconciled balance <span class="chip open">gov-lot / exception allocation</span></td><td class="r num">~37.54</td><td class="mono">HBP base</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Tract control</td><td class="r num">38.28</td><td colspan="2"></td></tr>
+    </tbody></table>
+    <p class="note">Irregular tract: SE/4 SW/4 plus a residual band inside Government Lots 1 &amp; 2,
+    less the west-side strip exclusions. Government-lot/exception allocation needs the source plat + deeds.</p></div></div>
+
+  <!-- T6 -->
+  <div class="tract"><div class="hd"><h3>Tract 6</h3><span class="legal mono">W. 18.20-ch M&amp;B strip — S 51 ac</span>
+    <span class="chip open">estate balance</span><span class="ac num">51.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Identified owner</th><th class="r">Net ac</th><th>Base OGL</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Calvin Wayne Kirk</td><td class="r num">2.20</td><td class="mono">HBP</td><td class="r">3/16</td></tr>
+      <tr><td>Ella Pearl Kirk estate / heirs — retained balance <span class="chip open">probate needed</span></td><td class="r num">48.80</td><td class="mono">HBP base</td><td class="r">3/16</td></tr>
+      <tr class="tot"><td>Tract control</td><td class="r num">51.00</td><td colspan="2"></td></tr>
+    </tbody></table>
+    <p class="note">Calvin Wayne Kirk 2.20 NMA via MD 2017-000951 (Bk 2365/338). The retained
+    48.80 NMA traces to the Ella Pearl Kirk chain (Bk 227/89; survivorship 1999-003117,
+    Bk 1581/316) with no later probate/heirship of record — the section's largest single open item.</p></div></div>
+
+  <!-- T10 -->
+  <div class="tract"><div class="hd"><h3>Tract 10</h3><span class="legal mono">NE/4 SE/4</span>
+    <span class="chip open">partial — open balance</span><span class="ac num">40.00 ac</span></div>
+  <div class="bd"><table class="tbl">
+    <thead><tr><th>Identified owner</th><th class="r">Net ac</th><th>Base OGL</th><th>Top</th><th class="r">Royalty</th></tr></thead>
+    <tbody>
+      <tr><td>Keri Lee Daigle Tucker Trust</td><td class="r num">0.33</td><td class="mono">24</td><td class="mono">67</td><td class="r">3/16</td></tr>
+      <tr><td>Mark Ashley Daigle Trust</td><td class="r num">0.33</td><td class="mono">24</td><td class="mono">68</td><td class="r">3/16</td></tr>
+      <tr><td>Kevin Warner Johnson Trust</td><td class="r num">0.33</td><td class="mono">24</td><td class="mono">69</td><td class="r">3/16</td></tr>
+      <tr><td>Open / unreconciled balance <span class="chip open">needs source images</span></td><td class="r num">~39.01</td><td class="mono">HBP base</td><td colspan="2"></td></tr>
+      <tr class="tot"><td>Tract control</td><td class="r num">40.00</td><td colspan="3"></td></tr>
+    </tbody></table></div></div>
+
+</section>
+
+<section>
+  <span class="eyebrow">Working Interest &amp; Wellbore Chain</span>
+  <h2>Operating rights trace to Stride Bank, Trustee</h2>
+  <p class="lead">The Alexander 1-31 wellbore working interest runs from the original Lortz /
+  Lariat leasehold through the Chesapeake / EOG / Devon operating era and a series of modern
+  assignments to the current wellbore holder. The deep-rights / all-section leasehold and the
+  Silver Oak top-lease package are tracked separately on the WI 2 schedule.</p>
+  <div class="chain">
+    <span class="node">R. Michael Lortz</span><span class="arw">→</span>
+    <span class="node">Lariat Petroleum</span><span class="arw">→</span>
+    <span class="node">Ocean Energy → Devon</span><span class="arw">→</span>
+    <span class="node">Chesapeake / EOG era</span><span class="arw">→</span>
+    <span class="node">FourPoint / Unbridled</span><span class="arw">→</span>
+    <span class="node">Presidio / MidCon</span><span class="arw">→</span>
+    <span class="node">Martin's Empire, LLC</span><span class="arw">→</span>
+    <span class="node cur">Stride Bank, Trustee (Umbrella Trust)</span>
+  </div>
+  <p class="note">Current wellbore assignment: Martin's Empire, LLC → Stride Bank, N.A. Trustee,
+  instrument 2026-002547, Bk 2698/069, executed 5-4-2026. Operator of record on the OCC well
+  is shown as Martin's Resources LLC — reconcile against OCC Form 1073 (see Open Items).</p>
+</section>
+
+<section>
+  <span class="eyebrow">Unit Well &amp; HBP</span>
+  <h2>Alexander 1-31 — the section's held-by-production anchor</h2>
+  <div class="grid2">
+    <div class="callout">
+      <div class="kv">
+        <div><span>Well</span><b>Alexander 1-31</b></div>
+        <div><span>API</span><b class="mono">35-129-22925</b></div>
+        <div><span>Operator of record</span><b>Martin's Resources LLC</b></div>
+        <div><span>Formation</span><b>Cherokee</b></div>
+        <div><span>Surface location</span><b class="mono">C NW/4 SE/4 · 660′ FWL × 1980′ FSL</b></div>
+        <div><span>Completed</span><b class="num">5-19-2006</b></div>
+        <div><span>Status</span><b>Active (OCC “AC”)</b></div>
+        <div><span>Last reported production</span><b class="num">3-1-2026</b></div>
+      </div>
+    </div>
+    <div class="callout good">
+      <b>HBP effect.</b> A single active vertical well in the section holds the base leases
+      (OGL 1–63) by production. With OCC status active and production reported into 2026, the
+      base leasehold carries HBP and the Silver Oak top leases (OGL 64–69) remain subordinate
+      and springing. <span class="chip warn">confirm</span> continuous production via OTC gross
+      production by PUN to finalize the HBP conclusion; spud date, perforated intervals, and
+      TD/TVD come from the scanned OCC Form 1002A (2006).
+      <p class="note" style="margin-top:10px">Location note: the recorded quarter call
+      “C NW/4 SE/4” conflicts with the footages (660′ FWL × 1980′ FSL fall in the C NW/4 SW/4);
+      reconcile against the survey / 1002A.</p>
+    </div>
+  </div>
+</section>
+
+<section id="open">
+  <span class="eyebrow">Open Items</span>
+  <h2>What to pull to certify</h2>
+  <p class="lead">Every open item requires a recorded source document (okcountyrecords, OCC, or
+  OTC). None are guesses; each names the document. Grouped by priority.</p>
+  <ol class="tight" style="padding-left:22px">
+    <li><b>Base-lease HBP</b> — OTC gross production by PUN for the Alexander 1-31 unit (well is active; formal continuous-production confirmation pending).</li>
+    <li><b>Well completion</b> — OCC Form 1002A (2006) for spud, perforated intervals, TD/TVD; Form 1073 to confirm operator of record vs. the Martin's Empire → Stride Bank wellbore chain.</li>
+    <li><b>Open mineral balances</b> — recorded conveyance images to reconcile the carried HBP balances on Tracts 2, 4, 5, 6, 7, and 10 (notably the Ella Pearl Kirk estate 48.80 NMA on Tract 6, and the Psi Lke → Cummins/Eagle Owl “all of section” deed affecting Tract 4).</li>
+    <li><b>Conveyed fractions</b> — instrument images for the flagged tract-grid columns whose exact granting fraction is not yet of record.</li>
+    <li><b>Source-in (root of title)</b> — pre-2000 vesting deeds / probate decrees / heirship affidavits for the highlighted grantors whose acquiring instrument predates the available index (Rowley 1916, Ridling 1953, Thurman 1974, Kirk 1976, and peers).</li>
+    <li><b>Recent-filing sweep</b> — instruments filed after 6-5-2026 (last index entry 2026-003315, Bk 2704/142).</li>
+  </ol>
+</section>
+
+<footer>
+  <p><b>Basis &amp; reliance.</b> Prepared from the working title workbook (19-sheet NHE cursory
+  format), the Roger Mills County Unplatted Legal Index (OCR of 519 instruments, 2000–2026),
+  and the OGL register. Current ownership reflects the identified record owners; carried HBP
+  balances are shown as explicit open lines rather than distributed. All ten tract grids foot
+  to their gross acreage and to the section total of 637.42 acres.</p>
+  <p style="margin-top:12px"><b>Cursory cleanup only from available workbook, county index (OCR),
+  OCC status, and OTC evidence. Not a certified title opinion. Open and verify items remain only
+  where source evidence was insufficient. Confirm all interests against the recorded instruments
+  before relying on this report for a transaction.</b></p>
+</footer>
+</div>

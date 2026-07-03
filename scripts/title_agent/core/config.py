@@ -67,6 +67,27 @@ class Config:
             os.getenv("TITLE_AGENT_BUDGET_CAP", str(BUDGET_CAP_USD))
         )
 
+        # OKCountyRecords source-verification API.
+        self.OKCOUNTY_API_BASE_URL: str = os.getenv(
+            "OKCOUNTY_API_BASE_URL", "https://api.okcountyrecords.com/v1"
+        ).rstrip("/")
+        # Basic Auth: the API key is sent as the username with an empty
+        # password, per the OKCounty scheme. Read at call time so a key rotated
+        # in the environment takes effect without a restart.
+        self.OKCOUNTY_API_KEY_ENV: str = os.getenv(
+            "OKCOUNTY_API_KEY_ENV", "OKCOUNTY_API_KEY"
+        )
+        self.OKCOUNTY_COST_PER_IMAGE: float = float(
+            os.getenv("OKCOUNTY_COST_PER_IMAGE", "0.50")
+        )
+        self.OKCOUNTY_COST_PER_SEARCH: float = float(
+            os.getenv("OKCOUNTY_COST_PER_SEARCH", "0.10")
+        )
+        # curl timeout, seconds. Cloudflare-fronted endpoints can be slow.
+        self.OKCOUNTY_CURL_TIMEOUT: int = int(
+            os.getenv("OKCOUNTY_CURL_TIMEOUT", "30")
+        )
+
     def ensure_dirs(self) -> None:
         """Create the state directories if absent. Idempotent."""
         for path in (self.DB_PATH.parent, self.WORKBOOK_DIR, self.AUDIT_LOG_PATH.parent):

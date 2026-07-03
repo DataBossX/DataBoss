@@ -396,6 +396,28 @@ if runs_yellow:
     newparts[path] = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
 print('cleared-row yellow cells restyled:', runs_yellow)
 
+# ---- resolved source-in gap highlights: remove yellow fill (Phase 2 / HIGHLIGHT RULE) ----
+import os
+res_cleared = []
+if os.path.exists('qc/gap_resolutions.json'):
+    resolutions = json.load(open('qc/gap_resolutions.json'))
+    bysheet = {}
+    for r in resolutions:
+        bysheet.setdefault(r['sheet'], []).append(r['coord'])
+    for sheet, coords in bysheet.items():
+        path = sheetpath[sheet]
+        root = etree.fromstring(newparts.get(path) or zin.read(path))
+        for coord in coords:
+            cel = get_cell_el(root, coord)
+            if cel is not None:
+                sidx = int(cel.get('s', '0'))
+                fid = int(xfs[sidx].get('fillId', '0'))
+                if fill_is_yellow(fid):
+                    cel.set('s', str(noyellow_xf(sidx, 0)))
+                    res_cleared.append(f'{sheet}!{coord}')
+        newparts[path] = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+print('resolved gap highlights removed:', len(res_cleared), res_cleared)
+
 # workbook.xml: force full recalc on load
 wbroot = etree.fromstring(zin.read('xl/workbook.xml'))
 calc = wbroot.find(q('calcPr'))

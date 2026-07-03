@@ -174,7 +174,9 @@ class SurgicalEditor:
 
     def force_recalc(self):
         wbroot = etree.fromstring(self.zin.read("xl/workbook.xml"))
-        calc = wbroot.find(q("calcPr")) or etree.SubElement(wbroot, q("calcPr"))
+        calc = wbroot.find(q("calcPr"))
+        if calc is None:
+            calc = etree.SubElement(wbroot, q("calcPr"))
         calc.set("fullCalcOnLoad", "1")
         self.newparts["xl/workbook.xml"] = etree.tostring(
             wbroot, xml_declaration=True, encoding="UTF-8", standalone=True)

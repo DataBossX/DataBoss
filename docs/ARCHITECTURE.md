@@ -14,7 +14,12 @@ anywhere without installing dependencies.
 | Tools | `tools/registry.py` | Declarative `name -> callable` registry for agents/workflows. |
 | Agents | `agents/base.py` | `BaseAgent`: every action appends a JSONL proof record to `agent_outputs/<name>.jsonl`. Example: `agents/example_echo_agent.py`. |
 | Workflows | `workflows/runner.py` | Sequential runner with per-step audit logging; halts on first failure and returns a complete `RunResult`. |
-| Data | `scripts/init_db.py` | Idempotent SQLite schema (`documents`, `extractions`, `audit_log`) at `DB_PATH`. |
+| Data | `scripts/init_db.py` / `app/db.py` | Idempotent SQLite schema (`documents`, `extractions`, `audit_log`) at `DB_PATH`, plus thin insert/audit helpers. |
+| LLM | `tools/llm.py` | `LLMClient` uses litellm when the lib + provider key are present; otherwise `is_live` is False and agents use their offline path. Never logs secrets. |
+| Ingest | `tools/ingest.py` | `load_rows` for the DSU/OFFSET notice lists — CSV via stdlib, XLSX via openpyxl when installed. |
+| Extractor | `agents/extractor.py` | Untrusted text -> strict JSON (contract in `prompts/extractor_user.md`); deterministic regex fallback offline. |
+| Reasoner | `agents/reasoner.py` | Chronological docs -> ownership decision (contract in `prompts/reasoner_user.md`); offline path faithfully implements the prompt's rules. |
+| Pipeline | `workflows/extraction_pipeline.py` | `run_pipeline`: extract every doc -> reason -> persist documents/extractions/audit_log as proof. Runs fully offline. |
 
 ## Security invariants (enforced, not just documented)
 

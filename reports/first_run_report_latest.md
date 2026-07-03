@@ -40,6 +40,19 @@ heuristic now catches "ignore all previous instructions"-style phrasing.
 **Verification:** `python -m unittest discover -s tests` → `Ran 12 tests … OK`.
 `python scripts/init_db.py` → DB created. `python scripts/health_check.py` → all PASS.
 
+## Extraction pipeline (build round 3)
+Wired the real domain agents against the existing prompt contracts, guarded and tested:
+
+- `tools/llm.py` — `LLMClient` (litellm + provider key -> live; else offline). Secrets never logged.
+- `tools/ingest.py` — DSU/OFFSET notice-list ingest (CSV stdlib, XLSX via openpyxl when present).
+- `app/db.py` — insert/audit helpers over the SQLite schema.
+- `agents/extractor.py` — untrusted text -> strict JSON per `prompts/extractor_user.md`; deterministic offline regex fallback; input always `wrap_untrusted`'d.
+- `agents/reasoner.py` — extracted docs -> ownership decision per `prompts/reasoner_user.md`; offline path implements the prompt's rules exactly.
+- `workflows/extraction_pipeline.py` — `run_pipeline` extracts each doc, reasons, and persists documents/extractions/audit_log as proof.
+- Tests added for agents, ingest, and the end-to-end pipeline.
+
+**Verification:** `python -m unittest discover -s tests` → **Ran 21 tests … OK** (fully offline, no keys, no network).
+
 ## Environment note
 This baseline was executed inside the remote cloud workspace for the
 `databossx/databoss` repository (Linux container, working dir `/home/user/DataBoss`),

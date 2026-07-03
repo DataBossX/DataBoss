@@ -66,8 +66,8 @@ class OutputGenerator:
         lines.append(f"- Certified: **{outcome.certified}**")
         lines.append(f"- Iterations run: **{len(outcome.iterations)}**")
         lines.append(f"- Final workbook version: **v{outcome.final_version}**")
-        lines.append(f"- Cumulative API spend: **${outcome.total_spend:.2f}** "
-                     f"(cap $100.00)")
+        lines.append(f"- Cumulative API spend (ledger total, all runs): "
+                     f"**${outcome.total_spend:.2f}** (hard cap $100.00)")
         lines.append("")
         lines.append("| Gate | Name | Status | Detail |")
         lines.append("|------|------|--------|--------|")
@@ -118,7 +118,7 @@ class OutputGenerator:
             "of the risk (Golden Law #1).", "",
             f"- Certified workbook version: **v{outcome.final_version}**",
             f"- Path: `{outcome.ctx.version_path(outcome.final_version)}`",
-            f"- Cumulative API spend: **${outcome.total_spend:.2f}**",
+            f"- Cumulative API spend (ledger total): **${outcome.total_spend:.2f}**",
             f"- Iterations to certification: **{len(outcome.iterations)}**", "",
             "No legal or title facts were fabricated in producing this result.",
         ])

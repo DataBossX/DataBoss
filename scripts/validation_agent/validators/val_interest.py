@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from ..config.settings import config
 from ..models import CellRef, FailureCategory, Finding, GateResult, GateStatus, Severity
 from ..ingestion.sheet_classifier import SheetCategory
 from ._helpers import (data_cells_in_column, find_header_column,
@@ -96,10 +95,11 @@ class InterestValidator(ValidatorBase):
                         evidence={"residual": str(residual)}))
                     continue
 
-                float_residual = abs(float(residual))
-                if float_residual <= config.interest_tolerance:
-                    # Representational drift only: normalize to the exact fraction.
-                    exact = c + (r if r is not None else Fraction(0))
+                exact = c + (r if r is not None else Fraction(0))
+                if self._is_rounded_representation(g_cell.value, exact):
+                    # Representational drift only: the stored decimal is exactly
+                    # the rounded form of the exact fraction the other two columns
+                    # imply. Normalizing invents nothing.
                     findings.append(Finding(
                         gate_id=3, gate_name="Interest Conservation",
                         category=FailureCategory.COMPUTATIONAL_MISMATCH,
@@ -136,6 +136,27 @@ class InterestValidator(ValidatorBase):
                   f"{len(findings)} conservation issue(s) across {rows_checked} rows.")
         return [GateResult(3, "Interest Conservation", status, findings, detail,
                            {"rows_checked": rows_checked})]
+
+    @staticmethod
+    def _is_rounded_representation(raw_value, exact: Fraction) -> bool:
+        """True iff ``raw_value`` is a decimal that is exactly the rounded form
+        of ``exact`` at its own displayed precision.
+
+        This distinguishes harmless formatting drift (e.g. 0.333 for 1/3) from a
+        genuine over/under-conveyance (0.5 vs an exact 0.4), without a fixed
+        float tolerance that either misses real rounding or masks real defects.
+        """
+        s = str(raw_value).strip().rstrip("%")
+        if "." not in s:
+            return False
+        try:
+            face = float(s)
+        except ValueError:
+            return False
+        decimals = len(s.split(".")[1])
+        if not 1 <= decimals <= 6:
+            return False
+        return round(float(exact), decimals) == round(face, decimals)
 
     @staticmethod
     def _value_at(sheet, col, row):

@@ -54,8 +54,11 @@ class APISpendGuard:
             self._log(run_id, decision, description)
             return decision
 
-        projected = round(spent + estimated_cost, 4)
-        if projected > self.cap:
+        # Compare the *unrounded* projection so a sub-cent overage can never be
+        # rounded down to exactly the cap and slip through the hard ceiling.
+        raw_projected = spent + estimated_cost
+        projected = round(raw_projected, 4)
+        if raw_projected > self.cap:
             decision = SpendDecision(
                 allowed=False,
                 reason=(f"Blocked: projected ${projected:.2f} would exceed the "
@@ -83,8 +86,8 @@ class APISpendGuard:
         """
         if amount <= 0:
             return
-        projected = round(self.already_spent() + amount, 4)
-        if projected > self.cap + 1e-6:
+        projected = self.already_spent() + amount
+        if projected > self.cap:
             raise RuntimeError(
                 f"Refusing to record ${amount:.2f}: would breach ${self.cap:.2f} cap.")
         self.audit.log_spend(run_id, amount, description)

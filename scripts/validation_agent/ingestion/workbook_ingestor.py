@@ -43,6 +43,7 @@ class RawSheet:
     max_row: int
     max_col: int
     headers: list[str]
+    header_row: int = 1  # row the header labels were detected on
     cells: dict[str, CellData] = field(default_factory=dict)
 
     def column_values(self, col_letter: str) -> list[CellData]:
@@ -117,6 +118,7 @@ class WorkbookIngestor:
                 ws_v = wb_v[name]
                 cells: dict[str, CellData] = {}
                 headers: list[str] = []
+                header_row = 1
 
                 for r_f, r_v in zip(ws_f.iter_rows(), ws_v.iter_rows()):
                     for cell_f, cell_v in zip(r_f, r_v):
@@ -138,6 +140,9 @@ class WorkbookIngestor:
                             str(c.value).strip() if c.value is not None else ""
                             for c in r_v
                         ]
+                        # Record the actual row the labels sit on so validators
+                        # skip the right rows even when a banner occupies row 1.
+                        header_row = next((c.row for c in r_v if c.value is not None), 1)
 
                 sheets.append(RawSheet(
                     name=name,
@@ -145,6 +150,7 @@ class WorkbookIngestor:
                     max_row=ws_f.max_row or 0,
                     max_col=ws_f.max_column or 0,
                     headers=headers,
+                    header_row=header_row,
                     cells=cells,
                 ))
         finally:

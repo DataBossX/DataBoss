@@ -149,11 +149,3 @@ class AuditLogger:
             "data": json.dumps(data, default=str) if data is not None else None,
         })
 
-    # -- readers used by dashboard / gate 12 --------------------------------
-    def count_findings(self, run_id: str) -> int:
-        return int(self.db.scalar(
-            "SELECT COUNT(*) FROM findings WHERE run_id=?", (run_id,)) or 0)
-
-    def count_logged_gate_results(self, run_id: str) -> int:
-        return int(self.db.scalar(
-            "SELECT COUNT(*) FROM validation_results WHERE run_id=?", (run_id,)) or 0)

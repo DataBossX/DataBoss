@@ -76,7 +76,14 @@ class LibreOfficeRecalcRunner:
                 return RecalcResult(False, None, False,
                                     f"Recalc timed out after {config.recalc_timeout_sec}s")
 
+            # LibreOffice derives the output name from the source and may
+            # sanitize it; the temp outdir holds only this conversion, so take
+            # the produced .xlsx by glob rather than assuming the exact stem.
             produced = tmp_dir / f"{src.stem}.xlsx"
+            if not produced.is_file():
+                candidates = sorted(tmp_dir.glob("*.xlsx"))
+                if candidates:
+                    produced = candidates[0]
             if not produced.is_file():
                 err = (proc.stderr or b"").decode(errors="replace").strip()
                 return RecalcResult(False, None, False,

@@ -39,6 +39,7 @@ class RepairApplyResult:
     ok: bool
     dest_path: Optional[str]
     applied: list[str] = field(default_factory=list)
+    applied_actions: list[RepairAction] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     error: Optional[str] = None
 
@@ -101,9 +102,11 @@ class XMLWorkbookEditor:
                 for a in sheet_actions:
                     result.skipped.append(f"{sheet_name}!{a.location.cell}: sheet part not found")
                 continue
-            new_xml, applied, skipped = self._edit_sheet(parts[part], sheet_actions, etree)
+            new_xml, applied, applied_actions, skipped = self._edit_sheet(
+                parts[part], sheet_actions, etree)
             parts[part] = new_xml
             result.applied.extend(applied)
+            result.applied_actions.extend(applied_actions)
             result.skipped.extend(skipped)
 
         # Strip calcChain.xml + its references.
@@ -168,9 +171,11 @@ class XMLWorkbookEditor:
         root = etree.fromstring(xml)
         sheet_data = root.find(_q(_MAIN_NS, "sheetData"))
         applied: list[str] = []
+        applied_actions: list[RepairAction] = []
         skipped: list[str] = []
         if sheet_data is None:
-            return xml, applied, [f"{a.location.cell}: no sheetData" for a in actions]
+            return (xml, applied, applied_actions,
+                    [f"{a.location.cell}: no sheetData" for a in actions])
 
         for act in actions:
             coord = act.location.cell or ""
@@ -179,17 +184,20 @@ class XMLWorkbookEditor:
                 skipped.append(f"{coord}: nothing to write")
                 continue
             cell = self._find_or_create_cell(sheet_data, coord, etree)
-            # Remove cached value and any prior formula; drop string type marker.
-            if cell.get("t") in ("s", "str", "inlineStr"):
+            # A formula cell derives its type from the computed result. Any prior
+            # cached type marker (s/str/inlineStr but also e/b/n) is now stale --
+            # drop it unconditionally so a repaired #REF! cell isn't left t="e".
+            if "t" in cell.attrib:
                 del cell.attrib["t"]
             for child in list(cell):
                 cell.remove(child)
             f_el = etree.SubElement(cell, _q(_MAIN_NS, "f"))
             f_el.text = body
             applied.append(f"{act.location.sheet}!{coord} <- ={body}")
+            applied_actions.append(act)
 
-        return etree.tostring(root, xml_declaration=True, encoding="UTF-8",
-                              standalone=True), applied, skipped
+        return (etree.tostring(root, xml_declaration=True, encoding="UTF-8",
+                               standalone=True), applied, applied_actions, skipped)
 
     @staticmethod
     def _formula_body(act: RepairAction) -> str:
@@ -206,8 +214,9 @@ class XMLWorkbookEditor:
                 row_el = r
                 break
         if row_el is None:
-            row_el = etree.SubElement(sheet_data, _q(_MAIN_NS, "row"))
+            row_el = etree.Element(_q(_MAIN_NS, "row"))
             row_el.set("r", str(target_row))
+            self._insert_row_in_order(sheet_data, row_el, target_row)
         for c in row_el.findall(_q(_MAIN_NS, "c")):
             if c.get("r") == coord:
                 return c
@@ -216,6 +225,16 @@ class XMLWorkbookEditor:
         cell.set("r", coord)
         self._sort_row_cells(row_el)
         return cell
+
+    @staticmethod
+    def _insert_row_in_order(sheet_data, row_el, target_row: int) -> None:
+        """Insert <row> so sheetData stays ascending by row number (Excel
+        rejects out-of-order rows as a corrupt record)."""
+        for existing in sheet_data.findall(_q(_MAIN_NS, "row")):
+            if int(existing.get("r", "0")) > target_row:
+                existing.addprevious(row_el)
+                return
+        sheet_data.append(row_el)
 
     @staticmethod
     def _sort_row_cells(row_el) -> None:
@@ -248,13 +267,27 @@ class XMLWorkbookEditor:
         return etree.tostring(root, xml_declaration=True, encoding="UTF-8",
                               standalone=True)
 
-    @staticmethod
-    def _set_full_calc(xml: bytes, etree) -> bytes:
+    # CT_Workbook child sequence: everything that must precede <calcPr>.
+    # calcPr must sit after these and before oleSize/customWorkbookViews/...
+    _BEFORE_CALCPR = ("fileVersion", "fileSharing", "workbookPr",
+                      "workbookProtection", "bookViews", "sheets",
+                      "functionGroups", "externalReferences", "definedNames")
+
+    @classmethod
+    def _set_full_calc(cls, xml: bytes, etree) -> bytes:
         root = etree.fromstring(xml)
         calc_pr = root.find(_q(_MAIN_NS, "calcPr"))
         if calc_pr is None:
-            calc_pr = etree.SubElement(root, _q(_MAIN_NS, "calcPr"))
+            calc_pr = etree.Element(_q(_MAIN_NS, "calcPr"))
             calc_pr.set("calcId", "0")
+            # Insert in schema-valid position, not at the end (Excel is strict
+            # about CT_Workbook child order; misplacement triggers repair).
+            insert_at = len(root)
+            before = {_q(_MAIN_NS, t) for t in cls._BEFORE_CALCPR}
+            for idx, child in enumerate(root):
+                if child.tag in before:
+                    insert_at = idx + 1
+            root.insert(insert_at, calc_pr)
         calc_pr.set("fullCalcOnLoad", "1")
         return etree.tostring(root, xml_declaration=True, encoding="UTF-8",
                               standalone=True)

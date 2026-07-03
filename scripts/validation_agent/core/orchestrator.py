@@ -27,13 +27,13 @@ from ..db.audit_logger import AuditLogger
 from ..ingestion.manifest_builder import WorkbookManifest, WorkbookManifestBuilder
 from ..ingestion.sheet_classifier import SheetCategory
 from ..models import (CellRef, Escalation, FailureCategory, Finding, GateResult,
-                      GateStatus, Severity)
+                      GateStatus, RepairAction, Severity)
 from ..recalc.libreoffice_runner import LibreOfficeRecalcRunner
 from ..repair.repair_planner import RepairPlan, RepairPlanner
 from ..repair.xml_editor import XMLWorkbookEditor
 from ..sources.okcounty_client import OKCountyRecordsClient
 from ..validators import DOMAIN_VALIDATORS
-from .run_manager import RunContext, RunManager
+from .run_manager import RunContext, RunManager, sha256_of
 
 # --- State constants (Section 4) -------------------------------------------
 STATE_INIT = "STATE_INIT"
@@ -104,7 +104,7 @@ class PerfectionLoopOrchestrator:
             self.audit.log_state(ctx.run_id, iteration, STATE_INGEST,
                                  f"Ingesting workbook v{current_version}.")
             manifest = self.manifest_builder.build(
-                ctx.run_id, current_version, current_path, sha_of(current_path))
+                ctx.run_id, current_version, current_path, sha256_of(current_path))
 
             gate_results, findings = self._evaluate_all_gates(
                 ctx, manifest, iteration, current_version)
@@ -130,11 +130,18 @@ class PerfectionLoopOrchestrator:
                 break
 
             if decision == STATE_ESCALATE:
+                # Guarantee the examiner always receives at least one packet:
+                # we may escalate on an ERROR gate (e.g. a missing runsheet) or
+                # on the final iteration with no domain-level escalation.
+                escalations = list(plan.escalations)
+                if not escalations:
+                    escalations = self._fallback_escalations(
+                        gate_results, iteration)
                 outcome.final_state = STATE_ESCALATE
                 outcome.final_version = current_version
-                self._persist_escalations(ctx, iteration, plan.escalations)
-                outcome.escalations = plan.escalations
-                outcome.message = self._escalation_message(plan, iteration)
+                self._persist_escalations(ctx, iteration, escalations)
+                outcome.escalations = escalations
+                outcome.message = self._escalation_message(escalations, iteration)
                 self.audit.log_state(ctx.run_id, iteration, STATE_ESCALATE,
                                      outcome.message)
                 break
@@ -160,7 +167,9 @@ class PerfectionLoopOrchestrator:
                 outcome.final_version = current_version
                 outcome.message = f"Repair failed at v{current_version}."
                 break
-            for action in plan.safe_repairs:
+            # Log only the repairs actually written to the XML, and verify only
+            # those cells -- a planned action the editor skipped was never made.
+            for action in apply_res.applied_actions:
                 self.audit.log_repair(ctx.run_id, iteration, current_version,
                                       new_version, action)
 
@@ -168,7 +177,7 @@ class PerfectionLoopOrchestrator:
             canonical_path = ctx.version_path(new_version)
             recalc_ok, next_path, corrupt = self._recalc(
                 ctx, iteration, new_version, repaired_path, canonical_path,
-                apply_res.applied, plan)
+                apply_res.applied, apply_res.applied_actions)
             if corrupt:
                 esc = self._synthetic_escalation(
                     FailureCategory.BROKEN_WORKBOOK_STRUCTURE, iteration,
@@ -228,8 +237,9 @@ class PerfectionLoopOrchestrator:
 
         # Gate 12 -- audit completeness (log first, then verify counts).
         self._log_results(ctx, iteration, version, gate_results)
+        expected_findings = sum(len(r.findings) for r in gate_results)
         gate_results.append(self._gate_audit_completeness(
-            ctx, iteration, len(gate_results)))
+            ctx, iteration, len(gate_results), expected_findings))
         # Persist the audit-completeness result too.
         self.audit.log_gate_result(ctx.run_id, iteration, version, gate_results[-1])
 
@@ -313,24 +323,36 @@ class PerfectionLoopOrchestrator:
                           "Source verification budget available.")
 
     def _gate_audit_completeness(self, ctx: RunContext, iteration: int,
-                                 expected_logged: int) -> GateResult:
-        logged = int(self.audit.db.scalar(
+                                 expected_results: int,
+                                 expected_findings: int) -> GateResult:
+        """Independently read back the ledger and confirm both the gate results
+        and every finding were persisted -- catching a silent logging gap rather
+        than merely recounting what we just inserted."""
+        logged_results = int(self.audit.db.scalar(
             "SELECT COUNT(*) FROM validation_results WHERE run_id=? AND iteration=?",
             (ctx.run_id, iteration)) or 0)
-        if logged >= expected_logged:
+        logged_findings = int(self.audit.db.scalar(
+            "SELECT COUNT(*) FROM findings WHERE run_id=? AND iteration=?",
+            (ctx.run_id, iteration)) or 0)
+        metrics = {"logged_results": logged_results,
+                   "expected_results": expected_results,
+                   "logged_findings": logged_findings,
+                   "expected_findings": expected_findings}
+        if logged_results >= expected_results and logged_findings >= expected_findings:
             return GateResult(12, "Audit Completeness", GateStatus.PASS, [],
-                              f"All {logged} gate results logged immutably.",
-                              {"logged": logged, "expected": expected_logged})
+                              f"All {logged_results} gate results and "
+                              f"{logged_findings} findings logged immutably.",
+                              metrics)
         finding = Finding(
             gate_id=12, gate_name="Audit Completeness",
             category=FailureCategory.BROKEN_WORKBOOK_STRUCTURE,
             severity=Severity.FATAL,
-            message=f"Audit log gap: {logged}/{expected_logged} results persisted.",
+            message=(f"Audit log gap: {logged_results}/{expected_results} results, "
+                     f"{logged_findings}/{expected_findings} findings persisted."),
             location=CellRef(sheet="(audit)"), subject="audit log",
             repairable=False, escalate=True)
         return GateResult(12, "Audit Completeness", GateStatus.FAIL, [finding],
-                          finding.message, {"logged": logged,
-                                            "expected": expected_logged})
+                          finding.message, metrics)
 
     # -- decision logic (Section 4, STATE_EVALUATE_GATES) -------------------
     @staticmethod
@@ -352,14 +374,14 @@ class PerfectionLoopOrchestrator:
     # -- recalculation ------------------------------------------------------
     def _recalc(self, ctx: RunContext, iteration: int, version: int,
                 repaired_path: Path, canonical_path: Path,
-                applied: list[str], plan: RepairPlan):
+                applied: list[str], applied_actions: list["RepairAction"]):
         """Produce the canonical vN file (recalc output, or the repaired file if
         LibreOffice is unavailable). Returns (recalc_ok, next_path, corrupt)."""
         import shutil
         self.audit.log_state(ctx.run_id, iteration, STATE_RECALC,
                              f"Recalculating v{version}.")
         verify_cells = [(a.location.sheet, a.location.cell)
-                        for a in plan.safe_repairs if a.location.cell]
+                        for a in applied_actions if a.location.cell]
         res = self.recalc.recalc(repaired_path, canonical_path, verify_cells)
         if res.corrupted:
             # Rollback: do NOT let a corrupt file become the canonical version.
@@ -403,14 +425,40 @@ class PerfectionLoopOrchestrator:
             estimated_urgency="Immediate" if entry.severity is Severity.FATAL
             else "Urgent")
 
+    def _fallback_escalations(self, gate_results: list[GateResult],
+                              iteration: int) -> list[Escalation]:
+        """Build packets when the loop escalates without a domain-level finding.
+
+        Turns each unevaluated/failed gate that carried no finding into an
+        escalation so Section 7's guarantee (every escalation is a full packet)
+        always holds, even for structural ERROR gates like a missing runsheet.
+        """
+        escs: list[Escalation] = []
+        for r in gate_results:
+            if r.status in (GateStatus.ERROR, GateStatus.FAIL) and not r.findings:
+                escs.append(Escalation(
+                    gate_id=r.gate_id, gate_name=r.gate_name,
+                    category=FailureCategory.MISSING_SOURCE, severity=Severity.HIGH,
+                    failed_gate=r.gate_name, location=None, subject=r.gate_name,
+                    sources_checked=[], sources_missing=[],
+                    automated_checks_attempted=[r.detail or "Gate evaluation."],
+                    repair_blocked_reason=(r.detail
+                                           or "Gate could not be evaluated."),
+                    recommended_examiner_action=(
+                        "Supply the missing sheet/data so this gate can run."),
+                    estimated_urgency="Elevated"))
+        if not escs:
+            is_last = iteration >= config.max_iterations - 1
+            reason = ("Maximum iterations reached without certification."
+                      if is_last else
+                      "Loop halted without a repairable path; examiner review required.")
+            escs.append(self._synthetic_escalation(
+                FailureCategory.UNSAFE_LEGAL_INFERENCE, iteration, reason))
+        return escs
+
     @staticmethod
-    def _escalation_message(plan: RepairPlan, iteration: int) -> str:
-        cats = sorted({e.category.value for e in plan.escalations})
+    def _escalation_message(escalations: list[Escalation], iteration: int) -> str:
+        cats = sorted({e.category.value for e in escalations})
         return (f"Escalated at iteration {iteration}: "
-                f"{len(plan.escalations)} item(s) [{', '.join(cats)}]. "
+                f"{len(escalations)} item(s) [{', '.join(cats)}]. "
                 f"Automated repair halted -- examiner action required.")
-
-
-def sha_of(path: Path) -> str:
-    from .run_manager import sha256_of
-    return sha256_of(path)

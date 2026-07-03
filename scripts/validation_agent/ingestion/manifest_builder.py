@@ -23,6 +23,7 @@ class SheetInfo:
     category: SheetCategory
     classification_score: int
     headers: list[str]
+    header_row: int
     max_row: int
     max_col: int
     cells: dict[str, CellData]
@@ -121,6 +122,7 @@ class WorkbookManifestBuilder:
                 category=cls.category,
                 classification_score=cls.score,
                 headers=raw.headers,
+                header_row=raw.header_row,
                 max_row=raw.max_row,
                 max_col=raw.max_col,
                 cells=raw.cells,

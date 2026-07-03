@@ -114,10 +114,16 @@ class OglWiValidator(ValidatorBase):
                     repairable=False, escalate=True,
                     evidence={"register_depth": reg_depth, "wi_depth": wi_depth}))
 
+        # Also catch clashes *within* a sheet-set: the same lease listed twice
+        # with conflicting depths (e.g. two WI rows) never surfaces in the
+        # register-vs-WI comparison above.
+        findings.extend(self._internal_depth_clashes(wi_sheets, "WI"))
+        findings.extend(self._internal_depth_clashes(registers, "register"))
+
         status = GateStatus.PASS if not findings else GateStatus.FAIL
         detail = (f"{compared} lease depth clause(s) align."
                   if not findings else
-                  f"{len(findings)} depth clash(es) between register and WI.")
+                  f"{len(findings)} depth clash(es) detected.")
         return GateResult(8, "WI/Depth Consistency", status, findings, detail,
                           {"compared": compared})
 
@@ -136,6 +142,39 @@ class OglWiValidator(ValidatorBase):
                 if lease and lease not in out:
                     out[lease] = CellRef(sheet=sheet.name, cell=f"{col}{cell.row}")
         return out
+
+    @staticmethod
+    def _internal_depth_clashes(sheets, label: str) -> list[Finding]:
+        """Flag a lease that appears twice within ``sheets`` with different depths."""
+        seen: dict[str, str] = {}
+        findings: list[Finding] = []
+        for sheet in sheets:
+            id_col = find_header_column(sheet, "ogl", "lease number", "lease id",
+                                        "lease")
+            depth_col = find_header_column(sheet, "depth", "interval", "formation",
+                                           "limitation")
+            if not (id_col and depth_col):
+                continue
+            for cell in data_cells_in_column(sheet, id_col):
+                if is_total_row(sheet, cell.row) or cell.value is None:
+                    continue
+                lease = _norm_id(cell.value)
+                dcell = sheet.cell(f"{depth_col}{cell.row}")
+                depth = str(dcell.value) if dcell and dcell.value is not None else ""
+                norm = _norm_depth(depth)
+                if lease in seen and seen[lease] != norm:
+                    findings.append(Finding(
+                        gate_id=8, gate_name="WI/Depth Consistency",
+                        category=FailureCategory.OGL_WI_MISMATCH,
+                        severity=Severity.HIGH,
+                        message=(f"Lease '{lease}' has conflicting depths within the "
+                                 f"{label} sheets ('{seen[lease]}' vs '{norm}')."),
+                        location=CellRef(sheet=sheet.name,
+                                         cell=f"{depth_col}{cell.row}"),
+                        subject=f"OGL {lease}", repairable=False, escalate=True))
+                elif lease:
+                    seen[lease] = norm
+        return findings
 
     @staticmethod
     def _depth_map(sheets) -> dict[str, tuple[str, CellRef]]:

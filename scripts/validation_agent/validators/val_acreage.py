@@ -38,18 +38,18 @@ class AcreageValidator(ValidatorBase):
             return GateResult(4, "Acreage Footing", GateStatus.ERROR,
                               detail="No tract sheets classified; cannot foot acreage.")
 
+        # Avoid double-counting: when a dedicated summary/footing tab exists,
+        # foot from it alone; otherwise sum the per-tract detail tabs.
+        acreage_sheets = self._acreage_sheets(tracts)
+
         component_sum = 0.0
         counted_rows = 0
         sheets_with_acreage = 0
         findings: list[Finding] = []
 
-        for sheet in tracts:
-            acre_col = find_header_column(sheet, "net acre", "net", "gross acre",
-                                          "gross", "acre")
+        for sheet in acreage_sheets:
+            acre_col = self._acre_col(sheet)
             if acre_col is None:
-                # A tract sheet need not carry acreage itself (detail tabs often
-                # don't); acreage may be aggregated on a summary sheet. Only the
-                # absence of *any* acreage column anywhere is a problem.
                 continue
             sheets_with_acreage += 1
             for cell in data_cells_in_column(sheet, acre_col):
@@ -76,9 +76,8 @@ class AcreageValidator(ValidatorBase):
                    "delta": delta, "rows_counted": counted_rows}
 
         # Check declared totals for hardcoded overrides that disagree.
-        for sheet in tracts:
-            acre_col = find_header_column(sheet, "net acre", "net", "gross acre",
-                                          "gross", "acre")
+        for sheet in acreage_sheets:
+            acre_col = self._acre_col(sheet)
             if acre_col is None:
                 continue
             for cell in sheet.cells.values():
@@ -144,6 +143,22 @@ class AcreageValidator(ValidatorBase):
         return GateResult(10, "Formula Integrity", GateStatus.FAIL, findings,
                           f"{len(findings)} hardcoded total cell(s) override logic.")
 
+    # -- acreage-sheet / column selection ----------------------------------
+    # Deliberately narrow: must mention "acre" so "Net Revenue Interest" and
+    # similar "net"/"gross" columns are never mistaken for acreage.
+    _ACRE_KEYWORDS = ("net acre", "gross acre", "acreage", "acre")
+
+    @classmethod
+    def _acre_col(cls, sheet):
+        return find_header_column(sheet, *cls._ACRE_KEYWORDS)
+
+    @classmethod
+    def _acreage_sheets(cls, tracts):
+        summary = [s for s in tracts
+                   if any(tok in s.name.lower()
+                          for tok in ("summary", "footing", "total", "recap"))]
+        return summary or tracts
+
     # -- shared repair-finding builder -------------------------------------
     @staticmethod
     def _sum_repair_finding(sheet, cell, col: str, *, gate_id: int, gate_name: str,
@@ -152,7 +167,19 @@ class AcreageValidator(ValidatorBase):
                  if c.row < cell.row and numeric(c.value) is not None
                  and not is_total_row(sheet, c.row)]
         rows = [c.row for c in above]
-        start, end = (min(rows), max(rows)) if rows else (cell.row, cell.row)
+        if not rows:
+            # No data range above the total: a =SUM over the cell itself would be
+            # circular. This is not machine-repairable -- escalate instead.
+            return Finding(
+                gate_id=gate_id, gate_name=gate_name,
+                category=FailureCategory.COMPUTATIONAL_MISMATCH,
+                severity=Severity.HIGH,
+                message=message + " No data range above the total to restore a "
+                                  "formula from; examiner review required.",
+                location=CellRef(sheet=sheet.name, cell=cell.coord),
+                subject=f"{sheet.name}!{cell.coord}",
+                repairable=False, escalate=True)
+        start, end = (min(rows), max(rows))
         new_formula = f"=SUM({col}{start}:{col}{end})"
         category = (FailureCategory.FORMULA_DEFECT if gate_id == 10
                     else FailureCategory.COMPUTATIONAL_MISMATCH)

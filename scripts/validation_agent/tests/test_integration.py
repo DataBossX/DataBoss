@@ -76,6 +76,32 @@ def test_missing_probate_halts_and_escalates(tmp_path):
     assert "ESC-" in written
 
 
+def test_escalate_always_produces_a_packet(tmp_path):
+    """Escalating on structural ERROR gates (e.g. a missing runsheet) must still
+    hand the examiner at least one full packet -- never an empty escalation."""
+    from openpyxl import Workbook
+    wb = Workbook()
+    wb.remove(wb.active)
+    for i in range(1, 11):
+        ws = wb.create_sheet(f"Tract {i}")
+        ws.append(["Tract", "Net Acres"])
+        ws.append([i, 63.742])
+    ws = wb.create_sheet("OGL Register")
+    ws.append(["OGL", "Lessor", "Depth", "Book", "Page"])
+    ws.append(["L-1", "ALICE", "X", "5", "100"])
+    ws = wb.create_sheet("Working Interest")
+    ws.append(["OGL", "Depth"])
+    ws.append(["L-1", "X"])
+    src = tmp_path / "norunsheet.xlsx"
+    wb.save(src)
+
+    orch = _orchestrator(tmp_path)
+    outcome = orch.run(src, timestamp="20260101_000004")
+    assert outcome.final_state == STATE_ESCALATE
+    assert outcome.escalations, "escalation must never be empty"
+    assert "0 item(s)" not in outcome.message
+
+
 def test_escalation_payload_has_all_nine_fields(tmp_path):
     src = build_escalation_workbook(tmp_path / "esc.xlsx")
     orch = _orchestrator(tmp_path)

@@ -19,6 +19,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlencode
 
 from ..config.settings import config
 from ..db.audit_logger import AuditLogger
@@ -139,12 +140,12 @@ class OKCountyRecordsClient:
             self._meta_cache[key] = None
             return None
 
-        params = []
-        for k, v in (("county", county), ("book", book), ("page", page),
-                     ("instrumentNumber", instrument_number)):
-            if v:
-                params.append(f"{k}={v}")
-        url = f"{self.base_url}/documents/search?" + "&".join(params)
+        query = {k: v for k, v in (("county", county), ("book", book),
+                                   ("page", page),
+                                   ("instrumentNumber", instrument_number)) if v}
+        # urlencode percent-escapes spaces and reserved chars (&, #, ...) so a
+        # county like "Le Flore" or a value with '&' does not corrupt the query.
+        url = f"{self.base_url}/documents/search?" + urlencode(query)
 
         # Metadata search cost is configured (default $0 -> free).
         decision = self.guard.authorize(config.okcounty_cost_per_search,
@@ -181,8 +182,15 @@ class OKCountyRecordsClient:
             data = json.loads(resp.body.decode(errors="replace") or "{}")
         except json.JSONDecodeError:
             return None
-        results = data.get("results") or ([data] if data else [])
-        if not results:
+        # The endpoint may return either {"results": [...]} or a bare JSON array;
+        # handle both without assuming a dict (a list has no .get()).
+        if isinstance(data, list):
+            results = data
+        elif isinstance(data, dict):
+            results = data.get("results") or ([data] if data else [])
+        else:
+            return None
+        if not results or not isinstance(results[0], dict):
             return None
         r = results[0]
         return SourceRecord(

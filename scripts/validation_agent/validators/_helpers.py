@@ -65,20 +65,33 @@ def label_column(sheet) -> str:
     return col or "A"
 
 
-def data_cells_in_column(sheet, col: str, *, header_row: int = 1) -> list[CellData]:
-    """Numeric-or-text cells in ``col`` below the header row, in row order."""
+def data_cells_in_column(sheet, col: str, *, header_row: Optional[int] = None) -> list[CellData]:
+    """Numeric-or-text cells in ``col`` below the header row, in row order.
+
+    When ``header_row`` is not given, the sheet's detected header row is used so
+    a title banner in row 1 does not cause the real header row to be treated as
+    data.
+    """
+    if header_row is None:
+        header_row = getattr(sheet, "header_row", 1)
     cells = [c for c in sheet.cells.values()
              if col_of(c.coord) == col and c.row > header_row]
     return sorted(cells, key=lambda c: c.row)
 
 
+# Exact totals-label tokens. Matched exactly (not startswith) so party/company
+# names like "Total Petroleum Inc" or "Summary Deed" are never mistaken for a
+# footing row.
+_TOTAL_TOKENS = {"total", "totals", "sum", "grand total", "subtotal", "footing",
+                 "net total", "total net acres", "grand total net acres"}
+
+
 def is_total_row(sheet, row: int) -> bool:
-    """True when any cell in ``row`` reads like a totals/footing label."""
-    tokens = ("total", "sum", "grand total", "footing", "subtotal")
+    """True when a cell in ``row`` is exactly a totals/footing label."""
     for c in sheet.cells.values():
         if c.row == row and isinstance(c.value, str):
             v = c.value.strip().lower()
-            if any(tok == v or v.startswith(tok) for tok in tokens):
+            if v in _TOTAL_TOKENS:
                 return True
     return False
 

@@ -42,6 +42,23 @@ def test_formula_injected_and_calcchain_stripped(tmp_path):
     wb.close()
 
 
+def test_calcpr_inserted_in_schema_valid_position():
+    """When calcPr is absent, it must land after definedNames and before the
+    later CT_Workbook children -- appending at the end corrupts for Excel."""
+    from lxml import etree
+    from validation_agent.repair.xml_editor import XMLWorkbookEditor
+    ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    xml = (f'<workbook xmlns="{ns}"><workbookPr/><bookViews/>'
+           '<sheets><sheet name="S"/></sheets><definedNames/>'
+           '<customWorkbookViews/></workbook>').encode()
+    out = XMLWorkbookEditor._set_full_calc(xml, etree)
+    root = etree.fromstring(out)
+    order = [etree.QName(c).localname for c in root]
+    assert order.index("calcPr") == order.index("definedNames") + 1
+    assert order.index("calcPr") < order.index("customWorkbookViews")
+    assert root.find(f"{{{ns}}}calcPr").get("fullCalcOnLoad") == "1"
+
+
 def test_manifest_sees_restored_formula(tmp_path):
     src = build_certifiable_workbook(tmp_path / "clean.xlsx")
     dest = tmp_path / "repaired.xlsx"

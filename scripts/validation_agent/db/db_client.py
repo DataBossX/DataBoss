@@ -32,8 +32,12 @@ _SQLITE_DENY = 1
 _SQLITE_DELETE = 9
 _SQLITE_DROP_INDEX = 10
 _SQLITE_DROP_TABLE = 11
-_SQLITE_DROP_TRIGGER = 12
-_SQLITE_DROP_VIEW = 13
+_SQLITE_DROP_TEMP_INDEX = 12
+_SQLITE_DROP_TEMP_TABLE = 13
+_SQLITE_DROP_TEMP_TRIGGER = 14
+_SQLITE_DROP_TEMP_VIEW = 15
+_SQLITE_DROP_TRIGGER = 16
+_SQLITE_DROP_VIEW = 17
 _SQLITE_UPDATE = 23
 _SQLITE_ALTER_TABLE = 26
 
@@ -42,6 +46,10 @@ _DENIED_ACTIONS = {
     _SQLITE_UPDATE,
     _SQLITE_DROP_INDEX,
     _SQLITE_DROP_TABLE,
+    _SQLITE_DROP_TEMP_INDEX,
+    _SQLITE_DROP_TEMP_TABLE,
+    _SQLITE_DROP_TEMP_TRIGGER,
+    _SQLITE_DROP_TEMP_VIEW,
     _SQLITE_DROP_TRIGGER,
     _SQLITE_DROP_VIEW,
     _SQLITE_ALTER_TABLE,
@@ -80,8 +88,14 @@ class DatabaseManager:
         ddl = self.schema_path.read_text(encoding="utf-8")
         # Schema creation uses a raw connection *without* the authorizer so
         # CREATE TABLE/INDEX/PRAGMA run unhindered; it never mutates data.
-        with sqlite3.connect(self.db_path) as conn:
+        # (sqlite3's `with` only commits -- it does not close -- so close
+        # explicitly to avoid leaking a handle on every idempotent init().)
+        conn = sqlite3.connect(self.db_path)
+        try:
             conn.executescript(ddl)
+            conn.commit()
+        finally:
+            conn.close()
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

@@ -1,0 +1,16 @@
+# DataBossX Validation Agent - local artifacts
+.venv/
+.env
+# Ignore runtime run folders, but keep build summaries as durable deliverables.
+outputs/*
+!outputs/.gitkeep
+!outputs/build_summary_*.md
+*.db
+*.db-wal
+*.db-shm
+audit.log
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/

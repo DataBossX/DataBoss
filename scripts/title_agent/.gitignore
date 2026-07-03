@@ -1,0 +1,9 @@
+# Runtime state — SQLite store, versioned workbooks, flat audit mirror.
+# All regenerable; never source-controlled.
+state/
+*.db
+*.db-wal
+*.db-shm
+audit.log
+__pycache__/
+*.pyc

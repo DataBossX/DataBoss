@@ -1,0 +1,659 @@
+{
+ "gaps": {
+  "Runsheet": [
+   [
+    "G17",
+    "1916-000332",
+    "Deed",
+    "D22/248",
+    "H. L. Rowley and Myrtie Rowley, HW"
+   ],
+   [
+    "G29",
+    "1931-000994",
+    "Quit Claim Deed",
+    "D43/608",
+    "Lawrence E. Shotwell and Ethel Shotwell,"
+   ],
+   [
+    "G30",
+    "1931-000573",
+    "Deed",
+    "D41/447",
+    "Thomas O. Hambrook and Flora E. Hambrook"
+   ],
+   [
+    "G48",
+    "1953-000493",
+    "Warranty Deed",
+    "D67/154",
+    "Elvin J. Ridling and Dorothy Jean Ridlin"
+   ],
+   [
+    "G59",
+    "1974-001639",
+    "Mineral Deed",
+    "163/565",
+    "L. E. Thurman and Veronica Thurman, HW"
+   ],
+   [
+    "G63",
+    "1976-003251",
+    "Warranty Deed",
+    "197/116",
+    "Elmo W. Kirk and Freeda Kirk, HW"
+   ],
+   [
+    "G125",
+    "1987-005625",
+    "Mineral Deed",
+    "913/261",
+    "Billy N. Bein"
+   ],
+   [
+    "G141",
+    "1989-001220",
+    "Mineral Deed",
+    "1038/219",
+    "Alfred William Standiford"
+   ],
+   [
+    "G180",
+    "1990-001925",
+    "Mineral Quit Claim",
+    "1126/98",
+    "Federal Deposit Insurance Corporation"
+   ],
+   [
+    "G186",
+    "1990-004213",
+    "Quit Claim Deed",
+    "1151/107",
+    "Charles O. Burckhalter"
+   ],
+   [
+    "G218",
+    "1997-006370",
+    "Quit Claim Deed",
+    "1510/566",
+    "Eula Cross, also known as Eula G. Cross,"
+   ],
+   [
+    "G256",
+    "2002-003563",
+    "Mineral Deed",
+    "1688/374",
+    "Oleta Florene Flanagan, formerly Stewart"
+   ],
+   [
+    "G285",
+    "2004-000880",
+    "Oil and Gas Lease",
+    "1737/580",
+    "Sandra Lorrain York"
+   ],
+   [
+    "G301",
+    "2005-000347",
+    "Blanket Deed and C",
+    "1775/296",
+    "The Estate of Barbara Fasken, by Robert "
+   ],
+   [
+    "G314",
+    "2005-003939",
+    "Ratification of Oi",
+    "1793/501",
+    "Molly Devenas"
+   ],
+   [
+    "G315",
+    "2005-001909",
+    "Mineral Deed",
+    "1783/306",
+    "John William Bain"
+   ],
+   [
+    "G330",
+    "2005-004938",
+    "Oil and Gas Lease",
+    "1798/573",
+    "Leona I. De Grande"
+   ],
+   [
+    "G444",
+    "2012-002930",
+    "Mineral Deed",
+    "2131/599",
+    "Jospeh A. Bain and Doris Bain, HW"
+   ],
+   [
+    "G461",
+    "2013-006502",
+    "Mineral Deed",
+    "2223/307",
+    "Mary Ellen Silverberg, a/k/a Mary Ellen "
+   ],
+   [
+    "G492",
+    "2017-001880",
+    "Mineral Deed",
+    "2376/100",
+    "Jon N. Wilkerson"
+   ],
+   [
+    "G508",
+    "2020-001708",
+    "Mineral Deed and A",
+    "2453/452",
+    "Payday Holdings, LLC"
+   ],
+   [
+    "G526",
+    "2024-007198",
+    "Conveyance",
+    "2599/463",
+    "Onigbe Consulting, LLC"
+   ],
+   [
+    "G531",
+    "2025-003963",
+    "Warranty Deed",
+    "2638/58",
+    "Jesse Joe Newell, also known as Jesse J."
+   ]
+  ],
+  "tracts": [
+   [
+    "Tract 1",
+    "D14",
+    "H. L. Rowley and Myrtie Rowley, HW"
+   ],
+   [
+    "Tract 2",
+    "D38",
+    "Clarence C. Bain"
+   ],
+   [
+    "Tract 2",
+    "D85",
+    "Leona I. Degrande"
+   ],
+   [
+    "Tract 2",
+    "D103",
+    "Joseph A. Bain"
+   ],
+   [
+    "Tract 2",
+    "D104",
+    "John W. Bain"
+   ],
+   [
+    "Tract 3",
+    "D24",
+    "Elvin J. Ridling and Dorothy Jean Ridling, HW"
+   ],
+   [
+    "Tract 3",
+    "D32",
+    "L. E. Thurman and Veronica Thurman, HW"
+   ],
+   [
+    "Tract 3",
+    "D47",
+    "Federal Deposit Insurance Corporation"
+   ],
+   [
+    "Tract 3",
+    "D53",
+    "Charles O. Burckhalter"
+   ],
+   [
+    "Tract 3",
+    "D129",
+    "Lawrence E. Shotwell and Ethel Shotwell, HW"
+   ],
+   [
+    "Tract 3",
+    "D130",
+    "Eula Cross, also known as Eula G. Cross, a singl"
+   ],
+   [
+    "Tract 4",
+    "D17",
+    "Elvin J. Ridling and Dorothy Jean Ridling, HW"
+   ],
+   [
+    "Tract 4",
+    "D19",
+    "L. E. Thurman and Veronica Thurman, HW"
+   ],
+   [
+    "Tract 4",
+    "D24",
+    "Elmo W. Kirk and Freeda Kirk, HW"
+   ],
+   [
+    "Tract 4",
+    "D54",
+    "Federal Deposit Insurance Corporation"
+   ],
+   [
+    "Tract 4",
+    "D91",
+    "Sandra Lorraine York"
+   ],
+   [
+    "Tract 5",
+    "D18",
+    "Elvin J. Ridling and Dorothy Jean Ridling, HW"
+   ],
+   [
+    "Tract 5",
+    "D26",
+    "Elmo W. Kirk and Freeda Kirk, HW"
+   ],
+   [
+    "Tract 5",
+    "D43",
+    "Alfred William Standiford"
+   ],
+   [
+    "Tract 5",
+    "D48",
+    "Charles O. Burckhalter"
+   ],
+   [
+    "Tract 5",
+    "D50",
+    "Mary Margaret Devenas, f/k/a Mary Margaret Wilso"
+   ],
+   [
+    "Tract 5",
+    "D71",
+    "Eula Cross"
+   ],
+   [
+    "Tract 5",
+    "D81",
+    "Oleta Florene Flanagan, formerly Stewart, a/k/a "
+   ],
+   [
+    "Tract 5",
+    "D87",
+    "Sandra Lorraine York"
+   ],
+   [
+    "Tract 5",
+    "D94",
+    "The Estate of Barbara Fasken, by Robert Dickson "
+   ],
+   [
+    "Tract 5",
+    "D130",
+    "Jesse Joe Newell, also known as Jesse J. Newell "
+   ],
+   [
+    "Tract 6",
+    "D10",
+    "Elmo W. Kirk and Freeda Kirk"
+   ],
+   [
+    "Tract 7",
+    "D20",
+    "Elvin J. Ridling and Dorothy Jean Ridling, HW"
+   ],
+   [
+    "Tract 7",
+    "D28",
+    "L. E. Thurman and Veronica Thurman, HW"
+   ],
+   [
+    "Tract 7",
+    "D43",
+    "Federal Deposit Insurance Corporation"
+   ],
+   [
+    "Tract 7",
+    "D49",
+    "Charles O. Burckhalter"
+   ],
+   [
+    "Tract 8",
+    "D10",
+    "Elmo W. Kirk and Freeda Kirk"
+   ],
+   [
+    "Tract 9",
+    "D17",
+    "Elvin J. Ridling"
+   ],
+   [
+    "Tract 9",
+    "D28",
+    "Charles O. Burckhalter"
+   ],
+   [
+    "Tract 9",
+    "D35",
+    "Sandra Lorraine York"
+   ],
+   [
+    "Tract 9",
+    "D49",
+    "Jesse Joe & Rachael Newell"
+   ],
+   [
+    "Tract 10",
+    "D24",
+    "Elvin J. Ridling and Dorothy Jean Ridling, HW"
+   ],
+   [
+    "Tract 10",
+    "D26",
+    "L. E. Thurman and Veronica Thurman, HW"
+   ],
+   [
+    "Tract 10",
+    "D46",
+    "Federal Deposit Insurance Corporation"
+   ],
+   [
+    "Tract 10",
+    "D136",
+    "Jon N. Wilkerson"
+   ],
+   [
+    "Tract 10",
+    "D143",
+    "Payday Holdings, LLC"
+   ],
+   [
+    "Tract 10",
+    "D149",
+    "Onigbe Consulting, LLC"
+   ],
+   [
+    "Tract 10",
+    "D165",
+    "Lawrence E. Shotwell and Ethel Shotwell, HW"
+   ]
+  ]
+ },
+ "needint": [
+  [
+   "Tract 2",
+   "DM",
+   "MD",
+   "2005-007117",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 2",
+   "DN",
+   "MD",
+   "2005-007116",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 2",
+   "DO",
+   "MD",
+   "2005-007119",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 2",
+   "DP",
+   "MD",
+   "2005-007120",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 2",
+   "EH",
+   "MD",
+   "2013-006585",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 2",
+   "EU",
+   "MD",
+   "2025-002463",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 2",
+   "EV",
+   "MD",
+   "2025-002464",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 3",
+   "AN",
+   "PROB",
+   "1993-000918",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 3",
+   "AV",
+   "MD",
+   "2002-004595",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 4",
+   "AA",
+   "MD",
+   "1982-007158",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 4",
+   "BD",
+   "MD",
+   "2002-004595",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 4",
+   "BH",
+   "MD",
+   "2004-005738",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 4",
+   "BI",
+   "MD",
+   "2004-005739",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 4",
+   "BK",
+   "MD",
+   "2008-006536",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "U",
+   "MD",
+   "1982-007158",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AE",
+   "MD",
+   "1992-003373",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AF",
+   "PROB",
+   "1993-000918",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AR",
+   "MD",
+   "2004-005738",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AS",
+   "MD",
+   "2004-005739",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AT",
+   "MD",
+   "2008-006536",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AX",
+   "MD",
+   "2005-004793",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "AY",
+   "MD",
+   "2005-005251",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "BA",
+   "QCD",
+   "2006-000153",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "BB",
+   "MD",
+   "2006-000870",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "BH",
+   "QCD",
+   "2013-001724",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "BI",
+   "MD",
+   "2013-006585",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 5",
+   "BO",
+   "WD",
+   "2025-003963",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 7",
+   "AN",
+   "MD",
+   "1992-003373",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 7",
+   "AO",
+   "PROB",
+   "1993-000918",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 7",
+   "AW",
+   "MD",
+   "2002-004595",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 7",
+   "BE",
+   "MD",
+   "2013-006585",
+   "populated(confirm)"
+  ],
+  [
+   "Tract 10",
+   "AV",
+   "MD",
+   "2002-004595",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BI",
+   "MD",
+   "2011-005695",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BJ",
+   "QCD",
+   "2011-005926",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BM",
+   "MD",
+   "2013-001272",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BS",
+   "CONV",
+   "2015-003022",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BT",
+   "CONV",
+   "2015-003023",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BU",
+   "MD",
+   "2017-000951",
+   "EMPTY(place interest)"
+  ],
+  [
+   "Tract 10",
+   "BX",
+   "ASSGN",
+   "2021-001486",
+   "EMPTY(place interest)"
+  ]
+ ]
+}

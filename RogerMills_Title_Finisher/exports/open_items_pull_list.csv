@@ -1,0 +1,64 @@
+Priority,Category,County,Party / subject,Doc type,Instrument #,Bk/Pg,What to pull / read,okcountyrecords query hint
+A,Source-in gap,Roger Mills,H. L. & Myrtie Rowley,Deed,1916-000332,D22/248,Grantor vesting instrument (1916 root of title),county=Roger+Mills&number=1916-000332
+A,Source-in gap,Roger Mills,Lawrence E. & Ethel Shotwell,QCD,1931-000994,D43/608,Grantor vesting instrument (1931 root),county=Roger+Mills&number=1931-000994
+A,Source-in gap,Roger Mills,Thomas O. & Flora E. Hambrook,Deed,1931-000573,D41/447,Grantor vesting instrument (1931 root),county=Roger+Mills&number=1931-000573
+A,Source-in gap,Roger Mills,Elvin J. & Dorothy Jean Ridling,WD,1953-000493,D67/154,Grantor vesting instrument (1953 root),county=Roger+Mills&number=1953-000493
+A,Source-in gap,Roger Mills,L. E. & Veronica Thurman,MD,1974-001639,163/565,Grantor vesting instrument (1974 root (2014 same-surname trust ≠ back-fill)),county=Roger+Mills&number=1974-001639
+A,Source-in gap,Roger Mills,Elmo W. & Freeda Kirk,WD,1976-003251,197/116,Grantor vesting instrument (1976 root),county=Roger+Mills&number=1976-003251
+A,Source-in gap,Roger Mills,Billy N. Bein,MD,1987-005625,913/261,Grantor vesting instrument (pre-index),county=Roger+Mills&number=1987-005625
+A,Source-in gap,Roger Mills,Alfred William Standiford,MD,1989-001220,1038/219,Grantor vesting instrument (1989 conveyance predates 1994 decree),county=Roger+Mills&number=1989-001220
+A,Source-in gap,Roger Mills,Federal Deposit Insurance Corporation,Mineral,1990-001925,1126/98,Grantor vesting instrument (FDIC receivership),county=Roger+Mills&number=1990-001925
+A,Source-in gap,Roger Mills,Charles O. Burckhalter,QCD,1990-004213,1151/107,Grantor vesting instrument (pre-index),county=Roger+Mills&number=1990-004213
+A,Source-in gap,Roger Mills,Eula G. Cross,QCD,1997-006370,1510/566,Grantor vesting instrument (pre-index),county=Roger+Mills&number=1997-006370
+A,Source-in gap,Roger Mills,Oleta Florene Flanagan (f/k/a Stewart),MD,2002-003563,1688/374,Grantor vesting instrument (name-change link),county=Roger+Mills&number=2002-003563
+A,Source-in gap,Roger Mills,Sandra Lorraine York,OGL,2004-000880,1737/580,Grantor vesting instrument (2005 decree postdates 2004 lease),county=Roger+Mills&number=2004-000880
+A,Source-in gap,Roger Mills,Estate of Barbara Fasken,Blanket,2005-000347,1775/296,Grantor vesting instrument (estate),county=Roger+Mills&number=2005-000347
+A,Source-in gap,Roger Mills,Molly Devenas,Ratification,2005-003939,1793/501,Grantor vesting instrument (ratification only),county=Roger+Mills&number=2005-003939
+A,Source-in gap,Roger Mills,John William Bain,MD,2005-001909,1783/306,Grantor vesting instrument (Bain family),county=Roger+Mills&number=2005-001909
+A,Source-in gap,Roger Mills,Leona I. De Grande,OGL,2005-004938,1798/573,Grantor vesting instrument (lessor vesting),county=Roger+Mills&number=2005-004938
+A,Source-in gap,Roger Mills,Joseph A. & Doris Bain,MD,2012-002930,2131/599,Grantor vesting instrument (Bain family),county=Roger+Mills&number=2012-002930
+A,Source-in gap,Roger Mills,Mary Ellen Silverberg (a/k/a Sitzmann),MD,2013-006502,2223/307,Grantor vesting instrument (a/k/a link),county=Roger+Mills&number=2013-006502
+A,Source-in gap,Roger Mills,Jon N. Wilkerson,MD,2017-001880,2376/100,Grantor vesting instrument (modern buyer),county=Roger+Mills&number=2017-001880
+A,Source-in gap,Roger Mills,"Payday Holdings, LLC",MD,2020-001708,2453/452,Grantor vesting instrument (entity vesting),county=Roger+Mills&number=2020-001708
+A,Source-in gap,Roger Mills,"Onigbe Consulting, LLC",Conveyance,2024-007198,2599/463,Grantor vesting instrument (entity vesting),county=Roger+Mills&number=2024-007198
+A,Source-in gap,Roger Mills,Jesse Joe Newell (a/k/a Jesse J. Newell),WD,2025-003963,2638/58,Grantor vesting instrument (recent),county=Roger+Mills&number=2025-003963
+B,Conveyed-fraction gap,Roger Mills,Tract 2,(see instrument),2005-007117,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2005-007117
+B,Conveyed-fraction gap,Roger Mills,Tract 2,(see instrument),2013-006585,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2013-006585
+B,Conveyed-fraction gap,Roger Mills,Tract 2,(see instrument),2025-002463,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2025-002463
+B,Conveyed-fraction gap,Roger Mills,Tract 2,(see instrument),2025-002464,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2025-002464
+B,Conveyed-fraction gap,Roger Mills,Tract 3,(see instrument),1993-000918,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1993-000918
+B,Conveyed-fraction gap,Roger Mills,Tract 3,(see instrument),2002-004595,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2002-004595
+B,Conveyed-fraction gap,Roger Mills,Tract 4,(see instrument),1982-007158,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1982-007158
+B,Conveyed-fraction gap,Roger Mills,Tract 4,(see instrument),2002-004595,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2002-004595
+B,Conveyed-fraction gap,Roger Mills,Tract 4,(see instrument),2004-005738,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2004-005738
+B,Conveyed-fraction gap,Roger Mills,Tract 4,(see instrument),2004-005739,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2004-005739
+B,Conveyed-fraction gap,Roger Mills,Tract 4,(see instrument),2008-006536,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2008-006536
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),1982-007158,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1982-007158
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),1992-003373,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1992-003373
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),1993-000918,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1993-000918
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2004-005738,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2004-005738
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2008-006536,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2008-006536
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2005-004793,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2005-004793
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2005-005251,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2005-005251
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2006-000153,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2006-000153
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2006-000870,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2006-000870
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2013-001724,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2013-001724
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2013-006585,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2013-006585
+B,Conveyed-fraction gap,Roger Mills,Tract 5,(see instrument),2025-003963,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2025-003963
+B,Conveyed-fraction gap,Roger Mills,Tract 7,(see instrument),1992-003373,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1992-003373
+B,Conveyed-fraction gap,Roger Mills,Tract 7,(see instrument),1993-000918,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=1993-000918
+B,Conveyed-fraction gap,Roger Mills,Tract 7,(see instrument),2002-004595,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2002-004595
+B,Conveyed-fraction gap,Roger Mills,Tract 7,(see instrument),2013-006585,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2013-006585
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2002-004595,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2002-004595
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2011-005695,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2011-005695
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2011-005926,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2011-005926
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2013-001272,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2013-001272
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2015-003022,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2015-003022
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2015-003023,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2015-003023
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2017-000951,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2017-000951
+B,Conveyed-fraction gap,Roger Mills,Tract 10,(see instrument),2021-001486,,Read granting language for conveyed fraction / net acres,county=Roger+Mills&number=2021-001486
+A,Regulatory,—,Alexander 1-31 (API 35-129-22925),OTC gross production by PUN,,,HBP proof — continuous production,
+A,Regulatory,—,Alexander 1-31 (API 35-129-22925),OCC Form 1002A,,,spud / perforations / TD-TVD,
+A,Regulatory,—,Alexander 1-31 (API 35-129-22925),OCC Form 1073,,,operator of record (Martin's Resources vs Empire),
+B,Regulatory,—,Section 31-12N-24W,OCC Case Processing,,,spacing / pooling orders by legal,
+B,Regulatory,—,Martin's Empire LLC / Martin's Resources LLC,OK SOS + OCC operator list,,,confirm entity + operator number,

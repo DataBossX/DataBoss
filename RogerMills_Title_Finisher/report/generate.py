@@ -87,8 +87,18 @@ def build_plat_svg():
 # ---------- HTML sections ----------
 def stat(v,l,cls=''): return f'<div class="stat {cls}"><div class="stat-v">{v}</div><div class="stat-l">{esc(l)}</div></div>'
 
+def owners_with_open(n):
+    """Identified owners + a computed open-balance line (gross - identified)."""
+    rows=list(D.OWNERS.get(n,[]))
+    gross=[t for t in D.TRACTS if t['n']==n][0]['gross']
+    ident=sum(na for _,na,*_ in rows)
+    rem=round(gross-ident,2)
+    if rem>0.05 and n in D.OPEN_NOTES:
+        rows=rows+[(D.OPEN_NOTES[n],rem,"HBP base","—","3/16")]
+    return rows
+
 def owners_block(n):
-    rows=D.OWNERS.get(n,[])
+    rows=owners_with_open(n)
     body=[]
     for name,na,base,top,roy in rows:
         opencls=' class="open"' if name.lower().startswith('open') else ''

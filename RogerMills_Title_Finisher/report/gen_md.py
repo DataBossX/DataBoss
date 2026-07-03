@@ -41,7 +41,9 @@ for t in D.TRACTS:
     w(f"**Tract {n} — {t['legal']} — {t['gross']:.2f} ac — {stat[t['status']]}**\n")
     w("| Owner | Net ac | Base OGL | Top | Royalty |")
     w("|---|--:|---|---|---|")
-    for name,na,base,top,roy in D.OWNERS.get(n,[]):
+    rows=list(D.OWNERS.get(n,[])); ident=sum(na for _,na,*_ in rows); rem=round(t['gross']-ident,2)
+    if rem>0.05 and n in D.OPEN_NOTES: rows=rows+[(D.OPEN_NOTES[n],rem,"HBP base","—","3/16")]
+    for name,na,base,top,roy in rows:
         w(f"| {name} | {na:.2f} | {base} | {top} | {roy} |")
     w("")
 

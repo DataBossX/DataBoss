@@ -60,7 +60,7 @@ Fee mineral ownership is a family mosaic dominated by the **Mitchell / Williams 
 | Longreach Energy 2, LLC | 0.55 | HBP | — | 3/16 |
 | Eric Jansen | 0.40 | HBP | — | 3/16 |
 | Brian Herman Kortright | 0.20 | HBP | — | 3/16 |
-| Open / unreconciled balance (needs source images) | 99.71 | HBP base | — | 3/16 |
+| Open / unreconciled balance — needs source images | 101.46 | HBP base | — | 3/16 |
 
 **Tract 3 — SE/4 NE/4 — 40.00 ac — Open balance**
 
@@ -82,14 +82,14 @@ Fee mineral ownership is a family mosaic dominated by the **Mitchell / Williams 
 | Calvin Wayne Kirk | 2.10 | HBP | — | 3/16 |
 | William / Kathy Bryant | 2.10 | HBP | — | 3/16 |
 | Ronald Paul Dold → Silver Oak | 2.10 | 2 | 65 | 3/16 |
-| Open / unreconciled balance (candidate: MD 2022-000185, Psi Lke → Cummins/Eagle Owl) | 71.60 | HBP base | — | 3/16 |
+| Open / unreconciled balance — candidate MD 2022-000185, Psi Lke → Cummins/Eagle Owl | 71.60 | HBP base | — | 3/16 |
 
 **Tract 5 — SE/4 SW/4 + residual in Gov Lots 1 & 2 — 38.28 ac — Open balance**
 
 | Owner | Net ac | Base OGL | Top | Royalty |
 |---|--:|---|---|---|
 | William / Kathy Bryant | 0.74 | HBP | — | 3/16 |
-| Open / unreconciled balance (gov-lot / exception allocation) | 37.54 | HBP base | — | 3/16 |
+| Open / unreconciled balance — gov-lot / exception allocation | 37.54 | HBP base | — | 3/16 |
 
 **Tract 6 — S 51 ac of the W. 18.20-chain metes-and-bounds strip (W/2 NW/4 & N/2 NW/4 SW/4) — 51.00 ac — Estate/heirship**
 

@@ -65,25 +65,30 @@ OWNERS = {
     ("William A. & Isa May Smith Family Rev. Trust",0.75,"14","—","1/4"),
     ("Longreach Energy 2, LLC",0.55,"HBP","—","3/16"),
     ("Eric Jansen",0.40,"HBP","—","3/16"),
-    ("Brian Herman Kortright",0.20,"HBP","—","3/16"),
-    ("Open / unreconciled balance (needs source images)",99.71,"HBP base","—","3/16")],
+    ("Brian Herman Kortright",0.20,"HBP","—","3/16")],
  4:[("Dustin Deal, LLC",2.10,"HBP","—","3/16"),
     ("Calvin Wayne Kirk",2.10,"HBP","—","3/16"),
     ("William / Kathy Bryant",2.10,"HBP","—","3/16"),
-    ("Ronald Paul Dold → Silver Oak",2.10,"2","65","3/16"),
-    ("Open / unreconciled balance (candidate: MD 2022-000185, Psi Lke → Cummins/Eagle Owl)",71.60,"HBP base","—","3/16")],
- 5:[("William / Kathy Bryant",0.74,"HBP","—","3/16"),
-    ("Open / unreconciled balance (gov-lot / exception allocation)",37.54,"HBP base","—","3/16")],
- 6:[("Calvin Wayne Kirk (MD 2017-000951, Bk 2365/338)",2.20,"HBP","—","3/16"),
-    ("Ella Pearl Kirk estate / heirs — retained balance (probate needed)",48.80,"HBP base","—","3/16")],
+    ("Ronald Paul Dold → Silver Oak",2.10,"2","65","3/16")],
+ 5:[("William / Kathy Bryant",0.74,"HBP","—","3/16")],
+ 6:[("Calvin Wayne Kirk (MD 2017-000951, Bk 2365/338)",2.20,"HBP","—","3/16")],
  7:[("Pine Tree Energy Partners, LLC (Clint Roy Kirk → J&A Minerals → Pine Tree)",1.14,"—","—","—"),
     ("Gene G. Williams",1.14,"HBP","—","3/16"),
-    ("Williams heirs",0.87,"HBP","64–69","3/16"),
-    ("Open / unreconciled balance",36.85,"HBP base","—","3/16")],
+    ("Williams heirs",0.87,"HBP","64–69","3/16")],
  10:[("Keri Lee Daigle Tucker Trust",0.33,"24","67","3/16"),
     ("Mark Ashley Daigle Trust",0.33,"24","68","3/16"),
-    ("Kevin Warner Johnson Trust",0.33,"24","69","3/16"),
-    ("Open / unreconciled balance",39.01,"HBP base","—","3/16")],
+    ("Kevin Warner Johnson Trust",0.33,"24","69","3/16")],
+}
+
+# Descriptive label for each tract's computed open/unreconciled remainder
+# (= gross - sum of identified owners above). Never hand-typed; always footed.
+OPEN_NOTES = {
+ 2:"Open / unreconciled balance — needs source images",
+ 4:"Open / unreconciled balance — candidate MD 2022-000185, Psi Lke → Cummins/Eagle Owl",
+ 5:"Open / unreconciled balance — gov-lot / exception allocation",
+ 6:"Ella Pearl Kirk estate / heirs — retained balance (probate needed)",
+ 7:"Open / unreconciled balance",
+ 10:"Open / unreconciled balance",
 }
 
 # Silver Oak 2026 top-lease sweep — highest-confidence current-owner signal

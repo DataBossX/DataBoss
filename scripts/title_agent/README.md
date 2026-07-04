@@ -27,6 +27,8 @@ No quality gate is ever cleared by fabricating a legal fact. Concretely:
 | `core/memory.py` | `SQLiteManager`, `AuditLogger`, `VersionController`, `EscalationStore` |
 | `core/taxonomy.py` | `Gate` and `FailureCategory` (the A/B split) |
 | `core/loop.py` | `PerfectionLoop` state machine + `TaxonomyRouter` |
+| `core/wiring.py` | Concrete adapters: `WorkbookGateSuite`, `SurgeonRepairer`, `OKCountySourceProbe`, `ColumnMap` |
+| `__main__.py` | `register` / `run` / `status` CLI |
 | `api/okcounty.py` | `CurlClient` (subprocess curl, Basic Auth), `DocumentVerifier`, `BudgetManager` ($100 cap) |
 | `excel/xml_surgeon.py` | `ArchiveManager`, `CalcChainDestroyer`, `XMLPatcher` |
 | `excel/recalc.py` | `LibreOfficeEngine` headless recalc + error scan |
@@ -59,9 +61,19 @@ No quality gate is ever cleared by fabricating a legal fact. Concretely:
 # Tests (also runnable per-module: python -m scripts.title_agent.tests.test_loop)
 pytest scripts/title_agent/tests
 
+# Run the agent against a workbook
+python -m scripts.title_agent register "D:/Desktop/DataBossX/31-12N-24W.xlsx"
+python -m scripts.title_agent run       # certifies or halts for the Examiner
+python -m scripts.title_agent status    # scorecard
+
 # Dashboard
 streamlit run scripts/title_agent/frontend/app.py
 ```
+
+The `run` command attaches a live OKCounty source probe only when
+`OKCOUNTY_API_KEY` is set, and enables Gate 6 only when LibreOffice is
+functional. Retarget the workbook layout by adjusting `ColumnMap` in
+`core/wiring.py` — the header-label aliases, not the validators.
 
 ## Note on Gate 6 in CI
 

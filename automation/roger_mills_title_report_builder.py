@@ -94,12 +94,14 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as _dt
+import hashlib
 import io
 import os
 import re
 import shutil
 import sys
 import traceback
+import zipfile
 from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -290,24 +292,30 @@ class FileRec:
     note: str = ""
 
 
+def _table_kind_from_name(name: str) -> str:
+    """Classify a tabular source (workbook or delimited) by its filename."""
+    if "template" in name:
+        return "template"
+    if "runsheet" in name or "run sheet" in name:
+        return "runsheet"
+    if ("ogl" in name or "o&g lease" in name or "oil and gas lease" in name
+            or "lease schedule" in name or "lease sheet" in name):
+        return "ogl"
+    return "report"  # treat unknown tables as candidate reports
+
+
 def classify(rec: FileRec) -> str:
     name = rec.path.name.lower()
     if rec.ext in WORKBOOK_EXT:
-        if "template" in name:
-            return "template"
-        if "runsheet" in name or "run sheet" in name:
-            return "runsheet"
-        if ("ogl" in name or "o&g lease" in name or "oil and gas lease" in name
-                or "lease schedule" in name or "lease sheet" in name):
-            return "ogl"
-        if "title_report" in name or "title report" in name or "cursory" in name:
-            return "report"
-        return "report"  # treat unknown workbooks as candidate reports
+        return _table_kind_from_name(name)
     if rec.ext in PDF_EXT:
-        if "index" in name or re.search(r"\d+[ns]-\d+[ew]", name) or "12n" in name:
-            return "index_pdf"
+        if "runsheet" in name or "run sheet" in name:
+            return "runsheet"  # PDF runsheet -> best-effort note harvesting
         return "index_pdf"
     if rec.ext in DATA_EXT:
+        # CSV/TSV can be a runsheet / OGL / report table; TXT stays freeform data
+        if rec.ext in {".csv", ".tsv"}:
+            return _table_kind_from_name(name)
         return "data"
     if rec.ext in DOC_EXT:
         return "doc"
@@ -354,6 +362,139 @@ def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[File
             rec.kind = classify(rec)
             recs.append(rec)
     return recs
+
+
+# ----------------------------------------------------------------------------
+# Zip extraction, duplicate & trash tidying (codexv2)
+# ----------------------------------------------------------------------------
+EXTRACT_DIRNAME = "_horizon_extracted"
+TRASH_BASENAMES = {"thumbs.db", "desktop.ini", ".ds_store"}
+
+
+def extract_all_zips(root: Path, max_depth: int = 5) -> Tuple[Path, int]:
+    """Recursively extract every .zip under root (including zips-within-zips).
+
+    Path-traversal safe, idempotent (skips already-extracted archives), and
+    extracts into <root>/_horizon_extracted so the contents get inventoried
+    and used. Returns (extract_root, files_extracted)."""
+    extract_root = root / EXTRACT_DIRNAME
+    processed: set = set()
+    total = 0
+    for _depth in range(max_depth):
+        found: List[Path] = []
+        for dp, _dirs, files in os.walk(root):
+            for fn in files:
+                if fn.lower().endswith(".zip"):
+                    found.append(Path(dp) / fn)
+        fresh = [z for z in found if str(z.resolve()) not in processed]
+        if not fresh:
+            break
+        for z in fresh:
+            processed.add(str(z.resolve()))
+            dest = extract_root / z.stem
+            try:
+                if dest.exists() and any(dest.iterdir()):
+                    LOG(f"  already extracted: {z.name}")
+                    continue
+                dest.mkdir(parents=True, exist_ok=True)
+                dest_res = dest.resolve()
+                extracted = 0
+                with zipfile.ZipFile(z) as zf:
+                    for member in zf.namelist():
+                        if member.endswith("/"):
+                            continue
+                        target = (dest / member).resolve()
+                        if dest_res != target and dest_res not in target.parents:
+                            LOG(f"  skipped unsafe zip member: {member}", "WARN")
+                            continue
+                        zf.extract(member, dest)
+                        extracted += 1
+                total += extracted
+                LOG(f"  extracted {z.name} -> {dest.name} ({extracted} files)")
+            except Exception as exc:
+                LOG(f"  zip failed for {z.name}: {exc}", "WARN")
+    return extract_root, total
+
+
+def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        while True:
+            b = fh.read(chunk)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+
+def is_trash(rec: FileRec) -> bool:
+    n = rec.path.name.lower()
+    return (rec.size == 0 or n in TRASH_BASENAMES or n.startswith("~$")
+            or n.endswith(".tmp") or n.endswith(".lnk"))
+
+
+def _dup_keeper(group: List[FileRec]) -> FileRec:
+    """Keep the most 'canonical' copy: prefer originals over extracted, then the
+    shortest path, then the oldest (earliest recorded) file."""
+    return sorted(group, key=lambda r: (EXTRACT_DIRNAME in r.rel,
+                                        len(r.rel), r.mtime))[0]
+
+
+def find_duplicates_and_trash(recs: List[FileRec]
+                              ) -> Tuple[List[List[FileRec]], List[FileRec]]:
+    """Return (duplicate_groups, trash_files). Duplicates are exact byte matches."""
+    trash = [r for r in recs if is_trash(r)]
+    trash_ids = {id(r) for r in trash}
+    by_hash: Dict[str, List[FileRec]] = {}
+    for r in recs:
+        if id(r) in trash_ids:
+            continue
+        try:
+            by_hash.setdefault(sha256_file(r.path), []).append(r)
+        except Exception as exc:
+            LOG(f"  hash failed for {r.rel}: {exc}", "WARN")
+    dup_groups = [g for g in by_hash.values() if len(g) > 1]
+    return dup_groups, trash
+
+
+def quarantine(items: Sequence[FileRec], dest_dir: Path, reason: str
+               ) -> List[Tuple[str, str, str]]:
+    """Move files into a quarantine tree (reversible; never deletes). Returns a
+    manifest of (relative_source, new_location, reason)."""
+    manifest: List[Tuple[str, str, str]] = []
+    for r in items:
+        try:
+            target = dest_dir / r.rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                target = target.with_name(
+                    target.stem + "_" + str(r.size) + target.suffix)
+            shutil.move(str(r.path), str(target))
+            manifest.append((r.rel, str(target), reason))
+        except Exception as exc:
+            LOG(f"  quarantine failed for {r.rel}: {exc}", "WARN")
+    return manifest
+
+
+def write_tidy_manifest(path: Path, dup_groups: List[List[FileRec]],
+                        trash: List[FileRec],
+                        moved: List[Tuple[str, str, str]]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["category", "file", "detail", "action", "moved_to"])
+        moved_map = {rel: (loc, reason) for rel, loc, reason in moved}
+        for g in dup_groups:
+            keeper = _dup_keeper(g)
+            for r in g:
+                role = "KEEP" if r is keeper else "duplicate-of:" + keeper.rel
+                loc, _reason = moved_map.get(r.rel, ("", ""))
+                w.writerow(["duplicate", r.rel, role,
+                            "quarantined" if loc else "reported", loc])
+        for r in trash:
+            loc, _reason = moved_map.get(r.rel, ("", ""))
+            reason = "empty" if r.size == 0 else "temp/junk"
+            w.writerow(["trash", r.rel, reason,
+                        "quarantined" if loc else "reported", loc])
 
 
 # ----------------------------------------------------------------------------
@@ -778,8 +919,45 @@ def build_interest_chain(merged: List["TitleRow"], gross_acres: Optional[float] 
     return links, ledger
 
 
+def _load_delimited(rec: FileRec) -> List[Dict[str, str]]:
+    """Load a CSV/TSV file as canon-field dict rows (headers matched fuzzily)."""
+    out: List[Dict[str, str]] = []
+    delim = "\t" if rec.ext == ".tsv" else ","
+    try:
+        with rec.path.open("r", encoding="utf-8-sig", newline="") as fh:
+            reader = csv.reader(fh, delimiter=delim)
+            rows = [r for r in reader]
+    except Exception as exc:
+        LOG(f"  delimited load failed for {rec.rel}: {exc}", "WARN")
+        return out
+    if not rows:
+        return out
+    # find the header row within the first 25 lines (most mapped columns wins)
+    best_i, best_map = 0, {}
+    for i in range(min(25, len(rows))):
+        hmap: Dict[int, str] = {}
+        for c, cell in enumerate(rows[i]):
+            f = match_header(cell)
+            if f and f not in hmap.values():
+                hmap[c] = f
+        if len(hmap) > len(best_map):
+            best_i, best_map = i, hmap
+    if not best_map:
+        LOG(f"  {rec.rel}: no recognizable delimited header (skipped)", "WARN")
+        return out
+    for r in rows[best_i + 1:]:
+        d: Dict[str, str] = {}
+        for c, fld in best_map.items():
+            d[fld] = norm_text(r[c]) if c < len(r) else ""
+        if any(d.values()):
+            out.append(d)
+    return out
+
+
 def _load_table(rec: FileRec) -> List[Dict[str, str]]:
-    """Load a supporting workbook's best sheet as canon-field dict rows."""
+    """Load a supporting table (workbook or CSV/TSV) as canon-field dict rows."""
+    if rec.ext in {".csv", ".tsv"}:
+        return _load_delimited(rec)
     wa = analyze_workbook(rec)
     s = wa.best_sheet
     if not s:
@@ -801,6 +979,16 @@ def _load_table(rec: FileRec) -> List[Dict[str, str]]:
     return out
 
 
+def title_rows_from_table(rec: FileRec) -> List["TitleRow"]:
+    """Turn any supporting table (used for CSV report sources) into TitleRows."""
+    rows: List[TitleRow] = []
+    for i, d in enumerate(_load_table(rec), start=1):
+        data = {f: norm_text(d.get(f, "")) for f in CANON_FIELDS}
+        if any(data.values()):
+            rows.append(TitleRow(data=data, source=rec.path.name, source_row=i))
+    return rows
+
+
 def _row_ref_keys(d: Dict[str, str]) -> List[str]:
     """Cross-reference keys for a row: instrument no. and/or book+page."""
     keys: List[str] = []
@@ -813,19 +1001,43 @@ def _row_ref_keys(d: Dict[str, str]) -> List[str]:
     return keys
 
 
+def _runsheet_notes_from_pdf(rec: FileRec) -> Dict[str, List[str]]:
+    """Best-effort: harvest instrument/book-page-keyed note lines from a PDF."""
+    index: Dict[str, List[str]] = {}
+    text, method = extract_pdf_text(rec.path)
+    if not text:
+        LOG(f"  runsheet PDF '{rec.rel}': no extractable text (method={method})", "WARN")
+        return index
+    inst_pat = re.compile(r"\b(\d{4}-\d{3,7}|\d{6,})\b")
+    bp_pat = re.compile(r"\b(?:bk|book)\.?\s*(\d+)\s*(?:pg|page)s?\.?\s*(\d+)\b", re.I)
+    for line in text.splitlines():
+        ln = norm_text(line)
+        if not ln:
+            continue
+        keys = {f"INST:{norm_doc_ref(m)}" for m in inst_pat.findall(ln)}
+        keys |= {f"BP:{norm_doc_ref(b + p)}" for b, p in bp_pat.findall(ln)}
+        for k in keys:
+            index.setdefault(k, []).append(ln)
+    LOG(f"  runsheet PDF harvested notes for {len(index)} references (method={method})")
+    return index
+
+
 def load_runsheet_notes(recs: List[FileRec]) -> Tuple[Dict[str, str], Optional[FileRec]]:
-    """Build {ref_key -> combined note text} from the runsheet workbook."""
+    """Build {ref_key -> combined note text} from the runsheet (workbook/CSV/PDF)."""
     rec = next((r for r in recs if r.kind == "runsheet"), None)
     if not rec:
         return {}, None
     LOG(f"Runsheet: {rec.rel}")
     index: Dict[str, List[str]] = {}
-    for d in _load_table(rec):
-        note = norm_text(d.get("remarks", "")) or norm_text(d.get("runsheet_note", ""))
-        if not note:
-            continue
-        for k in _row_ref_keys(d):
-            index.setdefault(k, []).append(note)
+    if rec.ext in PDF_EXT:
+        index = _runsheet_notes_from_pdf(rec)
+    else:
+        for d in _load_table(rec):
+            note = norm_text(d.get("remarks", "")) or norm_text(d.get("runsheet_note", ""))
+            if not note:
+                continue
+            for k in _row_ref_keys(d):
+                index.setdefault(k, []).append(note)
     flat = {k: " | ".join(dict.fromkeys(v)) for k, v in index.items()}
     LOG(f"  runsheet notes indexed: {len(flat)} references")
     return flat, rec
@@ -1219,6 +1431,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     help="Gross mineral acres for the tract (enables NMA->fraction interest chaining)")
     ap.add_argument("--max-passes", type=int, default=3,
                     help="Loop-till-perfect: rebuild up to N times until validation passes (default 3)")
+    ap.add_argument("--no-unzip", action="store_true",
+                    help="Do NOT recursively extract .zip archives before scanning")
+    ap.add_argument("--no-tidy", action="store_true",
+                    help="Detect duplicates/trash but do NOT move them to quarantine")
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
     args = ap.parse_args(argv)
 
@@ -1246,14 +1462,54 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"rapidfuzz={_HAVE_RAPIDFUZZ} pdfplumber={_HAVE_PDFPLUMBER} "
         f"pymupdf={_HAVE_PYMUPDF} ocr={_HAVE_OCR}")
 
+    # 0. unzip everything (recursive, nested, path-safe, idempotent)
+    zips_extracted = 0
+    if not args.no_unzip:
+        LOG.section("0. Extract .zip archives")
+        _extract_root, zips_extracted = extract_all_zips(root)
+        LOG(f"Extracted {zips_extracted} file(s) from archives.")
+    else:
+        LOG("--no-unzip: skipping archive extraction.")
+
     # 1. inventory
     LOG.section("1. Inventory")
     recs = inventory(root, exclude=[final_dir, support_dir])
     LOG(f"Found {len(recs)} files (excluding generated output/support trees).")
-    for kind in ("template", "report", "runsheet", "ogl", "index_pdf", "data", "doc", "image", "other"):
-        n = sum(1 for r in recs if r.kind == kind)
-        if n:
-            LOG(f"  {kind:10s}: {n}")
+
+    def _log_kinds(rs):
+        for kind in ("template", "report", "runsheet", "ogl", "index_pdf",
+                     "data", "doc", "image", "other"):
+            n = sum(1 for r in rs if r.kind == kind)
+            if n:
+                LOG(f"  {kind:10s}: {n}")
+    _log_kinds(recs)
+
+    # 1b. duplicates & trash (detect always; quarantine unless --no-tidy)
+    LOG.section("1b. Duplicates & trash")
+    dup_groups, trash = find_duplicates_and_trash(recs)
+    dup_extra = sum(len(g) - 1 for g in dup_groups)  # redundant copies (keep 1 each)
+    LOG(f"Duplicate groups: {len(dup_groups)} ({dup_extra} redundant copies); "
+        f"trash files: {len(trash)}")
+    quarantine_dir = support_dir / "_quarantine"
+    moved: List[Tuple[str, str, str]] = []
+    if not args.dry_run and not args.no_tidy and (dup_extra or trash):
+        to_move = [r for g in dup_groups for r in g if r is not _dup_keeper(g)]
+        moved += quarantine(to_move, quarantine_dir / "duplicates", "duplicate")
+        moved += quarantine(trash, quarantine_dir / "trash", "trash")
+        LOG(f"Quarantined {len(moved)} file(s) -> {quarantine_dir} (reversible; "
+            f"originals were also backed up). Re-inventorying.")
+        recs = inventory(root, exclude=[final_dir, support_dir])
+        LOG(f"Post-tidy inventory: {len(recs)} files.")
+        _log_kinds(recs)
+    elif dup_extra or trash:
+        LOG("Tidy skipped (dry-run or --no-tidy): duplicates/trash left in place, "
+            "recorded in the manifest.", "WARN")
+    if dup_groups or trash:  # don't overwrite a prior manifest with an empty one
+        write_tidy_manifest(support_dir / "tidy_manifest_codexv2.csv",
+                            dup_groups, trash, moved)
+        LOG("Wrote tidy_manifest_codexv2.csv")
+    else:
+        LOG("No duplicates or trash this run; keeping any prior tidy manifest.")
 
     # 2. backups (skip in dry-run)
     if not args.dry_run:
@@ -1312,7 +1568,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if best_base:
         LOG(f"Best base data workbook: {best_base.rec.rel}")
 
-    # 5. extract + merge rows from ALL report workbooks
+    # 5. extract + merge rows from ALL report sources (workbooks + CSV/TSV)
     LOG.section("5. Extract & merge data")
     all_rows: List[List[TitleRow]] = []
     for wa in report_analyses:
@@ -1320,6 +1576,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if rows:
             LOG(f"  {wa.rec.rel}: {len(rows)} rows")
             all_rows.append(rows)
+    for rec in recs:
+        if rec.kind == "report" and rec.ext in {".csv", ".tsv"}:
+            rows = title_rows_from_table(rec)
+            if rows:
+                LOG(f"  {rec.rel}: {len(rows)} rows (delimited)")
+                all_rows.append(rows)
     merged, audit, conflicts = merge_rows(all_rows)
     LOG(f"Merged unique records: {len(merged)}  | field conflicts: {len(conflicts)}")
 
@@ -1409,9 +1671,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "",
         f"Build status:            {'PASS' if build_ok else ('DRY-RUN' if args.dry_run else 'NEEDS REVIEW')}"
         f" (passes used: {passes_used}/{args.max_passes})",
+        f"Files extracted (zip):   {zips_extracted}",
+        f"Duplicate groups:        {len(dup_groups)}  ({dup_extra} redundant copies)",
+        f"Trash files:             {len(trash)}",
+        f"Quarantined (moved):     {len(moved)}"
+        f"{'' if (args.no_tidy or args.dry_run) else ' -> ' + str(quarantine_dir)}",
         f"Source files reviewed:   {len(recs)}",
         f"Workbooks analyzed:      {len(analyses)}",
-        f"Report workbooks merged: {len(all_rows)}",
+        f"Report sources merged:   {len(all_rows)}",
         f"Unique records merged:   {len(merged)}",
         f"Rows written to output:  {rows_written}",
         f"Field-level conflicts:   {len(conflicts)}",
@@ -1477,6 +1744,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if ogl_rec is None:
         checklist.append("No OGL schedule was found/recognized - name it with 'ogl' in the "
                          "filename so OGL numbers can be attached.")
+    if (dup_extra or trash) and (args.no_tidy or args.dry_run):
+        checklist.append(f"{dup_extra} duplicate + {len(trash)} trash file(s) detected but NOT "
+                         "moved (--no-tidy/dry-run). Review tidy_manifest_codexv2.csv, then "
+                         "re-run without --no-tidy to quarantine them.")
     checklist.append("Spot-check legal descriptions / acreage on the data + Interest Chain sheets.")
     if not checklist:
         checklist.append("No automated issues remain. Do a final examiner spot-check and sign off.")
@@ -1503,6 +1774,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("  - conflicts_review_codexv2.xlsx")
     print("  - build_log_codexv2.txt")
     print("  - final_validation_summary_codexv2.txt")
+    print("  - tidy_manifest_codexv2.csv")
+    print(f"Archives extracted:    {zips_extracted} file(s)")
+    print(f"Duplicates/trash:      dups={dup_extra}  trash={len(trash)}  quarantined={len(moved)}")
     print(f"Source files reviewed: {len(recs)}")
     print(f"Records merged:        {len(merged)}  (written: {rows_written})")
     print(f"Interest chained:      {len(chain_links)}  (parsed {n_parsed}, flagged {n_flagged})")

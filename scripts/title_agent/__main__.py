@@ -21,6 +21,7 @@ from .api.okcounty import BudgetManager, CurlClient, DocumentVerifier
 from .core.config import config
 from .core.loop import PerfectionLoop
 from .core.memory import AuditLogger, SQLiteManager, VersionController
+from .core.reporting import CertificationReporter
 from .core.wiring import OKCountySourceProbe, SurgeonRepairer, WorkbookGateSuite
 from .excel.recalc import LibreOfficeEngine
 
@@ -67,12 +68,26 @@ def cmd_run(args: argparse.Namespace) -> int:
         source_probe=_source_probe(mgr),
         recalc_engine=recalc if recalc.conversion_works() else None,
     )
-    loop = PerfectionLoop(mgr, ARTIFACT_KEY, suite, SurgeonRepairer(), versions=vc)
+    reporter = CertificationReporter(mgr)
+    artifacts: dict[str, object] = {}
+
+    def _on_certified(version) -> None:  # type: ignore[no-untyped-def]
+        try:
+            artifacts["result"] = reporter.generate(version)
+        except Exception as exc:  # reporting must not crash a valid certification
+            print(f"warning: could not write certification report: {exc}", file=sys.stderr)
+
+    loop = PerfectionLoop(mgr, ARTIFACT_KEY, suite, SurgeonRepairer(),
+                          versions=vc, on_certified=_on_certified)
     outcome = loop.run()
     print(f"state={outcome.state.value} iterations={outcome.iterations} "
           f"version={outcome.final_version.version_label if outcome.final_version else '—'}")
     for esc in outcome.escalations:
         print(f"  ESCALATION [{esc.category}] {esc.gate} — {esc.reference}")
+    result = artifacts.get("result")
+    if result is not None:
+        print(f"  Certified workbook: {result.certified_workbook}")  # type: ignore[attr-defined]
+        print(f"  Audit report:       {result.audit_report}")  # type: ignore[attr-defined]
     return 0 if outcome.certified else 1
 
 

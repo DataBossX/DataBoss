@@ -155,13 +155,31 @@ def test_examiner_resolution_resumes_to_certified(tmp: Path) -> None:
     assert overrides and overrides[0].actor == "examiner-7"
 
 
+def test_stalled_repair_escalates(tmp: Path) -> None:
+    # A Category A failure the repairer never actually clears (same signature
+    # every pass) must escalate, not spin silently to MAX_ITERATIONS.
+    mgr, vc = _setup(tmp)
+
+    class _Stuck:
+        def evaluate(self, version):
+            return [_fail(FailureCategory.METADATA_MISSING, "Tract 1 seq 2")]
+    loop = _loop(mgr, vc, _Stuck(), _WritingRepairer(), max_iterations=50)
+    outcome = loop.run()
+    assert outcome.state == LoopState.ESCALATED
+    assert outcome.iterations == 2  # iter1 repairs, iter2 sees no change -> escalate
+    assert any(e.category == "METADATA_MISSING" for e in outcome.escalations)
+
+
 def test_max_iterations_guard(tmp: Path) -> None:
     mgr, vc = _setup(tmp)
-    # An auto-repairable failure that never clears would loop forever without
-    # the cap.
-    class _Always:
-        def evaluate(self, version): return [_fail(FailureCategory.MATH_FOOTING_ERROR)]
-    loop = _loop(mgr, vc, _Always(), _WritingRepairer(), max_iterations=5)
+    # A never-converging stream whose signature *changes* each pass (so stall
+    # detection doesn't fire) must still be bounded by the iteration cap.
+    class _EverChanging:
+        def __init__(self): self.n = 0
+        def evaluate(self, version):
+            self.n += 1
+            return [_fail(FailureCategory.MATH_FOOTING_ERROR, f"Tract {self.n}")]
+    loop = _loop(mgr, vc, _EverChanging(), _WritingRepairer(), max_iterations=5)
     outcome = loop.run()
     assert outcome.state == LoopState.MAX_ITERATIONS
     assert outcome.iterations == 5

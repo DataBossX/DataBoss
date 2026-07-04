@@ -25,7 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Protocol, Sequence
+from typing import Callable, Optional, Protocol, Sequence
 
 from .memory import (
     ArtifactVersion,
@@ -146,6 +146,7 @@ class PerfectionLoop:
         audit: Optional[AuditLogger] = None,
         versions: Optional[VersionController] = None,
         escalations: Optional[EscalationStore] = None,
+        on_certified: Optional[Callable[[ArtifactVersion], None]] = None,
     ) -> None:
         self._db = manager
         self._key = artifact_key
@@ -156,6 +157,10 @@ class PerfectionLoop:
         self._versions = versions or VersionController(manager)
         self._escalations = escalations or EscalationStore(manager, self._audit)
         self._router = TaxonomyRouter()
+        # Called with the certified version on success — the loop's output step
+        # (Certified Workbook + Audit Report). Optional so the core loop stays
+        # testable without the reporting layer.
+        self._on_certified = on_certified
 
     def run(self) -> LoopOutcome:
         """Run the loop from the latest version until it certifies, escalates,
@@ -170,6 +175,7 @@ class PerfectionLoop:
             )
 
         iterations = 0
+        last_signature: Optional[frozenset[tuple[str, str]]] = None
         while iterations < self._max:
             iterations += 1
             current = self._versions.get_latest_version(self._key)
@@ -186,7 +192,25 @@ class PerfectionLoop:
                 self._audit.log_action(
                     "CERTIFIED", f"{self._key} {current.version_label}", "PASS"
                 )
+                if self._on_certified is not None:
+                    self._on_certified(current)
                 return LoopOutcome(LoopState.CERTIFIED, iterations, current)
+
+            signature = frozenset((f.category.value, f.reference) for f in failures)
+            if signature == last_signature:
+                # The previous auto-repair changed nothing — the agent cannot
+                # actually clear these Category A failures (e.g. a repair with
+                # no handler). Spinning to MAX_ITERATIONS would hide that, so we
+                # escalate the stuck failures to the Examiner instead.
+                self._audit.log_action(
+                    "REPAIR_STALLED", f"{self._key} {current.version_label}",
+                    f"{len(failures)} failure(s) unchanged after repair",
+                )
+                opened = self._halt_for_examiner(failures)
+                return LoopOutcome(
+                    LoopState.ESCALATED, iterations, current,
+                    escalations=opened, unresolved_failures=failures,
+                )
 
             decision = self._router.route(failures)
 
@@ -198,6 +222,7 @@ class PerfectionLoop:
                 )
 
             # All failures are Category A: mint N+1 and auto-repair, then loop.
+            last_signature = signature
             self._auto_repair(current, decision.auto_repairs)
 
         self._audit.log_action(

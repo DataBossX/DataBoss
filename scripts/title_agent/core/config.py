@@ -58,6 +58,11 @@ class Config:
             "TITLE_AGENT_WORKBOOK_DIR", str(self.BASE_DIR / "state" / "workbooks")
         )
 
+        # Where certification artifacts (Certified Workbook + Audit Report) go.
+        self.REPORTS_DIR: Path = _env_path(
+            "TITLE_AGENT_REPORTS_DIR", str(self.BASE_DIR / "state" / "reports")
+        )
+
         # Human-readable append-only mirror of the audit log.
         self.AUDIT_LOG_PATH: Path = _env_path(
             "TITLE_AGENT_AUDIT_LOG", str(self.BASE_DIR / "state" / "audit.log")
@@ -90,7 +95,8 @@ class Config:
 
     def ensure_dirs(self) -> None:
         """Create the state directories if absent. Idempotent."""
-        for path in (self.DB_PATH.parent, self.WORKBOOK_DIR, self.AUDIT_LOG_PATH.parent):
+        for path in (self.DB_PATH.parent, self.WORKBOOK_DIR, self.REPORTS_DIR,
+                     self.AUDIT_LOG_PATH.parent):
             path.mkdir(parents=True, exist_ok=True)
 
 

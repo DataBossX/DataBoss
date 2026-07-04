@@ -106,10 +106,35 @@ class XmlWorkbookEditor:
             name = sheet.get("name")
             rid = sheet.get(f"{{{_REL_NS}}}id")
             if name and rid and rid in rid_to_target:
-                target = rid_to_target[rid]
-                if not target.startswith("/"):
-                    target = "xl/" + target.lstrip("./")
-                self._sheet_targets[name] = target.lstrip("/")
+                safe = self._safe_member(rid_to_target[rid])
+                if safe is not None:
+                    self._sheet_targets[name] = safe
+
+    def _safe_member(self, target: str) -> Optional[str]:
+        """Resolve an OOXML relationship Target to a package-relative path that
+        is provably contained under the extraction root.
+
+        The Target attribute is attacker-controlled content inside an untrusted
+        workbook. ``lstrip`` alone does NOT neutralize embedded ``..`` segments
+        (``a/../../etc/x`` survives it), so we normalize and enforce
+        containment, rejecting anything that escapes the temp directory.
+        """
+        assert self._tmp is not None
+        t = (target or "").strip().replace("\\", "/")
+        if not t:
+            return None
+        # Absolute package paths ("/xl/...") are relative to the package root;
+        # relative paths ("worksheets/sheet1.xml") are relative to xl/.
+        rel = t.lstrip("/") if t.startswith("/") else f"xl/{t}"
+        parts = [p for p in rel.split("/") if p not in ("", ".")]
+        if any(p == ".." for p in parts):
+            return None
+        rel = "/".join(parts)
+        root = self._tmp.resolve()
+        resolved = (self._tmp / rel).resolve()
+        if resolved != root and root not in resolved.parents:
+            return None
+        return rel
 
     # ------------------------------------------------------------------ #
     def _edit_cell(self, worksheet_path: Path, coordinate: str, formula: str) -> bool:
@@ -242,6 +267,12 @@ class XmlWorkbookEditor:
                 # unknown sheet: skip safely, record nothing applied for it
                 continue
             ws_path = self._tmp / target
+            # Defense-in-depth: never read/write outside the extraction root,
+            # even if a target somehow slipped past _safe_member.
+            root = self._tmp.resolve()
+            resolved = ws_path.resolve()
+            if resolved != root and root not in resolved.parents:
+                continue
             if not ws_path.exists():
                 continue
             if self._edit_cell(ws_path, op.coordinate, op.formula):

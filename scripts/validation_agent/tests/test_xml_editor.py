@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import zipfile
 from pathlib import Path
@@ -108,6 +109,46 @@ def test_safe_parser_does_not_resolve_external_entities(tmp_path):
     tree = _parse(xml_file)
     text = tree.getroot().text or ""
     assert "TOP-SECRET-TITLE-DATA" not in text
+
+
+def test_malicious_rels_target_cannot_escape_temp_dir(tmp_path):
+    # A crafted workbook whose sheet relationship Target points outside the
+    # package must not cause a write outside the extraction root.
+    src = _make_calc_workbook(tmp_path / "evil.xlsx")
+
+    # A would-be victim file outside the temp extraction dir, with a cell the
+    # repair op would otherwise match.
+    victim = tmp_path / "victim.xml"
+    victim.write_text(
+        '<?xml version="1.0"?><root><c r="B3"><v>1</v></c></root>', encoding="utf-8"
+    )
+    victim_before = victim.read_text(encoding="utf-8")
+
+    # Rewrite the workbook's rels so sheet1 Target traverses up to the victim.
+    rebuilt = tmp_path / "evil2.xlsx"
+    traversal = f"../../../../../../..{victim.resolve()}"
+    with zipfile.ZipFile(src) as zin:
+        with zipfile.ZipFile(rebuilt, "w", zipfile.ZIP_DEFLATED) as zout:
+            for n in zin.namelist():
+                data = zin.read(n)
+                if n == "xl/_rels/workbook.xml.rels":
+                    text = data.decode("utf-8")
+                    # point the first worksheet relationship at the traversal path
+                    text = re.sub(
+                        r'Target="worksheets/sheet1.xml"',
+                        f'Target="{traversal}"',
+                        text,
+                    )
+                    data = text.encode("utf-8")
+                zout.writestr(n, data)
+
+    dest = tmp_path / "evil_v001.xlsx"
+    editor = XmlWorkbookEditor(rebuilt)
+    editor.apply_formula_repairs(
+        [RepairOp(sheet_name="Calc", coordinate="B3", formula="A3*2")], dest
+    )
+    # The victim file outside the temp dir must be untouched.
+    assert victim.read_text(encoding="utf-8") == victim_before
 
 
 def test_refuses_to_overwrite_existing_version(tmp_path):

@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to columnmap.json (auto-loaded from the base dir) or pass with --column-map. Each field maps to a list of header-label aliases; a column matches if its header text CONTAINS any alias (case-insensitive), most-specific alias first. Delete fields you don't need to override — omitted fields keep the built-in defaults. Run `python -m scripts.title_agent map` to see what resolves before running.",
+  "grantor": ["grantor"],
+  "grantee": ["grantee"],
+  "date": ["date"],
+  "interest_change": ["interest change", "net interest", "conveyed"],
+  "book": ["book"],
+  "page": ["page"],
+  "instrument": ["instrument", "type"],
+  "tract": ["tract"],
+  "gross_acres": ["gross acres", "gross"],
+  "net_acres": ["net acres", "net"],
+  "interest_fraction": ["interest fraction", "fraction", "mineral interest"],
+  "lessor": ["lessor"],
+  "royalty": ["royalty"],
+  "owner": ["owner"],
+  "working_interest": ["working interest", "wi"],
+  "nri": ["nri", "net revenue"]
+}

@@ -33,6 +33,19 @@ def test_from_mapping_rejects_unknown_field(tmp: Path) -> None:
         raise AssertionError(f"expected ValueError for {bad!r}")
 
 
+def test_underscore_keys_are_ignored_as_comments(tmp: Path) -> None:
+    cm = ColumnMap.from_mapping({"_comment": "notes here", "grantor": ["gtor"]})
+    assert cm.grantor == ("gtor",) and cm.grantee == ("grantee",)
+
+
+def test_shipped_example_template_loads_and_equals_defaults(tmp: Path) -> None:
+    # The committed columnmap.example.json must be valid (incl. its _comment)
+    # and, unedited, be a no-op override equal to the built-in defaults.
+    example = Path(__file__).resolve().parent.parent / "columnmap.example.json"
+    assert example.exists()
+    assert ColumnMap.from_json(example) == ColumnMap()
+
+
 def test_from_json_roundtrip(tmp: Path) -> None:
     f = tmp / "columnmap.json"
     f.write_text(json.dumps({"grantor": ["from"], "grantee": ["to"]}), encoding="utf-8")

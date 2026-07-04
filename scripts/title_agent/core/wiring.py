@@ -96,6 +96,8 @@ class ColumnMap:
         known = {f.name for f in dataclasses.fields(cls)}
         kwargs: dict[str, tuple[str, ...]] = {}
         for name, aliases in data.items():
+            if name.startswith("_"):
+                continue  # underscore keys (e.g. "_comment") are JSON comments
             if name not in known:
                 raise ValueError(
                     f"unknown ColumnMap field {name!r}; valid fields: {sorted(known)}")

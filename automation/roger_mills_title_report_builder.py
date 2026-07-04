@@ -1287,6 +1287,48 @@ def write_audit_csv(path: Path, audit: List[Dict[str, str]], verified: Dict[str,
             w.writerow(rec)
 
 
+def score_report_quality(merged: List["TitleRow"], chain: Dict[str, Any],
+                         ogl_register: List[Dict[str, str]],
+                         verified: Dict[str, bool],
+                         conflicts: List[Dict[str, str]]) -> Tuple[float, List[str]]:
+    """Score the finished report 0-100 across examiner-ready dimensions.
+
+    This is the measurable "how good is it" that turns 'loop till perfect' into a
+    concrete target: each run prints the score and the weakest dimension, so
+    successive runs (or a human fixing sources) can see the number climb.
+    """
+    n = len(merged)
+    if n == 0:
+        return 0.0, ["No rows merged -- nothing to score."]
+
+    sourced = sum(1 for r in merged
+                  if (r.data.get("book") and r.data.get("page"))
+                  or r.data.get("instrument_no"))
+    fill = sum(sum(1 for f in CANON_FIELDS if norm_text(r.data.get(f, "")))
+               / len(CANON_FIELDS) for r in merged) / n
+    verified_n = sum(1 for r in merged if verified.get(r.key(), False))
+    gaps = chain.get("gap_count", 0)
+    chain_integrity = 1.0 if chain.get("reconciles") else max(0.0, 1.0 - 0.2 * gaps)
+    conflict_score = max(0.0, 1.0 - min(1.0, len(conflicts) / n))
+
+    dims = [
+        ("Rows traceable to a source (Book/Page or Inst#)", sourced / n, 30),
+        ("Field completeness", fill, 20),
+        ("Chain integrity (reconciles / no gaps)", chain_integrity, 25),
+        ("Rows verified vs index/API", verified_n / n, 15),
+        ("Low field-conflict rate", conflict_score, 10),
+    ]
+    score = sum(ratio * weight for _, ratio, weight in dims)
+    lines = [f"REPORT QUALITY SCORE: {score:.1f} / 100"]
+    for label, ratio, weight in sorted(dims, key=lambda d: d[1]):
+        lines.append(f"  [{ratio * 100:5.1f}%] {label}  (weight {weight})")
+    lines.append(f"  OGL numbers tied out: {len(ogl_register)}")
+    weakest = min(dims, key=lambda d: d[1])
+    lines.append(f"  Biggest improvement lever: {weakest[0]} "
+                 f"({weakest[1] * 100:.0f}%).")
+    return round(score, 1), lines
+
+
 def write_conflicts_xlsx(path: Path, conflicts: List[Dict[str, str]]) -> None:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1495,6 +1537,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     n_verified = sum(1 for v in verified.values() if v)
     LOG(f"Rows verified against index: {n_verified}/{len(merged)}")
 
+    # 6b. quality scorecard (the measurable target for 'loop till perfect')
+    quality_chain = chain_out_interest(merged)
+    quality_ogl = collect_ogl_register(merged)
+    quality_score, quality_lines = score_report_quality(
+        merged, quality_chain, quality_ogl, verified, conflicts)
+    LOG.section("6b. Report quality")
+    for ln in quality_lines:
+        LOG(ln)
+
     # 7. build output
     data_sheet = ""
     rows_written = 0
@@ -1560,6 +1611,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"Best base workbook:      {best_base.rec.rel if best_base else '(none)'}",
         f"Output workbook:         {output_path}",
         "",
+        *quality_lines,
+        "",
         "OCR / PDF note:",
     ]
     if method == "none":
@@ -1596,6 +1649,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"Records merged:        {len(merged)}  (written: {rows_written})")
     print(f"Conflicts found:       {len(conflicts)}")
     print(f"Index verified rows:   {n_verified}/{len(merged)}  (method: {method})")
+    print(f"Report quality score:  {quality_score}/100")
     print("Human review:          see final_validation_summary_codexv1.txt")
     # Exit code reflects reality: non-zero on a failed build/validation so an
     # unattended caller (scheduled task) is not told a stale/absent report is fine.

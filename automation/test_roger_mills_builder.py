@@ -158,6 +158,24 @@ def test_load_dotenv(tmp_path, monkeypatch):
     assert os.environ["FOO"] == "bar"
 
 
+def test_report_quality_score():
+    merged = [
+        rm.TitleRow({"grantor": "US PATENT", "grantee": "ALICE", "book": "1",
+                     "page": "1", "interest": "1", "doc_type": "Patent",
+                     "acreage": "640"}, "s", 1),
+        rm.TitleRow({"grantor": "ALICE", "grantee": "BOB", "book": "2", "page": "2",
+                     "interest": "1/2", "doc_type": "WD", "acreage": "640"}, "s", 2),
+    ]
+    chain = rm.chain_out_interest(merged)
+    score, lines = rm.score_report_quality(merged, chain, [], {}, [])
+    assert 0 <= score <= 100
+    assert any("REPORT QUALITY SCORE" in ln for ln in lines)
+    # Fully-sourced, reconciling chain, but unverified -> verification is the lever.
+    assert any("improvement lever" in ln for ln in lines)
+    # Empty input scores zero, doesn't crash.
+    assert rm.score_report_quality([], chain, [], {}, [])[0] == 0.0
+
+
 def test_chain_out_reconciles_name_variance():
     chain = rm.chain_out_interest([
         _row("US PATENT", "ALICE JONES", "1"),

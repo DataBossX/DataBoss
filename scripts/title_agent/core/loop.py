@@ -175,7 +175,7 @@ class PerfectionLoop:
             )
 
         iterations = 0
-        last_signature: Optional[frozenset[tuple[str, str]]] = None
+        seen_signatures: set[frozenset[tuple[str, str]]] = set()
         failures: tuple[Failure, ...] = ()
         while iterations < self._max:
             iterations += 1
@@ -198,14 +198,14 @@ class PerfectionLoop:
                 return LoopOutcome(LoopState.CERTIFIED, iterations, current)
 
             signature = frozenset((f.category.value, f.reference) for f in failures)
-            if signature == last_signature:
-                # The previous auto-repair changed nothing — the agent cannot
-                # actually clear these Category A failures (e.g. a repair with
-                # no handler). Spinning to MAX_ITERATIONS would hide that, so we
-                # escalate the stuck failures to the Examiner instead.
+            if signature in seen_signatures:
+                # This exact failure set has appeared before — the repairs are
+                # not converging. This catches both a stall (the repair changed
+                # nothing) and an oscillation (A -> B -> A ...), so we escalate
+                # here instead of burning iterations to the MAX_ITERATIONS cap.
                 self._audit.log_action(
-                    "REPAIR_STALLED", f"{self._key} {current.version_label}",
-                    f"{len(failures)} failure(s) unchanged after repair",
+                    "REPAIR_NOT_CONVERGING", f"{self._key} {current.version_label}",
+                    f"{len(failures)} failure(s) recurred after repair",
                 )
                 opened = self._halt_for_examiner(failures)
                 return LoopOutcome(
@@ -222,8 +222,8 @@ class PerfectionLoop:
                     escalations=opened, unresolved_failures=decision.escalations,
                 )
 
-            # All failures are Category A: mint N+1 and auto-repair, then loop.
-            last_signature = signature
+            # All failures are Category A: record this state, mint N+1, repair.
+            seen_signatures.add(signature)
             repaired = self._auto_repair(current, decision.auto_repairs)
             if repaired is None:
                 # The repair itself failed (exception, or produced no file). The

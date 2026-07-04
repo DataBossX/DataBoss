@@ -133,6 +133,37 @@ def test_budget_allows_free_fetches(tmp: Path) -> None:
     assert status.spent == 0.0 and not status.halted
 
 
+def test_source_probe_caches_and_charges_once_per_document(tmp: Path) -> None:
+    # The loop re-evaluates every iteration; the probe must charge the budget
+    # once per distinct (book, page), not once per verify() call, or a
+    # multi-pass run would consume the cap by iteration count.
+    from ..api.okcounty import DocumentVerifier
+    from ..core.wiring import OKCountySourceProbe
+    from ..validators.rules import InstrumentLine
+
+    class _FakeResp:
+        status_code = 200
+        json = {"results": [{"id": "D1", "cost": 0.5}]}  # billable
+
+    class _FakeClient:
+        def __init__(self): self.calls = 0
+        def execute(self, endpoint, payload=None, method="GET"):
+            self.calls += 1
+            return _FakeResp()
+
+    mgr = _mgr(tmp)
+    budget = BudgetManager(mgr, cap=100.0)
+    client = _FakeClient()
+    probe = OKCountySourceProbe(client, DocumentVerifier(), budget)
+    line = InstrumentLine(1, "100", "200", "WD")
+
+    r1 = probe.verify(line)
+    r2 = probe.verify(line)  # same document, re-verified (as the loop would)
+    assert r1.found and r2.found
+    assert client.calls == 1               # network hit once
+    assert abs(budget.total_spent() - 0.5) < 1e-9  # charged once, not twice
+
+
 def _run_all() -> None:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     saved_path = os.environ["PATH"]

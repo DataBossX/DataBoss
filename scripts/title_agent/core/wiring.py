@@ -680,14 +680,32 @@ class OKCountySourceProbe:
     validator escalates it; the loop then opens a BUDGET_CAP_REACHED escalation.
     Nothing is fabricated — an unreachable or over-budget source is reported as
     unverified, never assumed.
+
+    Verifications are memoized per (book, page) for the probe's lifetime. The
+    perfection loop re-evaluates every iteration, and without this a multi-pass
+    run would re-charge the budget for the *same* document on each iteration —
+    so the $100 cap would be consumed by iteration count, not distinct
+    documents. With the cache, each document is fetched and charged exactly once
+    per run. (A fresh run uses a fresh probe, so a later Examiner budget
+    increase is honored.)
     """
 
     def __init__(self, client, verifier, budget) -> None:  # type: ignore[no-untyped-def]
         self._client = client
         self._verifier = verifier
         self._budget = budget
+        self._cache: dict[tuple[str, str], SourceProbeResult] = {}
 
     def verify(self, line: InstrumentLine) -> SourceProbeResult:
+        key = (line.book, line.page)
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        result = self._verify_uncached(line)
+        self._cache[key] = result
+        return result
+
+    def _verify_uncached(self, line: InstrumentLine) -> SourceProbeResult:
         from ..api.okcounty import BudgetCapReached, OKCountyError
 
         try:

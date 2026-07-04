@@ -243,6 +243,26 @@ def test_failed_examiner_resolution_keeps_escalation_open(tmp: Path) -> None:
     assert vc.get_latest_version("report").version_number == 2
 
 
+def test_oscillating_repairs_escalate_before_cap(tmp: Path) -> None:
+    # A repair that oscillates between two failure sets (A -> B -> A -> ...) is
+    # not caught by a consecutive-only stall check, but the seen-signature set
+    # detects the cycle and escalates well before MAX_ITERATIONS.
+    mgr, vc = _setup(tmp)
+
+    class _Oscillate:
+        def __init__(self): self.n = 0
+        def evaluate(self, version):
+            self.n += 1
+            cat = FailureCategory.MATH_FOOTING_ERROR if self.n % 2 else FailureCategory.XML_STATE_ERROR
+            return [_fail(cat, "Tract 1")]
+    loop = _loop(mgr, vc, _Oscillate(), _WritingRepairer(), max_iterations=50)
+    outcome = loop.run()
+    assert outcome.state == LoopState.ESCALATED
+    # iter1 sig A (new), iter2 sig B (new), iter3 sig A (seen) -> escalate.
+    assert outcome.iterations == 3
+    assert EscalationStore(mgr).list_open()
+
+
 def test_max_iterations_guard(tmp: Path) -> None:
     mgr, vc = _setup(tmp)
     # A never-converging stream whose signature *changes* each pass (so stall

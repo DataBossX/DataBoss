@@ -141,6 +141,14 @@ def run(args: argparse.Namespace) -> int:
             f"the improvement loop. Cleanup completed; not fabricating a report.",
         )
         _print_summary(cfg, cleanup, None)
+        return 3  # non-zero: no report was produced (launcher should not say DONE)
+
+    # A max-loops of 0 explicitly disables the improvement loop -- this is a
+    # deliberate no-op success, not a failure. The latest version is the result.
+    if cfg.max_loops == 0:
+        audit.info("loop_disabled",
+                   f"--max-loops 0: improvement loop skipped; latest={current.name}")
+        _print_summary(cfg, cleanup, None)
         return 0
 
     # 4. Autonomous improvement loop.

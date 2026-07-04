@@ -88,12 +88,35 @@ def unzip_archives(cfg: HorizonConfig, audit: AuditLog) -> List[Path]:
             try:
                 dest.mkdir(parents=True, exist_ok=True)
                 with zipfile.ZipFile(p) as zf:
-                    zf.extractall(dest)
+                    skipped = _safe_extractall(zf, dest)
                 extracted.append(dest)
-                audit.info("unzip", f"{p.name} -> {dest.relative_to(cfg.root)}")
+                note = f"{p.name} -> {dest.relative_to(cfg.root)}"
+                if skipped:
+                    note += f" (skipped {skipped} unsafe path(s))"
+                    audit.warn("unzip_unsafe", note)
+                else:
+                    audit.info("unzip", note)
             except (zipfile.BadZipFile, OSError) as exc:
                 audit.warn("unzip_failed", f"{p.name}: {exc}")
     return extracted
+
+
+def _safe_extractall(zf: zipfile.ZipFile, dest: Path) -> int:
+    """Extract ``zf`` into ``dest``, refusing any member that would escape it.
+
+    Guards against Zip-Slip: a malicious entry name like ``../../evil`` (or an
+    absolute path) would otherwise let ``extractall`` write outside ``dest``.
+    Returns the count of members skipped for being unsafe.
+    """
+    dest_root = dest.resolve()
+    skipped = 0
+    for member in zf.namelist():
+        target = (dest / member).resolve()
+        if target == dest_root or dest_root in target.parents:
+            zf.extract(member, dest)
+        else:
+            skipped += 1
+    return skipped
 
 
 def scan(cfg: HorizonConfig, audit: Optional[AuditLog] = None) -> List[FileRecord]:

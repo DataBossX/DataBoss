@@ -239,12 +239,30 @@ def chain_to_report(
     for tract_key, records in tracts.items():
         tract_legal = tract_legals.get(tract_key, records[0].legal_description if records else "")
         start = starting_interests.get(tract_key, FULL)
-        result = reconcile_chain(tract_key, records, starting_interest=start,
+
+        # Only the first row per instrument number participates in the chain
+        # math; further rows sharing an instrument number are duplicates and are
+        # emitted as flagged rows WITHOUT advancing the interest ledger (so the
+        # same instrument is never reconciled twice). Rows without an instrument
+        # number are all treated as primaries (nothing to dedupe on).
+        primaries: List[OGLRecord] = []
+        duplicate_recs: List[OGLRecord] = []
+        seen_keys = set()
+        for rec in records:
+            k = normalize_instrument(rec.instrument_number)
+            if k and k in seen_keys:
+                duplicate_recs.append(rec)
+            else:
+                if k:
+                    seen_keys.add(k)
+                primaries.append(rec)
+
+        result = reconcile_chain(tract_key, primaries, starting_interest=start,
                                  tract_legal=tract_legal)
-        if result.needs_examiner_review:
+        if result.needs_examiner_review or duplicate_recs:
             reviewed.append(tract_key)
 
-        for link, rec in zip(result.links, records):
+        for link, rec in zip(result.links, primaries):
             remarks_bits: List[str] = []
             status = "ok"
 
@@ -305,6 +323,24 @@ def chain_to_report(
                 net_mineral_acres=nma_txt,
                 status=status,
                 remarks="; ".join(b for b in remarks_bits if b),
+            ))
+
+        # Emit duplicate-instrument rows as review items only -- no interest math,
+        # so a single instrument's interest is never double-counted in the chain.
+        for rec in duplicate_recs:
+            rows.append(TitleRow(
+                doc_type=rec.doc_type or None,
+                instrument_date=rec.instrument_date or None,
+                grantor=rec.grantor,
+                grantee=rec.grantee,
+                instrument_number=rec.instrument_number,
+                legal_description=rec.legal_description,
+                conveyed_interest="",
+                retained_interest="",
+                net_mineral_acres="",
+                status=REVIEW_TAG,
+                remarks="Chain break: duplicate instrument number "
+                        "(not reconciled to avoid double-counting)",
             ))
 
     report = ReportModel(section=section, source="chain_to_report", rows=rows)

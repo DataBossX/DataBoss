@@ -107,6 +107,57 @@ def test_name_match_tolerates_variance_but_not_distinct():
     assert rm._name_match("BOB SMITH", "BOB JONES") is False
 
 
+def test_ogl_header_and_register():
+    assert rm.match_header("OGL") == "ogl"
+    assert rm.match_header("Lease Number") == "ogl"
+    reg = rm.collect_ogl_register([
+        rm.TitleRow({"ogl": "OGL-5001", "grantor": "ALICE", "grantee": "OP X",
+                     "book": "200", "page": "10", "interest": "1/8"}, "s", 1),
+        rm.TitleRow({"ogl": "OGL-5001", "grantor": "ALICE", "grantee": "OP X"}, "s", 2),
+        rm.TitleRow({"ogl": "OGL-5002", "grantor": "BOB", "grantee": "OP Y"}, "s", 3),
+    ])
+    assert [o["ogl"] for o in reg] == ["OGL-5001", "OGL-5002"]  # deduped
+
+
+def test_lease_rows_excluded_from_mineral_chain():
+    chain = rm.chain_out_interest([
+        rm.TitleRow({"grantor": "US PATENT", "grantee": "ALICE", "book": "1",
+                     "page": "1", "interest": "1", "acreage": "640"}, "s", 1),
+        rm.TitleRow({"grantor": "ALICE", "grantee": "BOB", "book": "2", "page": "2",
+                     "interest": "1/2", "acreage": "640"}, "s", 2),
+        # a lease must NOT reduce fee-mineral ownership:
+        rm.TitleRow({"grantor": "ALICE", "grantee": "OPERATOR",
+                     "ogl": "OGL-1", "interest": "1/8",
+                     "doc_type": "Oil and Gas Lease"}, "s", 3),
+    ])
+    assert "OPERATOR" not in chain["ownership"]
+    assert chain["ownership"].get("ALICE") == Fraction(1, 2)
+    assert chain["ownership"].get("BOB") == Fraction(1, 2)
+
+
+def test_is_title_sheet():
+    def sa(header_map):
+        return rm.SheetAnalysis(name="s", max_row=5, max_col=5, header_row=1,
+                                header_map=header_map, data_rows=4, filled_cells=10,
+                                formula_cells=0, blank_ratio=0.5)
+    assert rm._is_title_sheet(sa({1: "grantor", 2: "grantee"}))     # chain sheet
+    assert rm._is_title_sheet(sa({1: "ogl", 2: "interest"}))         # OGL sheet
+    assert rm._is_title_sheet(sa({1: "book", 2: "page"}))            # instrument
+    assert not rm._is_title_sheet(sa({1: "legal_description", 2: "acreage"}))  # tract
+
+
+def test_load_dotenv(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text('OKCOUNTY_API_KEY="abc123"\n# comment\nFOO=bar\n', encoding="utf-8")
+    monkeypatch.delenv("OKCOUNTY_API_KEY", raising=False)
+    monkeypatch.delenv("FOO", raising=False)
+    n = rm.load_dotenv(env)
+    import os
+    assert n == 2
+    assert os.environ["OKCOUNTY_API_KEY"] == "abc123"
+    assert os.environ["FOO"] == "bar"
+
+
 def test_chain_out_reconciles_name_variance():
     chain = rm.chain_out_interest([
         _row("US PATENT", "ALICE JONES", "1"),

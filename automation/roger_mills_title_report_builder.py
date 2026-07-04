@@ -55,9 +55,17 @@ USAGE (Windows PowerShell or CMD)
 
     py automation\\roger_mills_title_report_builder.py ^
         --root "D:\\Desktop\\Horizon\\Roger Mills" ^
-        --output "D:\\Desktop\\Horizon\\Roger Mills\\31-12N-24W_Roger_Mills_Cursory_Title_Report_(6-27-2026)codexv1.xlsx" ^
-        --support-dir "D:\\Desktop\\Horizon\\Roger Mills\\files" ^
+        --root "D:\\Desktop\\Horizon\\Roger Mills 2" ^
+        --root "D:\\Desktop\\Horizon\\Roger Mills 3" ^
+        --output "D:\\Desktop\\Horizon\\rogermillsfinalreports\\31-12N-24W_Cursory_Title_Report.xlsx" ^
+        --support-dir "D:\\Desktop\\Horizon\\rogermillsfinalreports\\files" ^
         --section "31-12N-24W"
+
+--root is repeatable (one per source folder). A .env beside the roots (e.g.
+D:\\Desktop\\Horizon\\.env) is auto-loaded for API keys, or pass --env-file.
+Every title-like sheet in a workbook is read (Title + Tract + OGL sheets), OGL
+numbers are tied out into an OGL Register sheet, and the interest is chained out
+(leases are routed to the register, not the mineral chain).
 
 Run with --dry-run first to see the plan without writing the final workbook.
 
@@ -280,6 +288,30 @@ class FileRec:
     mtime: _dt.datetime
     kind: str = "other"  # template|report|runsheet|index_pdf|data|doc|image|other
     note: str = ""
+    root: Optional[Path] = None  # which scan-root this file came from
+
+
+def load_dotenv(path: Path) -> int:
+    """Load KEY=VALUE lines from a .env file into os.environ (no override of an
+    already-set variable). Returns the count loaded. Quiet if the file is
+    absent. This is how the OKCountyRecords API key / other secrets reach the
+    tool without being hardcoded."""
+    if not path or not path.is_file():
+        return 0
+    loaded = 0
+    try:
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+                loaded += 1
+    except OSError:
+        return loaded
+    return loaded
 
 
 def classify(rec: FileRec) -> str:
@@ -361,6 +393,7 @@ def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[File
                 ext=p.suffix.lower(),
                 size=st.st_size,
                 mtime=_dt.datetime.fromtimestamp(st.st_mtime),
+                root=root,
             )
             rec.kind = classify(rec)
             recs.append(rec)
@@ -373,7 +406,7 @@ def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[File
 # Canonical title-report columns we try to recognize across messy headers.
 CANON_FIELDS = [
     "entry_no", "instrument_date", "recorded_date", "doc_type",
-    "grantor", "grantee", "book", "page", "instrument_no",
+    "grantor", "grantee", "book", "page", "instrument_no", "ogl",
     "legal_description", "acreage", "nma", "interest", "remarks",
 ]
 
@@ -387,6 +420,8 @@ HEADER_SYNONYMS: Dict[str, Sequence[str]] = {
     "book": ("book", "vol", "volume", "bk"),
     "page": ("page", "pg", "pages"),
     "instrument_no": ("instrument", "document number", "doc no", "doc #", "reception", "file no"),
+    "ogl": ("ogl", "o.g.l", "lease number", "lease no", "lease id", "ogl no",
+            "ogl #", "lease #", "oil and gas lease"),
     "legal_description": ("legal", "description", "land", "tract", "lands described"),
     "acreage": ("acres", "acreage", "gross acres"),
     "nma": ("nma", "net mineral", "net acres", "nra"),
@@ -550,34 +585,85 @@ class TitleRow:
         return f"SIG:{sig}"
 
 
+def _is_title_sheet(s: SheetAnalysis) -> bool:
+    """A sheet carries title/chain rows if it has parties or an instrument ref.
+
+    This is what lets a multi-sheet workbook (a Title sheet, several Tract
+    sheets, an OGL sheet) contribute every relevant sheet -- not just one 'best'
+    sheet. A pure legals/acreage tract sheet with no parties/instrument is not
+    treated as a chain source (we don't 'go off the tract sheets' for the chain).
+    """
+    fields = set(s.header_map.values())
+    has_parties = "grantor" in fields and "grantee" in fields
+    has_instrument = ("instrument_no" in fields
+                      or ("book" in fields and "page" in fields)
+                      or "ogl" in fields)
+    return bool(s.header_map) and (has_parties or has_instrument)
+
+
 def extract_rows(wa: WorkbookAnalysis) -> List[TitleRow]:
+    """Extract title rows from EVERY title-like sheet in the workbook."""
     rows: List[TitleRow] = []
-    s = wa.best_sheet
-    if not s:
+    sheets = [s for s in wa.sheets if _is_title_sheet(s)]
+    if not sheets:
+        bs = wa.best_sheet
+        sheets = [bs] if bs else []
+    if not sheets:
         return rows
     try:
         # Stream with iter_rows (not random .cell()) and do NOT rely on
-        # ws.max_row, which is None/unreliable in read-only mode -- that made a
-        # whole source silently contribute zero rows.
+        # ws.max_row, which is None/unreliable in read-only mode.
         wb = openpyxl.load_workbook(wa.rec.path, data_only=True, read_only=True)
-        ws = wb[s.name]
-        rownum = 0
-        for row_cells in ws.iter_rows(min_row=1):
-            rownum += 1
-            if rownum <= s.header_row:
+        for s in sheets:
+            if s.name not in wb.sheetnames:
                 continue
-            data: Dict[str, str] = {}
-            for col_idx, field_name in s.header_map.items():
-                idx = col_idx - 1
-                val = row_cells[idx].value if 0 <= idx < len(row_cells) else None
-                data[field_name] = norm_text(val)
-            if any(v for v in data.values()):
-                rows.append(TitleRow(data=data, source=wa.rec.path.name,
-                                     source_row=rownum))
+            ws = wb[s.name]
+            rownum = 0
+            for row_cells in ws.iter_rows(min_row=1):
+                rownum += 1
+                if rownum <= s.header_row:
+                    continue
+                data: Dict[str, str] = {}
+                for col_idx, field_name in s.header_map.items():
+                    idx = col_idx - 1
+                    val = row_cells[idx].value if 0 <= idx < len(row_cells) else None
+                    data[field_name] = norm_text(val)
+                if any(v for v in data.values()):
+                    rows.append(TitleRow(data=data,
+                                         source=f"{wa.rec.path.name}#{s.name}",
+                                         source_row=rownum))
         wb.close()
     except Exception as exc:
         LOG(f"  extract failed for {wa.rec.path.name}: {exc}", "WARN")
     return rows
+
+
+def collect_ogl_register(merged: List["TitleRow"]) -> List[Dict[str, str]]:
+    """Build an OGL register from every merged row carrying an OGL number:
+    OGL # -> lessor/lessee (grantor/grantee), book/page or instrument, legal.
+    De-duplicated by normalized OGL number."""
+    seen: Dict[str, Dict[str, str]] = {}
+    for row in merged:
+        ogl = norm_text(row.data.get("ogl", ""))
+        if not ogl:
+            continue
+        key = norm_doc_ref(ogl)
+        if key in seen:
+            continue
+        d = row.data
+        ref = (f"Bk {d.get('book','')}/Pg {d.get('page','')}"
+               if d.get("book") and d.get("page")
+               else (f"Inst {d.get('instrument_no','')}"
+                     if d.get("instrument_no") else ""))
+        seen[key] = {
+            "ogl": ogl,
+            "lessor": d.get("grantor", ""),
+            "lessee": d.get("grantee", ""),
+            "source": ref,
+            "legal": d.get("legal_description", ""),
+            "interest": d.get("interest", ""),
+        }
+    return list(seen.values())
 
 
 def merge_rows(all_rows: List[List[TitleRow]]) -> Tuple[List[TitleRow], List[Dict[str, str]], List[Dict[str, str]]]:
@@ -758,6 +844,15 @@ def chain_out_interest(merged: List["TitleRow"]) -> Dict[str, Any]:
 
     for i, row in enumerate(merged, start=1):
         d = row.data
+        # A lease (OGL) grants leasehold, not fee-mineral ownership, so it must
+        # NOT walk the mineral chain -- it belongs in the OGL register. Detect a
+        # lease row by doc type or an OGL number without a mineral instrument.
+        dtype = norm_text(d.get("doc_type", "")).lower()
+        has_ogl = bool(norm_text(d.get("ogl", "")))
+        has_mineral_ref = bool(d.get("book") or d.get("instrument_no"))
+        if ("lease" in dtype or "ogl" in dtype
+                or (has_ogl and not has_mineral_ref)):
+            continue
         grantor = norm_name(d.get("grantor", ""))
         grantee = norm_name(d.get("grantee", ""))
         interest = parse_interest_fraction(d.get("interest", ""))
@@ -953,6 +1048,28 @@ def write_chain_sheet(wb, chain: Dict[str, Any], section: str) -> None:
             r += 1
 
 
+def write_ogl_sheet(wb, ogl_register: List[Dict[str, str]], section: str) -> None:
+    """Add an 'OGL Register' sheet tying each OGL number to its lease details."""
+    name = "OGL Register"
+    if name in wb.sheetnames:
+        del wb[name]
+    ws = wb.create_sheet(title=name)
+    ws.cell(row=1, column=1, value=f"{section} - OGL Register (from OGL sheet)")
+    headers = ["OGL #", "Lessor", "Lessee", "Interest", "Book/Page/Inst", "Legal"]
+    for c, h in enumerate(headers, start=1):
+        ws.cell(row=3, column=c, value=h)
+    r = 4
+    for o in ogl_register:
+        vals = [o["ogl"], o["lessor"], o["lessee"], o["interest"], o["source"],
+                o["legal"]]
+        for c, v in enumerate(vals, start=1):
+            ws.cell(row=r, column=c, value=v)
+        r += 1
+    if not ogl_register:
+        ws.cell(row=4, column=1,
+                value="(no OGL numbers found in an OGL/lease column)")
+
+
 # ----------------------------------------------------------------------------
 # Output: copy template formatting, write data, save
 # ----------------------------------------------------------------------------
@@ -1090,6 +1207,12 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
             f"reconciles={chain['reconciles']}, gaps={chain['gap_count']}")
     except Exception as exc:  # never let the analysis sheet block the main report
         LOG(f"  chain-out sheet skipped: {exc}", "WARN")
+    try:
+        ogl_register = collect_ogl_register(merged)
+        write_ogl_sheet(wb, ogl_register, section)
+        LOG(f"  OGL register: {len(ogl_register)} lease number(s)")
+    except Exception as exc:
+        LOG(f"  OGL register sheet skipped: {exc}", "WARN")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
@@ -1100,7 +1223,7 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
 # ----------------------------------------------------------------------------
 # Backups
 # ----------------------------------------------------------------------------
-def backup_originals(root: Path, recs: List[FileRec], support_dir: Path) -> Path:
+def backup_originals(recs: List[FileRec], support_dir: Path) -> Path:
     stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_dir = support_dir / f"backup_{stamp}"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -1108,7 +1231,10 @@ def backup_originals(root: Path, recs: List[FileRec], support_dir: Path) -> Path
     failed: List[str] = []
     for rec in recs:
         try:
-            dest = backup_dir / rec.rel
+            # Namespace by root so same-named files from different source folders
+            # (Roger Mills / Roger Mills 2) do not collide in the backup.
+            prefix = rec.root.name if rec.root else ""
+            dest = backup_dir / prefix / rec.rel if prefix else backup_dir / rec.rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(rec.path, dest)  # copy2 preserves mtime; originals untouched
             copied += 1
@@ -1222,36 +1348,54 @@ def validate_output(output_path: Path, data_sheet: str, expected_rows: int) -> T
 # ----------------------------------------------------------------------------
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="Roger Mills Cursory Title Report builder (codexv1)")
-    ap.add_argument("--root", required=True, help="Root folder to scan recursively")
+    ap.add_argument("--root", required=True, action="append",
+                    help="Root folder to scan recursively (repeatable: pass --root "
+                         "once per source folder, e.g. 'Roger Mills', 'Roger Mills 2')")
     ap.add_argument("--output", required=True, help="Final .xlsx output path")
     ap.add_argument("--support-dir", required=True, help="Folder for support files")
     ap.add_argument("--section", default="31-12N-24W", help="Target section label")
     ap.add_argument("--template", default="", help="Explicit template .xlsx (else auto-detect)")
+    ap.add_argument("--env-file", default="", help="Path to a .env with API keys "
+                    "(else auto-detected near the roots)")
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
     args = ap.parse_args(argv)
 
-    root = Path(args.root)
+    roots = [Path(r) for r in args.root]
     output_path = Path(args.output)
     support_dir = Path(args.support_dir)
 
-    if not root.exists():
-        print(f"FATAL: root folder does not exist: {root}")
+    missing = [str(r) for r in roots if not r.exists()]
+    if missing:
+        print(f"FATAL: root folder(s) do not exist: {', '.join(missing)}")
         print("Are you running this on the machine where the files live?")
         return 2
     support_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load .env (API keys) -- explicit, else auto-detect near the roots / parents.
+    env_candidates = ([Path(args.env_file)] if args.env_file else [])
+    for r in roots:
+        env_candidates += [r / ".env", r.parent / ".env"]
+    env_loaded = 0
+    for cand in env_candidates:
+        env_loaded = load_dotenv(cand)
+        if env_loaded:
+            LOG(f"Loaded {env_loaded} var(s) from {cand}")
+            break
+
     LOG.section(f"Roger Mills Title Report Builder - section {args.section}")
-    LOG(f"Root:        {root}")
+    LOG(f"Roots:       {', '.join(str(r) for r in roots)}")
     LOG(f"Output:      {output_path}")
     LOG(f"Support dir: {support_dir}")
     LOG(f"Capabilities: pandas={_HAVE_PANDAS} dateutil={_HAVE_DATEUTIL} "
         f"rapidfuzz={_HAVE_RAPIDFUZZ} pdfplumber={_HAVE_PDFPLUMBER} "
         f"pymupdf={_HAVE_PYMUPDF} ocr={_HAVE_OCR}")
 
-    # 1. inventory (never ingest our own support dir / output / prior artifacts)
+    # 1. inventory each root (never ingest our own support dir / output / artifacts)
     LOG.section("1. Inventory")
-    recs = inventory(root, exclude=[support_dir, output_path])
-    LOG(f"Found {len(recs)} files.")
+    recs: List[FileRec] = []
+    for r in roots:
+        recs += inventory(r, exclude=[support_dir, output_path])
+    LOG(f"Found {len(recs)} files across {len(roots)} root(s).")
     for kind in ("template", "report", "runsheet", "index_pdf", "data", "doc", "image", "other"):
         n = sum(1 for r in recs if r.kind == kind)
         if n:
@@ -1260,7 +1404,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # 2. backups (skip in dry-run)
     if not args.dry_run:
         LOG.section("2. Timestamped backups")
-        backup_originals(root, recs, support_dir)
+        backup_originals(recs, support_dir)
     else:
         LOG("DRY-RUN: skipping backups.")
 

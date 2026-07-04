@@ -84,6 +84,13 @@ Organize only (no reports):
 python -m validation_agent.tools.organize_workspace D:\Desktop\Horizon
 ```
 
+Verify the install works (no data needed) — builds a synthetic workbook, runs
+the whole pipeline, and checks the outputs:
+
+```bat
+python -m validation_agent.run_horizon --selftest
+```
+
 Outputs land in `scripts/validation_agent/outputs/validation_run_<timestamp>/`
 (overridable via `DATABOSSX_ROOT`). The source workbook is copied to `v0` and
 **never modified**.

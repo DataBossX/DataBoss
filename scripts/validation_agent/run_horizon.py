@@ -138,14 +138,52 @@ def _write_index(out_dir: Path, root: Path, org, processed: list[dict]) -> None:
     (out_dir / "index.md").write_text("\n".join(lines), encoding="utf-8")
 
 
+def selftest() -> int:
+    """Build a synthetic workspace, run the whole pipeline, and verify outputs.
+
+    Lets a user confirm the tool works on their machine (Python, dependencies,
+    LibreOffice) before pointing it at real data -- no external files needed.
+    """
+    import tempfile
+    from .tests.make_fixture import build_certifiable_workbook
+    workspace = Path(tempfile.mkdtemp(prefix="dbx_selftest_")) / "workspace"
+    workspace.mkdir(parents=True)
+    build_certifiable_workbook(workspace / "demo_prospect.xlsx")
+
+    summary = run_horizon(workspace, timestamp="00000000_000000")
+    out = Path(summary["output_dir"])
+    checks = [
+        ("index written", (out / "index.md").is_file()),
+        ("title report written",
+         (out / "demo_prospect" / "title_report.md").is_file()),
+        ("interest reconciles / certified",
+         any(p.get("certified") for p in summary["processed"])),
+    ]
+    ok = all(v for _, v in checks)
+    print("SELF-TEST", "PASSED" if ok else "FAILED")
+    for name, v in checks:
+        print(f"  [{'x' if v else ' '}] {name}")
+    print(f"Demo reports written to: {out}")
+    if not ok:
+        print("Investigate the failing check above; the engine did not complete.")
+    return 0 if ok else 1
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Organize a folder and build Roger Mills title reports.")
-    parser.add_argument("root", help="Source folder, e.g. D:/Desktop/Horizon")
+    parser.add_argument("root", nargs="?", default=None,
+                        help="Source folder, e.g. D:/Desktop/Horizon")
     parser.add_argument("--out", default=None,
                         help="Output folder (default <root>/rogermillsfinalreports)")
     parser.add_argument("--timestamp", default=None)
+    parser.add_argument("--selftest", action="store_true",
+                        help="Run a synthetic end-to-end check and exit.")
     args = parser.parse_args(argv)
+    if args.selftest:
+        return selftest()
+    if not args.root:
+        parser.error("a source folder is required (or use --selftest)")
     if not Path(args.root).is_dir():
         parser.error(f"folder not found: {args.root}")
     summary = run_horizon(args.root, args.out, timestamp=args.timestamp)

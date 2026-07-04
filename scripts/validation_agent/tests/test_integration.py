@@ -76,6 +76,11 @@ def test_missing_probate_halts_and_escalates(tmp_path):
     assert "ESC-" in written
 
 
+def test_selftest_passes():
+    from validation_agent.run_horizon import selftest
+    assert selftest() == 0
+
+
 def test_escalate_always_produces_a_packet(tmp_path):
     """Escalating on structural ERROR gates (e.g. a missing runsheet) must still
     hand the examiner at least one full packet -- never an empty escalation."""

@@ -12,6 +12,13 @@ that would have to invent data.
 
 ## Install & run
 
+**Easiest (Windows):** double-click **`Run_Horizon.bat`** in the repo root. It
+installs dependencies, runs the full pipeline against `D:\Desktop\Horizon`, and
+prints where the reports landed. To target a different folder, drag that folder
+onto the `.bat` (or edit `HORIZON_ROOT` at the top of the file).
+
+**Manual:**
+
 ```bash
 py -m pip install -r horizon/requirements.txt
 

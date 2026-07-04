@@ -47,16 +47,19 @@ class SourceVerificationGate(Validator):
 
     def run(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         docs = context.get("source_documents", [])
+        open_docs = [d for d in docs if d.get("status") in ("blocked", "unavailable", "queued")]
         results: List[Dict[str, Any]] = []
-        for d in docs:
-            status = d.get("status")
-            if status in ("blocked", "unavailable", "queued"):
-                results.append(make_result(self.gate_name, ESCALATE, severity=SEV_HIGH,
-                    affected_subject=d.get("book_page") or d.get("instrument_number") or "?",
-                    evidence={"status": status, "detail": d.get("detail")},
-                    reason=f"Source document status is '{status}' — contents NOT known.",
-                    recommended_action="Retrieve lawfully or escalate; never infer contents.",
-                    failure_class="Unverifiable Source", confidence=0.9))
+        if open_docs:
+            refs = [d.get("book_page") or d.get("instrument_number") or "?" for d in open_docs]
+            preview = ", ".join(str(r) for r in refs[:25])
+            more = f" (+{len(refs) - 25} more)" if len(refs) > 25 else ""
+            results.append(make_result(self.gate_name, ESCALATE, severity=SEV_HIGH,
+                affected_subject=f"{len(open_docs)} source documents unverified",
+                evidence={"count": len(open_docs), "examples": refs[:25]},
+                reason=(f"{len(open_docs)} source documents are unverified (contents NOT known). "
+                        f"Examples: {preview}{more}."),
+                recommended_action="Retrieve lawfully or escalate; never infer contents.",
+                failure_class="Unverifiable Source", confidence=0.9))
         if not results:
             return [make_result(self.gate_name, PASS, severity=SEV_MEDIUM,
                                 reason="All source documents are present and verified.", confidence=0.9)]

@@ -22,6 +22,9 @@ from config.settings import Settings
 from db.audit_logger import AuditLogger
 from core.run_manager import RunManager
 from ingestion.manifest_builder import build_manifest, write_manifest
+from ingestion.domain_extractor import extract_domain
+from sources.okcounty_client import OKCountyClient
+from sources.source_finder import SourceFinder
 from validators.val_formula import WorkbookIntegrityGate, FormulaIntegrityGate
 from validators.val_sources import SheetClassificationGate, SourceVerificationGate
 from validators.val_interest import InterestConservationGate
@@ -84,7 +87,23 @@ class Orchestrator:
 
         latest_workbook = v0
         all_results: List[Dict[str, Any]] = []
-        domain_context = domain_context or {}
+        domain_context = dict(domain_context or {})
+
+        # Auto-extract domain facts + recording references from the workbook when
+        # the caller did not supply them. The extractor never fabricates owner
+        # interest; unparseable areas stay None so the gates escalate.
+        extracted = extract_domain(v0)
+        self.audit.event(run_id, "domain_extracted",
+                         payload={"reference_count": extracted["reference_count"]})
+        for key in ("tracts", "well", "instruments"):
+            domain_context.setdefault(key, extracted.get(key))
+
+        # Build and resolve the missing-source queue (dry-run safe; escalates).
+        guard_client = OKCountyClient(self.settings, self.audit, guard, run_id)
+        finder = SourceFinder(self.settings, self.audit, guard_client, run_id,
+                              search_dirs=[rm.run_dir / "sources"])
+        source_docs = finder.build_and_resolve_queue(extracted["references"])
+        domain_context.setdefault("source_documents", source_docs)
 
         for iteration in range(1, self.settings.max_iterations + 1):
             # ---- VALIDATE ----

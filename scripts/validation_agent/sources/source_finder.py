@@ -46,7 +46,16 @@ class SourceFinder:
         return None
 
     def build_and_resolve_queue(self, references: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+        """Resolve each reference and record it in the ``source_documents`` queue.
+
+        The full per-document queue lives in ``source_documents`` (that IS the
+        escalation queue). To keep the examiner escalation matrix usable we emit
+        a SINGLE aggregate escalation summarizing the open documents rather than
+        thousands of individual rows — with an explicit count so nothing is
+        silently dropped.
+        """
         results: List[Dict[str, Any]] = []
+        open_refs: List[str] = []
         for kind in ("book_page", "instrument_number"):
             for ref in references.get(kind, []):
                 local = self._find_local(ref)
@@ -66,12 +75,19 @@ class SourceFinder:
                            "detail": outcome.get("reason", "not retrieved")}
                 self.audit.source_document(dict(rec, run_id=self.run_id))
                 if rec["status"] in ("queued", "blocked", "unavailable"):
-                    self.audit.escalate(self.run_id, {
-                        "failure_class": "Missing Source",
-                        "subject": ref,
-                        "reason": "Source document could not be retrieved in this environment.",
-                        "needed_document": ref,
-                        "recommended_action": "Retrieve via authenticated OKCountyRecords or provide locally.",
-                        "priority": "HIGH"})
+                    open_refs.append(ref)
                 results.append(rec)
+
+        if open_refs:
+            preview = ", ".join(open_refs[:25])
+            more = f" (+{len(open_refs) - 25} more)" if len(open_refs) > 25 else ""
+            self.audit.escalate(self.run_id, {
+                "failure_class": "Missing Source",
+                "subject": f"{len(open_refs)} source documents unretrieved",
+                "reason": (f"{len(open_refs)} recording references could not be retrieved in this "
+                           f"environment. Full list is in the source_documents queue. Examples: "
+                           f"{preview}{more}."),
+                "needed_document": f"{len(open_refs)} documents (see source_documents queue)",
+                "recommended_action": "Retrieve via authenticated OKCountyRecords or provide locally.",
+                "priority": "HIGH"})
         return results

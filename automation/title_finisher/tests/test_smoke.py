@@ -52,3 +52,20 @@ def test_worklist_and_audit_if_workbook_present():
     ok, issues, notes = audit(wb[0], wb[0])
     assert any("19-sheet structure identical" in n for n in notes)
     assert any("zip parts identical" in n for n in notes)
+
+
+def test_source_in_rejects_false_positives():
+    # single shared given-name / generic word must NOT match
+    assert find_source_in("Hazel A. Hamilton",
+        [(1,"1953-000498","Warranty Deed","D67/159","1953","x","W. L. Ayers and Hazel Ayers")],
+        [], convey_year=1990) is None
+    assert find_source_in("John W. Bain",
+        [(1,"1907-000709","Deed","D9/303","1907","x","John G. Lancaster")],
+        [], convey_year=2005) is None
+    assert find_source_in("Koala Production Company",
+        [(1,"1991-004456","Conveyance","1240/115","1991","x","El Paso Production Company")],
+        [], convey_year=2005) is None
+    # exact/surname match still accepted
+    assert find_source_in("Hazel A. Hamilton",
+        [(1,"1978-002576","Mineral Deed","237/367","1978","x","Hazel A. Hamilton")],
+        [], convey_year=1990) is not None

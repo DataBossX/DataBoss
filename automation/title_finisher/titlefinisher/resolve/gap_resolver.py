@@ -36,7 +36,18 @@ def find_source_in(party: str, runsheet_rows: list[tuple], index_recs: list[dict
             continue
         ht = toks(grantee)
         common = gt & ht
-        strong = len(common) >= 2 or (len(common) == 1 and len(gt) <= 2)
+        # A match must share a surname-strength token, not a lone common given-name or a
+        # generic word. Require >=2 shared tokens; a single shared token qualifies only when
+        # it is the party's surname (last token) AND both names are short (<=2 tokens each) —
+        # this rejects "Hamilton vs Hazel Ayers", "Bain vs John Lancaster", "Koala vs El Paso
+        # Production" style false positives from loose single-token overlap.
+        GENERIC = {"production", "energy", "resources", "oil", "gas", "minerals", "royalty",
+                   "holdings", "partners", "company", "corporation", "bank", "trust", "john",
+                   "james", "william", "mary", "robert", "charles"}
+        surname = (party.split()[-1].lower() if party.split() else "")
+        strong = (len(common) >= 2 and not common <= GENERIC) or \
+                 (len(common) == 1 and len(gt) <= 2 and len(ht) <= 2
+                  and next(iter(common)) == surname and surname not in GENERIC)
         if not strong:
             continue
         yr = None

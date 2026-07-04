@@ -212,7 +212,7 @@ def build_summary(wb, report):
         sn = f"Tract {i}"
         sq = f"'{sn}'"
         rows = owner_rows(wb[sn])
-        first, last = min(rows), max(rows)
+        first, last = (min(rows), max(rows)) if rows else (10, 10)
         gross_expr = f"{sq}!D5"
         if sn in CURATED_SUBTOTAL_ROW:
             net_expr = f"{sq}!C{CURATED_SUBTOTAL_ROW[sn]}"
@@ -252,7 +252,8 @@ def build_summary(wb, report):
         row += 1
         sq = f"'{sn}'"
         wrows = owner_rows(wb[sn])
-        netrange = f"C{min(wrows)}:C{max(wrows)}"  # dynamic pro-rata span
+        wf, wl = (min(wrows), max(wrows)) if wrows else (9, 9)
+        netrange = f"C{wf}:C{wl}"  # dynamic pro-rata span
         ws.cell(row, 1, sn).font = Font(name="Arial", size=10, color="0563C1", underline="single")
         ws.cell(row, 1).hyperlink = f"#{sq}!A1"
         ws.cell(row, 2, f"={sq}!{desc_cell}").font = cellF

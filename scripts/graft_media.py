@@ -129,20 +129,31 @@ def main(orig_path, out_path):
         rels_part = "xl/worksheets/_rels/%s.xml.rels" % base
         sx = tdata[part].decode("utf-8")
         existing_rels = tdata.get(rels_part, b"").decode("utf-8")
-        # Idempotency: if this sheet already references a drawing (element present
-        # or the target already wired in its rels), skip — re-running must not
-        # append a duplicate/orphaned relationship.
-        if "<drawing " in sx or ('Target="../drawings/%s"' % draw_xml) in existing_rels:
-            print("skip %s -> sheet %r (already grafted)" % (draw_xml, sheet_name))
+        # Idempotency: the definitive "already wired" signal is the <drawing>
+        # element in the sheet itself. Skip only on that — NOT on a lone rels
+        # entry, so a package that kept the relationship but lost the element
+        # still gets the element repaired.
+        if "<drawing " in sx:
+            print("skip %s -> sheet %r (already wired)" % (draw_xml, sheet_name))
             continue
-        # build/extend the sheet rels with a drawing relationship
-        if rels_part in tdata:
+        # Reuse an existing relationship for this drawing target if one is
+        # already present (avoids a duplicate); otherwise mint a new rId.
+        existing_rid = None
+        for tag in re.findall(r"<Relationship\b[^>]*?/>", existing_rels):
+            if ("../drawings/%s" % draw_xml) in tag:
+                mid = re.search(r'Id="(rId\d+)"', tag)
+                existing_rid = mid.group(1) if mid else None
+                break
+        if existing_rid:
+            rid = existing_rid  # rel already there — don't append a duplicate
+        elif rels_part in tdata:
             rels = existing_rels
             used = [int(x) for x in re.findall(r'Id="rId(\d+)"', rels)]
             rid = "rId%d" % (max(used) + 1 if used else 1)
             rel = '<Relationship Id="%s" Type="%s" Target="../drawings/%s"/>' % (
                 rid, DRAW_REL, draw_xml)
-            rels = rels.replace("</Relationships>", rel + "</Relationships>")
+            tdata[rels_part] = rels.replace(
+                "</Relationships>", rel + "</Relationships>").encode("utf-8")
         else:
             rid = "rId1"
             rels = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -150,7 +161,7 @@ def main(orig_path, out_path):
                     'package/2006/relationships">'
                     '<Relationship Id="%s" Type="%s" Target="../drawings/%s"/>'
                     '</Relationships>') % (rid, DRAW_REL, draw_xml)
-        tdata[rels_part] = rels.encode("utf-8")
+            tdata[rels_part] = rels.encode("utf-8")
         # insert <drawing r:id=.../> just before </worksheet>.
         # The r: prefix must be bound: openpyxl omits xmlns:r on worksheets that
         # had no relationships, so declare it on the <worksheet> root if absent.

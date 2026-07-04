@@ -143,6 +143,25 @@ class OutputGenerator:
         self._record("pdf", path, "certification/escalation packet")
         return path
 
+    def write_docx_packet(self, title: str, sections: list[tuple[str, str]],
+                          name: str = "certification_packet.docx") -> Path | None:
+        """Render a Word certification/escalation packet via python-docx."""
+        try:
+            from docx import Document
+        except Exception:
+            return None
+        path = self.rm.unique_export_path(name)
+        doc = Document()
+        doc.add_heading(title, level=0)
+        doc.add_paragraph(f"Generated {_now()}")
+        for heading, body in sections:
+            doc.add_heading(heading, level=2)
+            for line in (body.splitlines() or [""]):
+                doc.add_paragraph(line)
+        doc.save(str(path))
+        self._record("docx", path, "certification/escalation packet (docx)")
+        return path
+
     def build_zip(self, name: str = "examiner_package.zip") -> Path:
         """Zip everything written so far into an examiner-ready bundle."""
         path = self.rm.unique_export_path(name)

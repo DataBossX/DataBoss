@@ -416,13 +416,18 @@ class Orchestrator:
         exports.append(gen.write_missing_documents(source_docs))
         exports.append(gen.write_escalation_matrix(escalations))
 
+        packet_sections = [
+            ("Status", status),
+            ("Escalations", f"{len(escalations)} item(s)"),
+            ("Spend", f"${spend['cumulative']:.2f} / ${spend['cap']:.2f}")]
         pdf = gen.write_pdf_packet(
-            f"DataBossX {status} Packet — {self.run_id}",
-            [("Status", status),
-             ("Escalations", f"{len(escalations)} item(s)"),
-             ("Spend", f"${spend['cumulative']:.2f} / ${spend['cap']:.2f}")])
+            f"DataBossX {status} Packet — {self.run_id}", packet_sections)
         if pdf:
             exports.append(pdf)
+        docx = gen.write_docx_packet(
+            f"DataBossX {status} Packet — {self.run_id}", packet_sections)
+        if docx:
+            exports.append(docx)
 
         dbcopy = gen.copy_database()
         if dbcopy:

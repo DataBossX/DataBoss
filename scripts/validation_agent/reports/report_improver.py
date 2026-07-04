@@ -23,9 +23,24 @@ LABEL_NEEDS_REVIEW = "NEEDS EXAMINER REVIEW"
 
 
 def _read_source_report(path: Path | None) -> str:
-    if path and path.suffix.lower() in {".md", ".txt"} and path.exists():
+    """Read a prior report's text (markdown/txt directly, DOCX via python-docx).
+
+    PDF is intentionally NOT parsed for facts here — we never risk misreading a
+    scanned/complex PDF and treating it as verified content. Returns "" when the
+    format is unsupported or unreadable."""
+    if not path or not path.exists():
+        return ""
+    suffix = path.suffix.lower()
+    if suffix in {".md", ".txt"}:
         try:
             return path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            return ""
+    if suffix == ".docx":
+        try:
+            from docx import Document
+            doc = Document(str(path))
+            return "\n".join(p.text for p in doc.paragraphs)
         except Exception:
             return ""
     return ""

@@ -41,6 +41,35 @@ def test_output_generator_never_overwrites(tmp_path):
     assert p1.exists() and p2.exists()
 
 
+def test_docx_packet_export(tmp_path):
+    rm = RunManager(tmp_path / "outputs", timestamp="20260101_000001")
+    gen = OutputGenerator(rm, db=None, run_id="r1")
+    p = gen.write_docx_packet("Packet", [("Status", "CERTIFIED"),
+                                         ("Notes", "line1\nline2")])
+    assert p is not None and p.exists() and p.suffix == ".docx"
+    # It is a valid docx (a zip openable by python-docx).
+    from docx import Document
+    doc = Document(str(p))
+    assert any("CERTIFIED" in par.text for par in doc.paragraphs)
+
+
+def test_improver_reads_docx_prior_report(tmp_path):
+    from docx import Document
+    prior = tmp_path / "prior.docx"
+    d = Document()
+    d.add_paragraph("Prior examiner note: lease recorded.")
+    d.save(str(prior))
+    text = build_improved_markdown(
+        run_id="r1", mode="dry_run", source_report=prior,
+        manifest={"file_name": "wb.xlsx", "sha256": "x", "sheets": [],
+                  "is_macro_enabled": False},
+        validation_results=[], source_documents=[], escalations=[],
+        spend={"cumulative": 0, "cap": 100, "remaining": 100},
+        credentials_ok=True, timestamp="2026-01-01T00:00:00Z")
+    assert "Prior examiner note: lease recorded." in text
+    assert LABEL_UNVERIFIED in text
+
+
 def test_improver_labels_and_does_not_fabricate(tmp_path):
     src = make_report(tmp_path / "prior.md")
     manifest = {"file_name": "wb.xlsx", "sha256": "abc", "sheets": [],

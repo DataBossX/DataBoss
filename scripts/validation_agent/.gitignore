@@ -1,0 +1,9 @@
+.venv/
+outputs/validation_run_*/
+db/validation_agent.sqlite3
+db/*.sqlite3-*
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage

@@ -156,6 +156,17 @@ class Orchestrator:
                 result.exhausted = True
                 return result
 
+            # A repair produced a new version -> re-ingest it so the next
+            # iteration validates the *repaired* report, not the stale one.
+            from .report_io import read_report
+            try:
+                working_report = read_report(repaired_path, section=self.cfg.section)
+                self.audit.info("reingest", f"reloaded {repaired_path.name} for revalidation")
+            except Exception as exc:
+                self.audit.error("reingest_failed", f"{repaired_path.name}: {exc}")
+                result.exhausted = True
+                return result
+
         result.exhausted = True
         self.audit.warn("loop_exhausted", f"reached max_loops={self.cfg.max_loops}")
         return result

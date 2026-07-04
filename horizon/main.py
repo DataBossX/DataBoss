@@ -31,7 +31,7 @@ if __package__ in (None, ""):
     from horizon.orchestrator import Orchestrator
     from horizon.pipeline import build_from_workbook, find_reference_workbook
     from horizon.report_io import read_report, write_report
-    from horizon.validation import load_requirements
+    from horizon.validation import load_requirements, validate_report
     from horizon.versioning import latest_version, next_version_path
 else:
     from .artifacts import write_all
@@ -41,7 +41,7 @@ else:
     from .orchestrator import Orchestrator
     from .pipeline import build_from_workbook, find_reference_workbook
     from .report_io import read_report, write_report
-    from .validation import load_requirements
+    from .validation import load_requirements, validate_report
     from .versioning import latest_version, next_version_path
 
 
@@ -49,7 +49,7 @@ def build_config(args: argparse.Namespace) -> HorizonConfig:
     cfg = HorizonConfig.from_env(args.root)
     if args.section:
         cfg.section = args.section
-    if args.max_loops:
+    if args.max_loops is not None:  # 0 is a valid override (disable the loop)
         cfg.max_loops = args.max_loops
     return cfg
 
@@ -61,12 +61,15 @@ def run(args: argparse.Namespace) -> int:
         print("Run Horizon on the machine where the title files actually live.")
         return 2
 
-    cfg.ensure_workspace()
+    if not args.dry_run:
+        cfg.ensure_workspace()
     audit = AuditLog(path=cfg.audit_log)
-    audit.info("horizon_start", f"root={cfg.root} section={cfg.section}")
+    audit.info("horizon_start",
+               f"root={cfg.root} section={cfg.section} dry_run={args.dry_run}")
 
     # 1. Foundation cleanup: snapshot -> unzip -> scan -> SHA256 dedup.
-    cleanup = run_cleanup(cfg, audit, backup=not args.no_backup)
+    #    In dry-run the tree stays read-only (scan + report only).
+    cleanup = run_cleanup(cfg, audit, backup=not args.no_backup, dry_run=args.dry_run)
 
     # 2. Requirements from the Golden Source of Truth.
     reqs = load_requirements(cfg.root / cfg.golden_source_name)
@@ -96,8 +99,10 @@ def run(args: argparse.Namespace) -> int:
             audit.warn("reference_autodetect",
                        "no OGL+runsheet workbook found among sources")
 
+    built_report = None
     if wb_path is not None:
         build = build_from_workbook(wb_path, section=cfg.section)
+        built_report = build.report
         audit.info("chain_build",
                    f"ogl_rows={len(build.report.rows)} "
                    f"chain_breaks={len(build.chain_breaks)} "
@@ -110,6 +115,23 @@ def run(args: argparse.Namespace) -> int:
             for name, n in write_all(build, cfg.final_reports):
                 audit.info("review_artifact", f"{name}: {n} row(s)")
 
+    # Dry-run: validate whatever report we have (built in-memory, or the latest
+    # on disk) and stop -- without having mutated the source tree.
+    if args.dry_run:
+        to_validate = built_report
+        if to_validate is None:
+            existing = latest_version(cfg.final_reports, base_stem)
+            if existing is not None:
+                to_validate = read_report(existing, section=cfg.section)
+        if to_validate is not None and to_validate.rows:
+            vr = validate_report(to_validate, reqs)
+            audit.info("dry_run_validate",
+                       f"passed={vr.passed} issues[{vr.summary()}]")
+        else:
+            audit.warn("dry_run_validate", "no report available to validate")
+        _print_summary(cfg, cleanup, None)
+        return 0
+
     current = latest_version(cfg.final_reports, base_stem)
     if current is None:
         audit.escalate(
@@ -118,11 +140,6 @@ def run(args: argparse.Namespace) -> int:
             f"'{base_stem}_v001.xlsx' (or point --base at your report) to start "
             f"the improvement loop. Cleanup completed; not fabricating a report.",
         )
-        _print_summary(cfg, cleanup, None)
-        return 0
-
-    if args.dry_run:
-        audit.info("dry_run", "skipping improvement loop (scan/validate only)")
         _print_summary(cfg, cleanup, None)
         return 0
 
@@ -165,8 +182,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     ap.add_argument("--build-from", default=None,
                     help="Reference workbook to chain (OGL + runsheet sheets) "
                          "into an initial versioned report before the loop")
-    ap.add_argument("--max-loops", type=int, default=0,
-                    help="Override the improvement-loop cap (default 5)")
+    ap.add_argument("--max-loops", type=int, default=None,
+                    help="Override the improvement-loop cap (default 5; 0 disables the loop)")
     ap.add_argument("--no-backup", action="store_true",
                     help="Skip the snapshot backup copy")
     ap.add_argument("--dry-run", action="store_true",

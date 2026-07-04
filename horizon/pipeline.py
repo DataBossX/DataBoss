@@ -27,12 +27,14 @@ from .chaining import (
     normalize_instrument,
     reconcile_chain,
 )
-from .interest import FULL, format_acres, format_fraction, net_acres, try_parse_interest
+from .interest import FULL, format_acres, format_fraction, net_acres, try_parse_acres
 from .models import ESCALATED_TAG, REVIEW_TAG, ReportModel, TitleRow
 
 # Sheet-name hints for auto-detecting the two registers inside one workbook.
-_OGL_SHEET_HINTS = ("ogl", "lease", "conveyance", "instrument", "register", "runs")
-_RUNSHEET_HINTS = ("runsheet", "run sheet", "notes", "run")
+# NB: no "runs"/"run" here -- those are substrings of "Runsheet" and would make
+# a runsheet tab (which precedes the OGL tab) get parsed as the OGL register.
+_OGL_SHEET_HINTS = ("ogl", "o&g", "lease", "conveyance", "instrument", "register")
+_RUNSHEET_HINTS = ("runsheet", "run sheet", "notes")
 
 # Header synonyms for the reference sheets (superset of report_io's map).
 _OGL_HEADERS: Dict[str, str] = {
@@ -82,7 +84,7 @@ def read_ogl_records(path: Path, sheet: Optional[str] = None) -> List[OGLRecord]
     import openpyxl
 
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = _pick_sheet(wb, sheet, _OGL_SHEET_HINTS)
+    ws = _pick_sheet(wb, sheet, _OGL_SHEET_HINTS, avoid=_RUNSHEET_HINTS)
     header_row, header_map = _detect_header(ws, _OGL_HEADERS)
     records: List[OGLRecord] = []
     if header_row >= 0:
@@ -130,9 +132,15 @@ def read_runsheet_notes(path: Path, sheet: Optional[str] = None) -> List[Runshee
     return notes
 
 
-def _pick_sheet(wb, name: Optional[str], hints):
+def _pick_sheet(wb, name: Optional[str], hints, avoid=()):
     if name and name in wb.sheetnames:
         return wb[name]
+    # Prefer a sheet that matches a hint and matches none of the `avoid` hints.
+    for sn in wb.sheetnames:
+        low = sn.lower()
+        if any(h in low for h in hints) and not any(a in low for a in avoid):
+            return wb[sn]
+    # Fall back to any hint match (even if it also looked like an avoided kind).
     for sn in wb.sheetnames:
         low = sn.lower()
         if any(h in low for h in hints):
@@ -242,10 +250,20 @@ def chain_to_report(
 
             key = normalize_instrument(rec.instrument_number)
             if key and key in break_keys:
-                remarks_bits.append("Chain break: instrument not matched across OGL/runsheet")
+                xstatus = xref.get(key, CrossRef(key=key)).status
+                detail = {
+                    "orphan_note": "runsheet note references an instrument with no OGL record",
+                    "unreferenced_ogl": "OGL instrument never referenced in the runsheet",
+                    "duplicate_ogl": "instrument number appears on multiple OGL rows",
+                }.get(xstatus, "instrument not matched across OGL/runsheet")
+                remarks_bits.append(f"Chain break: {detail}")
                 status = REVIEW_TAG
             if not link.tied_to_legal:
                 remarks_bits.append("Legal description does not tie to tract")
+                status = REVIEW_TAG
+            if not link.grantor_continuity:
+                remarks_bits.append(
+                    f"Chain-of-title break: grantor does not match prior grantee")
                 status = REVIEW_TAG
             rc = link.reconciliation
             if rc.status != "balanced":
@@ -259,8 +277,9 @@ def chain_to_report(
 
             # Net mineral acres = conveyed interest x gross acres, exact. Blank
             # (never guessed) when gross acres or the conveyed interest is unknown.
+            # Gross acres is a decimal/whole number -- a fraction form is rejected.
             nma_txt = ""
-            gross = try_parse_interest(rec.gross_acres) \
+            gross = try_parse_acres(rec.gross_acres) \
                 if str(rec.gross_acres).strip() else None
             if gross is not None and link.conveyed is not None:
                 nma_txt = format_acres(net_acres(link.conveyed, gross))

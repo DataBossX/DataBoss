@@ -102,6 +102,43 @@ def try_parse_interest(value: Optional[Number]) -> Optional[Fraction]:
         return None
 
 
+def parse_acres(value: Optional[Number]) -> Fraction:
+    """Parse a gross-acreage quantity into an exact :class:`Fraction`.
+
+    Acreage is a *decimal/whole* quantity ("160", "160.5", "1,280"), NOT a
+    mineral fraction -- so a slash form like "1/2" is rejected (it would be a
+    nonsensical half-acre parse). Percent signs are likewise rejected. Raises
+    :class:`InterestError` on anything that isn't a plain number.
+    """
+    if value is None:
+        raise InterestError("cannot parse acres from None")
+    if isinstance(value, Fraction):
+        return value
+    if isinstance(value, int):
+        return Fraction(value)
+    if isinstance(value, Decimal):
+        return Fraction(value)
+    s = str(value).strip().replace(",", "")
+    if not s:
+        raise InterestError("cannot parse acres from empty string")
+    if "/" in s or "%" in s:
+        raise InterestError(f"acreage {value!r} is not a plain number")
+    # strip a trailing "acres"/"ac" unit if present
+    s = re.sub(r"(?i)\s*(acres?|ac)\.?$", "", s).strip()
+    try:
+        return Fraction(Decimal(s))
+    except (InvalidOperation, ValueError) as exc:
+        raise InterestError(f"unparseable acreage {value!r}") from exc
+
+
+def try_parse_acres(value: Optional[Number]) -> Optional[Fraction]:
+    """Like :func:`parse_acres` but returns ``None`` instead of raising."""
+    try:
+        return parse_acres(value)
+    except InterestError:
+        return None
+
+
 def net_acres(interest: Number, gross_acres: Number) -> Fraction:
     """Net acres = interest fraction x gross acres, exactly.
 
@@ -109,12 +146,7 @@ def net_acres(interest: Number, gross_acres: Number) -> Fraction:
     Returns a :class:`Fraction`; call :func:`format_acres` to display.
     """
     frac = parse_interest(interest) if not isinstance(interest, Fraction) else interest
-    if isinstance(gross_acres, Fraction):
-        gross = gross_acres
-    elif isinstance(gross_acres, Decimal):
-        gross = Fraction(gross_acres)
-    else:
-        gross = Fraction(Decimal(str(gross_acres)))
+    gross = gross_acres if isinstance(gross_acres, Fraction) else parse_acres(gross_acres)
     return frac * gross
 
 

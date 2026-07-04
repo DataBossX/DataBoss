@@ -17,7 +17,9 @@ cd /d "%~dp0"
 
 REM --- 1. Pick the Horizon root -------------------------------------
 REM  Priority: folder dragged onto the .bat  >  HORIZON_ROOT env var  >  default
-set "HORIZON_ROOT=D:\Desktop\Horizon"
+REM  Only apply the default when HORIZON_ROOT is not already set, so an
+REM  operator-provided environment variable is preserved.
+if not defined HORIZON_ROOT set "HORIZON_ROOT=D:\Desktop\Horizon"
 if not "%~1"=="" set "HORIZON_ROOT=%~1"
 
 echo(

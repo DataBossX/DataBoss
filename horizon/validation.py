@@ -27,6 +27,33 @@ from .models import (
 )
 
 
+# Header names that denote an instrument/document *number* (not a type/date).
+_INSTRUMENT_NUMBER_HEADERS = {
+    "instrument_number", "instrument_no", "instrument#", "instrument",
+    "doc_no", "doc_number", "document_no", "document_number",
+    "reception", "reception_no", "reception_number", "file_no", "recording_no",
+}
+
+
+def _is_instrument_number_header(col: str) -> bool:
+    """True only for instrument/document *number* headers.
+
+    Rejects related-but-different columns such as "instrument_type",
+    "instrument_date" or "instrument_kind" that would otherwise be mistaken for
+    a number column and load deed types/dates as required instruments.
+    """
+    c = (col or "").strip().lower().replace(" ", "_")
+    if not c:
+        return False
+    if any(bad in c for bad in ("type", "date", "kind", "desc")):
+        return False
+    if c in _INSTRUMENT_NUMBER_HEADERS:
+        return True
+    if ("instrument" in c or "document" in c) and ("number" in c or c.endswith("_no")):
+        return True
+    return False
+
+
 @dataclass
 class Requirements:
     """Requirements pulled from the Golden Source (or the built-in defaults)."""
@@ -71,7 +98,7 @@ def load_requirements(golden_path: Optional[Path]) -> Requirements:
                     if c and c not in seen_cols:
                         seen_cols.append(c)
                 for j, c in enumerate(header):
-                    if "instrument" in c or c in ("doc_no", "document_number"):
+                    if inst_col is None and _is_instrument_number_header(c):
                         inst_col = j
                 continue
             if inst_col is not None and inst_col < len(row) and row[inst_col]:
@@ -123,8 +150,40 @@ def validate_report(report: ReportModel, requirements: Requirements) -> Validati
             message=f"Required instrument {inst} from Golden Source is missing.",
         ))
 
+    # Gate 3: every Golden-Source-required column maps to a report column.
+    issues.extend(_validate_columns(requirements))
+
     passed = not any(i.severity == "error" for i in issues)
     return ValidationReport(passed=passed, issues=issues)
+
+
+def _known_columns() -> Set[str]:
+    """All column names the report schema can represent (canonical + synonyms)."""
+    from .report_io import _HEADER_SYNONYMS  # local import avoids a cycle
+    known: Set[str] = set(CANONICAL_COLUMNS)
+    known.update(_HEADER_SYNONYMS.keys())
+    known.update(_HEADER_SYNONYMS.values())
+    return known
+
+
+def _validate_columns(requirements: Requirements) -> List[ValidationIssue]:
+    """Warn for any required Golden-Source column the report cannot carry.
+
+    A missing column is a *warning*, not a hard error: the Golden Source may list
+    bookkeeping columns unrelated to the report. But surfacing them means the
+    gate actually consumes ``required_columns`` instead of ignoring it.
+    """
+    known = _known_columns()
+    issues: List[ValidationIssue] = []
+    for col in requirements.required_columns:
+        norm = (col or "").strip().lower().replace(" ", "_")
+        if norm and norm not in known:
+            issues.append(ValidationIssue(
+                row_index=-1, field=norm, severity="warn",
+                message=(f"Golden Source column {col!r} is not represented in the "
+                         f"report's canonical schema."),
+            ))
+    return issues
 
 
 def _validate_row_interest(idx: int, row: TitleRow) -> List[ValidationIssue]:

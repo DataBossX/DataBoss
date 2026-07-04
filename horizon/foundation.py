@@ -134,14 +134,20 @@ def _is_within(path: Path, parent: Path) -> bool:
         return False
 
 
-def dedupe(records: List[FileRecord], cfg: HorizonConfig, audit: AuditLog) -> CleanupResult:
-    """Group by SHA256; keep the highest-fidelity file, quarantine the rest."""
+def dedupe(records: List[FileRecord], cfg: HorizonConfig, audit: AuditLog,
+           move: bool = True) -> CleanupResult:
+    """Group by SHA256; keep the highest-fidelity file, quarantine the rest.
+
+    When ``move`` is False (dry-run) the duplicates are *identified and reported*
+    but not moved -- the source tree is left completely read-only.
+    """
     result = CleanupResult(scanned=list(records))
     by_hash: Dict[str, List[FileRecord]] = {}
     for rec in records:
         by_hash.setdefault(rec.sha256, []).append(rec)
 
-    cfg.trash.mkdir(parents=True, exist_ok=True)
+    if move:
+        cfg.trash.mkdir(parents=True, exist_ok=True)
     for digest, group in by_hash.items():
         group.sort(key=lambda r: r.fidelity(), reverse=True)
         keeper = group[0]
@@ -149,10 +155,14 @@ def dedupe(records: List[FileRecord], cfg: HorizonConfig, audit: AuditLog) -> Cl
         if len(group) == 1:
             continue
         result.duplicate_groups += 1
-        audit.info("dup_group", f"sha={digest[:12]} n={len(group)} keep={keeper.rel}")
+        verb = "would keep" if not move else "keep"
+        audit.info("dup_group", f"sha={digest[:12]} n={len(group)} {verb}={keeper.rel}")
         for dup in group[1:]:
-            moved = _quarantine(dup, cfg, audit)
-            if moved:
+            if not move:
+                audit.info("dup_would_trash", f"{dup.rel} (dry-run: not moved)")
+                result.quarantined.append(dup)
+                continue
+            if _quarantine(dup, cfg, audit):
                 result.quarantined.append(dup)
     return result
 
@@ -199,8 +209,25 @@ def snapshot_backup(cfg: HorizonConfig, audit: AuditLog) -> Path:
     return dest
 
 
-def run_cleanup(cfg: HorizonConfig, audit: AuditLog, backup: bool = True) -> CleanupResult:
-    """Full foundation pass: snapshot -> unzip -> scan -> dedupe."""
+def run_cleanup(cfg: HorizonConfig, audit: AuditLog, backup: bool = True,
+                dry_run: bool = False) -> CleanupResult:
+    """Full foundation pass: snapshot -> unzip -> scan -> dedupe.
+
+    In ``dry_run`` mode the tree is left strictly read-only: no snapshot copy, no
+    archive extraction, and duplicates are reported but not moved to trash.
+    """
+    if dry_run:
+        # Only create the folders needed to *scan*; do not mutate sources.
+        records = scan(cfg, audit)
+        result = dedupe(records, cfg, audit, move=False)
+        result.extracted = []
+        audit.info(
+            "cleanup_dry_run",
+            f"scanned={len(result.scanned)} kept={len(result.kept)} "
+            f"would_trash={len(result.quarantined)} dup_groups={result.duplicate_groups}",
+        )
+        return result
+
     cfg.ensure_workspace()
     if backup:
         snapshot_backup(cfg, audit)

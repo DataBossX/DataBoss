@@ -252,6 +252,53 @@ class HtmlReportTests(unittest.TestCase):
 
 
 @unittest.skipIf(openpyxl is None, "openpyxl not installed")
+class MultiRootEnvTractTests(unittest.TestCase):
+    def test_load_env_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / ".env"
+            p.write_text('# comment\nexport ANTHROPIC_API_KEY="sk-test-123"\nFOO=bar\n\n')
+            names = rm.load_env_file(p)
+            self.assertIn("ANTHROPIC_API_KEY", names)
+            self.assertIn("FOO", names)
+            import os
+            self.assertEqual(os.environ.get("FOO"), "bar")
+
+    def test_tract_matcher_on_and_off(self):
+        m = rm.tract_matcher("31-12N-24W")
+        self.assertTrue(m("NW/4 31-12N-24W"))
+        self.assertTrue(m("SEC 31 T12N R24W"))
+        self.assertTrue(m(""))                     # blank -> on-tract (can't judge)
+        self.assertFalse(m("SE/4 20-11N-20W"))     # different township/range
+        self.assertIsNone(rm.tract_matcher("not a tract label"))
+
+    def test_apply_tract_scope_flag_vs_strict(self):
+        rows = [rm.TitleRow(data={"legal_description": "NW/4 31-12N-24W"}, source="t", source_row=1),
+                rm.TitleRow(data={"legal_description": "SE/4 20-11N-20W"}, source="t", source_row=2)]
+        kept, off = rm.apply_tract_scope([r for r in rows], "31-12N-24W", strict=False)
+        self.assertEqual(len(kept), 2)             # non-strict keeps all
+        self.assertEqual(len(off), 1)
+        self.assertIn("OFF-TRACT", off[0].data["remarks"])
+        kept2, off2 = rm.apply_tract_scope([r for r in rows], "31-12N-24W", strict=True)
+        self.assertEqual(len(kept2), 1)            # strict drops off-tract
+        self.assertEqual(len(off2), 1)
+
+    def test_inventory_multi_prefixes_paths(self):
+        with tempfile.TemporaryDirectory() as td:
+            a = Path(td) / "Roger Mills"; a.mkdir()
+            b = Path(td) / "Roger Mills 2"; b.mkdir()
+            (a / "x.txt").write_text("a")
+            (b / "y.txt").write_text("b")
+            recs = rm.inventory_multi([a, b], exclude=[])
+            rels = sorted(r.rel for r in recs)
+            self.assertEqual(rels, ["Roger Mills 2/y.txt", "Roger Mills/x.txt"])
+
+    def test_ai_no_flagged_returns_empty(self):
+        links, _ = rm.build_interest_chain(_title_rows([
+            ("USA", "ALPHA CORP", "1", "1", "1/1/1980")]))  # nothing flagged
+        self.assertEqual(rm.ai_review_suggestions(links, "sk-unused", "claude-sonnet-5"), [])
+
+
+@unittest.skipIf(openpyxl is None, "openpyxl not installed")
 class FullBuildTests(unittest.TestCase):
     def test_end_to_end_build(self):
         with tempfile.TemporaryDirectory() as td:

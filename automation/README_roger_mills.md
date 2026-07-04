@@ -83,7 +83,25 @@ none of your files. Do this once before the first real run.
 
 ### Command line
 
-Simplest — output auto-lands in `D:\Desktop\Horizon\rogermillsfinalreports`:
+Multiple source folders at once (output lands in the shared parent,
+`D:\Desktop\Horizon\rogermillsfinalreports`), fixing your existing final copy
+and using the `.env` in `D:\Desktop\Horizon`:
+
+```bat
+py automation\roger_mills_title_report_builder.py ^
+    --root "D:\Desktop\Horizon\Roger Mills" "D:\Desktop\Horizon\Roger Mills 2" "D:\Desktop\Horizon\Roger Mills 3" ^
+    --final-copy "D:\Desktop\Horizon\Roger Mills\your_final_copy.xlsx" ^
+    --env-file "D:\Desktop\Horizon\.env" ^
+    --section "31-12N-24W" --tract "31-12N-24W" --gross-acres 640 --ai
+```
+
+Duplicate files across the three folders are detected by content and quarantined
+(the best copy is kept). `--tract` keeps the report on your tract sheets:
+off-tract rows are flagged (or, with `--tract-strict`, moved to an `Off-Tract`
+sheet). `--ai` is optional and only runs if an `ANTHROPIC_API_KEY` is in your
+`.env`; its suggestions are advisory and never auto-applied.
+
+Simplest single folder — output auto-lands in `<folder>\rogermillsfinalreports`:
 
 ```bat
 py automation\roger_mills_title_report_builder.py ^
@@ -122,8 +140,13 @@ whole; without it they are left unparsed and flagged.
 
 | Flag | Effect |
 |------|--------|
-| `--root` | folder to scan (required, unless `--self-test`) |
+| `--root` | one or more folders to scan (required, unless `--self-test`) |
 | `--self-test` | build a synthetic report to verify the install, then exit |
+| `--final-copy` | your existing report to fix and mirror (base + format) |
+| `--tract` | tract scope for legals (default `--section`); off-tract flagged |
+| `--tract-strict` | move off-tract rows to an `Off-Tract` sheet instead of flagging |
+| `--env-file` | path to `.env` (default `<parent>\.env`); loads API keys, values never printed |
+| `--ai` / `--ai-model` | optional Claude-assisted advisory suggestions (needs key in `.env`) |
 | `--section` | tract label, e.g. `31-12N-24W` |
 | `--gross-acres` | gross mineral acres → enables NMA chaining |
 | `--final-dir` | output folder (default `<root>\rogermillsfinalreports`) |
@@ -145,6 +168,19 @@ In `rogermillsfinalreports\`:
   sheets.
 - `31-12N-24W_interest_chain_report_codexv2.html` — self-contained browser view
   (leads with current ownership).
+
+When multiple `--root` folders are given, files are pooled and de-duplicated by
+content across all of them; an `Off-Tract` sheet appears if any rows fall outside
+`--tract`, and an `AI Suggestions (review)` sheet appears when `--ai` returns
+advisory notes.
+
+### A note on "use the browser"
+
+Pulling records live from a county/records website needs three things the tool
+can't guess: the exact site, your logged-in session, and the search inputs.
+Point-and-scrape automation (Playwright is already available in this repo) can be
+wired up once you tell me the site and what to search — say the word and I'll add
+a `--fetch` step. Until then the tool works entirely from your local files.
 
 In `rogermillsfinalreports\files\`:
 - `final_validation_summary_codexv2.txt` — stats + **PERFECTION CHECKLIST**

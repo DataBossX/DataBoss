@@ -31,6 +31,14 @@ WHAT'S NEW IN codexv2
   decimal, and NMA when --gross-acres is given) plus active OGL leases.
 * SELF-TEST (--self-test) and a double-click Windows launcher (run_roger_mills.bat)
   so a non-technical user can verify the install and run without a command line.
+* MULTI-ROOT: pass several --root folders (e.g. "Roger Mills", "Roger Mills 2",
+  "Roger Mills 3"); files are pooled and de-duplicated by content across all of
+  them, and the finished reports land in their shared parent's rogermillsfinalreports.
+* --final-copy: fix and mirror your existing report (used as base + format authority).
+* TRACT SCOPE (--tract / --tract-strict): keep the report on your tract sheets;
+  off-tract rows are flagged or moved to an "Off-Tract" sheet.
+* .env (--env-file) loads API keys (values never printed); optional --ai adds
+  advisory Claude suggestions for flagged rows (never auto-applied).
 * "LOOP TILL PERFECT": builds, validates, and re-builds up to --max-passes,
   writing a perfection checklist of the exact human-review items that remain.
 
@@ -1804,6 +1812,200 @@ def validate_output(output_path: Path, data_sheet: str, expected_rows: int) -> T
     return ok, notes
 
 
+# ----------------------------------------------------------------------------
+# Multi-root, .env, tract scope, optional AI-assist (codexv2)
+# ----------------------------------------------------------------------------
+def load_env_file(path: Optional[Path]) -> List[str]:
+    """Load KEY=VALUE lines from a .env into os.environ (does not override
+    existing vars). Returns the KEY NAMES found - never the secret values."""
+    names: List[str] = []
+    try:
+        if not path or not Path(path).is_file():
+            return names
+        for line in Path(path).read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            if line.lower().startswith("export "):
+                line = line[7:]
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key:
+                names.append(key)
+                os.environ.setdefault(key, val)
+    except Exception as exc:
+        LOG(f"  .env load failed: {exc}", "WARN")
+    return names
+
+
+def inventory_multi(roots: Sequence[Path], exclude: Sequence[Path]) -> List[FileRec]:
+    """Inventory several roots into one list. When more than one root is scanned,
+    each rel path is prefixed with the root folder name so paths stay unique."""
+    recs: List[FileRec] = []
+    multi = len(roots) > 1
+    for rt in roots:
+        if not rt.exists():
+            LOG(f"  root not found (skipped): {rt}", "WARN")
+            continue
+        for rec in inventory(rt, exclude=exclude):
+            if multi:
+                rec.rel = f"{rt.name}/{rec.rel}"
+            recs.append(rec)
+    return recs
+
+
+def tract_matcher(tract: str):
+    """Return a fn(legal)->bool telling whether a legal description is on the
+    target tract (by township+range; section is a finer bonus). Blank legals
+    are treated as on-tract (not enough info to exclude). Returns None if the
+    tract label can't be parsed."""
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*([ns])\s*-\s*(\d+)\s*([ew])", tract, re.I)
+    if not m:
+        return None
+    sec, twp, twpd, rng, rngd = m.group(1), m.group(2), m.group(3).upper(), m.group(4), m.group(5).upper()
+    tw_re = re.compile(rf"{twp}\s*{twpd}", re.I)
+    rn_re = re.compile(rf"{rng}\s*{rngd}", re.I)
+
+    def matches(legal: str) -> bool:
+        L = re.sub(r"\s+", " ", (legal or "")).upper()
+        if not L.strip():
+            return True
+        return bool(tw_re.search(L) and rn_re.search(L))
+    return matches
+
+
+def apply_tract_scope(merged: List["TitleRow"], tract: str, strict: bool
+                      ) -> Tuple[List["TitleRow"], List["TitleRow"]]:
+    """Split merged rows into (on_tract, off_tract). Off-tract rows are always
+    flagged in remarks; with strict=True they are removed from the report."""
+    match = tract_matcher(tract)
+    if match is None:
+        return merged, []
+    on, off = [], []
+    for row in merged:
+        if match(row.data.get("legal_description", "")):
+            on.append(row)
+        else:
+            off.append(row)
+            note = "[OFF-TRACT: legal not on " + tract + "]"
+            existing = norm_text(row.data.get("remarks", ""))
+            row.data["remarks"] = (existing + " " + note).strip() if existing else note
+    if strict:
+        return on, off
+    return merged, off  # non-strict: keep them, but they carry the flag
+
+
+def append_offtract_sheet(output_path: Path, off_tract: List["TitleRow"],
+                          tract: str, strict: bool) -> None:
+    """List rows whose legal falls outside the target tract, for transparency."""
+    if not off_tract:
+        return
+    from openpyxl.styles import Font, PatternFill
+    GREY = PatternFill("solid", fgColor="E0E0E0")
+    wb = openpyxl.load_workbook(output_path)
+    title = "Off-Tract"
+    if title in wb.sheetnames:
+        del wb[title]
+    ws = wb.create_sheet(title)
+    verb = "EXCLUDED from" if strict else "FLAGGED in"
+    ws.append([f"Rows {verb} the report - legal not on tract {tract} (verify)"])
+    ws["A1"].font = Font(bold=True)
+    cols = ["instrument_date", "doc_type", "grantor", "grantee", "book", "page",
+            "instrument_no", "legal_description", "interest"]
+    ws.append([c.replace("_", " ").title() for c in cols])
+    for c in ws[2]:
+        c.font = Font(bold=True)
+        c.fill = GREY
+    for row in off_tract:
+        ws.append([norm_text(row.data.get(c, "")) for c in cols])
+    ws.freeze_panes = "A3"
+    for i, w in enumerate([14, 16, 24, 24, 8, 8, 16, 40, 14], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    wb.save(output_path)
+    wb.close()
+
+
+def _anthropic_complete(prompt: str, api_key: str, model: str,
+                        max_tokens: int = 1500) -> str:
+    """Minimal Anthropic Messages API call via urllib (no SDK dependency)."""
+    import json
+    import urllib.request
+    body = json.dumps({
+        "model": model, "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages", data=body,
+        headers={"content-type": "application/json", "x-api-key": api_key,
+                 "anthropic-version": "2023-06-01"})
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+
+
+def ai_review_suggestions(chain_links: List[ChainLink], api_key: str, model: str
+                          ) -> List[Dict[str, str]]:
+    """OPTIONAL, ADVISORY: ask a Claude model to suggest normalizations for the
+    flagged conveyances (unreadable interest, party mismatch). Suggestions are
+    written to a review sheet and NEVER auto-applied. Degrades to [] on any error.
+    """
+    import json
+    flagged = [lk for lk in chain_links if lk.flags][:40]  # cap the batch
+    if not flagged:
+        return []
+    rows = [{"order": lk.order, "grantor": lk.grantor, "grantee": lk.grantee,
+             "interest": lk.raw_interest, "flags": lk.flags} for lk in flagged]
+    prompt = (
+        "You are assisting a mineral title examiner. For each conveyance row "
+        "below, if the interest text is unparseable or a party name looks "
+        "inconsistent, suggest a normalized value. Do NOT invent facts; if "
+        "unsure, say so. Return ONLY a JSON array of objects with keys: order, "
+        "field ('interest' or 'grantor' or 'grantee'), suggestion, rationale.\n\n"
+        + json.dumps(rows, indent=0))
+    try:
+        text = _anthropic_complete(prompt, api_key, model)
+        start, end = text.find("["), text.rfind("]")
+        if start < 0 or end < 0:
+            return []
+        parsed = json.loads(text[start:end + 1])
+        out = []
+        for p in parsed:
+            out.append({"order": str(p.get("order", "")), "field": str(p.get("field", "")),
+                        "suggestion": str(p.get("suggestion", "")),
+                        "rationale": str(p.get("rationale", ""))})
+        return out
+    except Exception as exc:
+        LOG(f"  AI review skipped ({type(exc).__name__}: {exc})", "WARN")
+        return []
+
+
+def append_ai_sheet(output_path: Path, suggestions: List[Dict[str, str]]) -> None:
+    if not suggestions:
+        return
+    from openpyxl.styles import Font, PatternFill
+    BLUE = PatternFill("solid", fgColor="DDEBF7")
+    wb = openpyxl.load_workbook(output_path)
+    title = "AI Suggestions (review)"
+    if title in wb.sheetnames:
+        del wb[title]
+    ws = wb.create_sheet(title)
+    ws.append(["Chain #", "Field", "Suggestion", "Rationale",
+               "ADVISORY - verify before applying; NOT auto-applied"])
+    for s in suggestions:
+        ws.append([s.get("order", ""), s.get("field", ""), s.get("suggestion", ""),
+                   s.get("rationale", ""), ""])
+        for c in range(1, 6):
+            ws.cell(row=ws.max_row, column=c).fill = BLUE
+    ws.freeze_panes = "A2"
+    for i, w in enumerate([8, 12, 34, 60, 20], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    for c in ws[1]:
+        c.font = Font(bold=True)
+    wb.save(output_path)
+    wb.close()
+
+
 def run_self_test() -> int:
     """Build a tiny synthetic report end-to-end to prove the environment works.
     Uses only a temp directory; touches nothing of the user's. Returns 0 on PASS.
@@ -1854,15 +2056,27 @@ def run_self_test() -> int:
 # ----------------------------------------------------------------------------
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="Roger Mills Cursory Title Report builder (codexv2)")
-    ap.add_argument("--root", default="", help="Root folder to scan recursively")
+    ap.add_argument("--root", nargs="*", default=[],
+                    help="One or more root folders to scan (e.g. \"Roger Mills\" \"Roger Mills 2\")")
     ap.add_argument("--self-test", action="store_true",
                     help="Run a built-in synthetic build to verify the install, then exit")
     ap.add_argument("--output", default="", help="Final .xlsx output path (default: <final-dir>/<section>_...xlsx)")
     ap.add_argument("--support-dir", default="", help="Folder for support files (default: <final-dir>/files)")
     ap.add_argument("--final-dir", default="",
-                    help="Folder for finished reports (default: <root>/rogermillsfinalreports)")
+                    help="Folder for finished reports (default: <common parent of roots>/rogermillsfinalreports)")
     ap.add_argument("--section", default="31-12N-24W", help="Target section label")
+    ap.add_argument("--tract", default="",
+                    help="Tract scope for legals (default: --section). Off-tract rows are flagged.")
+    ap.add_argument("--tract-strict", action="store_true",
+                    help="Exclude off-tract rows from the report (into an 'Off-Tract' sheet) instead of just flagging")
     ap.add_argument("--template", default="", help="Explicit template .xlsx (else auto-detect)")
+    ap.add_argument("--final-copy", default="",
+                    help="Path to your existing 'final copy' report to use as the base/format authority and fix")
+    ap.add_argument("--env-file", default="",
+                    help="Path to a .env file (default: <common parent>/.env). Loads API keys; values never printed.")
+    ap.add_argument("--ai", action="store_true",
+                    help="Enable optional Claude-assisted suggestions for flagged rows (needs an API key in .env)")
+    ap.add_argument("--ai-model", default="claude-sonnet-5", help="Model id for --ai (default claude-sonnet-5)")
     ap.add_argument("--gross-acres", type=float, default=None,
                     help="Gross mineral acres for the tract (enables NMA->fraction interest chaining)")
     ap.add_argument("--max-passes", type=int, default=3,
@@ -1881,46 +2095,71 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.self_test:
         return run_self_test()
     if not args.root:
-        print("FATAL: --root is required (or use --self-test to verify your install).")
+        print("FATAL: at least one --root folder is required (or use --self-test).")
         return 2
 
-    root = Path(args.root)
-    final_dir = Path(args.final_dir) if args.final_dir else (root / "rogermillsfinalreports")
+    roots = [Path(r) for r in args.root]
+    missing = [r for r in roots if not r.exists()]
+    if missing:
+        for r in missing:
+            print(f"WARNING: root folder does not exist: {r}")
+    roots = [r for r in roots if r.exists()]
+    if not roots:
+        print("FATAL: none of the given root folders exist.")
+        print("Are you running this on the machine where the files live?")
+        return 2
+
+    # common parent of all roots -> default home for the finished reports
+    try:
+        common_parent = Path(os.path.commonpath([str(r.resolve()) for r in roots]))
+        if common_parent in [r.resolve() for r in roots]:
+            common_parent = roots[0].resolve().parent
+    except Exception:
+        common_parent = roots[0].resolve().parent
+
+    final_dir = Path(args.final_dir) if args.final_dir else (common_parent / "rogermillsfinalreports")
     safe_section = re.sub(r"[^A-Za-z0-9._-]+", "_", args.section).strip("_") or "section"
     output_path = (Path(args.output) if args.output
                    else final_dir / f"{safe_section}_Roger_Mills_Cursory_Title_Report_codexv2.xlsx")
     support_dir = Path(args.support_dir) if args.support_dir else (final_dir / "files")
-
-    if not root.exists():
-        print(f"FATAL: root folder does not exist: {root}")
-        print("Are you running this on the machine where the files live?")
-        return 2
+    tract = args.tract or args.section
     final_dir.mkdir(parents=True, exist_ok=True)
     support_dir.mkdir(parents=True, exist_ok=True)
 
+    # .env (default: <common parent>/.env). Load API keys; never print values.
+    env_path = Path(args.env_file) if args.env_file else (common_parent / ".env")
+    env_keys = load_env_file(env_path)
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
     LOG.section(f"Roger Mills Title Report Builder - section {args.section}")
-    LOG(f"Root:        {root}")
+    for r in roots:
+        LOG(f"Root:        {r}")
     LOG(f"Final dir:   {final_dir}")
     LOG(f"Output:      {output_path}")
     LOG(f"Support dir: {support_dir}")
+    LOG(f"Tract scope: {tract}{' (strict: off-tract excluded)' if args.tract_strict else ' (off-tract flagged)'}")
+    LOG(f".env:        {env_path if env_keys else '(none found)'}; keys loaded: {sorted(env_keys) if env_keys else '[]'}")
     LOG(f"Gross acres: {args.gross_acres if args.gross_acres else '(not given; NMA interests will be flagged)'}")
     LOG(f"Capabilities: pandas={_HAVE_PANDAS} dateutil={_HAVE_DATEUTIL} "
         f"rapidfuzz={_HAVE_RAPIDFUZZ} pdfplumber={_HAVE_PDFPLUMBER} "
-        f"pymupdf={_HAVE_PYMUPDF} ocr={_HAVE_OCR}")
+        f"pymupdf={_HAVE_PYMUPDF} ocr={_HAVE_OCR} docx={_HAVE_DOCX} "
+        f"ai={'on' if (args.ai and api_key) else ('requested-no-key' if args.ai else 'off')}")
 
-    # 0. unzip everything (recursive, nested, path-safe, idempotent)
+    # 0. unzip everything across all roots (recursive, nested, path-safe, idempotent)
     zips_extracted = 0
     if not args.no_unzip:
         LOG.section("0. Extract .zip archives")
-        _extract_root, zips_extracted = extract_all_zips(root)
+        for r in roots:
+            _extract_root, n = extract_all_zips(r)
+            zips_extracted += n
         LOG(f"Extracted {zips_extracted} file(s) from archives.")
     else:
         LOG("--no-unzip: skipping archive extraction.")
 
-    # 1. inventory
+    # 1. inventory (all roots)
     LOG.section("1. Inventory")
-    recs = inventory(root, exclude=[final_dir, support_dir])
-    LOG(f"Found {len(recs)} files (excluding generated output/support trees).")
+    recs = inventory_multi(roots, exclude=[final_dir, support_dir])
+    LOG(f"Found {len(recs)} files across {len(roots)} root(s) (excluding generated trees).")
 
     def _log_kinds(rs):
         for kind in ("template", "report", "runsheet", "ogl", "index_pdf",
@@ -1944,7 +2183,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         moved += quarantine(trash, quarantine_dir / "trash", "trash")
         LOG(f"Quarantined {len(moved)} file(s) -> {quarantine_dir} (reversible; "
             f"originals were also backed up). Re-inventorying.")
-        recs = inventory(root, exclude=[final_dir, support_dir])
+        recs = inventory_multi(roots, exclude=[final_dir, support_dir])
         LOG(f"Post-tidy inventory: {len(recs)} files.")
         _log_kinds(recs)
     elif dup_extra or trash:
@@ -1960,7 +2199,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # 2. backups (skip in dry-run)
     if not args.dry_run:
         LOG.section("2. Timestamped backups")
-        backup_originals(root, recs, support_dir)
+        backup_originals(roots[0], recs, support_dir)
     else:
         LOG("DRY-RUN: skipping backups.")
 
@@ -1977,7 +2216,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 f"rows={(bs.data_rows if bs else 0)} style={wa.style_score:.1f} "
                 f"{('ERR ' + wa.error) if wa.error else ''}")
 
-    # template selection
+    # --final-copy: your existing report to fix and mirror. Bring it in as a
+    # report source (so its data merges/gets fixed) and prefer it as the base.
+    final_copy_rec = None
+    if args.final_copy:
+        fc = Path(args.final_copy)
+        final_copy_rec = next((r for r in recs if str(r.path.resolve()) == str(fc.resolve())
+                               or r.path.name.lower() == fc.name.lower()), None)
+        if final_copy_rec is None and fc.is_file():
+            st = fc.stat()
+            final_copy_rec = FileRec(path=fc, rel=fc.name, ext=fc.suffix.lower(),
+                                     size=st.st_size,
+                                     mtime=_dt.datetime.fromtimestamp(st.st_mtime))
+            final_copy_rec.kind = "report"
+            recs.append(final_copy_rec)
+            analyses[str(fc)] = analyze_workbook(final_copy_rec)
+        if final_copy_rec is not None:
+            LOG(f"Final copy (base to fix): {final_copy_rec.rel}")
+        else:
+            LOG(f"--final-copy not found: {args.final_copy}", "WARN")
+
+    # template / format authority selection
     template_rec = None
     if args.template:
         template_rec = next((r for r in recs if r.path.name.lower() == Path(args.template).name.lower()
@@ -1985,6 +2244,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if template_rec is None:
         templates = [r for r in recs if r.kind == "template"]
         template_rec = templates[0] if templates else None
+    # the final copy is the strongest match to "look like my final copy"
+    if template_rec is None and final_copy_rec is not None:
+        template_rec = final_copy_rec
 
     # 4. tournament: pick best base report workbook
     LOG.section("4. Best-base tournament")
@@ -2031,6 +2293,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     merged, audit, conflicts = merge_rows(all_rows)
     LOG(f"Merged unique records: {len(merged)}  | field conflicts: {len(conflicts)}")
 
+    # 5a. tract scope - stay on the tract sheets; flag (or exclude) off-tract rows
+    merged, off_tract = apply_tract_scope(merged, tract, args.tract_strict)
+    if tract_matcher(tract) is None:
+        LOG(f"Tract label '{tract}' not parseable as SEC-TWP-RNG; tract scoping skipped.", "WARN")
+    else:
+        on_ct = len(merged) - (0 if args.tract_strict else len(off_tract))
+        LOG(f"Tract scope '{tract}': {len(off_tract)} off-tract row(s) "
+            f"{'excluded' if args.tract_strict else 'flagged'}; {on_ct} on-tract; "
+            f"{len(merged)} total in report.")
+
     # 5b. runsheet notes + OGL numbers -> attach onto merged rows
     LOG.section("5b. Runsheet notes & OGL numbers")
     runsheet_idx, runsheet_rec = load_runsheet_notes(recs)
@@ -2045,6 +2317,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     n_parsed = sum(1 for lk in chain_links if lk.fraction is not None)
     LOG(f"Chained {len(chain_links)} conveyances: {n_parsed} with parsed interest, "
         f"{n_flagged} flagged for review; {len(ledger)} parties in ownership ledger.")
+
+    # 5c-ai. optional Claude-assisted suggestions for the flagged rows (advisory)
+    ai_suggestions: List[Dict[str, str]] = []
+    if args.ai:
+        LOG.section("5c-ai. AI-assisted review (advisory)")
+        if not api_key:
+            LOG("--ai requested but no ANTHROPIC_API_KEY found in the .env; skipping.", "WARN")
+        else:
+            ai_suggestions = ai_review_suggestions(chain_links, api_key, args.ai_model)
+            LOG(f"AI returned {len(ai_suggestions)} suggestion(s) (advisory, not applied).")
 
     # 5d. deed/instrument document extraction (review-only, never merged)
     LOG.section("5d. Deed document extraction (review-only)")
@@ -2094,6 +2376,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 append_title_summary_sheet(output_path, ledger, ogl_summary,
                                            args.gross_acres)
                 append_deeds_sheet(output_path, deeds)
+                if off_tract:
+                    append_offtract_sheet(output_path, off_tract, tract, args.tract_strict)
+                append_ai_sheet(output_path, ai_suggestions)
                 LOG(f"  wrote {rows_written} rows to '{data_sheet}' + analysis sheets -> {output_path}")
             except Exception as exc:
                 LOG(f"  build failed: {exc}\n{traceback.format_exc()}", "ERROR")
@@ -2159,6 +2444,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"  OGL schedule:          {ogl_rec.rel if ogl_rec else '(none found)'}",
         f"  Rows w/ OGL number:    {n_ogl}   (OGL leases catalogued: {len(ogl_summary)})",
         "",
+        "Scope & sources:",
+        f"  Root folders scanned:  {len(roots)}  ({', '.join(r.name for r in roots)})",
+        f"  Tract scope:           {tract}  ({'strict-exclude' if args.tract_strict else 'flag-only'})",
+        f"  Off-tract rows:        {len(off_tract)}",
+        f"  .env keys loaded:      {sorted(env_keys) if env_keys else '[]'}",
+        f"  AI suggestions:        {len(ai_suggestions)}"
+        f"{' (advisory)' if ai_suggestions else (' (--ai, no key)' if args.ai and not api_key else '')}",
+        f"  Final copy (fixed):    {final_copy_rec.rel if final_copy_rec else '(none given)'}",
+        "",
         f"Formatting authority:    {template_rec.rel if template_rec else '(none)'}",
         f"Best base workbook:      {best_base.rec.rel if best_base else '(none)'}",
         f"Output workbook:         {output_path}",
@@ -2217,6 +2511,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                          "'Deeds (auto-extract VERIFY)' sheet - verify each against the "
                          "original and fold confirmed ones into a report source; they are "
                          "NOT in the chain.")
+    if off_tract:
+        verb = "excluded from" if args.tract_strict else "flagged in"
+        checklist.append(f"{len(off_tract)} row(s) are off the tract {tract} and were {verb} "
+                         "the report - confirm they truly belong to another tract (see the "
+                         "'Off-Tract' sheet).")
+    if ai_suggestions:
+        checklist.append(f"{len(ai_suggestions)} AI suggestion(s) are ADVISORY only - review "
+                         "the 'AI Suggestions (review)' sheet and apply any that are correct; "
+                         "nothing was auto-applied.")
     checklist.append("Spot-check legal descriptions / acreage on the data + Interest Chain sheets.")
     if not checklist:
         checklist.append("No automated issues remain. Do a final examiner spot-check and sign off.")
@@ -2256,7 +2559,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"Final workbook:        {output_path if not args.dry_run else '(dry-run, not written)'}")
     print(f"  sheets added:        Title Summary, Interest Chain, Ownership Ledger, Review Flags"
           f"{', OGL Summary' if ogl_summary else ''}"
-          f"{', Deeds(VERIFY)' if deeds else ''}")
+          f"{', Deeds(VERIFY)' if deeds else ''}"
+          f"{', Off-Tract' if off_tract else ''}"
+          f"{', AI Suggestions' if ai_suggestions else ''}")
     if html_path:
         print(f"HTML report:           {html_path}")
     print(f"Deeds auto-extracted:  {len(deeds)} (review-only, not in chain)")
@@ -2269,7 +2574,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("  - tidy_manifest_codexv2.csv")
     print(f"Archives extracted:    {zips_extracted} file(s)")
     print(f"Duplicates/trash:      dups={dup_extra}  trash={len(trash)}  quarantined={len(moved)}")
+    print(f"Root folders scanned:  {len(roots)}  ({', '.join(r.name for r in roots)})")
     print(f"Source files reviewed: {len(recs)}")
+    print(f"Tract scope:           {tract}  off-tract={len(off_tract)}  ({'excluded' if args.tract_strict else 'flagged'})")
     print(f"Records merged:        {len(merged)}  (written: {rows_written})")
     print(f"Interest chained:      {len(chain_links)}  (parsed {n_parsed}, flagged {n_flagged})")
     print(f"Runsheet notes/OGL:    notes={n_notes}  ogl={n_ogl}  leases={len(ogl_summary)}")

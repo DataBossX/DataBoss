@@ -33,31 +33,42 @@ if errorlevel 1 (
 )
 echo.
 
-set /p ROOT=Enter the folder with your Roger Mills files (e.g. D:\Desktop\Horizon\Roger Mills):
-if "%ROOT%"=="" ( echo No folder entered. & pause & exit /b 1 )
+echo You can point at up to three folders (leave 2 and 3 blank if you have one).
+set /p ROOT1=Folder 1 (e.g. D:\Desktop\Horizon\Roger Mills):
+if "%ROOT1%"=="" ( echo No folder entered. & pause & exit /b 1 )
+set /p ROOT2=Folder 2 (optional, e.g. D:\Desktop\Horizon\Roger Mills 2):
+set /p ROOT3=Folder 3 (optional, e.g. D:\Desktop\Horizon\Roger Mills 3):
+
+set "ROOTS=--root "%ROOT1%""
+if not "%ROOT2%"=="" set "ROOTS=%ROOTS% "%ROOT2%""
+if not "%ROOT3%"=="" set "ROOTS=%ROOTS% "%ROOT3%""
 
 set "SECTION=31-12N-24W"
-set /p SECTION=Enter the section label [31-12N-24W]:
+set /p SECTION=Section / tract label [31-12N-24W]:
 
 set "ACRES="
-set /p ACRES=Enter gross mineral acres for NMA chaining [leave blank to skip]:
+set /p ACRES=Gross mineral acres for NMA chaining [leave blank to skip]:
+
+set "FINALCOPY="
+set /p FINALCOPY=Path to your existing "final copy" to fix [leave blank to skip]:
 
 set "PREVIEW="
 set /p PREVIEW=Preview only, change nothing? (y/N):
 
 set "ACREOPT="
 if not "%ACRES%"=="" set "ACREOPT=--gross-acres %ACRES%"
+set "FCOPT="
+if not "%FINALCOPY%"=="" set "FCOPT=--final-copy "%FINALCOPY%""
 set "DRYOPT="
 if /i "%PREVIEW%"=="y" set "DRYOPT=--dry-run"
 
 echo.
-echo Running builder on "%ROOT%" (section %SECTION%) ...
+echo Running builder (section %SECTION%) ...
 echo ------------------------------------------------------------
-%PYEXE% "%~dp0roger_mills_title_report_builder.py" --root "%ROOT%" --section "%SECTION%" %ACREOPT% %DRYOPT%
+%PYEXE% "%~dp0roger_mills_title_report_builder.py" %ROOTS% --section "%SECTION%" --tract "%SECTION%" %ACREOPT% %FCOPT% %DRYOPT%
 echo ------------------------------------------------------------
 echo.
-echo Done. Open the "rogermillsfinalreports" folder inside:
-echo   %ROOT%
+echo Done. Open the "rogermillsfinalreports" folder in the parent of your folders.
 echo Start with final_validation_summary_codexv2.txt (PERFECTION CHECKLIST)
 echo and the *_interest_chain_report_codexv2.html preview.
 echo.

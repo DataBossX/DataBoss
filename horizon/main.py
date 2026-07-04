@@ -28,7 +28,7 @@ if __package__ in (None, ""):
     from horizon.config import HorizonConfig
     from horizon.foundation import run_cleanup
     from horizon.orchestrator import Orchestrator
-    from horizon.pipeline import build_from_workbook
+    from horizon.pipeline import build_from_workbook, find_reference_workbook
     from horizon.report_io import read_report, write_report
     from horizon.validation import load_requirements
     from horizon.versioning import latest_version, next_version_path
@@ -37,7 +37,7 @@ else:
     from .config import HorizonConfig
     from .foundation import run_cleanup
     from .orchestrator import Orchestrator
-    from .pipeline import build_from_workbook
+    from .pipeline import build_from_workbook, find_reference_workbook
     from .report_io import read_report, write_report
     from .validation import load_requirements
     from .versioning import latest_version, next_version_path
@@ -75,22 +75,35 @@ def run(args: argparse.Namespace) -> int:
     # 3. Ingest the newest report iteration to perfect (if any exists yet).
     base_stem = args.base or f"{cfg.section}_Roger_Mills_Cursory_Title_Report"
 
-    # 3a. Optionally build an initial chained report from a reference workbook
-    #     (the Intelligence Layer): read OGL + runsheet, reconcile, tag reviews.
+    # 3a. Build an initial chained report from a reference workbook (the
+    #     Intelligence Layer): read OGL + runsheet, reconcile, tag reviews.
+    #     Explicit --build-from wins; otherwise auto-detect the best OGL+runsheet
+    #     workbook among the scanned files so a single command "just works".
+    wb_path = None
     if args.build_from:
         wb_path = Path(args.build_from)
         if not wb_path.exists():
             audit.error("build_from_missing", f"workbook not found: {wb_path}")
+            wb_path = None
+    elif latest_version(cfg.final_reports, base_stem) is None:
+        candidates = [r.path for r in cleanup.kept] or [r.path for r in cleanup.scanned]
+        wb_path = find_reference_workbook(candidates)
+        if wb_path is not None:
+            audit.info("reference_autodetect", f"selected {wb_path.name}")
         else:
-            build = build_from_workbook(wb_path, section=cfg.section)
-            audit.info("chain_build",
-                       f"ogl_rows={len(build.report.rows)} "
-                       f"chain_breaks={len(build.chain_breaks)} "
-                       f"tracts_needing_review={len(build.tracts_reviewed)}")
-            if not args.dry_run:
-                out = next_version_path(cfg.final_reports, base_stem)
-                write_report(build.report, out)
-                audit.info("chain_build_written", out.name)
+            audit.warn("reference_autodetect",
+                       "no OGL+runsheet workbook found among sources")
+
+    if wb_path is not None:
+        build = build_from_workbook(wb_path, section=cfg.section)
+        audit.info("chain_build",
+                   f"ogl_rows={len(build.report.rows)} "
+                   f"chain_breaks={len(build.chain_breaks)} "
+                   f"tracts_needing_review={len(build.tracts_reviewed)}")
+        if not args.dry_run and build.report.rows:
+            out = next_version_path(cfg.final_reports, base_stem)
+            write_report(build.report, out)
+            audit.info("chain_build_written", out.name)
 
     current = latest_version(cfg.final_reports, base_stem)
     if current is None:

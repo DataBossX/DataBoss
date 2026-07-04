@@ -137,6 +137,55 @@ def _pick_sheet(wb, name: Optional[str], hints):
     return wb.worksheets[0]
 
 
+def score_reference_workbook(path: Path) -> int:
+    """Score how well a workbook works as an OGL+runsheet reference source.
+
+    Higher is better. A workbook that has *both* an OGL-like sheet and a
+    runsheet-like sheet scores highest; the canonical NHE report name gets a
+    bonus. Returns 0 (unusable) if it can't be opened or has neither register.
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        return 0
+    try:
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    except Exception:
+        return 0
+    names = [s.lower() for s in wb.sheetnames]
+    wb.close()
+
+    has_ogl = any(any(h in n for h in _OGL_SHEET_HINTS) for n in names)
+    has_run = any(any(h in n for h in _RUNSHEET_HINTS) for n in names)
+    score = 0
+    if has_ogl:
+        score += 3
+    if has_run:
+        score += 3
+    if has_ogl and has_run:
+        score += 4  # a single workbook carrying both registers is ideal
+    low_name = path.name.lower()
+    if "cursory" in low_name or "nhe" in low_name or "title report" in low_name:
+        score += 2
+    if "roger" in low_name and "mills" in low_name:
+        score += 1
+    return score
+
+
+def find_reference_workbook(paths) -> Optional[Path]:
+    """Pick the best OGL+runsheet reference workbook from candidate paths."""
+    best: Optional[Path] = None
+    best_score = 0
+    for p in paths:
+        p = Path(p)
+        if p.suffix.lower() not in (".xlsx", ".xlsm"):
+            continue
+        s = score_reference_workbook(p)
+        if s > best_score:
+            best, best_score = p, s
+    return best
+
+
 @dataclass
 class ChainedBuild:
     report: ReportModel

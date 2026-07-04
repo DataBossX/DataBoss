@@ -8,7 +8,7 @@ from core import orchestrator as orch_mod
 from core.orchestrator import (Orchestrator, CERTIFIED, ESCALATED,
                                MAX_ITERATIONS)
 from recalc.libreoffice_runner import LibreOfficeResult
-from tests.fixtures.make_fixtures import make_basic_workbook
+from tests.fixtures.make_fixtures import make_basic_workbook, make_full_workbook
 
 
 def _settings(tmp_path, **env):
@@ -52,6 +52,20 @@ def test_certifies_when_all_gates_pass(tmp_path):
     assert result.exports
     # A certified workbook copy exists in exports.
     assert any("certified_workbook" in e for e in result.exports)
+
+
+def test_certifies_from_auto_extraction_only(tmp_path):
+    # No hand-fed context: the orchestrator must extract real data from the
+    # workbook and certify a fully-consistent one on its own.
+    s = _settings(tmp_path)
+    src = make_full_workbook(tmp_path / "full.xlsx")
+    orch = Orchestrator(s, timestamp="20260101_120050")
+    result = orch.run(src)  # no extra_context
+    orch.close()
+    assert result.status == CERTIFIED, [
+        (r["gate_name"], r["status"], r["reason"]) for r in result.results
+        if r["status"] != "PASS"]
+    assert result.iterations == 1
 
 
 def test_escalates_on_missing_core_sheet(tmp_path):

@@ -45,6 +45,43 @@ def make_basic_workbook(path: Path, *, with_hardcoded_total: bool = False) -> Pa
     return path
 
 
+def make_full_workbook(path: Path) -> Path:
+    """A complete, internally-consistent fixture that auto-extraction can drive
+    all the way to CERTIFIED. Every value is synthetic (see banner)."""
+    wb = openpyxl.Workbook()
+
+    tracts = wb.active
+    tracts.title = "Tracts"
+    tracts.append(["Tract", "Legal Description", "Acreage", FIXTURE_BANNER])
+    for i in range(1, 11):
+        # Non-S/T/R descriptions so no spurious instrument references appear.
+        tracts.append([f"T{i}", f"Lot {i}, Block A", 63.742, ""])
+    tracts["C12"] = "=SUM(C2:C11)"
+
+    run = wb.create_sheet("Runsheet")
+    run.append(["Tract", "Grantor", "Grantee", "Grantor Interest",
+                "Conveyed", "Retained", "Vested Root"])
+    # Root conveyance: US -> Alice (whole), then Alice -> Bob (whole).
+    run.append(["T1", "US", "Alice", "1/1", "1/1", "0", "yes"])
+    run.append(["T1", "Alice", "Bob", "1/1", "1/2", "1/2", ""])
+
+    ogl = wb.create_sheet("OGL Register")
+    ogl.append(["Lessor", "Lessee", "Date", "Book/Page", "Royalty"])
+    ogl.append(["A Owner", "B Operator", "2020-01-01", "bk 100/pg 200", "1/8"])
+
+    wi = wb.create_sheet("Working Interest")
+    wi.append(["Party", "WI", "Depth Top", "Depth Base"])
+    wi.append(["B Operator", "1.0", 0, 10000])
+
+    # Sources sheet lists the referenced instrument so the source audit passes.
+    src = wb.create_sheet("Sources")
+    src.append(["Reference", "Note"])
+    src.append(["bk 100/pg 200", "recorded lease (fixture)"])
+
+    wb.save(path)
+    return path
+
+
 def inject_media(path: Path) -> Path:
     """Add fake drawing + media entries to an existing xlsx (fixture only).
 

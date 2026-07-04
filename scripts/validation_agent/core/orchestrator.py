@@ -27,6 +27,7 @@ from db.audit_logger import AuditLogger
 from ingestion.workbook_ingestor import WorkbookIngestor
 from ingestion.sheet_classifier import classify_workbook
 from ingestion.manifest_builder import build_manifest, write_manifest
+from ingestion.data_extractor import extract_context
 from validators.base_validator import PASS, FAIL, ESCALATE, ERROR
 from validators.val_audit import (
     WorkbookIntegrityValidator, SheetClassificationValidator,
@@ -161,6 +162,16 @@ class Orchestrator:
                    "sheets": len(wb_manifest.sheets)})
 
         base_context = self._default_context(manifest, classification)
+        # Auto-extract structured data from the classified sheets so the data
+        # gates evaluate REAL workbook values. Extraction is conservative:
+        # anything it cannot confidently map is omitted (-> gate escalates).
+        extracted = extract_context(baseline, classification)
+        base_context.update(extracted)
+        self._log(state, "data_extracted",
+                  "Structured data extracted from workbook.",
+                  {"keys": sorted(extracted.keys())})
+        # An explicit caller-supplied context always wins (used by tests and by
+        # an examiner overriding auto-extraction).
         if extra_context:
             base_context.update(extra_context)
 

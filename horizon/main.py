@@ -126,7 +126,10 @@ def run(args: argparse.Namespace) -> int:
                    f"tracts_needing_review={len(build.tracts_reviewed)}")
         if not args.dry_run and build.report.rows:
             out = next_version_path(cfg.final_reports, base_stem)
-            write_report(build.report, out)
+            # Preserve embedded plats from the source workbook (write_report only
+            # copies it when it actually carries media, so a plain data-only
+            # register still yields a clean canonical report).
+            write_report(build.report, out, template=wb_path)
             audit.info("chain_build_written", out.name)
             # Human-facing punch list: what an examiner must resolve.
             for name, n in write_all(build, cfg.final_reports):

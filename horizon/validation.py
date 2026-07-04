@@ -196,6 +196,11 @@ def _validate_columns(requirements: Requirements) -> List[ValidationIssue]:
 
 def _validate_row_interest(idx: int, row: TitleRow) -> List[ValidationIssue]:
     issues: List[ValidationIssue] = []
+    # A row already tagged for examiner review (e.g. an over-conveyance) is
+    # headed to a human; re-running the interest gate on it would only raise a
+    # redundant error and stall the improvement loop. Skip it.
+    if row.status != "ok":
+        return issues
     # Only reconcile rows that actually claim an interest transfer.
     if not (row.conveyed_interest or row.retained_interest):
         return issues

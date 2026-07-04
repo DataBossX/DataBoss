@@ -350,7 +350,12 @@ def chain_to_report(
                 remarks_bits.append("Missing instrument number")
                 status = REVIEW_TAG
 
-            retained_txt = format_fraction(rc.retained) if rc.retained is not None else ""
+            # Only emit a retained interest when it is a real, non-negative value.
+            # An over-conveyance yields a negative `retained`; writing it would
+            # feed a nonsensical figure back into downstream validation (the row
+            # is already tagged for examiner review via its status).
+            retained_txt = (format_fraction(rc.retained)
+                            if rc.retained is not None and rc.retained >= 0 else "")
 
             # Net mineral acres = conveyed interest x gross acres, exact. Blank
             # (never guessed) when gross acres or the conveyed interest is unknown.

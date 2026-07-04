@@ -70,12 +70,13 @@ def write_report(report: ReportModel, path: Path, template: Optional[Path] = Non
         import shutil
         shutil.copy2(template, path)
         wb = openpyxl.load_workbook(path)
-        # find the data sheet (preferred title, else the active sheet) and
-        # rewrite only it -- every other sheet (e.g. embedded plats) is preserved.
-        ws = wb[DATA_SHEET_TITLE] if DATA_SHEET_TITLE in wb.sheetnames else wb.active
-        if ws.max_row:
-            ws.delete_rows(1, ws.max_row)
-        ws.title = DATA_SHEET_TITLE
+        # Replace only the dedicated data sheet, leaving every other sheet
+        # (embedded plats, source registers, ...) untouched. If a prior data
+        # sheet exists, remove it; then ADD a fresh one at the front rather than
+        # clobbering whatever happened to be active (which could be a plat tab).
+        if DATA_SHEET_TITLE in wb.sheetnames:
+            del wb[DATA_SHEET_TITLE]
+        ws = wb.create_sheet(DATA_SHEET_TITLE, index=0)
     else:
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -87,9 +88,25 @@ def write_report(report: ReportModel, path: Path, template: Optional[Path] = Non
     for row in report.rows:
         ws.append([getattr(row, c, "") or "" for c in CANONICAL_COLUMNS])
     ws.freeze_panes = "A3"
+    # Make the data sheet the active one so a plain reader lands on it.
+    wb.active = wb.sheetnames.index(DATA_SHEET_TITLE)
     wb.save(path)
     wb.close()
     return path
+
+
+def _pick_data_worksheet(wb):
+    """Return the report's data sheet: the named one, else the sheet whose header
+    row best matches the canonical columns, else the active sheet."""
+    if DATA_SHEET_TITLE in wb.sheetnames:
+        return wb[DATA_SHEET_TITLE]
+    best, best_hits = None, 0
+    for ws in wb.worksheets:
+        for values in ws.iter_rows(min_row=1, max_row=5, values_only=True):
+            hits = sum(1 for v in values if _canon(v))
+            if hits > best_hits:
+                best, best_hits = ws, hits
+    return best if best is not None and best_hits >= 3 else wb.active
 
 
 def read_report(path: Path, section: str = "") -> ReportModel:
@@ -97,7 +114,7 @@ def read_report(path: Path, section: str = "") -> ReportModel:
     import openpyxl
 
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = wb.active
+    ws = _pick_data_worksheet(wb)  # read the data sheet by name, not whatever is active
     header_row = None
     header_map: Dict[int, str] = {}
     rows: List[TitleRow] = []

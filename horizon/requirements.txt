@@ -1,7 +1,9 @@
-# Horizon Command Center -- runtime dependencies (mission section 5).
+# Horizon Command Center -- runtime dependencies.
 # Install where the source files live:
 #     py -m pip install -r horizon/requirements.txt
-pandas>=2.0
+# (The mission brief also named pandas, but no horizon/ module imports it, so it
+#  is intentionally omitted here to keep the install lean; it remains in the
+#  repo-root requirements.txt for the rest of the project.)
 openpyxl>=3.1
 lxml>=4.9
 pydantic>=2.0

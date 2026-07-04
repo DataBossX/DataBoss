@@ -61,9 +61,16 @@ def write_chain_breaks(build: "ChainedBuild", path: Path) -> int:
 
 
 def write_all(build: "ChainedBuild", folder: Path) -> List[Tuple[str, int]]:
-    """Write both artifacts into ``folder``. Returns [(filename, rows), ...]."""
+    """Write both artifacts into ``folder`` as new ``_vNNN`` versions.
+
+    The punch lists are versioned exactly like the Excel report (Zero-Destruction
+    law) so a prior run's worklist is never overwritten.
+    """
+    from .versioning import next_version_path
+
     folder.mkdir(parents=True, exist_ok=True)
-    n_review = write_review_worklist(build.report, folder / "examiner_review_worklist.csv")
-    n_breaks = write_chain_breaks(build, folder / "chain_breaks.csv")
-    return [("examiner_review_worklist.csv", n_review),
-            ("chain_breaks.csv", n_breaks)]
+    review_path = next_version_path(folder, "examiner_review_worklist", ext=".csv")
+    breaks_path = next_version_path(folder, "chain_breaks", ext=".csv")
+    n_review = write_review_worklist(build.report, review_path)
+    n_breaks = write_chain_breaks(build, breaks_path)
+    return [(review_path.name, n_review), (breaks_path.name, n_breaks)]

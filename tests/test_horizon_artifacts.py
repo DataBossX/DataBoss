@@ -60,9 +60,11 @@ def test_chain_breaks_and_write_all(tmp_path):
     build = chain_to_report(ogl, notes)
     written = write_all(build, tmp_path)
     names = {n for n, _ in written}
-    assert names == {"examiner_review_worklist.csv", "chain_breaks.csv"}
-    assert (tmp_path / "chain_breaks.csv").exists()
-    with (tmp_path / "chain_breaks.csv").open() as fh:
+    # artifacts are versioned (_vNNN) like the report
+    assert names == {"examiner_review_worklist_v001.csv", "chain_breaks_v001.csv"}
+    breaks_path = tmp_path / "chain_breaks_v001.csv"
+    assert breaks_path.exists()
+    with breaks_path.open() as fh:
         breaks = list(csv.DictReader(fh))
     keys = {b["instrument_number"] for b in breaks}
     assert "100" in keys and "999" in keys  # both sides of the break reported

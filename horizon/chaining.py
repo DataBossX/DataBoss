@@ -267,17 +267,22 @@ def reconcile_chain(
                 )
 
         holder_before = holder
-        if rc.status == "balanced":
+        if rc.status != "balanced":
+            # over_conveyance / examiner_review: math itself broke.
+            result.flag(rc.note)
+            holder = None  # cannot trust downstream once the math breaks
+        elif not tied or not continuity:
+            # The arithmetic balances, but the chain's *integrity* is in doubt
+            # (this instrument doesn't tie to the tract, or its grantor isn't the
+            # prior grantee). Advancing the ledger would let later rows show
+            # falsely-balanced figures built on the wrong prior holder, so we
+            # poison the downstream holder and let subsequent rows flag review.
+            holder = None
+        else:
             # Grantor conveyed `conveyed`; grantor's *retained* interest is
             # rc.retained. The chain follows the grantee, who now holds the
             # conveyed interest (this is what carries forward down-chain).
             holder = conveyed
-        elif rc.status == "over_conveyance":
-            result.flag(rc.note)
-            holder = None  # cannot trust downstream once the math breaks
-        else:  # examiner_review (unknown holder or conveyed)
-            result.flag(rc.note)
-            holder = None
 
         result.links.append(ChainLink(
             instrument_number=rec.instrument_number,

@@ -123,14 +123,17 @@ def run(args: argparse.Namespace) -> int:
             existing = latest_version(cfg.final_reports, base_stem)
             if existing is not None:
                 to_validate = read_report(existing, section=cfg.section)
+        dry_rc = 0
         if to_validate is not None and to_validate.rows:
             vr = validate_report(to_validate, reqs)
             audit.info("dry_run_validate",
                        f"passed={vr.passed} issues[{vr.summary()}]")
+            if not vr.passed:
+                dry_rc = 1  # let CI/scripts detect a failed validation dry-run
         else:
             audit.warn("dry_run_validate", "no report available to validate")
         _print_summary(cfg, cleanup, None)
-        return 0
+        return dry_rc
 
     current = latest_version(cfg.final_reports, base_stem)
     if current is None:

@@ -77,12 +77,16 @@ def load_requirements(golden_path: Optional[Path]) -> Requirements:
         import openpyxl  # local import so the module imports without openpyxl
         from .chaining import normalize_instrument
     except ImportError:
-        return Requirements()
+        return Requirements(source=f"builtin-defaults (openpyxl unavailable; "
+                                   f"{golden_path} NOT read)")
 
     try:
         wb = openpyxl.load_workbook(golden_path, read_only=True, data_only=True)
-    except Exception:
-        return Requirements()
+    except Exception as exc:
+        # The Golden Source exists but could not be opened. Do NOT silently fall
+        # back as if no gates were requested -- surface the failure in `source`
+        # (which main logs) so the operator knows their gates were not applied.
+        return Requirements(source=f"ERROR reading Golden Source {golden_path}: {exc}")
 
     req = Requirements(required_columns=[], source=str(golden_path))
     instruments: Set[str] = set()
@@ -103,7 +107,11 @@ def load_requirements(golden_path: Optional[Path]) -> Requirements:
                 continue
             if inst_col is not None and inst_col < len(row) and row[inst_col]:
                 k = normalize_instrument(row[inst_col])
-                if k:
+                # A real instrument/document number contains a digit. This guards
+                # against a bare "Instrument" column that actually holds document
+                # *types* ("Warranty Deed") being loaded as required instruments
+                # and then reported as false "missing instrument" errors.
+                if k and any(ch.isdigit() for ch in k):
                     instruments.add(k)
     wb.close()
     req.required_columns = seen_cols or list(CANONICAL_COLUMNS)

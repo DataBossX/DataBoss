@@ -84,7 +84,7 @@ def read_ogl_records(path: Path, sheet: Optional[str] = None) -> List[OGLRecord]
     import openpyxl
 
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = _pick_sheet(wb, sheet, _OGL_SHEET_HINTS, avoid=_RUNSHEET_HINTS)
+    ws = _pick_ogl_sheet(wb, sheet)
     header_row, header_map = _detect_header(ws, _OGL_HEADERS)
     records: List[OGLRecord] = []
     if header_row >= 0:
@@ -113,7 +113,11 @@ def read_runsheet_notes(path: Path, sheet: Optional[str] = None) -> List[Runshee
     import openpyxl
 
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    ws = _pick_sheet(wb, sheet, _RUNSHEET_HINTS)
+    ws = _pick_runsheet_sheet(wb, sheet)
+    if ws is None:
+        # No dedicated runsheet tab -> no notes (never read the OGL as a runsheet).
+        wb.close()
+        return []
     header_row, header_map = _detect_header(ws, _RUNSHEET_HEADERS)
     notes: List[RunsheetNote] = []
     if header_row >= 0:
@@ -132,28 +136,53 @@ def read_runsheet_notes(path: Path, sheet: Optional[str] = None) -> List[Runshee
     return notes
 
 
-def _pick_sheet(wb, name: Optional[str], hints, avoid=()):
+def _matches(name: str, hints) -> bool:
+    low = str(name).lower()
+    return any(h in low for h in hints)
+
+
+def _is_ogl_sheet(name: str) -> bool:
+    """OGL-like *and not* runsheet-like -- so an ambiguous tab (e.g. "OGL Notes")
+    is claimed by neither register rather than by both."""
+    return _matches(name, _OGL_SHEET_HINTS) and not _matches(name, _RUNSHEET_HINTS)
+
+
+def _is_runsheet_sheet(name: str) -> bool:
+    return _matches(name, _RUNSHEET_HINTS) and not _matches(name, _OGL_SHEET_HINTS)
+
+
+def _pick_ogl_sheet(wb, name: Optional[str]):
+    """The OGL register: explicit name > unambiguous OGL tab > first sheet."""
     if name and name in wb.sheetnames:
         return wb[name]
-    # Prefer a sheet that matches a hint and matches none of the `avoid` hints.
     for sn in wb.sheetnames:
-        low = sn.lower()
-        if any(h in low for h in hints) and not any(a in low for a in avoid):
+        if _is_ogl_sheet(sn):
             return wb[sn]
-    # Fall back to any hint match (even if it also looked like an avoided kind).
-    for sn in wb.sheetnames:
-        low = sn.lower()
-        if any(h in low for h in hints):
-            return wb[sn]
+    # The first sheet is the conventional home of the register; safe default.
     return wb.worksheets[0]
+
+
+def _pick_runsheet_sheet(wb, name: Optional[str]):
+    """The runsheet: explicit name > unambiguous runsheet tab > None.
+
+    Unlike the OGL, there is NO fall-back to sheet 0 -- doing so would read the
+    OGL register as synthetic runsheet notes and hide real chain breaks.
+    """
+    if name and name in wb.sheetnames:
+        return wb[name]
+    for sn in wb.sheetnames:
+        if _is_runsheet_sheet(sn):
+            return wb[sn]
+    return None
 
 
 def score_reference_workbook(path: Path) -> int:
     """Score how well a workbook works as an OGL+runsheet reference source.
 
-    Higher is better. A workbook that has *both* an OGL-like sheet and a
-    runsheet-like sheet scores highest; the canonical NHE report name gets a
-    bonus. Returns 0 (unusable) if it can't be opened or has neither register.
+    Higher is better. A workbook that has *both* an unambiguous OGL sheet and a
+    *distinct* unambiguous runsheet sheet scores highest; the canonical NHE
+    report name gets a bonus. Returns 0 (unusable) if it can't be opened or has
+    no OGL register.
     """
     try:
         import openpyxl
@@ -163,11 +192,14 @@ def score_reference_workbook(path: Path) -> int:
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     except Exception:
         return 0
-    names = [s.lower() for s in wb.sheetnames]
+    names = list(wb.sheetnames)
     wb.close()
 
-    has_ogl = any(any(h in n for h in _OGL_SHEET_HINTS) for n in names)
-    has_run = any(any(h in n for h in _RUNSHEET_HINTS) for n in names)
+    ogl_sheets = [n for n in names if _is_ogl_sheet(n)]
+    run_sheets = [n for n in names if _is_runsheet_sheet(n)]
+    has_ogl = bool(ogl_sheets)
+    # Require the runsheet to be a *different* sheet than the chosen OGL one.
+    has_run = any(n not in ogl_sheets for n in run_sheets)
     score = 0
     if has_ogl:
         score += 3
@@ -233,6 +265,18 @@ def chain_to_report(
         tract_key = _tract_key(rec.legal_description) or "UNSPECIFIED"
         tracts.setdefault(tract_key, []).append(rec)
 
+    # An instrument that appears under more than one tract is reconciled from a
+    # full starting interest in each -- correct only if those really are separate
+    # estates. Because we cannot prove that from the files, flag such instruments
+    # for examiner review rather than silently trusting the per-tract math.
+    tracts_by_instrument: Dict[str, set] = {}
+    for tract_key, records in tracts.items():
+        for rec in records:
+            k = normalize_instrument(rec.instrument_number)
+            if k:
+                tracts_by_instrument.setdefault(k, set()).add(tract_key)
+    cross_tract_keys = {k for k, ts in tracts_by_instrument.items() if len(ts) > 1}
+
     rows: List[TitleRow] = []
     reviewed: List[str] = []
 
@@ -259,7 +303,9 @@ def chain_to_report(
 
         result = reconcile_chain(tract_key, primaries, starting_interest=start,
                                  tract_legal=tract_legal)
-        if result.needs_examiner_review or duplicate_recs:
+        has_cross_tract = any(normalize_instrument(r.instrument_number) in cross_tract_keys
+                              for r in records)
+        if result.needs_examiner_review or duplicate_recs or has_cross_tract:
             reviewed.append(tract_key)
 
         for link, rec in zip(result.links, primaries):
@@ -275,6 +321,11 @@ def chain_to_report(
                     "duplicate_ogl": "instrument number appears on multiple OGL rows",
                 }.get(xstatus, "instrument not matched across OGL/runsheet")
                 remarks_bits.append(f"Chain break: {detail}")
+                status = REVIEW_TAG
+            if key and key in cross_tract_keys:
+                remarks_bits.append(
+                    "Instrument spans multiple tracts; per-tract interest not "
+                    "assumed to be independent")
                 status = REVIEW_TAG
             if not link.tied_to_legal:
                 remarks_bits.append("Legal description does not tie to tract")

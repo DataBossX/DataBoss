@@ -29,12 +29,18 @@ The script is `roger_mills_title_report_builder.py` (in this folder).
 5c. **Chains the interest**: parses fractions (`1/2`), fraction products
    (`1/2 of 1/8`), decimals, percents, and **NMA** (net mineral acres, needs
    `--gross-acres`) into exact rationals, and walks every conveyance
-   chronologically.
+   chronologically. Understands **proportional** conveyances — "1/2 of
+   grantor's interest" transfers half of whatever the grantor then holds, not
+   half of the whole tract (flagged `PROPORTIONAL`; `PROPORTIONAL_NO_BASIS` if
+   the grantor's prior interest isn't established).
 6. **Verifies** rows against the index PDF (text → pdfplumber → PyMuPDF → OCR).
 7. **Builds** the final workbook by copying your `Template(30).xlsx` formatting
-   and writing the merged rows, then **appends** three sheets:
-   `Interest Chain`, `Ownership Ledger`, and `OGL Summary`. It **loops till
-   perfect**: rebuild + validate up to `--max-passes`.
+   and writing the merged rows, then **appends** analysis sheets:
+   `Interest Chain` (flagged rows highlighted red), `Ownership Ledger`
+   (negative positions amber), `OGL Summary`, and `Review Flags` — a single
+   consolidated examiner punch-list of every flagged conveyance and
+   negative-net party. It **loops till perfect**: rebuild + validate up to
+   `--max-passes`.
 8/9. Writes support files and a `final_validation_summary_codexv2.txt` that ends
    with a **PERFECTION CHECKLIST** — the exact human-review items that remain.
 
@@ -106,7 +112,8 @@ whole; without it they are left unparsed and flagged.
 
 In `rogermillsfinalreports\`:
 - `31-12N-24W_Roger_Mills_Cursory_Title_Report_codexv2.xlsx` — the report, with
-  `Interest Chain`, `Ownership Ledger`, and `OGL Summary` sheets.
+  `Interest Chain`, `Ownership Ledger`, `OGL Summary`, and `Review Flags`
+  sheets.
 
 In `rogermillsfinalreports\files\`:
 - `final_validation_summary_codexv2.txt` — stats + **PERFECTION CHECKLIST**
@@ -115,6 +122,19 @@ In `rogermillsfinalreports\files\`:
   `conflicts_review_codexv2.xlsx`, `build_log_codexv2.txt`
 - `backup_<timestamp>\` — untouched copies of every original
 - `_quarantine\` — moved duplicates/trash (restore from here to undo a tidy)
+
+## Tests
+
+A regression suite covers interest parsing, the chain math (including
+proportional conveyances and over-conveyance flags), duplicate/trash detection,
+safe+idempotent zip extraction, the CSV loader, and a full end-to-end build:
+
+```bash
+python -m unittest tests.test_roger_mills_builder
+```
+
+It needs only `openpyxl`; PDF-dependent checks skip themselves if PyMuPDF isn't
+installed.
 
 ## The "loop till perfect" workflow
 

@@ -12,10 +12,11 @@ WHAT'S NEW IN codexv2
 ---------------------
 * INTEREST CHAINING: walks every conveyance in chronological order and chains
   the mineral interest, parsing fractions (1/2), fraction products ("1/2 of
-  1/8"), decimals, percents and NMA (net mineral acres, when --gross-acres is
-  given). Emits an "Interest Chain" sheet with each grantee's cumulative
-  interest and an "Ownership Ledger" of net positions, FLAGGING over-conveyance
-  / unparseable interest / missing parties instead of guessing.
+  1/8"), decimals, percents, NMA (net mineral acres, when --gross-acres is
+  given), and PROPORTIONAL conveyances ("1/2 of grantor's interest"). Emits an
+  "Interest Chain" sheet (flagged rows highlighted), an "Ownership Ledger" of
+  net positions, and a consolidated "Review Flags" punch-list, FLAGGING
+  over-conveyance / unparseable interest / missing parties instead of guessing.
 * RUNSHEET NOTES: ingests a runsheet workbook and attaches its notes to the
   matching title rows (by instrument no. or book/page).
 * OGL SHEET / OGL NUMBERS: ingests an OGL (oil & gas lease) schedule, attaches
@@ -773,6 +774,10 @@ _DEC_RE = re.compile(r"^\s*(\d*\.\d+|\d+\.\d*|\d+)\s*$")
 _PCT_RE = re.compile(r"(\d*\.?\d+)\s*%")
 _NMA_RE = re.compile(
     r"(\d*\.?\d+)\s*(?:nma|nra|net\s*mineral\s*ac(?:re)?s?|net\s*ac(?:re)?s?)", re.I)
+# "1/2 OF GRANTOR'S INTEREST" / "of his interest" -> conveyance is a fraction of
+# whatever the grantor currently holds, not of the whole tract.
+_OF_GRANTOR_RE = re.compile(
+    r"\bof\s+(?:the\s+)?(?:grantor'?s?|his|her|its|their)\b", re.I)
 _ONE = Fraction(1)
 _EPS = Fraction(1, 10 ** 6)
 
@@ -885,11 +890,11 @@ def build_interest_chain(merged: List["TitleRow"], gross_acres: Optional[float] 
         grantor = norm_name(grantor_raw)
         grantee = norm_name(grantee_raw)
         raw = row.data.get("interest", "")
-        frac, kind, _detail = parse_interest(raw, gross_acres)
+        base, kind, _detail = parse_interest(raw, gross_acres)
         date = (norm_date(row.data.get("instrument_date", ""))
                 or norm_date(row.data.get("recorded_date", "")))
         flags: List[str] = []
-        if norm_text(raw) and frac is None:
+        if norm_text(raw) and base is None:
             flags.append(f"UNPARSED_INTEREST({kind})")
         if not grantor:
             flags.append("NO_GRANTOR")
@@ -897,19 +902,32 @@ def build_interest_chain(merged: List["TitleRow"], gross_acres: Optional[float] 
             flags.append("NO_GRANTEE")
 
         grantor_before = ledger.get(grantor)
-        if frac is not None:
-            if grantor and grantor_before is not None and frac > grantor_before + _EPS:
+        # "of grantor's interest" => convey a fraction of the grantor's CURRENT
+        # holding, not of the whole tract.
+        proportional = base is not None and bool(_OF_GRANTOR_RE.search(norm_text(raw)))
+        conveyed = base
+        if proportional:
+            if grantor_before is not None:
+                conveyed = base * grantor_before
+                flags.append(f"PROPORTIONAL(of grantor's {frac_str(grantor_before)})")
+            else:
+                conveyed = None
+                flags.append("PROPORTIONAL_NO_BASIS(grantor interest unknown)")
+
+        if conveyed is not None:
+            if (not proportional and grantor and grantor_before is not None
+                    and conveyed > grantor_before + _EPS):
                 flags.append(f"OVER_CONVEYANCE(grantor_held={frac_str(grantor_before)})")
             if grantee:
-                ledger[grantee] = ledger.get(grantee, Fraction(0)) + frac
+                ledger[grantee] = ledger.get(grantee, Fraction(0)) + conveyed
             if grantor:
-                ledger[grantor] = ledger.get(grantor, Fraction(0)) - frac
+                ledger[grantor] = ledger.get(grantor, Fraction(0)) - conveyed
 
         links.append(ChainLink(
             order=i, date=date,
             doc_type=norm_text(row.data.get("doc_type", "")),
             grantor=grantor_raw, grantee=grantee_raw,
-            raw_interest=norm_text(raw), fraction=frac, kind=kind,
+            raw_interest=norm_text(raw), fraction=conveyed, kind=kind,
             grantee_running=ledger.get(grantee) if grantee else None,
             grantor_balance_after=ledger.get(grantor) if grantor else None,
             legal=norm_text(row.data.get("legal_description", "")),
@@ -1094,8 +1112,12 @@ def append_analysis_sheets(output_path: Path, links: List[ChainLink],
                            ledger: Dict[str, Fraction],
                            ogl_summary: List[Dict[str, str]],
                            gross_acres: Optional[float]) -> None:
-    """Append Interest Chain / Ownership Ledger / OGL Summary sheets to output."""
-    from openpyxl.styles import Font
+    """Append Interest Chain / Ownership Ledger / OGL Summary / Review Flags
+    sheets to output, with flagged rows highlighted for fast examiner review."""
+    from openpyxl.styles import Font, PatternFill
+    RED = PatternFill("solid", fgColor="FFC7CE")     # flagged conveyance
+    AMBER = PatternFill("solid", fgColor="FFEB9C")    # negative / caution
+    GREEN = PatternFill("solid", fgColor="C6EFCE")    # balanced total
     wb = openpyxl.load_workbook(output_path)
 
     def _fresh(title: str):
@@ -1109,6 +1131,10 @@ def append_analysis_sheets(output_path: Path, links: List[ChainLink],
             ws.column_dimensions[get_column_letter(i)].width = w
         for c in ws[1]:
             c.font = Font(bold=True)
+
+    def _fill_row(ws, row_idx, ncols, fill):
+        for c in range(1, ncols + 1):
+            ws.cell(row=row_idx, column=c).fill = fill
 
     ws = _fresh("Interest Chain")
     headers = ["#", "Instr Date", "Doc Type", "Grantor", "Grantee",
@@ -1124,6 +1150,8 @@ def append_analysis_sheets(output_path: Path, links: List[ChainLink],
             frac_str(lk.grantor_balance_after), lk.ogl_no, lk.legal,
             lk.flags, lk.source,
         ])
+        if lk.flags:
+            _fill_row(ws, ws.max_row, len(headers), RED)
     _finish(ws, [5, 12, 18, 26, 26, 16, 16, 14, 16, 18, 12, 40, 34, 24])
 
     ws2 = _fresh("Ownership Ledger")
@@ -1133,9 +1161,12 @@ def append_analysis_sheets(output_path: Path, links: List[ChainLink],
     for party, f in sorted(ledger.items(), key=lambda kv: float(kv[1]), reverse=True):
         note = "negative net (see chain / over-conveyance flags)" if f < 0 else ""
         ws2.append([party, frac_str(f), frac_dec(f), note])
+        if f < 0:
+            _fill_row(ws2, ws2.max_row, 4, AMBER)
     ws2.append([])
     ws2.append(["TOTAL (should trend to 0 if chain balances)",
                 frac_str(total), frac_dec(total), ""])
+    _fill_row(ws2, ws2.max_row, 4, GREEN if total == 0 else AMBER)
     _finish(ws2, [40, 22, 22, 44])
 
     if ogl_summary:
@@ -1146,6 +1177,26 @@ def append_analysis_sheets(output_path: Path, links: List[ChainLink],
         for d in ogl_summary:
             ws3.append([d.get(c, "") for c in cols])
         _finish(ws3, [12, 26, 26, 12, 8, 8, 16, 14, 40])
+
+    # Review Flags: one consolidated examiner punch-list inside the workbook
+    ws4 = _fresh("Review Flags")
+    ws4.append(["Type", "Chain #", "Instr Date", "Grantor", "Grantee",
+                "Interest (raw)", "Detail"])
+    for lk in links:
+        if lk.flags:
+            ws4.append(["conveyance", lk.order,
+                        lk.date.isoformat() if lk.date else "", lk.grantor,
+                        lk.grantee, lk.raw_interest, lk.flags])
+            _fill_row(ws4, ws4.max_row, 7, RED)
+    for party, f in sorted(ledger.items(), key=lambda kv: float(kv[1])):
+        if f < 0:
+            ws4.append(["negative-net", "", "", party, "", "",
+                        f"ends holding {frac_str(f)} ({frac_dec(f)}) of the whole"])
+            _fill_row(ws4, ws4.max_row, 7, AMBER)
+    if ws4.max_row == 1:
+        ws4.append(["(none)", "", "", "", "", "",
+                    "No chain/ledger flags. Do a final examiner spot-check."])
+    _finish(ws4, [14, 8, 12, 26, 26, 18, 52])
 
     wb.save(output_path)
     wb.close()
@@ -1660,6 +1711,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     total_ledger = sum(ledger.values(), Fraction(0))
     over_conveyances = [lk for lk in chain_links if "OVER_CONVEYANCE" in lk.flags]
     unparsed = [lk for lk in chain_links if "UNPARSED_INTEREST" in lk.flags]
+    prop_nobasis = [lk for lk in chain_links if "PROPORTIONAL_NO_BASIS" in lk.flags]
     negatives = {p: f for p, f in ledger.items() if f < 0}
     n_verified_pct = f"{n_verified}/{len(merged)}" if merged else "0/0"
 
@@ -1729,6 +1781,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         checklist.append(f"{len(negatives)} party(ies) end with a negative net interest in the "
                          "Ownership Ledger - usually a missing prior conveyance-in or a wrong "
                          "grantor/grantee. Check the earliest links for those parties.")
+    if prop_nobasis:
+        checklist.append(f"{len(prop_nobasis)} 'of grantor's interest' conveyance(s) could not "
+                         "be computed because the grantor's prior interest is unknown - "
+                         "establish the grantor's interest earlier in the chain, then re-run.")
     if args.gross_acres is None:
         checklist.append("No --gross-acres supplied: any NMA-stated interests were left "
                          "unparsed. Re-run with --gross-acres <acres> to chain them.")
@@ -1766,7 +1822,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("FINAL REPORT (codexv2)")
     print("=" * 70)
     print(f"Final workbook:        {output_path if not args.dry_run else '(dry-run, not written)'}")
-    print(f"  sheets added:        Interest Chain, Ownership Ledger"
+    print(f"  sheets added:        Interest Chain, Ownership Ledger, Review Flags"
           f"{', OGL Summary' if ogl_summary else ''}")
     print(f"Support files in:      {support_dir}")
     print("  - source_inventory_codexv2.csv")

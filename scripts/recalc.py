@@ -24,6 +24,7 @@ fresh cached values.
 """
 import json
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -65,6 +66,10 @@ def recalc_with_libreoffice(path, timeout):
     profile = os.path.join(workdir, "profile")
     os.makedirs(profile, exist_ok=True)
     _seed_profile(profile)
+    # LibreOffice needs a valid file URI here (file:///C:/... with forward
+    # slashes on Windows); pathlib.as_uri() produces the correct form on every
+    # platform, unlike naive "file://" + os-native-path concatenation.
+    profile_uri = pathlib.Path(profile).as_uri()
     out_dir = os.path.join(workdir, "out")
     os.makedirs(out_dir, exist_ok=True)
     env = dict(os.environ)
@@ -72,7 +77,7 @@ def recalc_with_libreoffice(path, timeout):
     cmd = [
         "soffice", "--headless", "--norestore", "--invisible",
         "--nodefault", "--nofirststartwizard", "--nologo",
-        "-env:UserInstallation=file://" + profile,
+        "-env:UserInstallation=" + profile_uri,
         "--calc", "--convert-to", "xlsx:Calc MS Excel 2007 XML",
         "--outdir", out_dir, src,
     ]

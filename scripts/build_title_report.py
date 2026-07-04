@@ -60,8 +60,15 @@ def owner_rows(ws):
 
 
 def acre_ref(ws, first):
-    """Acreage cell the existing NET ACRES formula multiplies by (D$5 / D$4)."""
-    m = re.search(r"D\$(\d+)", str(ws.cell(first, 3).value) or "")
+    """Acreage cell the existing NET ACRES formula multiplies by (D$5 / D$4).
+
+    Match the D-cell that follows the '*' multiplier specifically. A bare
+    ``D\\$(\\d+)`` would match the first ``$D$10`` in the SUMIFS owner-range of an
+    already-processed pro-rata formula, silently pointing NET ACRES at an owner
+    cell and breaking footing on re-run. Requiring the leading '*' keeps the
+    build idempotent for both ``=E10*D$5`` and ``...)*$D$5`` forms.
+    """
+    m = re.search(r"\*\$?D\$(\d+)", str(ws.cell(first, 3).value) or "")
     return "$D$%s" % (m.group(1) if m else "5")
 
 

@@ -118,9 +118,17 @@ def main(orig_path, out_path):
             continue
         base = part.split("/")[-1].replace(".xml", "")  # sheetN
         rels_part = "xl/worksheets/_rels/%s.xml.rels" % base
+        sx = tdata[part].decode("utf-8")
+        existing_rels = tdata.get(rels_part, b"").decode("utf-8")
+        # Idempotency: if this sheet already references a drawing (element present
+        # or the target already wired in its rels), skip — re-running must not
+        # append a duplicate/orphaned relationship.
+        if "<drawing " in sx or ('Target="../drawings/%s"' % draw_xml) in existing_rels:
+            print("skip %s -> sheet %r (already grafted)" % (draw_xml, sheet_name))
+            continue
         # build/extend the sheet rels with a drawing relationship
         if rels_part in tdata:
-            rels = tdata[rels_part].decode("utf-8")
+            rels = existing_rels
             used = [int(x) for x in re.findall(r'Id="rId(\d+)"', rels)]
             rid = "rId%d" % (max(used) + 1 if used else 1)
             rel = '<Relationship Id="%s" Type="%s" Target="../drawings/%s"/>' % (
@@ -137,15 +145,13 @@ def main(orig_path, out_path):
         # insert <drawing r:id=.../> just before </worksheet>.
         # The r: prefix must be bound: openpyxl omits xmlns:r on worksheets that
         # had no relationships, so declare it on the <worksheet> root if absent.
-        sx = tdata[part].decode("utf-8")
-        if "<drawing " not in sx:
-            if "xmlns:r=" not in sx.split(">", 1)[0]:
-                sx = sx.replace(
-                    "<worksheet ",
-                    '<worksheet xmlns:r="http://schemas.openxmlformats.org/'
-                    'officeDocument/2006/relationships" ', 1)
-            sx = sx.replace("</worksheet>", '<drawing r:id="%s"/></worksheet>' % rid)
-            tdata[part] = sx.encode("utf-8")
+        if "xmlns:r=" not in sx.split(">", 1)[0]:
+            sx = sx.replace(
+                "<worksheet ",
+                '<worksheet xmlns:r="http://schemas.openxmlformats.org/'
+                'officeDocument/2006/relationships" ', 1)
+        sx = sx.replace("</worksheet>", '<drawing r:id="%s"/></worksheet>' % rid)
+        tdata[part] = sx.encode("utf-8")
         print("grafted %s -> sheet %r (%s) as %s" % (draw_xml, sheet_name, part, rid))
 
     # ---- rewrite the zip ----

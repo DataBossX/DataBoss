@@ -57,6 +57,7 @@ class ChainResult:
     links: list[ChainLink] = field(default_factory=list)
     ownership: dict[str, Fraction] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    gap_count: int = 0  # true vesting gaps (grantor never vested), not notices
 
     @property
     def total_owned(self) -> Fraction:
@@ -64,6 +65,15 @@ class ChainResult:
         for v in self.ownership.values():
             total += v
         return total
+
+    @property
+    def reconciles(self) -> bool:
+        """Ownership genuinely reconciles only if it sums to 100% with no gap
+        artifacts -- a chain gap leaves a negative balance that would otherwise
+        net to 100% and mask the defect."""
+        return (bool(self.ownership) and self.gap_count == 0
+                and self.total_owned == 1
+                and all(v > 0 for v in self.ownership.values()))
 
 
 class TitleReportGenerator:
@@ -76,18 +86,19 @@ class TitleReportGenerator:
         chain = self._chain_out(manifest)
         ogl = self._ogl_tieout(manifest)
         legals = self._legals(manifest)
-        net_acres = self._total_net_acres(manifest)
+        acres = self._footed_acres(manifest)
         exceptions = self._exceptions(manifest)
-        completeness = self._completeness(chain, ogl, findings)
+        ogl_expected = bool(manifest.by_category(SheetCategory.OGL_REGISTER))
+        completeness = self._completeness(chain, ogl, findings, ogl_expected)
 
         md_path = out_dir / "title_report.md"
-        md_path.write_text(self._render_md(manifest, chain, ogl, legals, net_acres,
+        md_path.write_text(self._render_md(manifest, chain, ogl, legals, acres,
                                            exceptions, completeness, findings,
                                            prospect),
                            encoding="utf-8")
         json_path = out_dir / "title_report.json"
         json_path.write_text(json.dumps(
-            self._render_json(manifest, chain, ogl, legals, net_acres, exceptions,
+            self._render_json(manifest, chain, ogl, legals, acres, exceptions,
                               completeness), indent=2, default=str),
             encoding="utf-8")
         return {"title_report_md": str(md_path), "title_report_json": str(json_path)}
@@ -178,8 +189,11 @@ class TitleReportGenerator:
                     f"interest could not be determined; ledger not advanced.")
                 return
 
-        is_root = grantor_key in _SOVEREIGN or (order == 1
-                                                and grantor_key not in result.ownership)
+        # Root of title = a sovereign grantor, OR the first conveyance that
+        # actually moves interest (ledger still empty). Keying on an empty ledger
+        # rather than order==1 means a blank/self-conveyance row that returned
+        # early above does not consume the root slot from a named-person root.
+        is_root = grantor_key in _SOVEREIGN or not result.ownership
         if is_root:
             # Root of title: the sovereign/patent vests the grantee; the grantor
             # is not tracked as an owner.
@@ -197,6 +211,7 @@ class TitleReportGenerator:
 
         prev = result.ownership.get(grantor_key)
         if prev is None:
+            result.gap_count += 1
             result.warnings.append(
                 f"Link {order}: grantor '{link.grantor}' is not previously vested; "
                 f"interest cannot be traced (chain gap -- examiner review).")
@@ -270,19 +285,36 @@ class TitleReportGenerator:
         return out
 
     # -- net mineral acres --------------------------------------------------
-    def _total_net_acres(self, manifest: WorkbookManifest) -> Optional[float]:
-        """Foot the tract net acres (preferring a summary tab) for NMA math."""
-        from ..validators._helpers import numeric
+    def _footed_acres(self, manifest: WorkbookManifest) -> Optional[dict]:
+        """Foot the tract acreage (preferring a summary tab).
+
+        Returns the total plus the KIND of column footed (net/gross/unlabeled)
+        and whether it was summed across multiple non-summary tabs, so the
+        report can label net-mineral-acre math honestly instead of asserting
+        "gross" over a column that may be net.
+        """
+        from ..validators._helpers import col_to_index, numeric
         from ..validators.val_acreage import AcreageValidator
         tracts = manifest.by_category(SheetCategory.TRACT)
         if not tracts:
             return None
+        sheets = AcreageValidator._acreage_sheets(tracts)
+        from_summary = any(tok in s.name.lower() for s in sheets
+                           for tok in ("summary", "footing", "total", "recap"))
         total = 0.0
         found = False
-        for sheet in AcreageValidator._acreage_sheets(tracts):
+        kinds: set[str] = set()
+        n_sheets = 0
+        for sheet in sheets:
             col = AcreageValidator._acre_col(sheet)
             if not col:
                 continue
+            idx = col_to_index(col)
+            header = (sheet.headers[idx - 1].lower()
+                      if 0 < idx <= len(sheet.headers) else "")
+            kind = ("net" if "net" in header else
+                    "gross" if "gross" in header else "unlabeled")
+            sheet_found = False
             for cell in data_cells_in_column(sheet, col):
                 if is_total_row(sheet, cell.row):
                     continue
@@ -290,7 +322,16 @@ class TitleReportGenerator:
                 if v is not None:
                     total += v
                     found = True
-        return round(total, 4) if found else None
+                    sheet_found = True
+            if sheet_found:
+                kinds.add(kind)
+                n_sheets += 1
+        if not found:
+            return None
+        return {"acres": round(total, 4),
+                "kind": kinds.pop() if len(kinds) == 1 else "mixed",
+                "sheets": n_sheets,
+                "multi_sheet_risk": n_sheets > 1 and not from_summary}
 
     # -- curative requirements / exceptions ---------------------------------
     def _exceptions(self, manifest: WorkbookManifest) -> list[dict]:
@@ -311,18 +352,27 @@ class TitleReportGenerator:
 
     # -- report completeness (the honest "how perfect is it?") --------------
     def _completeness(self, chain: ChainResult, ogl: list[dict],
-                      findings: list[Finding]) -> tuple[list[tuple[str, bool]], int, int]:
-        checks: list[tuple[str, bool]] = []
-        checks.append(("Interest chains out and reconciles to 100%",
-                       bool(chain.ownership) and chain.total_owned == 1))
-        checks.append(("Every chain link has a recorded source",
-                       bool(chain.links) and all(
-                           k.source_ref != "(no source)" for k in chain.links)))
-        checks.append(("No unresolved chain gaps", not chain.warnings))
-        checks.append(("Every OGL ties to tracts and WI",
-                       all(o["tie_status"] == "tied" for o in ogl) if ogl else True))
-        checks.append(("No open escalation flags",
-                       not any(f.escalate for f in findings)))
+                      findings: list[Finding],
+                      ogl_expected: bool) -> tuple[list[tuple[str, bool]], int, int]:
+        # OGL tie check: pass only when every extracted OGL ties; if a register
+        # exists but nothing tied out, that is a real miss (not a vacuous pass).
+        if ogl:
+            ogl_ok = all(o["tie_status"] == "tied" for o in ogl)
+        else:
+            ogl_ok = not ogl_expected
+        checks: list[tuple[str, bool]] = [
+            # reconciles is gap-aware: a chain gap's negative marker cannot mask
+            # a broken chain as "100%".
+            ("Interest chains out and reconciles to 100%", chain.reconciles),
+            ("Every chain link has a recorded source",
+             bool(chain.links) and all(
+                 k.source_ref != "(no source)" for k in chain.links)),
+            # Count only true vesting gaps, not benign notices (corrections,
+            # blank-grantee rows, auxiliary sheets).
+            ("No unresolved vesting gaps", chain.gap_count == 0),
+            ("Every OGL ties to tracts and WI", ogl_ok),
+            ("No open escalation flags", not any(f.escalate for f in findings)),
+        ]
         passed = sum(1 for _, ok in checks if ok)
         return checks, passed, len(checks)
 
@@ -347,7 +397,7 @@ class TitleReportGenerator:
         return list(seen.values())
 
     # -- rendering ----------------------------------------------------------
-    def _render_md(self, manifest, chain: ChainResult, ogl, legals, net_acres,
+    def _render_md(self, manifest, chain: ChainResult, ogl, legals, acres,
                    exceptions, completeness, findings, prospect) -> str:
         checks, passed, total_checks = completeness
         L: list[str] = []
@@ -356,9 +406,11 @@ class TitleReportGenerator:
         L.append("")
         L.append(f"- Source workbook: `{manifest.path.name}`")
         L.append(f"- SHA-256: `{manifest.sha256}`")
+        acres_val = acres["acres"] if acres else None
         L.append(f"- Sheets: {len(manifest.sheets)} | "
                  f"tracts: {len(manifest.by_category(SheetCategory.TRACT))}"
-                 + (f" | net acres: {net_acres}" if net_acres is not None else ""))
+                 + (f" | footed {acres['kind']} acres: {acres_val}"
+                    if acres else ""))
         pct = round(100 * passed / total_checks) if total_checks else 0
         L.append(f"- **Report completeness: {passed}/{total_checks} ({pct}%)**")
         L.append("")
@@ -391,23 +443,31 @@ class TitleReportGenerator:
         L.append("## 2. Chained-Out Interest (current net mineral ownership)")
         L.append("")
         if chain.ownership:
-            nma_hdr = " Net Acres |" if net_acres is not None else ""
-            nma_sep = "-----------|" if net_acres is not None else ""
+            nma_hdr = " Net Acres |" if acres else ""
+            nma_sep = "-----------|" if acres else ""
             L.append(f"| Owner | Interest | Decimal | Percent |{nma_hdr}")
             L.append(f"|-------|----------|---------|---------|{nma_sep}")
             for owner, frac in sorted(chain.ownership.items(),
                                       key=lambda kv: (-float(kv[1]), kv[0])):
-                nma = (f" {float(frac) * net_acres:.4f} |"
-                       if net_acres is not None else "")
+                nma = (f" {float(frac) * acres_val:.4f} |" if acres else "")
                 L.append(f"| {self._esc(owner)} | {self._frac(frac)} | "
                          f"{float(frac):.6f} | {float(frac) * 100:.4f}% |{nma}")
-            if net_acres is not None:
+            if acres:
                 L.append("")
-                L.append(f"- Net mineral acres computed against a footed "
-                         f"{net_acres} gross tract acres.")
-            total = chain.total_owned
-            recon = "reconciles to 100%" if total == 1 else \
-                f"**does NOT reconcile** (sums to {self._frac(total)} = {float(total):.6f})"
+                L.append(f"- Net mineral acres = ownership x {acres_val} footed "
+                         f"{acres['kind']} tract acres.")
+                if acres["kind"] in ("net", "mixed"):
+                    L.append("  - _Basis column is labeled "
+                             f"'{acres['kind']}'; confirm it represents total "
+                             "tract acreage (not per-owner net) before relying on "
+                             "these figures._")
+                if acres["multi_sheet_risk"]:
+                    L.append(f"  - _Warning: footed across {acres['sheets']} tract "
+                             "tabs with no summary tab -- verify no double-count._")
+            recon = ("reconciles to 100%" if chain.reconciles else
+                     f"**does NOT cleanly reconcile** (sums to "
+                     f"{self._frac(chain.total_owned)}"
+                     f"{'; contains a chain-gap deficit' if chain.gap_count else ''})")
             L.append("")
             L.append(f"- Ownership {recon}.")
         else:
@@ -485,13 +545,14 @@ class TitleReportGenerator:
         L.append("")
         return "\n".join(L)
 
-    def _render_json(self, manifest, chain: ChainResult, ogl, legals, net_acres,
+    def _render_json(self, manifest, chain: ChainResult, ogl, legals, acres,
                      exceptions, completeness) -> dict:
         checks, passed, total_checks = completeness
+        acres_val = acres["acres"] if acres else None
         return {
             "source": manifest.path.name,
             "sha256": manifest.sha256,
-            "net_acres": net_acres,
+            "footed_acres": acres,
             "chain": [{
                 "order": k.order, "instrument_type": k.instrument_type,
                 "date": k.date, "grantor": k.grantor, "grantee": k.grantee,
@@ -500,9 +561,10 @@ class TitleReportGenerator:
             } for k in chain.links],
             "ownership": {o: self._frac(v) for o, v in chain.ownership.items()},
             "ownership_net_acres": (
-                {o: round(float(v) * net_acres, 4) for o, v in chain.ownership.items()}
-                if net_acres is not None else {}),
-            "ownership_reconciles": chain.total_owned == 1,
+                {o: round(float(v) * acres_val, 4) for o, v in chain.ownership.items()}
+                if acres_val is not None else {}),
+            "ownership_reconciles": chain.reconciles,
+            "chain_gap_count": chain.gap_count,
             "ogl_tieout": ogl,
             "legals": legals,
             "exceptions": exceptions,

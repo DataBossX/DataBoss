@@ -96,10 +96,29 @@ def test_net_mineral_acres_computed(tmp_path):
     out = tmp_path / "r"
     TitleReportGenerator().generate(m, out, prospect="Demo")
     data = json.loads((out / "title_report.json").read_text())
-    assert data["net_acres"] == 637.42
+    assert data["footed_acres"]["acres"] == 637.42
     # 1/2 of 637.42 each for ALICE and CAROL.
     assert data["ownership_net_acres"]["ALICE"] == pytest.approx(318.71)
     assert data["ownership_net_acres"]["CAROL"] == pytest.approx(318.71)
+
+
+def test_named_person_root_after_blank_row_reconciles(tmp_path):
+    # A blank-grantee row precedes the true (named-person) root. The root must
+    # still be detected -- not mis-flagged as a vesting gap -- and reconcile.
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Runsheet"
+    ws.append(["Grantor", "Grantee", "Conveyed", "Retained"])
+    ws.append(["JONES", "", "1", ""])            # data gap: blank grantee
+    ws.append(["JONES", "SMITH", "1/2", "1/2"])  # named-person root
+    p = tmp_path / "root.xlsx"
+    wb.save(p)
+    chain = TitleReportGenerator()._chain_out(_manifest(p))
+    assert chain.gap_count == 0
+    assert chain.reconciles
+    assert chain.ownership.get("JONES") == Fraction(1, 2)
+    assert chain.ownership.get("SMITH") == Fraction(1, 2)
 
 
 def test_completeness_full_on_clean_and_partial_on_gap(tmp_path):

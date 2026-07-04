@@ -1,0 +1,306 @@
+"""Chaining engine: link the OGL register to runsheet notes and reconcile
+interest down a title chain.
+
+The single most common failure in a cursory title report is the break between
+the OGL (oil & gas lease) register and the runsheet -- an instrument that
+appears in one but not the other. So the primary key of the whole intelligence
+layer is ``Instrument_Number``: we build a cross-reference dictionary keyed on
+the *normalized* instrument number and report every unmatched key as a chain
+break.
+
+Interest is walked down the chain with the exact math in :mod:`horizon.interest`.
+When the chain cannot be tied out (unknown starting interest, an over-conveyance,
+or a conveyance whose grantor is not the current holder), the affected tract is
+tagged "Needs Examiner Review" -- never balanced by fabrication.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from fractions import Fraction
+from typing import Dict, List, Optional
+
+from .interest import (
+    FULL,
+    Reconciliation,
+    format_fraction,
+    parse_interest,
+    reconcile,
+    try_parse_interest,
+)
+
+
+def normalize_instrument(value: Optional[object]) -> str:
+    """Normalize an instrument/document number to a stable cross-reference key.
+
+    Strips everything but alphanumerics and uppercases, so "2019-001234",
+    "2019 001234" and "#2019001234" collapse to the same key. Empty in ->
+    empty out (callers treat "" as "no instrument reference").
+    """
+    if value is None:
+        return ""
+    return re.sub(r"[^A-Za-z0-9]+", "", str(value)).upper()
+
+
+@dataclass
+class OGLRecord:
+    """One row of the OGL / conveyance register."""
+
+    instrument_number: str
+    grantor: str = ""
+    grantee: str = ""
+    conveyed_interest: str = ""
+    legal_description: str = ""
+    doc_type: str = ""
+    instrument_date: str = ""
+    gross_acres: str = ""
+
+    @property
+    def key(self) -> str:
+        return normalize_instrument(self.instrument_number)
+
+
+@dataclass
+class RunsheetNote:
+    """One runsheet note, referencing an instrument by number."""
+
+    instrument_number: str
+    note: str = ""
+    legal_description: str = ""
+
+    @property
+    def key(self) -> str:
+        return normalize_instrument(self.instrument_number)
+
+
+@dataclass
+class CrossRef:
+    """A cross-reference entry keyed by instrument number."""
+
+    key: str
+    ogl: Optional[OGLRecord] = None
+    notes: List[RunsheetNote] = field(default_factory=list)
+    # Extra OGL rows that share this instrument number (a data-quality problem:
+    # a single instrument should appear once in the register).
+    duplicate_ogls: List[OGLRecord] = field(default_factory=list)
+
+    @property
+    def matched(self) -> bool:
+        return (self.ogl is not None and bool(self.notes)
+                and not self.duplicate_ogls)
+
+    @property
+    def status(self) -> str:
+        if self.ogl is None:
+            return "orphan_note"        # runsheet note with no OGL instrument
+        if self.duplicate_ogls:
+            return "duplicate_ogl"      # same instrument number on 2+ OGL rows
+        if not self.notes:
+            return "unreferenced_ogl"   # OGL instrument never noted in runsheet
+        return "matched"
+
+
+def build_cross_reference(
+    ogl_records: List[OGLRecord],
+    runsheet_notes: List[RunsheetNote],
+) -> Dict[str, CrossRef]:
+    """Build the Instrument_Number -> CrossRef dictionary linking both sheets.
+
+    The first OGL row for a given instrument number is kept as the primary
+    record; any further rows sharing that number are retained in
+    ``duplicate_ogls`` (not silently overwritten) and surface as a
+    ``duplicate_ogl`` chain break.
+    """
+    xref: Dict[str, CrossRef] = {}
+    for rec in ogl_records:
+        k = rec.key
+        if not k:
+            continue
+        entry = xref.setdefault(k, CrossRef(key=k))
+        if entry.ogl is None:
+            entry.ogl = rec
+        else:
+            entry.duplicate_ogls.append(rec)
+    for note in runsheet_notes:
+        k = note.key
+        if not k:
+            continue
+        xref.setdefault(k, CrossRef(key=k)).notes.append(note)
+    return xref
+
+
+def find_chain_breaks(xref: Dict[str, CrossRef]) -> List[CrossRef]:
+    """Return every cross-ref that is not fully matched (a chain break)."""
+    return [c for c in xref.values() if c.status != "matched"]
+
+
+# ---------------------------------------------------------------------------
+# Chain-out interest reconciliation
+# ---------------------------------------------------------------------------
+@dataclass
+class ChainLink:
+    """One reconciled step in a title chain for a single tract."""
+
+    instrument_number: str
+    grantor: str
+    grantee: str
+    conveyed: Optional[Fraction]
+    holder_before: Optional[Fraction]
+    holder_after: Optional[Fraction]
+    reconciliation: Reconciliation
+    tied_to_legal: bool = True
+    grantor_continuity: bool = True  # grantor matches the prior grantee in-chain
+
+    def as_dict(self) -> dict:
+        def fmt(f: Optional[Fraction]) -> str:
+            return format_fraction(f) if f is not None else ""
+
+        return {
+            "instrument_number": self.instrument_number,
+            "grantor": self.grantor,
+            "grantee": self.grantee,
+            "conveyed": fmt(self.conveyed),
+            "holder_before": fmt(self.holder_before),
+            "holder_after": fmt(self.holder_after),
+            "status": self.reconciliation.status,
+            "tied_to_legal": "yes" if self.tied_to_legal else "NO",
+            "grantor_continuity": "yes" if self.grantor_continuity else "NO",
+            "note": self.reconciliation.note,
+        }
+
+
+@dataclass
+class ChainResult:
+    """Reconciliation of a full chain for one tract/legal description."""
+
+    tract: str
+    links: List[ChainLink] = field(default_factory=list)
+    needs_examiner_review: bool = False
+    review_reasons: List[str] = field(default_factory=list)
+
+    @property
+    def final_holder_interest(self) -> Optional[Fraction]:
+        if not self.links:
+            return None
+        return self.links[-1].holder_after
+
+    def flag(self, reason: str) -> None:
+        self.needs_examiner_review = True
+        if reason not in self.review_reasons:
+            self.review_reasons.append(reason)
+
+
+def _norm_party(name: str) -> str:
+    """Normalize a grantor/grantee name for identity comparison in a chain."""
+    s = re.sub(r"[^A-Za-z0-9]+", " ", str(name or "")).upper()
+    # drop entity-suffix noise that shouldn't break identity matching
+    s = re.sub(r"\b(LLC|LLP|LP|INC|CO|CORP|TRUST|ET AL|ETAL|ETUX|ET UX)\b", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _legal_ties(link_legal: str, tract_legal: str) -> bool:
+    """Token-boundary check that a conveyance's legal description ties to the
+    tract's legal description from the canonical cursory report. Empty conveyance
+    legal is treated as "inherits tract" (ties).
+
+    Uses whole-token subset rather than raw substring so that, e.g., "Sec 3" does
+    NOT tie to "Sec 31" and "Lot 1" does NOT tie to "Lot 10" (a raw ``in`` check
+    would falsely accept those, letting a conveyance leak into the wrong tract).
+    """
+    if not link_legal:
+        return True
+    a = set(re.sub(r"[^A-Za-z0-9]+", " ", link_legal).upper().split())
+    b = set(re.sub(r"[^A-Za-z0-9]+", " ", tract_legal).upper().split())
+    if not a or not b:
+        return True
+    return a <= b or b <= a
+
+
+def reconcile_chain(
+    tract: str,
+    records: List[OGLRecord],
+    starting_interest: Optional[object] = FULL,
+    tract_legal: str = "",
+) -> ChainResult:
+    """Walk ``records`` (in order) applying ``retained = grantor - conveyed``.
+
+    ``starting_interest`` is the interest held by the first grantor (defaults to
+    the full 8/8 estate). Pass ``None`` when it is unknown from the files -- the
+    whole chain is then flagged for examiner review rather than assumed.
+
+    A tract is flagged "Needs Examiner Review" when any of these hold:
+      * the starting interest is unknown;
+      * a conveyed interest cannot be parsed;
+      * a conveyance exceeds the current holder's interest (over-conveyance);
+      * a conveyance's legal description does not tie to the tract;
+      * a conveyance's grantor does not match the prior grantee in the chain
+        (a break in the record chain of title).
+    """
+    result = ChainResult(tract=tract, links=[])
+
+    holder: Optional[Fraction]
+    if starting_interest is None:
+        holder = None
+        result.flag(f"Starting interest for tract {tract!r} is undetermined.")
+    else:
+        holder = starting_interest if isinstance(starting_interest, Fraction) \
+            else parse_interest(starting_interest)
+
+    prev_grantee = ""  # the grantee of the previous link (expected next grantor)
+    for rec in records:
+        conveyed = try_parse_interest(rec.conveyed_interest) \
+            if str(rec.conveyed_interest).strip() else None
+        rc = reconcile(holder, conveyed)
+
+        tied = _legal_ties(rec.legal_description, tract_legal)
+        if not tied:
+            result.flag(
+                f"Instrument {rec.instrument_number!r} legal description does "
+                f"not tie to tract {tract!r}."
+            )
+
+        # Chain-of-title continuity: this grantor should be the prior grantee.
+        continuity = True
+        if prev_grantee and _norm_party(rec.grantor):
+            if _norm_party(rec.grantor) != _norm_party(prev_grantee):
+                continuity = False
+                result.flag(
+                    f"Grantor {rec.grantor!r} on instrument "
+                    f"{rec.instrument_number!r} does not match prior grantee "
+                    f"{prev_grantee!r} (chain-of-title break)."
+                )
+
+        holder_before = holder
+        if rc.status != "balanced":
+            # over_conveyance / examiner_review: math itself broke.
+            result.flag(rc.note)
+            holder = None  # cannot trust downstream once the math breaks
+        elif not tied or not continuity:
+            # The arithmetic balances, but the chain's *integrity* is in doubt
+            # (this instrument doesn't tie to the tract, or its grantor isn't the
+            # prior grantee). Advancing the ledger would let later rows show
+            # falsely-balanced figures built on the wrong prior holder, so we
+            # poison the downstream holder and let subsequent rows flag review.
+            holder = None
+        else:
+            # Grantor conveyed `conveyed`; grantor's *retained* interest is
+            # rc.retained. The chain follows the grantee, who now holds the
+            # conveyed interest (this is what carries forward down-chain).
+            holder = conveyed
+
+        result.links.append(ChainLink(
+            instrument_number=rec.instrument_number,
+            grantor=rec.grantor,
+            grantee=rec.grantee,
+            conveyed=conveyed,
+            holder_before=holder_before,
+            holder_after=holder,
+            reconciliation=rc,
+            tied_to_legal=tied,
+            grantor_continuity=continuity,
+        ))
+        if str(rec.grantee).strip():
+            prev_grantee = rec.grantee
+
+    return result

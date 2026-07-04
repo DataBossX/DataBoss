@@ -276,18 +276,24 @@ def is_impossible_date(iso: Optional[str]) -> bool:
 _STR_SEC = re.compile(r"\bsec(?:tion)?\.?\s*(\d+)", re.I)
 _STR_TWP = re.compile(r"\bt(?:wp|ownship)?\.?\s*(\d+)\s*([NS])", re.I)
 _STR_RNG = re.compile(r"\br(?:ge|ange)?\.?\s*(\d+)\s*([EW])", re.I)
+# Aliquot / lot qualifiers that distinguish tracts within the same S-T-R.
+_ALIQUOT_RX = re.compile(r"\b(?:[NS][EW]/4|[NSEW]/2|LOTS?\s*\d+(?:\s*[-&,]\s*\d+)*)\b", re.I)
 
 
 def canonical_tract(legal: Any) -> str:
     """Normalize a legal description to a canonical Section-Township-Range key so
     'Section 12, T7N, R63W', 'Sec 12 T7N R63W' and 'Section 12, Township 7 North,
-    Range 63 West' all group together. Falls back to whitespace-normalized text."""
+    Range 63 West' all group together -- WHILE keeping distinct aliquots/lots
+    (e.g. NE/4 vs SW/4) as separate tracts. Falls back to normalized text."""
     s = norm_ws(legal)
     if not s:
         return ""
     sec, twp, rng = _STR_SEC.search(s), _STR_TWP.search(s), _STR_RNG.search(s)
     if sec and twp and rng:
-        return (f"SEC {int(sec.group(1))}-T{int(twp.group(1))}{twp.group(2).upper()}"
+        aliquots = sorted({re.sub(r"\s+", "", m.group(0)).upper()
+                           for m in _ALIQUOT_RX.finditer(s)})
+        prefix = (" ".join(aliquots) + " ") if aliquots else ""
+        return (f"{prefix}SEC {int(sec.group(1))}-T{int(twp.group(1))}{twp.group(2).upper()}"
                 f"-R{int(rng.group(1))}{rng.group(2).upper()}")
     return s.upper()
 
@@ -914,7 +920,11 @@ def _map_header(cells: List[str]) -> Dict[int, str]:
             if field_name in used_fields:
                 continue
             for syn in syns:
-                if syn in c and len(syn) > best_len:
+                # Whole-word / whole-token match (longest synonym wins) so short
+                # synonyms like 'name'/'state'/'legal' don't match inside
+                # unrelated header text.
+                if len(syn) > best_len and re.search(
+                        r"(?<![a-z0-9])" + re.escape(syn) + r"(?![a-z0-9])", c):
                     best_field, best_len = field_name, len(syn)
         if best_field:
             mapping[idx] = best_field
@@ -956,14 +966,15 @@ def extract_table_facts(rec: "FileRec") -> List["Fact"]:
     for sheet_label, rows in _rows_from_spreadsheet(rec):
         if not rows:
             continue
-        # find the header row = the row (within first 25) mapping >=2 columns.
+        # Header row = the row (within first 25) that maps the MOST columns, so a
+        # title/banner row that happens to match two synonyms doesn't win over
+        # the real, richer header. Require at least 2 mapped columns.
         header_idx, mapping = None, {}
         for i, row in enumerate(rows[:25]):
             m = _map_header(row)
-            if len(m) >= 2:
+            if len(m) > len(mapping):
                 header_idx, mapping = i, m
-                break
-        if header_idx is None:
+        if header_idx is None or len(mapping) < 2:
             continue
         for r in range(header_idx + 1, len(rows)):
             row = rows[r]
@@ -1017,16 +1028,26 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
                   log: BuildLog) -> List[Fact]:
     log.section("STAGE E -- Structured extraction (deterministic)")
     facts: List[Fact] = []
+    seen_hashes: set = set()
+    skipped_dupes = 0
     for r in recs:
+        # Byte-identical duplicates yield identical facts; extracting them twice
+        # would double-count decimals and fabricate chain gaps. Extract the
+        # canonical (first-seen) copy only; the duplicate is still inventoried
+        # and reported in Stage B.
+        if r.sha256:
+            if r.sha256 in seen_hashes:
+                skipped_dupes += 1
+                continue
+            seen_hashes.add(r.sha256)
         tr = texts.get(r.path)
         text = load_text(tr, output_dir)
-        if not text.strip():
-            continue
         cats = classes.get(r.path, [])
 
         # Spreadsheets/runsheets/ownership sheets: extract row-wise so each
-        # owner/instrument row is its own traceable fact. Fall back to the
-        # free-text regex path only if no header row could be mapped.
+        # owner/instrument row is its own traceable fact. This reads the file
+        # directly, so it must run BEFORE the empty-text guard (a readable
+        # spreadsheet whose Stage C text dump failed must still be mined).
         if r.ext in EXCEL_EXT | CSV_EXT:
             table_facts = extract_table_facts(r)
             if table_facts:
@@ -1035,6 +1056,10 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
                         tf.review_flags.append("unclassified-document")
                 facts.extend(table_facts)
                 continue
+            # else fall through to the free-text regex path below.
+
+        if not text.strip():
+            continue
 
         f = Fact(source_file=r.rel_path)
         v = f.values
@@ -1140,8 +1165,11 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
             rel_to_cats.get(f.source_file, ""), f.snippet])
     write_csv(output_dir / "extracted_facts.csv", headers, rows)
     write_xlsx(output_dir / "extracted_facts.xlsx", [("facts", headers, rows)], log)
-    log(f"Extracted structured facts from {len(facts)} documents "
+    log(f"Extracted {len(facts)} structured fact record(s) "
         f"(deterministic; unfound fields left blank, never guessed).")
+    if skipped_dupes:
+        log(f"Skipped {skipped_dupes} byte-identical duplicate file(s) during "
+            f"extraction to avoid double-counting (see duplicate_candidates.csv).")
     return facts
 
 
@@ -1270,12 +1298,17 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
 
 
 def _to_float(x: Any) -> Optional[float]:
+    """Parse a numeric value. A trailing '%' is treated as a percentage and
+    divided by 100 (so '25%' -> 0.25), which keeps interest/decimal sums correct."""
     if x is None or x == "":
         return None
+    s = str(x).strip()
+    is_pct = "%" in s
     try:
-        return float(str(x).replace(",", "").replace("%", "").strip())
+        val = float(s.replace(",", "").replace("%", "").strip())
     except Exception:
         return None
+    return val / 100.0 if is_pct else val
 
 
 # ===========================================================================
@@ -1339,7 +1372,10 @@ def validate(recs: List[FileRec], texts: Dict[str, TextRec], classes: Dict[str, 
 
     # decimal sums / acreage mismatches from reconciliation
     for conf in recon.get("conflicts", []):
-        sev = "red" if conf[0] in ("decimal-sum", "chain-gap") else "yellow"
+        # Decimals that don't sum are a definite defect (red). A chain-gap is a
+        # heuristic flag (parties may match despite name spelling, or the tract
+        # legitimately holds unrelated instruments) -> review (yellow).
+        sev = "red" if conf[0] == "decimal-sum" else "yellow"
         add(sev, conf[0], conf[1], conf[2], conf[3])
 
     # lease/OGL rows with no supporting document text
@@ -1397,7 +1433,8 @@ def assemble_report(root: Path, recs: List[FileRec], texts: Dict[str, TextRec],
     log.section("STAGE H -- Report assembly")
     n_docs = len(recs)
     n_text = sum(1 for t in texts.values() if t.status == "extracted")
-    n_facts = len(facts)
+    n_facts = len(facts)                             # fact records (rows)
+    n_fact_docs = len({f.source_file for f in facts})  # distinct source docs
     n_red = sum(1 for i in issues if i["severity"] == "red")
     n_yellow = sum(1 for i in issues if i["severity"] == "yellow")
     tracts = recon.get("tracts", {})
@@ -1428,7 +1465,8 @@ def assemble_report(root: Path, recs: List[FileRec], texts: Dict[str, TextRec],
 | --- | --- |
 | Source documents inventoried | {n_docs} |
 | Documents with extractable text | {n_text} |
-| Documents with structured facts | {n_facts} |
+| Documents with structured facts | {n_fact_docs} |
+| Structured fact records (rows) | {n_facts} |
 | Tracts / legal descriptions identified | {len(tracts)} |
 | Reconciliation conflicts / gaps | {len(recon.get('conflicts', []))} |
 | Validation issues (red / yellow) | {n_red} / {n_yellow} |

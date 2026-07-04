@@ -148,11 +148,53 @@ def test_clean_tract_not_flagged(run):
 
 
 def test_canonical_tract_key():
-    import grocery_report_pipeline as g
-    a = g.canonical_tract("Section 12, T7N, R63W")
-    b = g.canonical_tract("Sec 12 T7N R63W")
-    c = g.canonical_tract("Section 12, Township 7 North, Range 63 West")
+    a = grp.canonical_tract("Section 12, T7N, R63W")
+    b = grp.canonical_tract("Sec 12 T7N R63W")
+    c = grp.canonical_tract("Section 12, Township 7 North, Range 63 West")
     assert a == b == c == "SEC 12-T7N-R63W"
+
+
+def test_aliquot_tracts_kept_separate():
+    """NE/4 and SW/4 of the same section must NOT collapse to one tract."""
+    ne = grp.canonical_tract("NE/4 Section 1, T1N, R1W")
+    sw = grp.canonical_tract("SW/4 Section 1, T1N, R1W")
+    assert ne != sw
+    assert "SEC 1-T1N-R1W" in ne and "SEC 1-T1N-R1W" in sw
+    assert "NE/4" in ne and "SW/4" in sw
+
+
+def test_percentage_decimals_scaled():
+    """Percent-form interests must be scaled by 100 for summation."""
+    assert grp._to_float("25%") == 0.25
+    assert grp._to_float("100%") == 1.0
+    assert grp._to_float("0.25") == 0.25
+    assert grp._to_float("78.5%") == 0.785
+    assert grp._to_float("") is None
+
+
+def test_header_synonym_wholeword():
+    """Short synonyms must not match inside unrelated header text."""
+    m = grp._map_header(["Filename", "Owner Name", "Decimal Interest"])
+    # 'name' must not steal 'Filename'; 'Owner Name' -> owner; decimal -> decimal.
+    assert m.get(1) == "owner"
+    assert m.get(2) == "decimal_interest"
+    assert 0 not in m  # 'Filename' maps to nothing
+
+
+def test_percentage_ownership_sheet_not_flagged(tmp_path):
+    """A CSV whose decimals are percentages summing to 100% must reconcile to 1.0."""
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / "own_pct.csv").write_text(
+        "Mineral Owner,Legal Description,Decimal Interest\n"
+        "A,\"Section 5, T1N, R1W\",25%\n"
+        "B,\"Section 5, T1N, R1W\",25%\n"
+        "C,\"Section 5, T1N, R1W\",50%\n", encoding="utf-8")
+    out = tmp_path / "o"
+    grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=grp.BuildLog())
+    rr = _read_csv(out / "review_required.csv")
+    assert not any(r["rule"] == "decimal-sum" for r in rr), \
+        "percentage decimals summing to 100% wrongly flagged"
 
 
 def test_rerunnable_idempotent(run, tmp_path):

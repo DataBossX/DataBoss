@@ -1,14 +1,14 @@
 {
   "pipeline_version": "1.0.0",
-  "generated_at": "2026-07-04 01:12:07",
+  "generated_at": "2026-07-04 01:24:22",
   "root": "/home/user/DataBoss/_synthetic_corpus",
   "counts": {
     "documents": 9,
     "with_text": 9,
-    "fact_records": 11,
+    "fact_records": 10,
     "duplicate_candidates": 1,
     "tracts": 2,
-    "issues_red": 4,
+    "issues_red": 2,
     "issues_yellow": 9
   },
   "warnings": 0,

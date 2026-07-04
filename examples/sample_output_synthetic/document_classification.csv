@@ -1,10 +1,10 @@
 ﻿rel_path,categories,confidence,review_flag,text_status,generated_at
-01_warranty_deed.txt,deed,0.7,,extracted,2026-07-04 01:12:07
-01_warranty_deed_COPY.txt,deed,0.7,,extracted,2026-07-04 01:12:07
-02_oil_gas_lease.txt,oil and gas lease,0.7,,extracted,2026-07-04 01:12:07
-03_assignment.txt,assignment; oil and gas lease,0.95,,extracted,2026-07-04 01:12:07
-04_ownership_note.txt,ownership spreadsheet,0.85,,extracted,2026-07-04 01:12:07
-05_probate.txt,probate; court record,0.95,,extracted,2026-07-04 01:12:07
-06_prior_report_DRAFT.txt,prior report,0.95,,extracted,2026-07-04 01:12:07
-07_bad_date.txt,deed,0.7,,extracted,2026-07-04 01:12:07
-08_ownership_schedule.csv,ownership spreadsheet,0.7,,extracted,2026-07-04 01:12:07
+01_warranty_deed.txt,deed,0.7,,extracted,2026-07-04 01:24:22
+01_warranty_deed_COPY.txt,deed,0.7,,extracted,2026-07-04 01:24:22
+02_oil_gas_lease.txt,oil and gas lease,0.7,,extracted,2026-07-04 01:24:22
+03_assignment.txt,assignment; oil and gas lease,0.95,,extracted,2026-07-04 01:24:22
+04_ownership_note.txt,ownership spreadsheet,0.85,,extracted,2026-07-04 01:24:22
+05_probate.txt,probate; court record,0.95,,extracted,2026-07-04 01:24:22
+06_prior_report_DRAFT.txt,prior report,0.95,,extracted,2026-07-04 01:24:22
+07_bad_date.txt,deed,0.7,,extracted,2026-07-04 01:24:22
+08_ownership_schedule.csv,ownership spreadsheet,0.7,,extracted,2026-07-04 01:24:22

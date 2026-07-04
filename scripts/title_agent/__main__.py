@@ -56,10 +56,42 @@ def cmd_register(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_coverage(report) -> None:  # type: ignore[no-untyped-def]
+    print("Mapping coverage:")
+    for item in report.items:
+        mark = {"mapped": "ok", "columns_unresolved": "UNRESOLVED",
+                "sheet_absent": "ABSENT"}.get(item.status, item.status)
+        extra = ""
+        if item.missing_columns:
+            extra = f" missing={list(item.missing_columns)}"
+        elif item.note:
+            extra = f" ({item.note})"
+        print(f"  [{mark:>10}] {item.gate} · {item.sheet} · rows={item.data_rows}{extra}")
+    for wmsg in report.warnings:
+        print(f"  warning: {wmsg}")
+    for bmsg in report.blocking:
+        print(f"  BLOCKING: {bmsg}")
+
+
+def cmd_map(args: argparse.Namespace) -> int:
+    mgr = _manager()
+    vc = VersionController(mgr)
+    latest = vc.get_latest_version(ARTIFACT_KEY)
+    if latest is None:
+        print("error: no workbook registered; run `register <workbook.xlsx>` first",
+              file=sys.stderr)
+        return 2
+    report = WorkbookGateSuite().coverage(latest.file_path)
+    _print_coverage(report)
+    print(f"\ncoverage {'OK' if report.ok else 'INCOMPLETE'}")
+    return 0 if report.ok else 1
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     mgr = _manager()
     vc = VersionController(mgr)
-    if vc.get_latest_version(ARTIFACT_KEY) is None:
+    latest = vc.get_latest_version(ARTIFACT_KEY)
+    if latest is None:
         print("error: no workbook registered; run `register <workbook.xlsx>` first",
               file=sys.stderr)
         return 2
@@ -68,6 +100,16 @@ def cmd_run(args: argparse.Namespace) -> int:
         source_probe=_source_probe(mgr),
         recalc_engine=recalc if recalc.conversion_works() else None,
     )
+    # Preflight: never run the loop (and risk a false CERTIFIED) on a workbook
+    # whose columns the suite cannot read. Force the operator to fix the mapping.
+    coverage = suite.coverage(latest.file_path)
+    if not coverage.ok and not args.force:
+        _print_coverage(coverage)
+        print("\nerror: mapping is incomplete — refusing to certify a workbook the "
+              "agent cannot fully read. Fix the layout/ColumnMap, or re-run with "
+              "--force to proceed anyway (gates with unread inputs will not run).",
+              file=sys.stderr)
+        return 2
     reporter = CertificationReporter(mgr)
     artifacts: dict[str, object] = {}
 
@@ -113,7 +155,12 @@ def main(argv: list[str] | None = None) -> int:
     reg.add_argument("workbook")
     reg.set_defaults(func=cmd_register)
 
+    mp = sub.add_parser("map", help="preflight: show how columns map to the gates")
+    mp.set_defaults(func=cmd_map)
+
     run = sub.add_parser("run", help="drive the perfection loop")
+    run.add_argument("--force", action="store_true",
+                     help="run even if mapping coverage is incomplete")
     run.set_defaults(func=cmd_run)
 
     stat = sub.add_parser("status", help="print the scorecard")

@@ -63,6 +63,7 @@ pytest scripts/title_agent/tests
 
 # Run the agent against a workbook
 python -m scripts.title_agent register "D:/Desktop/DataBossX/31-12N-24W.xlsx"
+python -m scripts.title_agent map       # preflight: how columns map to the gates
 python -m scripts.title_agent run       # certifies or halts for the Examiner
 python -m scripts.title_agent status    # scorecard
 
@@ -74,6 +75,14 @@ The `run` command attaches a live OKCounty source probe only when
 `OKCOUNTY_API_KEY` is set, and enables Gate 6 only when LibreOffice is
 functional. Retarget the workbook layout by adjusting `ColumnMap` in
 `core/wiring.py` — the header-label aliases, not the validators.
+
+**Mapping preflight.** Because `ColumnMap` matches columns by header label,
+`run` first calls `WorkbookGateSuite.coverage()` and **refuses to proceed** if a
+core gate (2 Acreage or 3 Chain) cannot read its inputs from a sheet that
+exists — otherwise those gates would pass on no data and produce a false
+`CERTIFIED`. Use `map` to see the per-gate mapping first and fix the aliases
+against the real headers before running. `run --force` overrides the guard
+(gates with unread inputs simply don't run).
 
 ## Note on Gate 6 in CI
 

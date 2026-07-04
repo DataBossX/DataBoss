@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from lxml import etree
 
@@ -135,6 +135,21 @@ class WorkbookExtractor:
     def __init__(self, column_map: Optional[ColumnMap] = None) -> None:
         self._cm = column_map or ColumnMap()
         self._mapper = WorkbookMapper()
+
+    def resolve_fields(
+        self, path: Path, sheet: SheetProfile, fields: Mapping[str, Sequence[str]]
+    ) -> tuple[dict[str, Optional[int]], int]:
+        """Resolve each named field to a column on ``sheet`` and count data
+        rows. Returns ({field: col_or_None}, data_row_count). Used by the
+        coverage preflight to distinguish 'column absent' (a mapping problem)
+        from 'column present but no rows' (a legitimately empty sheet)."""
+        if sheet.header_row is None:
+            return {name: None for name in fields}, 0
+        grid = self._mapper.read_grid(path, sheet.name)
+        hdr = _Header(grid[sheet.header_row - 1])
+        resolved = {name: hdr.resolve(aliases) for name, aliases in fields.items()}
+        rows = len(self._data_rows(grid, sheet.header_row))
+        return resolved, rows
 
     def _data_rows(self, grid: Sequence[Sequence[Any]], header_row: int) -> list[tuple[int, Sequence[Any]]]:
         """Return (excel_row_number, row) for each non-empty row below the
@@ -309,12 +324,47 @@ class WorkbookExtractor:
 # --------------------------------------------------------------------------- #
 
 
+@dataclass(frozen=True)
+class CoverageItem:
+    """Whether a gate's inputs could actually be mapped on a given sheet."""
+
+    gate: str
+    sheet: str
+    status: str  # "mapped" | "columns_unresolved" | "sheet_absent"
+    missing_columns: tuple[str, ...]
+    data_rows: int
+    note: str = ""
+
+
+@dataclass(frozen=True)
+class CoverageReport:
+    """Result of the mapping preflight.
+
+    ``ok`` is False when any *blocking* condition holds — a core gate (2 or 3)
+    whose inputs cannot be read from a sheet that exists. Running the gate suite
+    on such a workbook would let those gates pass on no data and produce a false
+    CERTIFIED, so the loop must not be trusted until the mapping is fixed.
+    """
+
+    items: tuple[CoverageItem, ...]
+    blocking: tuple[str, ...]
+    warnings: tuple[str, ...]
+
+    @property
+    def ok(self) -> bool:
+        return not self.blocking
+
+
 class WorkbookGateSuite:
     """Runs all applicable gates against a workbook version.
 
     Gates 1-5 always run. Gate 6 (Execution) runs only when a functional
     recalc engine is supplied — otherwise it is skipped, never faked, so the
     absence of a working LibreOffice can never be mistaken for a pass.
+
+    Before trusting a certification, call ``coverage(path)``: it confirms the
+    workbook's columns actually map to the validators' inputs, so a mismatched
+    layout surfaces as a blocking preflight error rather than a silent pass.
     """
 
     def __init__(
@@ -325,7 +375,8 @@ class WorkbookGateSuite:
         *,
         gross_target: float = GROSS_ACRE_TARGET,
     ) -> None:
-        self._extractor = WorkbookExtractor(column_map)
+        self._column_map = column_map or ColumnMap()
+        self._extractor = WorkbookExtractor(self._column_map)
         self._mapper = WorkbookMapper()
         self._probe = source_probe
         self._recalc = recalc_engine
@@ -387,6 +438,85 @@ class WorkbookGateSuite:
                     reference=str(path.name), detail="recalc OOM / timeout", proof={}))
 
         return failures
+
+    def coverage(self, path: Path) -> CoverageReport:
+        """Preflight: verify the workbook's columns map to the gate inputs.
+
+        Blocking (a false-certify risk) when a *core* gate cannot read its
+        inputs from a sheet that exists: no recap sheet at all, recap columns
+        unresolved (Gate 2), no tract sheets, or a tract sheet whose
+        grantor/grantee columns are unresolved (Gate 3). Missing optional
+        columns (interest-change, book/page) and absent OGL/WI sheets are
+        warnings, not blocks.
+        """
+        topology = self._mapper.map(path)
+        items: list[CoverageItem] = []
+        blocking: list[str] = []
+        warnings: list[str] = []
+
+        # Gate 2 — recap.
+        recap = self._extractor.recap_sheet(topology, path)
+        if recap is None:
+            blocking.append("No recap/summary sheet found — Gate 2 (Acreage Footing) cannot run.")
+            items.append(CoverageItem(Gate.ACREAGE_FOOTING.value, "—", "sheet_absent", (), 0))
+        else:
+            fields = {"tract": self._column_map.tract, "gross_acres": self._column_map.gross_acres,
+                      "interest_fraction": self._column_map.interest_fraction,
+                      "net_acres": self._column_map.net_acres}
+            resolved, rows = self._extractor.resolve_fields(path, recap, fields)
+            missing = tuple(n for n, c in resolved.items() if c is None)
+            status = "columns_unresolved" if missing else "mapped"
+            items.append(CoverageItem(Gate.ACREAGE_FOOTING.value, recap.name, status, missing, rows))
+            if missing:
+                blocking.append(
+                    f"Recap sheet '{recap.name}' is missing columns {list(missing)} — "
+                    "Gate 2 cannot run.")
+
+        # Gates 1/3/4 — tract sheets.
+        tracts = topology.tracts()
+        if not tracts:
+            blocking.append("No tract sheets found — Gates 1, 3, 4 cannot run.")
+        for tract in tracts:
+            resolved, rows = self._extractor.resolve_fields(path, tract, {
+                "grantor": self._column_map.grantor, "grantee": self._column_map.grantee,
+                "interest_change": self._column_map.interest_change,
+                "book": self._column_map.book, "page": self._column_map.page,
+            })
+            chain_missing = tuple(n for n in ("grantor", "grantee") if resolved[n] is None)
+            status = "columns_unresolved" if chain_missing else "mapped"
+            note_bits = []
+            if resolved["interest_change"] is None:
+                note_bits.append("no interest-change column (Gate 1 skipped)")
+            if resolved["book"] is None or resolved["page"] is None:
+                note_bits.append("no book/page columns (Gate 4 skipped)")
+            items.append(CoverageItem(
+                Gate.CHAIN_CONTINUITY.value, tract.name, status, chain_missing, rows,
+                "; ".join(note_bits)))
+            if chain_missing:
+                blocking.append(
+                    f"Tract sheet '{tract.name}' is missing {list(chain_missing)} — "
+                    "Gate 3 (Chain Continuity) cannot run.")
+            elif note_bits:
+                warnings.append(f"{tract.name}: {'; '.join(note_bits)}.")
+
+        # Gate 5 — OGL / WI (absent sheets are warnings, unresolved columns block).
+        ogl_sheet = topology.ogl_register()
+        if ogl_sheet is None:
+            warnings.append("No OGL register sheet — Gate 5 (OGL Parity) will not run.")
+        else:
+            resolved, rows = self._extractor.resolve_fields(path, ogl_sheet, {
+                "tract": self._column_map.tract, "royalty": self._column_map.royalty})
+            missing = tuple(n for n, c in resolved.items() if c is None)
+            items.append(CoverageItem(Gate.OGL_PARITY.value, ogl_sheet.name,
+                         "columns_unresolved" if missing else "mapped", missing, rows))
+            if missing:
+                blocking.append(
+                    f"OGL sheet '{ogl_sheet.name}' is missing columns {list(missing)} — "
+                    "Gate 5 cannot run correctly.")
+        if not topology.working_interest_sheets():
+            warnings.append("No Working-Interest sheet — Gate 5 (OGL Parity) will not run.")
+
+        return CoverageReport(tuple(items), tuple(blocking), tuple(warnings))
 
     @staticmethod
     def _enrich_footing(failures: Sequence[Failure], refs: _FootingRefs) -> list[Failure]:

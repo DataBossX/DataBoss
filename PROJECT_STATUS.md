@@ -37,10 +37,17 @@ flagged items is the schedule risk.
 | C Text extract | ✅ done (deps-gated) | txt/csv now; PDF/DOCX/XLSX/OCR when libs installed |
 | D Classify | ✅ done | 15 categories, keyword rules, review flags |
 | E Facts | ✅ done | deterministic regex; blanks not guesses; confidence + flags |
+| E2 Interests | ✅ done | net-acre/decimal math where sufficient; else `insufficient_data`; mismatch check → `interest_calculations` |
 | F Reconcile | ✅ done | tract/party/lease chains, decimal sums, gaps, conflicts |
 | G Validate | ✅ done | 12 rule families → `validation_report`, `review_required` |
 | H Assemble | ✅ done | draft MD (+DOCX if lib), exec summary, curative, source index |
 | I Dashboard | ✅ done | HTML + CSV, green/yellow/red, Monday risk |
+| QA Traceability | ✅ done | automated no-fabrication gate → `traceability_report` |
+| AI enrich | ✅ opt-in | audited, offline-safe; fills blanks only → `ai_extraction_audit` |
+| Quarantine exec | ✅ done | approval-gated, reversible, never deletes → `quarantine_manifest` |
+
+**New:** `.xlsx` outputs no longer require openpyxl — a stdlib OOXML writer
+(`report_pipeline/minixlsx.py`) guarantees Excel files even on a bare Python.
 
 ## Top risks to Monday
 1. **Documents not yet loaded** into a reachable folder → blocks a real run.

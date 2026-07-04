@@ -2,7 +2,8 @@
 # The pipeline RUNS WITHOUT ANY of these (CSV-only, no PDF/OCR), degrading
 # gracefully and logging what it skipped. Install these to unlock full coverage.
 
-# Excel (.xlsx) output + reading ownership/OGL spreadsheets
+# Excel: .xlsx OUTPUT works without this (built-in stdlib writer). openpyxl is
+# only needed to READ existing .xlsx ownership/OGL spreadsheets as source docs.
 openpyxl>=3.1.5
 
 # Nicer tables / optional (not required by the pipeline itself)

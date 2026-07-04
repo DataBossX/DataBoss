@@ -106,19 +106,24 @@ def write_csv(path: Path, fieldnames: Sequence[str], rows: Iterable[Dict[str, An
 
 
 def write_xlsx(path: Path, fieldnames: Sequence[str], rows: Iterable[Dict[str, Any]]) -> Optional[Path]:
-    """Write an .xlsx only if openpyxl is available; otherwise return None."""
-    if not CAPS["openpyxl"]:
-        return None
-    import openpyxl
+    """Write an .xlsx. Uses openpyxl when available, otherwise a stdlib-only
+    minimal OOXML writer — so .xlsx is ALWAYS produced (never silently skipped)."""
+    rows = list(rows)
+    if CAPS["openpyxl"]:
+        import openpyxl
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.append(list(fieldnames))
-    for r in rows:
-        ws.append([r.get(k, "") for k in fieldnames])
-    path.parent.mkdir(parents=True, exist_ok=True)
-    wb.save(path)
-    return path
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(list(fieldnames))
+        for r in rows:
+            ws.append([r.get(k, "") for k in fieldnames])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        wb.save(path)
+        return path
+
+    from report_pipeline import minixlsx
+
+    return minixlsx.write_xlsx(path, fieldnames, rows)
 
 
 def write_table(

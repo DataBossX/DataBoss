@@ -739,7 +739,16 @@ Legend applies to stage cells and overall posture.</p>
 
 # ============================================================ ORCHESTRATOR ====
 
-def run_all(root: Path, out: Path, log) -> None:
+def stage_interests(facts: List[Dict[str, Any]], out: Path, log) -> None:
+    from report_pipeline import interests
+
+    rows = [interests.compute_row(f) for f in facts]
+    C.write_table(out, "interest_calculations", interests.FIELDS, rows)
+    n_flag = sum(1 for r in rows if r["review_flag"])
+    log.info("E2. interests: %d rows (%d insufficient-data/flagged)", len(rows), n_flag)
+
+
+def run_all(root: Path, out: Path, log, ai: bool = False) -> None:
     log.info("=== Grocery Report pipeline start | root=%s ===", root)
     log.info("capabilities: %s", C.caps_summary())
     inv = stage_inventory(root, out, log)
@@ -747,10 +756,21 @@ def run_all(root: Path, out: Path, log) -> None:
     tix = stage_extract_text(inv, out, log)
     cls = stage_classify(tix, out, log)
     facts = stage_extract_facts(tix, cls, out, log)
+    if ai:
+        from report_pipeline import ai_extract
+
+        facts = ai_extract.enrich(facts, tix, out, log)
+    stage_interests(facts, out, log)
     recon = stage_reconcile(facts, out, log)
     findings = stage_validate(inv, cls, facts, recon, out, log)
     stage_assemble(inv, cls, facts, recon, findings, out, log)
     stage_dashboard(inv, tix, cls, facts, recon, findings, out, log)
+
+    from report_pipeline import verify
+
+    v = verify.verify(out)
+    log.info("QA traceability: %d violations (%d high)",
+             len(v), sum(1 for x in v if x["severity"] == "high"))
     log.info("=== pipeline complete | outputs in %s ===", out)
 
 
@@ -758,11 +778,13 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="grocery-report", description="Grocery Report title pipeline")
     ap.add_argument("--root", default=None, help="project root (default: env DATABOSSX_PROJECT_ROOT or .)")
     ap.add_argument("--out", default=None, help="output dir (default: <root>/output)")
+    ap.add_argument("--ai", action="store_true",
+                    help="enable audited AI enrichment of blank fields (needs LLM key; else no-op)")
     args = ap.parse_args(argv)
     root = C.resolve_root(args.root)
     out = C.output_dir(root, args.out)
     log = C.get_logger(out=out)
-    run_all(root, out, log)
+    run_all(root, out, log, ai=args.ai)
     return 0
 
 

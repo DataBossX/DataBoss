@@ -36,18 +36,14 @@ AUTHOR = "Title Audit"
 # chain grid is the sole net-acre source (no curated block).
 PRORATA_SHEETS = ["Tract 1", "Tract 4", "WI 1", "WI 2"]
 
-# Footing authority per sheet: ("net-acres cell-or-range formula", gross D-cell).
-# Curated tracts reference their curated subtotal row; pro-rata tracts sum the
-# chain owner rows; WI sheets sum the pro-rata column.
-FOOT_AUTHORITY = {
-    "Tract 1": ("=SUM('Tract 1'!C10:C205)", "='Tract 1'!D5"),
-    "Tract 2": ("='Tract 2'!C103",          "='Tract 2'!D5"),
-    "Tract 3": ("='Tract 3'!C95",           "='Tract 3'!D5"),
-    "Tract 4": ("=SUM('Tract 4'!C10:C186)", "='Tract 4'!D5"),
-    "Tract 5": ("='Tract 5'!C90",           "='Tract 5'!D5"),
-    "Tract 6": ("='Tract 6'!C89",           "='Tract 6'!D5"),
-    "Tract 7": ("='Tract 7'!C89",           "='Tract 7'!D5"),
-    "Tract 8": ("='Tract 8'!C97",           "='Tract 8'!D5"),
+# Footing authority for the curated tracts: the current-ownership subtotal row
+# (this cell is the footing figure and supersedes the chain). Pro-rata tracts
+# (those NOT listed here) have no curated block, so their footing is the SUM of
+# the dynamically-detected chain owner-row span — computed at build time so the
+# range always tracks the real grid extent rather than a hardcoded cap.
+CURATED_SUBTOTAL_ROW = {
+    "Tract 2": 103, "Tract 3": 95, "Tract 5": 90,
+    "Tract 6": 89,  "Tract 7": 89, "Tract 8": 97,
 }
 
 
@@ -215,18 +211,22 @@ def build_summary(wb, report):
         row += 1
         sn = f"Tract {i}"
         sq = f"'{sn}'"
-        net_formula, gross_formula = FOOT_AUTHORITY[sn]
-        net_expr = net_formula[1:]  # strip leading '=' for embedding
-        gross_expr = gross_formula[1:]
+        rows = owner_rows(wb[sn])
+        first, last = min(rows), max(rows)
+        gross_expr = f"{sq}!D5"
+        if sn in CURATED_SUBTOTAL_ROW:
+            net_expr = f"{sq}!C{CURATED_SUBTOTAL_ROW[sn]}"
+        else:  # pro-rata tract: sum the dynamic owner-row span
+            net_expr = f"SUM({sq}!C{first}:C{last})"
         ws.cell(row, 1, sn).font = cellF
         ws.cell(row, 1).hyperlink = f"#{sq}!A1"
         ws.cell(row, 1).font = Font(name="Arial", size=10, color="0563C1", underline="single")
         ws.cell(row, 2, f"={sq}!D2").font = cellF
-        ws.cell(row, 3, gross_formula).font = cellF
-        ws.cell(row, 4, net_formula).font = cellF
+        ws.cell(row, 3, f"={gross_expr}").font = cellF
+        ws.cell(row, 4, f"={net_expr}").font = cellF
         ws.cell(row, 4).number_format = "0.00"
         ws.cell(row, 5, f'=IF(ABS(({net_expr})-({gross_expr}))<0.01,"PASS","FAIL")').font = cellF
-        ws.cell(row, 6, f'=COUNTIFS({sq}!E10:E205,">0",{sq}!D10:D205,"<>The Public")').font = cellF
+        ws.cell(row, 6, f'=COUNTIFS({sq}!E{first}:E{last},">0",{sq}!D{first}:D{last},"<>The Public")').font = cellF
         for ci in range(1, 7):
             ws.cell(row, ci).border = border
     # section total
@@ -245,12 +245,14 @@ def build_summary(wb, report):
     row += 1
     for ci, h in enumerate(["Sheet", "Description", "Acreage", "Net Acres", "Foots?"], 1):
         c = ws.cell(row, ci, h); c.font = hdrF; c.border = border
-    for sn, acre_cell, desc_cell, netrange in [
-        ("WI 1", "D5", "D6", "C10:C163"),
-        ("WI 2", "D4", "D5", "C9:C142"),
+    for sn, acre_cell, desc_cell in [
+        ("WI 1", "D5", "D6"),
+        ("WI 2", "D4", "D5"),
     ]:
         row += 1
         sq = f"'{sn}'"
+        wrows = owner_rows(wb[sn])
+        netrange = f"C{min(wrows)}:C{max(wrows)}"  # dynamic pro-rata span
         ws.cell(row, 1, sn).font = Font(name="Arial", size=10, color="0563C1", underline="single")
         ws.cell(row, 1).hyperlink = f"#{sq}!A1"
         ws.cell(row, 2, f"={sq}!{desc_cell}").font = cellF

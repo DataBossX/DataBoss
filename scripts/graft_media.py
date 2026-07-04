@@ -73,8 +73,10 @@ def main(orig_path, out_path):
                     sheet_drawing[nm] = dm.group(1)
 
     if not media and not drawings:
-        print("nothing to graft")
-        return
+        # Nothing to re-inject, but still open the output to apply the
+        # fullCalcOnLoad patch (the docstring promises it for every openpyxl
+        # output, media or not); the graft loops below are simply no-ops.
+        print("no media/drawings to graft; applying calc patch only")
 
     with zipfile.ZipFile(out_path) as tz:
         tnames = tz.namelist()
@@ -102,8 +104,15 @@ def main(orig_path, out_path):
 
     # ---- force full recalc on open (openpyxl writes formulas w/o cached values)
     wbxml = tdata["xl/workbook.xml"].decode("utf-8")
-    if "<calcPr" in wbxml and "fullCalcOnLoad" not in wbxml:
+    if 'fullCalcOnLoad="0"' in wbxml:
+        wbxml = wbxml.replace('fullCalcOnLoad="0"', 'fullCalcOnLoad="1"')
+        tdata["xl/workbook.xml"] = wbxml.encode("utf-8")
+    elif "<calcPr" in wbxml and "fullCalcOnLoad" not in wbxml:
         wbxml = re.sub(r"<calcPr\b", '<calcPr fullCalcOnLoad="1"', wbxml, count=1)
+        tdata["xl/workbook.xml"] = wbxml.encode("utf-8")
+    elif "<calcPr" not in wbxml:
+        # no calcPr element at all — add one so the flag has a home
+        wbxml = wbxml.replace("</workbook>", '<calcPr fullCalcOnLoad="1"/></workbook>')
         tdata["xl/workbook.xml"] = wbxml.encode("utf-8")
 
     # ---- add media + drawing parts ----

@@ -121,7 +121,9 @@ def reconstruct(workbook: Path) -> dict:
     for e in events:
         gtor_p = persons(e["grantor"])
         is_root = e["doc"] in ROOT_DOCS or is_sovereign(e["grantor"])
-        supported = is_root or not gtor_p or any(any_match(gtor_p, v) for v in vested)
+        # A grantor we cannot identify (empty/unparseable) is NOT support — it is
+        # a break to verify, not silently "ok".
+        supported = is_root or any(any_match(gtor_p, v) for v in vested)
         e["status"] = "root" if is_root else ("ok" if supported else "BREAK")
         gtee_p = persons(e["grantee"])
         if gtee_p:

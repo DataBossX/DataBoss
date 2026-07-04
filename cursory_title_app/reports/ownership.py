@@ -9,6 +9,7 @@ both and the gap, with confidence tags, so a human resolves it.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import openpyxl
@@ -135,9 +136,11 @@ def reconcile(workbook: Path) -> dict:
         tracts.append({"tract": i, **led})
 
     title = title_ownership(wb["Title "]) if "Title " in wb.sheetnames else []
-    # Align title sections to tract numbers by order of appearance.
+    # Align title sections to tract numbers by the actual "TRACT n:" header,
+    # not list position — gaps/reordering must not skew reconciliation.
     for idx, sec in enumerate(title):
-        sec["tract_num"] = idx + 1 if idx < 8 else None
+        m = re.search(r"TRACT\s+(\d+)", str(sec.get("tract", "")), re.I)
+        sec["tract_num"] = int(m.group(1)) if m else (idx + 1 if idx < 8 else None)
 
     from ..chain.entities import persons, any_match
     summary = []

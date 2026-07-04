@@ -82,8 +82,13 @@ def capture_document(session, url: str, queue_id: int,
             out["takeover"] = True
             store.audit("manual_takeover_required", url, {"queue_id": queue_id})
     finally:
-        # leave the page open so the human can take over if needed
-        pass
+        # Close the tab after capturing to avoid leaking a tab per document on
+        # long batch runs. If takeover is needed, leave it open for the human.
+        if not out.get("takeover"):
+            try:
+                page.close()
+            except Exception:
+                pass
     return out
 
 
@@ -98,7 +103,11 @@ def extract_from_images(image_paths: list[str], queue_id: int,
     if conf < config.CONFIDENCE_REVIEW_THRESHOLD:
         review_flags.append("VERIFY: OCR uncertain")
     if canon is None and original:
-        need_flags.append("NEED: review lease terms") if "lease" in (original or "").lower() else None
+        # Unrecognized doc type -> always flag for human review, not only leases.
+        if "lease" in original.lower():
+            need_flags.append("NEED: review lease terms")
+        else:
+            review_flags.append("VERIFY: OCR uncertain")
 
     ext = DocExtraction(
         instrument_number=raw.get("instrument_number"),

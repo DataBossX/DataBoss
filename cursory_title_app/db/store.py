@@ -112,15 +112,23 @@ def insert(table: str, row: dict) -> int:
 
 
 def upsert_queue(item: dict) -> int:
-    """Insert a work-queue item, ignoring duplicates by dedup_key."""
+    """Insert-or-update a work-queue item keyed by dedup_key. On re-analysis the
+    mutable fields (diff_kind, status, runsheet_row, …) are refreshed so counts
+    and pull lists never go stale. Always returns the row id (never 0), so
+    evidence is attached to the right item."""
     cols = list(item.keys())
     ph = ",".join("?" for _ in cols)
+    updatable = [c for c in cols if c != "dedup_key"]
+    set_clause = ",".join(f"{c}=excluded.{c}" for c in updatable) or "dedup_key=dedup_key"
     with conn() as c:
-        cur = c.execute(
-            f"INSERT OR IGNORE INTO work_queue ({','.join(cols)}) VALUES ({ph})",
+        c.execute(
+            f"INSERT INTO work_queue ({','.join(cols)}) VALUES ({ph}) "
+            f"ON CONFLICT(dedup_key) DO UPDATE SET {set_clause}",
             tuple(item[k] for k in cols),
         )
-        return cur.lastrowid
+        row = c.execute("SELECT id FROM work_queue WHERE dedup_key=?",
+                        (item["dedup_key"],)).fetchone()
+        return row[0] if row else 0
 
 
 def fetch_all(sql: str, params: Iterable = ()) -> list[dict]:

@@ -27,10 +27,31 @@ from ..runsheet.columns import (
 )
 
 
-def _excel_safe(value):
-    """Excel formulas via openpyxl must not begin with '=' unless intended.
-    We only ever write plain values here; HYPERLINK is handled separately."""
-    return value
+_FORMULA_TRIGGERS = ("=", "+", "-", "@")
+
+
+def _is_injection(value) -> bool:
+    """A plain (non-formula) value that Excel would interpret as a formula."""
+    return isinstance(value, str) and value[:1] in _FORMULA_TRIGGERS
+
+
+def _set_openpyxl(ws, coord, value, is_formula: bool):
+    """Set a cell; force string type for non-formula values that look like
+    formulas (e.g. a party name '=HYPERLINK(...)') so they can never execute."""
+    cell = ws[coord]
+    cell.value = value
+    if not is_formula and _is_injection(value):
+        cell.data_type = "s"
+
+
+def _set_com(ws, coord, value, is_formula: bool):
+    if is_formula:
+        ws.Range(coord).Formula = value
+    elif _is_injection(value):
+        # Leading apostrophe = Excel text indicator (hidden), neutralizes formula.
+        ws.Range(coord).Value = "'" + value
+    else:
+        ws.Range(coord).Value = value
 
 
 def _timestamp() -> str:
@@ -91,7 +112,7 @@ class OpenpyxlWriter(BaseWriter):
         for w in writes:
             cells = _resolve_cells(w.values)
             for col, value in cells.items():
-                ws[f"{col}{w.row}"] = _excel_safe(value)
+                _set_openpyxl(ws, f"{col}{w.row}", value, is_formula=False)
                 written += 1
             if w.document_link_url:
                 assert_writable("K")
@@ -137,7 +158,7 @@ class COMWriter(BaseWriter):
             for w in writes:
                 cells = _resolve_cells(w.values)
                 for col, value in cells.items():
-                    ws.Range(f"{col}{w.row}").Value = value
+                    _set_com(ws, f"{col}{w.row}", value, is_formula=False)
                     written += 1
                 if w.document_link_url:
                     assert_writable("K")
@@ -178,7 +199,7 @@ def _apply_edits_openpyxl(source: Path, edits: list[dict], out: Path) -> None:
     before = list(wb.sheetnames)
     for e in edits:
         ws = wb[e.get("sheet", "Runsheet")]
-        ws[e["cell"]] = e["value"]      # "=..." strings become formulas
+        _set_openpyxl(ws, e["cell"], e["value"], e.get("is_formula", False))
     if list(wb.sheetnames) != before:
         raise RuntimeError("Tab set changed during edit apply!")
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -197,10 +218,7 @@ def _apply_edits_com(source: Path, edits: list[dict], out: Path) -> None:
         before = [s.Name for s in wb.Worksheets]
         for e in edits:
             ws = wb.Worksheets(e.get("sheet", "Runsheet"))
-            if e.get("is_formula"):
-                ws.Range(e["cell"]).Formula = e["value"]
-            else:
-                ws.Range(e["cell"]).Value = e["value"]
+            _set_com(ws, e["cell"], e["value"], e.get("is_formula", False))
         if [s.Name for s in wb.Worksheets] != before:
             raise RuntimeError("Tab set changed during edit apply!")
         out.parent.mkdir(parents=True, exist_ok=True)

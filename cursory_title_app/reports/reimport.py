@@ -170,8 +170,9 @@ def apply_csv(workbook: Path, csv_path: Path, out_dir: Path = config.OUTPUT_DIR,
     with open(csv_path, newline="", encoding="utf-8-sig") as f:
         reader = list(csv.DictReader(f))
 
+    max_row = ws.max_row
     edits: list[dict] = []
-    added, updated, skipped = [], [], 0
+    added, updated, skipped, rejected = [], [], 0, []
     for row in reader:
         if (row.get("approve") or "").strip().lower() not in _TRUTHY:
             skipped += 1
@@ -183,6 +184,11 @@ def apply_csv(workbook: Path, csv_path: Path, out_dir: Path = config.OUTPUT_DIR,
                 tr = int(float(row["runsheet_row"]))
             except (KeyError, ValueError, TypeError):
                 skipped += 1
+                continue
+            # Never write above the first data row (would corrupt the header) or
+            # past the current data range.
+            if tr < FIRST_DATA_ROW or tr > max_row:
+                rejected.append({"runsheet_row": tr, "reason": "out of data range"})
                 continue
             edits += _value_edits_for_fields(row, tr)
             updated.append(tr)
@@ -209,4 +215,5 @@ def apply_csv(workbook: Path, csv_path: Path, out_dir: Path = config.OUTPUT_DIR,
                 {"backend": backend, "verify_ok": res["ok"]})
     return {"output": str(out), "backend": backend,
             "rows_added": added, "rows_updated": updated, "rows_skipped": skipped,
+            "rows_rejected": rejected,
             "cells_written": len(edits), "verify_ok": res["ok"], "verify": res}

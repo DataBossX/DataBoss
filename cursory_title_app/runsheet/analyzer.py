@@ -115,10 +115,13 @@ def analyze(workbook_path: Path) -> dict:
             diff_kind = "missing"
         else:
             runsheet_row = match[0]["row"]
-            # conflict if names disagree
-            ix_names = {_norm(ix.get("grantor")), _norm(ix.get("grantee"))}
-            ex_names = {_norm(match[0]["grantor"]), _norm(match[0]["grantee"])}
-            if ix_names and ex_names and not (ix_names & ex_names):
+            # conflict if the parties don't fully agree. Neither set being a
+            # subset of the other means a real mismatch (e.g. same grantor but a
+            # different grantee) — route it to review rather than call it present.
+            ix_names = {n for n in (_norm(ix.get("grantor")), _norm(ix.get("grantee"))) if n}
+            ex_names = {n for n in (_norm(match[0]["grantor"]), _norm(match[0]["grantee"])) if n}
+            if ix_names and ex_names and not (
+                    ix_names <= ex_names or ex_names <= ix_names):
                 diff_kind = "conflict"
             elif len(match) > 1:
                 diff_kind = "duplicate"

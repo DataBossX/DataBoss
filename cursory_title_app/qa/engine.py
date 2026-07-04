@@ -74,7 +74,9 @@ def qa_extraction(ext: DocExtraction) -> dict:
     # dedupe, keep deterministic order
     flags = sorted(set(flags))
     needs = sorted(set(needs))
-    passed = ext.confidence >= config.CONFIDENCE_REVIEW_THRESHOLD and not needs
+    # Any VERIFY flag or NEED item means a human must look — it does not pass.
+    passed = (ext.confidence >= config.CONFIDENCE_REVIEW_THRESHOLD
+              and not needs and not flags)
     return {
         "pass": passed,
         "flags": flags,

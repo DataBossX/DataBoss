@@ -48,6 +48,7 @@ def build(source: Path, out_dir: Path = config.OUTPUT_DIR) -> dict:
     led_total = round(sum((t.get("net_acres_traced") or 0) for t in rec["tracts"]), 2)
     title_total = round(sum((s["title_total"] or 0) for s in rec["summary"]), 2)
     missing_total = round(sum(s["acres_missing_from_title"] for s in rec["summary"]), 2)
+    section_acres = round(sum((t.get("tract_acres") or 0) for t in rec["tracts"]), 2) or led_total
 
     parts = [f"""<!doctype html><html><head><meta charset='utf-8'>
 <title>Section 31-12N-24W Cursory Title Report {DATED}</title>
@@ -75,7 +76,7 @@ Oklahoma attorney/landman against the source instruments. {_esc(law.disclaimer()
 
 <h2>Executive summary</h2>
 <div>
- <span class='kpi'>Section acreage<b>640.00</b></span>
+ <span class='kpi'>Section acreage<b>{section_acres}</b></span>
  <span class='kpi'>NMA accounted (ledgers)<b>{led_total}</b></span>
  <span class='kpi'>Curated Title NMA<b>{title_total}</b></span>
  <span class='kpi'>Current owners missing from Title<b>{missing_total} ac</b></span>

@@ -51,6 +51,9 @@ class Settings:
         "OKCOUNTY_API_BASE_URL", "https://api.okcountyrecords.com"))
     okcounty_username_env: str = "OKCOUNTY_USERNAME"
     okcounty_password_env: str = "OKCOUNTY_PASSWORD"
+    # Fallback county for source lookups when a row/sheet does not name one.
+    default_county: str = field(default_factory=lambda: os.getenv(
+        "DATABOSSX_COUNTY", ""))
     curl_binary: str = field(default_factory=lambda: os.getenv("DATABOSSX_CURL", "curl"))
     curl_user_agent: str = field(default_factory=lambda: os.getenv(
         "DATABOSSX_UA", "Mozilla/5.0 (DataBossX-ValidationAgent/1.0)"))

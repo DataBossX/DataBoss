@@ -301,26 +301,124 @@ class PerfectionLoopOrchestrator:
 
     def _gate_source_verification(self, ctx: RunContext, manifest: WorkbookManifest,
                                   iteration: int) -> GateResult:
+        """Verify material title rows against OKCountyRecords metadata.
+
+        For each row that carries enough lookup keys (a county plus a Book/Page
+        or Instrument #), retrieve the record and compare its parties and legal
+        description to the workbook.  Retrieval is free-metadata only; a spend
+        block, a failed retrieval, or a contradiction each escalates under the
+        appropriate taxonomy category.  Nothing is fetched or asserted beyond
+        what the source document actually says.
+        """
         if not self.source_client.is_configured():
             return GateResult(11, "Source Verification", GateStatus.SKIPPED, [],
                               "OKCountyRecords not configured; source verification "
                               "deferred to examiner.")
-        # With credentials present, verification would iterate material rows and
-        # compare retrieved metadata to workbook facts.  A spend block surfaces
-        # here as an API_SPEND_BLOCKED escalation.
-        if self.source_client.guard.remaining() <= 0:
-            finding = Finding(
-                gate_id=11, gate_name="Source Verification",
-                category=FailureCategory.API_SPEND_BLOCKED,
-                severity=Severity.SYSTEM_HIGH,
-                message="Source verification requires a paid fetch but the $100 "
-                        "cap is exhausted.",
-                location=CellRef(sheet="(sources)"), subject="source verification",
-                repairable=False, escalate=True)
-            return GateResult(11, "Source Verification", GateStatus.FAIL, [finding],
-                              finding.message)
+
+        rows = self._verifiable_source_rows(manifest)
+        if not rows:
+            return GateResult(11, "Source Verification", GateStatus.SKIPPED, [],
+                              "No rows carry sufficient lookup keys (county + "
+                              "Book/Page or Instrument #); deferred to examiner.")
+
+        search_cost = config.okcounty_cost_per_search
+        findings: list[Finding] = []
+        checked = 0
+        for row in rows:
+            # Pre-check the cap without logging a decision; a genuine block is
+            # then recorded once as an API_SPEND_BLOCKED escalation.
+            if search_cost > 0 and self.source_client.guard.remaining() < search_cost:
+                findings.append(Finding(
+                    gate_id=11, gate_name="Source Verification",
+                    category=FailureCategory.API_SPEND_BLOCKED,
+                    severity=Severity.SYSTEM_HIGH,
+                    message=("Source retrieval required but blocked by the $100 "
+                             f"cap (remaining ${self.source_client.guard.remaining():.2f})."),
+                    location=row["location"], subject=row["subject"],
+                    repairable=False, escalate=True))
+                break
+
+            checked += 1
+            record = self.source_client.search_document(
+                row["county"], book=row["book"], page=row["page"],
+                instrument_number=row["inst"], run_id=ctx.run_id)
+            if record is None:
+                findings.append(Finding(
+                    gate_id=11, gate_name="Source Verification",
+                    category=FailureCategory.UNVERIFIABLE_SOURCE, severity=Severity.HIGH,
+                    message=(f"{row['subject']}: source could not be retrieved from "
+                             f"OKCountyRecords ({row['ref']})."),
+                    location=row["location"], subject=row["subject"],
+                    repairable=False, escalate=True))
+                continue
+
+            ok, reason = self.source_client.verify_against(
+                record, expected_parties=row["parties"],
+                expected_legal=row["legal"])
+            if not ok:
+                findings.append(Finding(
+                    gate_id=11, gate_name="Source Verification",
+                    category=FailureCategory.SOURCE_LEGAL_MISMATCH,
+                    severity=Severity.CRITICAL,
+                    message=f"{row['subject']}: {reason}",
+                    location=row["location"], subject=row["subject"],
+                    repairable=False, escalate=True,
+                    evidence={"document_id": record.document_id, "reason": reason}))
+
+        if findings:
+            return GateResult(11, "Source Verification", GateStatus.FAIL, findings,
+                              f"{len(findings)} source issue(s) across {checked} "
+                              f"row(s) checked.", {"checked": checked})
         return GateResult(11, "Source Verification", GateStatus.PASS, [],
-                          "Source verification budget available.")
+                          f"{checked} source(s) verified against workbook facts.",
+                          {"checked": checked})
+
+    def _verifiable_source_rows(self, manifest: WorkbookManifest) -> list[dict]:
+        """Collect runsheet/OGL rows that have enough keys to look up a source."""
+        from ..validators._helpers import (data_cells_in_column,
+                                            find_header_column, is_total_row)
+        material = (manifest.by_category(SheetCategory.RUNSHEET)
+                    + manifest.by_category(SheetCategory.OGL_REGISTER))
+        rows: list[dict] = []
+        for sheet in material:
+            book_col = find_header_column(sheet, "book")
+            page_col = find_header_column(sheet, "page")
+            inst_col = find_header_column(sheet, "instrument number", "inst #",
+                                          "instrument #", "instrument no")
+            county_col = find_header_column(sheet, "county")
+            legal_col = find_header_column(sheet, "legal description", "legal",
+                                           "description")
+            grantor_col = find_header_column(sheet, "grantor", "lessor")
+            grantee_col = find_header_column(sheet, "grantee", "lessee")
+            anchor = grantor_col or inst_col or book_col
+            if not anchor:
+                continue
+
+            def _txt(col, r):
+                if not col:
+                    return ""
+                cell = sheet.cell(f"{col}{r}")
+                return str(cell.value).strip() if cell and cell.value is not None else ""
+
+            for cell in data_cells_in_column(sheet, anchor):
+                r = cell.row
+                if is_total_row(sheet, r) or cell.value is None:
+                    continue
+                book, page, inst = _txt(book_col, r), _txt(page_col, r), _txt(inst_col, r)
+                if not ((book and page) or inst):
+                    continue
+                county = _txt(county_col, r) or config.default_county
+                if not county:
+                    continue
+                parties = [p for p in (_txt(grantor_col, r), _txt(grantee_col, r)) if p]
+                rows.append({
+                    "county": county, "book": book, "page": page, "inst": inst,
+                    "parties": parties, "legal": _txt(legal_col, r),
+                    "ref": f"Book {book}/Page {page}" if book else f"Inst {inst}",
+                    "subject": f"{sheet.name} row {r}",
+                    "location": CellRef(sheet=sheet.name, cell=f"{anchor}{r}"),
+                })
+        return rows
 
     def _gate_audit_completeness(self, ctx: RunContext, iteration: int,
                                  expected_results: int,

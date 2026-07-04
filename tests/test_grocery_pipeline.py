@@ -213,6 +213,25 @@ def test_unparseable_decimal_excluded_and_noted(tmp_path):
     assert any("non-numeric:decimal_interest" in f["review_flags"] for f in facts)
 
 
+def test_unparseable_row_flagged_even_when_sum_is_one(tmp_path):
+    """Parseable rows summing to 1.0 must NOT hide an excluded unparseable row."""
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / "own.csv").write_text(
+        "Mineral Owner,Legal Description,Decimal Interest\n"
+        "A,\"Section 11, T3N, R3W\",0.50000000\n"
+        "B,\"Section 11, T3N, R3W\",0.50000000\n"
+        "C,\"Section 11, T3N, R3W\",TBD\n", encoding="utf-8")
+    out = tmp_path / "o"
+    grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=grp.BuildLog())
+    rr = _read_csv(out / "review_required.csv")
+    # Sum of parseable rows is exactly 1.0, so no decimal-sum conflict fires...
+    assert not any(r["rule"] == "decimal-sum" for r in rr)
+    # ...but the excluded unparseable row must still surface as a review item.
+    assert any(r["rule"] == "decimal-unparseable" for r in rr), \
+        "excluded unparseable owner row is invisible in review output"
+
+
 def test_percentage_ownership_sheet_not_flagged(tmp_path):
     """A CSV whose decimals are percentages summing to 100% must reconcile to 1.0."""
     corpus = tmp_path / "c"

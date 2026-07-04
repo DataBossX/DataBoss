@@ -1277,6 +1277,14 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
             conflicts.append(["decimal-sum", legal,
                               f"Decimals sum to {dec_sum} (expected 1.0){excl}",
                               "; ".join(sorted({f.source_file for _, f in decs}))])
+        # An excluded (unparseable) decimal must always raise a review item, even
+        # when the remaining rows happen to sum to 1.0 -- otherwise a dropped
+        # owner row would be invisible in the curative list / dashboard.
+        if unparseable:
+            conflicts.append(["decimal-unparseable", legal,
+                              f"{unparseable} owner/decimal row(s) excluded from the "
+                              f"sum because the decimal could not be parsed",
+                              "; ".join(sorted({f.source_file for f in group}))])
         if len(gross_vals) > 1:
             conflicts.append(["acreage-mismatch", legal,
                               f"Conflicting gross acres: {gross_vals}",

@@ -1,0 +1,19 @@
+# Grocery Report Pipeline dependencies
+# ------------------------------------
+# The pipeline runs on the Python standard library alone. Everything below is
+# OPTIONAL and only improves fidelity; the pipeline degrades gracefully and
+# logs a note when a backend is absent (never crashes).
+
+# --- Recommended (report fidelity) ---
+openpyxl>=3.1.5        # .xlsx outputs (else CSV fallback)
+python-docx>=1.1.2     # .docx draft report (else Markdown only)
+rapidfuzz>=3.9.0       # better fuzzy/near-duplicate matching (else stdlib difflib)
+
+# --- Optional (PDF / scanned-image text extraction) ---
+pdfplumber>=0.11.0     # PDF text layer
+PyMuPDF>=1.24.0        # PDF text layer + rasterization for OCR
+pytesseract>=0.3.13    # OCR (also requires the Tesseract binary on PATH)
+Pillow>=10.4.0         # image handling for OCR
+
+# --- Testing ---
+pytest>=8.0.0

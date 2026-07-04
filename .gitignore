@@ -68,3 +68,8 @@ __pycache__/
 
 # Android SDK
 android-sdk/
+
+# Grocery Report pipeline generated artifacts (regenerable; may contain client data)
+/output/
+_synthetic_corpus/
+.pytest_cache/

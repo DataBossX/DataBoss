@@ -41,6 +41,18 @@ def _all_findings(outcome) -> list[Finding]:
             for f in r.findings]
 
 
+def _unique_dir(out_dir: Path, stem: str, used: set[str]) -> Path:
+    """A collision-free output folder name for a workbook stem within a batch."""
+    name = stem or "workbook"
+    candidate = name
+    n = 1
+    while candidate in used:
+        candidate = f"{name}_{n}"
+        n += 1
+    used.add(candidate)
+    return out_dir / candidate
+
+
 def run_horizon(root: str | Path, out_dir: Optional[str | Path] = None,
                 *, timestamp: Optional[str] = None) -> dict:
     root = Path(root).resolve()
@@ -54,50 +66,51 @@ def run_horizon(root: str | Path, out_dir: Optional[str | Path] = None,
     orchestrator = PerfectionLoopOrchestrator()
     builder = WorkbookManifestBuilder()
     processed: list[dict] = []
+    used_names: set[str] = set()
 
     for idx, wb in enumerate(org.workbooks):
         wb_path = Path(wb)
         ts = f"{base_ts}_{idx:03d}"
+        # Whole body is guarded: one bad workbook must never abort the batch or
+        # skip the index. Distinct output folder so same-stem workbooks (e.g.
+        # 2019/RunSheet.xlsx and 2021/RunSheet.xlsx) never clobber each other.
+        wb_out = _unique_dir(out_dir, wb_path.stem, used_names)
         try:
             outcome = orchestrator.run(wb_path, timestamp=ts)
-        except Exception as exc:  # noqa: BLE001 -- one bad workbook must not stop the batch
+            OutputGenerator().generate(outcome)
+            findings = _all_findings(outcome)
+
+            final_path = outcome.ctx.version_path(outcome.final_version)
+            if not final_path.is_file():
+                final_path = outcome.ctx.v0_path
+            manifest = builder.build(outcome.run_id, outcome.final_version,
+                                     final_path, sha256_of(final_path))
+
+            wb_out.mkdir(parents=True, exist_ok=True)
+            TitleReportGenerator().generate(manifest, wb_out, findings=findings,
+                                            prospect=wb_path.stem)
+            run_reports = outcome.ctx.run_folder / "reports"
+            if run_reports.is_dir():
+                shutil.copytree(run_reports, wb_out / "validation",
+                                dirs_exist_ok=True)
+            esc_dir = outcome.ctx.run_folder / "escalations"
+            if esc_dir.is_dir() and any(esc_dir.iterdir()):
+                shutil.copytree(esc_dir, wb_out / "escalations", dirs_exist_ok=True)
+            cert = outcome.ctx.run_folder / "certification.md"
+            if cert.is_file():
+                shutil.copy2(cert, wb_out / "certification.md")
+
+            processed.append({
+                "workbook": str(wb_path),
+                "run_id": outcome.run_id,
+                "state": outcome.final_state,
+                "certified": outcome.certified,
+                "iterations": len(outcome.iterations),
+                "escalations": len(outcome.escalations),
+                "output": str(wb_out),
+            })
+        except Exception as exc:  # noqa: BLE001 -- isolate per-workbook failures
             processed.append({"workbook": str(wb_path), "error": str(exc)})
-            continue
-
-        OutputGenerator().generate(outcome)
-        findings = _all_findings(outcome)
-
-        final_path = outcome.ctx.version_path(outcome.final_version)
-        if not final_path.is_file():
-            final_path = outcome.ctx.v0_path
-        manifest = builder.build(outcome.run_id, outcome.final_version,
-                                 final_path, sha256_of(final_path))
-
-        wb_out = out_dir / wb_path.stem
-        wb_out.mkdir(parents=True, exist_ok=True)
-        TitleReportGenerator().generate(manifest, wb_out, findings=findings,
-                                        prospect=wb_path.stem)
-        # Copy the validation deliverables alongside the title report.
-        run_reports = outcome.ctx.run_folder / "reports"
-        if run_reports.is_dir():
-            shutil.copytree(run_reports, wb_out / "validation",
-                            dirs_exist_ok=True)
-        esc_dir = outcome.ctx.run_folder / "escalations"
-        if esc_dir.is_dir() and any(esc_dir.iterdir()):
-            shutil.copytree(esc_dir, wb_out / "escalations", dirs_exist_ok=True)
-        cert = outcome.ctx.run_folder / "certification.md"
-        if cert.is_file():
-            shutil.copy2(cert, wb_out / "certification.md")
-
-        processed.append({
-            "workbook": str(wb_path),
-            "run_id": outcome.run_id,
-            "state": outcome.final_state,
-            "certified": outcome.certified,
-            "iterations": len(outcome.iterations),
-            "escalations": len(outcome.escalations),
-            "output": str(wb_out),
-        })
 
     _write_index(out_dir, root, org, processed)
     return {"organize": org.summary(), "processed": processed,

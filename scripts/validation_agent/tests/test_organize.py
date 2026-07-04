@@ -25,8 +25,8 @@ def test_extract_dedupe_trash(tmp_path):
     _make_messy(tmp_path)
     result = WorkspaceOrganizer().run(tmp_path)
     assert len(result.extracted_zips) == 1
-    # inside.txt should now exist on disk (extracted).
-    assert (tmp_path / "bundle" / "inside.txt").is_file()
+    # inside.txt should now exist on disk (extracted to a distinct dir).
+    assert (tmp_path / "bundle_extracted" / "inside.txt").is_file()
     # one duplicate quarantined, not deleted.
     assert len(result.duplicates) == 1
     assert (tmp_path / "_quarantine" / "duplicates").exists()
@@ -60,3 +60,17 @@ def test_zip_slip_is_refused(tmp_path):
         WorkspaceOrganizer._safe_extract(evil, tmp_path / "dest")
     # the traversal target must not have been created outside dest.
     assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_zip_slip_sibling_escape_refused(tmp_path):
+    # A member that resolves to a sibling dir sharing a name prefix must be
+    # rejected (a bare startswith check would wrongly allow it).
+    dest = tmp_path / "data"
+    dest.mkdir()
+    (tmp_path / "data_evil").mkdir()
+    evil = tmp_path / "sib.zip"
+    with zipfile.ZipFile(evil, "w") as z:
+        z.writestr("../data_evil/payload.txt", "pwned")
+    with pytest.raises(RuntimeError):
+        WorkspaceOrganizer._safe_extract(evil, dest)
+    assert not (tmp_path / "data_evil" / "payload.txt").exists()

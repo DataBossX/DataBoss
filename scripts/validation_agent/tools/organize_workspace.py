@@ -123,9 +123,15 @@ class WorkspaceOrganizer:
                 break
             for zip_path in pending:
                 processed.add(str(zip_path))
-                dest = zip_path.with_suffix("")  # extract beside the archive
-                if dest.exists() and any(dest.iterdir()):
-                    continue  # already extracted
+                # Use a distinct, unambiguous extraction dir so we never collide
+                # with an unrelated file/folder named after the archive stem.
+                dest = zip_path.with_name(zip_path.stem + "_extracted")
+                try:
+                    if dest.is_dir() and any(dest.iterdir()):
+                        continue  # already extracted on a prior run
+                except OSError as exc:
+                    result.errors.append(f"check {dest}: {exc}")
+                    continue
                 try:
                     self._safe_extract(zip_path, dest)
                     result.extracted_zips.append(str(zip_path))
@@ -139,8 +145,10 @@ class WorkspaceOrganizer:
         with zipfile.ZipFile(zip_path) as zf:
             for member in zf.namelist():
                 target = (dest / member).resolve()
-                # zip-slip guard: refuse any member that escapes dest.
-                if not str(target).startswith(str(dest_res)):
+                # zip-slip guard: the member must resolve to dest itself or a
+                # path strictly inside it. A bare startswith would accept a
+                # sibling like /root/data_evil next to /root/data.
+                if target != dest_res and dest_res not in target.parents:
                     raise RuntimeError(f"unsafe path in archive: {member}")
             zf.extractall(dest)
 
@@ -154,7 +162,9 @@ class WorkspaceOrganizer:
             try:
                 if _is_junk(path) or path.stat().st_size == 0:
                     result.trash.append(str(path))
-                    self._move(path, trash_dir, root)
+                    err = self._move(path, trash_dir, root)
+                    if err:
+                        result.errors.append(err)
                     continue
                 rec = FileRecord(path=str(path),
                                  rel=str(path.relative_to(root)),
@@ -183,26 +193,38 @@ class WorkspaceOrganizer:
             keeper = recs_sorted[0]
             kept_files.append(keeper)
             for dup in recs_sorted[1:]:
+                err = self._move(Path(dup.path), dup_dir, root)
+                if err:
+                    # Could not quarantine (locked / read-only): keep the file in
+                    # place and record it, but do NOT claim it was moved.
+                    result.errors.append(err)
+                    continue
                 result.duplicates.append({"kept": keeper.rel, "duplicate": dup.rel,
                                           "sha256": digest})
-                self._move(Path(dup.path), dup_dir, root)
                 if dup.path in result.workbooks:
                     result.workbooks.remove(dup.path)
         result.files = kept_files
 
     # -- helpers ------------------------------------------------------------
-    def _move(self, path: Path, dest_root: Path, root: Path) -> None:
+    def _move(self, path: Path, dest_root: Path, root: Path) -> Optional[str]:
+        """Move a file into quarantine. Returns an error string on failure, or
+        None on success (or when quarantine is disabled)."""
         if not self.quarantine:
-            return
+            return None
         try:
             rel = path.relative_to(root)
         except ValueError:
             rel = Path(path.name)
         target = dest_root / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if target.exists():
-            target = target.with_name(f"{target.stem}_{_sha256(path)[:8]}{target.suffix}")
-        shutil.move(str(path), str(target))
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                target = target.with_name(
+                    f"{target.stem}_{_sha256(path)[:8]}{target.suffix}")
+            shutil.move(str(path), str(target))
+        except OSError as exc:
+            return f"move {path}: {exc}"
+        return None
 
     def _write_report(self, root: Path, result: OrganizeResult) -> None:
         report_dir = root / _QUARANTINE

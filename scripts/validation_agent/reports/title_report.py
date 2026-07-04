@@ -153,12 +153,30 @@ class TitleReportGenerator:
         """Move interest per one conveyance using exact fractions."""
         grantor_key = link.grantor.upper()
         grantee_key = link.grantee.upper()
+
+        if not grantee_key:
+            result.warnings.append(
+                f"Link {order}: grantee is blank; interest not moved (would create "
+                f"a phantom owner).")
+            return
+        if grantor_key == grantee_key:
+            result.warnings.append(
+                f"Link {order}: grantor and grantee are the same party "
+                f"({link.grantor}); treated as a correction -- no interest moved.")
+            return
+
+        prev_grantor = result.ownership.get(grantor_key)
         conveyed = link.conveyed
         if conveyed is None:
-            result.warnings.append(
-                f"Link {order} ({link.grantor}->{link.grantee}): conveyed interest "
-                f"unparseable; ledger not advanced for this row.")
-            return
+            # A deed may state only what is RESERVED; then the grantor conveys
+            # everything they held except the reservation.
+            if link.retained is not None and prev_grantor is not None:
+                conveyed = prev_grantor - link.retained
+            else:
+                result.warnings.append(
+                    f"Link {order} ({link.grantor}->{link.grantee}): conveyed "
+                    f"interest could not be determined; ledger not advanced.")
+                return
 
         is_root = grantor_key in _SOVEREIGN or (order == 1
                                                 and grantor_key not in result.ownership)
@@ -196,8 +214,8 @@ class TitleReportGenerator:
         registers = manifest.by_category(SheetCategory.OGL_REGISTER)
         tracts = manifest.by_category(SheetCategory.TRACT)
         wi_sheets = manifest.by_category(SheetCategory.WORKING_INTEREST)
-        referenced = self._collect_lease_locs(tracts)
-        in_wi = set(self._collect_lease_locs(wi_sheets).keys())
+        referenced = self._collect_lease_refs(tracts)
+        in_wi = set(self._collect_lease_refs(wi_sheets).keys())
 
         out: list[dict] = []
         for sheet in registers:
@@ -216,7 +234,7 @@ class TitleReportGenerator:
                     continue
                 lease = str(cell.value).strip()
                 key = lease.upper().replace(" ", "")
-                tracts_ref = sorted({loc for k, loc in referenced.items() if k == key})
+                tracts_ref = sorted(set(referenced.get(key, [])))
                 out.append({
                     "ogl_number": lease,
                     "lessor": self._txt(sheet, lessor_col, cell.row),
@@ -231,17 +249,24 @@ class TitleReportGenerator:
                 })
         return out
 
-    def _collect_lease_locs(self, sheets) -> dict[str, str]:
-        out: dict[str, str] = {}
+    def _collect_lease_refs(self, sheets) -> dict[str, list[str]]:
+        """Map each OGL key to every tract label that references it (a lease may
+        be referenced from several tract rows/sheets)."""
+        out: dict[str, list[str]] = {}
         for sheet in sheets:
             col = find_header_column(sheet, "ogl", "lease number", "lease id", "lease")
             if not col:
                 continue
+            label_col = find_header_column(sheet, "tract", "parcel")
             for cell in data_cells_in_column(sheet, col):
                 if is_total_row(sheet, cell.row) or cell.value is None:
                     continue
                 key = str(cell.value).upper().replace(" ", "")
-                out.setdefault(key, sheet.name)
+                label = self._txt(sheet, label_col, cell.row) if label_col else ""
+                label = (f"{sheet.name}: {label}" if label else sheet.name)
+                out.setdefault(key, [])
+                if label not in out[key]:
+                    out[key].append(label)
         return out
 
     # -- net mineral acres --------------------------------------------------

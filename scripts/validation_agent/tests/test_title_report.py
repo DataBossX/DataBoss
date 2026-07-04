@@ -45,6 +45,40 @@ def test_vesting_gap_is_flagged_not_invented(tmp_path):
     assert any("not previously vested" in w for w in chain.warnings)
 
 
+def test_reservation_only_conveyance_advances_ledger(tmp_path):
+    # Grantor conveys everything except a reserved 1/8: conveyed is blank.
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Runsheet"
+    ws.append(["Grantor", "Grantee", "Conveyed", "Retained"])
+    ws.append(["US PATENT", "ALICE", "1", ""])
+    ws.append(["ALICE", "BOB", "", "1/8"])  # reserves 1/8, conveys the rest
+    p = tmp_path / "res.xlsx"
+    wb.save(p)
+    chain = TitleReportGenerator()._chain_out(_manifest(p))
+    assert chain.ownership.get("ALICE") == Fraction(1, 8)
+    assert chain.ownership.get("BOB") == Fraction(7, 8)
+    assert chain.total_owned == Fraction(1)
+
+
+def test_self_conveyance_and_blank_grantee_do_not_corrupt(tmp_path):
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Runsheet"
+    ws.append(["Grantor", "Grantee", "Conveyed", "Retained"])
+    ws.append(["US PATENT", "ALICE", "1", ""])
+    ws.append(["ALICE", "ALICE", "1/2", ""])   # self-conveyance (correction)
+    ws.append(["ALICE", "", "1/4", ""])         # blank grantee
+    p = tmp_path / "sc.xlsx"
+    wb.save(p)
+    chain = TitleReportGenerator()._chain_out(_manifest(p))
+    assert chain.ownership.get("ALICE") == Fraction(1)  # unchanged
+    assert "" not in chain.ownership                     # no phantom owner
+    assert len(chain.warnings) == 2
+
+
 def test_report_files_written(tmp_path):
     m = _manifest(build_certifiable_workbook(tmp_path / "c.xlsx"))
     out = tmp_path / "reports"

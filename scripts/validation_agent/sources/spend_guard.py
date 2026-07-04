@@ -54,7 +54,18 @@ class SpendGuard:
         return (self.cap - self._cumulative).quantize(Decimal("0.01"))
 
     def can_afford(self, amount) -> bool:
+        self._sync_from_ledger()
         return (self._cumulative + _q(amount)) <= self.cap
+
+    def _sync_from_ledger(self) -> None:
+        """Re-seed cumulative from the durable append-only ledger.
+
+        Making the ledger the single source of truth before each decision means
+        multiple guard instances on the same run cannot each approve spend
+        against a stale in-memory view and jointly exceed the cap.
+        """
+        if self.db is not None:
+            self._cumulative = _q(self.db.cumulative_spend(self.run_id))
 
     def evaluate(self, amount, *, examiner_approved: bool = False) -> SpendDecision:
         """Decide whether a paid call may proceed — WITHOUT recording spend.
@@ -63,6 +74,7 @@ class SpendGuard:
         (b) either the examiner approved it, or auto-approve is on and the
         amount is under the per-document limit.
         """
+        self._sync_from_ledger()
         amt = _q(amount)
         before = self._cumulative
         after = (before + amt).quantize(Decimal("0.01"))

@@ -54,6 +54,7 @@ class OGLRecord:
     legal_description: str = ""
     doc_type: str = ""
     instrument_date: str = ""
+    gross_acres: str = ""
 
     @property
     def key(self) -> str:

@@ -27,7 +27,7 @@ from .chaining import (
     normalize_instrument,
     reconcile_chain,
 )
-from .interest import FULL, format_fraction
+from .interest import FULL, format_acres, format_fraction, net_acres, try_parse_interest
 from .models import ESCALATED_TAG, REVIEW_TAG, ReportModel, TitleRow
 
 # Sheet-name hints for auto-detecting the two registers inside one workbook.
@@ -47,6 +47,8 @@ _OGL_HEADERS: Dict[str, str] = {
     "description": "legal_description", "tract": "legal_description",
     "type": "doc_type", "doc_type": "doc_type", "instrument_type": "doc_type",
     "date": "instrument_date", "instrument_date": "instrument_date", "dated": "instrument_date",
+    "acres": "gross_acres", "gross_acres": "gross_acres", "gross": "gross_acres",
+    "acreage": "gross_acres", "gross_acreage": "gross_acres",
 }
 _RUNSHEET_HEADERS: Dict[str, str] = {
     "instrument": "instrument_number", "instrument_number": "instrument_number",
@@ -98,6 +100,7 @@ def read_ogl_records(path: Path, sheet: Optional[str] = None) -> List[OGLRecord]
                     legal_description=data.get("legal_description", ""),
                     doc_type=data.get("doc_type", ""),
                     instrument_date=data.get("instrument_date", ""),
+                    gross_acres=data.get("gross_acres", ""),
                 ))
     wb.close()
     return records
@@ -253,7 +256,18 @@ def chain_to_report(
                 status = REVIEW_TAG
 
             retained_txt = format_fraction(rc.retained) if rc.retained is not None else ""
+
+            # Net mineral acres = conveyed interest x gross acres, exact. Blank
+            # (never guessed) when gross acres or the conveyed interest is unknown.
             nma_txt = ""
+            gross = try_parse_interest(rec.gross_acres) \
+                if str(rec.gross_acres).strip() else None
+            if gross is not None and link.conveyed is not None:
+                nma_txt = format_acres(net_acres(link.conveyed, gross))
+            elif str(rec.gross_acres).strip() and link.conveyed is not None:
+                remarks_bits.append("Gross acres unparseable; net acres not computed")
+                status = REVIEW_TAG
+
             # attach runsheet notes into remarks (verification trail)
             for note in xref.get(key, CrossRef(key=key)).notes if key else []:
                 if note.note:

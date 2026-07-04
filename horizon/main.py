@@ -27,12 +27,14 @@ if __package__ in (None, ""):
     from horizon.audit import AuditLog
     from horizon.config import HorizonConfig
     from horizon.foundation import run_cleanup
+    from horizon.artifacts import write_all
     from horizon.orchestrator import Orchestrator
     from horizon.pipeline import build_from_workbook, find_reference_workbook
     from horizon.report_io import read_report, write_report
     from horizon.validation import load_requirements
     from horizon.versioning import latest_version, next_version_path
 else:
+    from .artifacts import write_all
     from .audit import AuditLog
     from .config import HorizonConfig
     from .foundation import run_cleanup
@@ -104,6 +106,9 @@ def run(args: argparse.Namespace) -> int:
             out = next_version_path(cfg.final_reports, base_stem)
             write_report(build.report, out)
             audit.info("chain_build_written", out.name)
+            # Human-facing punch list: what an examiner must resolve.
+            for name, n in write_all(build, cfg.final_reports):
+                audit.info("review_artifact", f"{name}: {n} row(s)")
 
     current = latest_version(cfg.final_reports, base_stem)
     if current is None:

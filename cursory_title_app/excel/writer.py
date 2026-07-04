@@ -145,7 +145,9 @@ class COMWriter(BaseWriter):
     def write(self, writes: list, output_path: Path) -> dict:
         import win32com.client as win32  # pywin32, Windows only
 
-        excel = win32.gencache.EnsureDispatch("Excel.Application")
+        # DispatchEx spins up a DEDICATED, isolated Excel process so Quit() only
+        # closes ours — never the user's other open workbooks.
+        excel = win32.DispatchEx("Excel.Application")
         excel.Visible = False
         excel.DisplayAlerts = False
         wb = None

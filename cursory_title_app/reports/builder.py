@@ -56,16 +56,23 @@ def _compute_dated_edits(source: Path) -> tuple[list[dict], list[int], list[int]
     edits: list[dict] = []
     link_fixes, date_flags = [], []
     for r in range(FIRST_DATA_ROW, last + 1):
-        # (1) repair plain-text Document Link -> working HYPERLINK
+        # (1) repair Document Link cells that aren't already HYPERLINK formulas:
+        #     a bare http(s) URL -> clickable HYPERLINK to that URL; other plain
+        #     text (e.g. "OKCountyRecords: 1994-007065") -> detail link by instr#.
         k = ws.cell(r, 11).value
-        if isinstance(k, str) and not k.strip().upper().startswith("=HYPERLINK") \
-                and not k.strip().lower().startswith("http"):
-            instr = str(ws.cell(r, 1).value or "").strip()
-            if instr:
-                assert_writable("K")
+        if isinstance(k, str) and k.strip() and not k.strip().upper().startswith("=HYPERLINK"):
+            ks = k.strip()
+            assert_writable("K")
+            if ks.lower().startswith("http"):
                 edits.append({"cell": f"K{r}", "is_formula": True,
-                              "value": hyperlink_formula(DETAIL + quote(instr), k.strip())})
+                              "value": hyperlink_formula(ks, ks)})
                 link_fixes.append(r)
+            else:
+                instr = str(ws.cell(r, 1).value or "").strip()
+                if instr:
+                    edits.append({"cell": f"K{r}", "is_formula": True,
+                                  "value": hyperlink_formula(DETAIL + quote(instr), ks)})
+                    link_fixes.append(r)
 
         # (2) QC flag: effective date after recorded date (computed values)
         eff, rec = wv.cell(r, 5).value, wv.cell(r, 6).value

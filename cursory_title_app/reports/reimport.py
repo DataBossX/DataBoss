@@ -75,6 +75,7 @@ def _parse_date(s):
 
 # --------------------------------------------------------------------------- #
 def template_csv(workbook: Path, out_csv: Path) -> dict:
+    store.init()   # ensure the SQLite schema exists on a fresh machine
     wb = openpyxl.load_workbook(workbook, data_only=False, keep_links=True)
     ws = wb["Runsheet"]
     last = _last_data_row(ws)

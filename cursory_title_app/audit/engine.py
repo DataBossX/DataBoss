@@ -10,6 +10,7 @@ Run:  python -m cursory_title_app.audit.engine <workbook.xlsx>
 from __future__ import annotations
 
 import json
+import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -94,11 +95,11 @@ def audit_runsheet(wsF, wsV) -> list[Finding]:
                 out.append(Finding("R-MISSING-TRACT", "low", "MEDIUM", f"Runsheet row {r}",
                            f"{doc or conv} row has no Tract(s) assignment."))
 
-        # R-4 STR / legal consistency
+        # R-4 STR / legal consistency (word-boundary so "131" != Section 31)
         if legal:
             up = legal.upper()
-            if (config.TARGET_SECTION not in up and "ALL" not in up
-                    and "AOL" not in up):
+            has_sec = re.search(rf"(?<!\d){re.escape(config.TARGET_SECTION)}(?!\d)", up)
+            if (not has_sec and "ALL" not in up and "AOL" not in up):
                 out.append(Finding("R-LEGAL-STR", "low", "LOW", f"Runsheet!I{r}",
                            f"Legal description does not reference Sec "
                            f"{config.TARGET_SECTION}: {legal[:60]!r}"))

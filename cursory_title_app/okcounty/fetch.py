@@ -61,14 +61,20 @@ def fetch(groups=GROUPS, confirm=False, out_dir: Path | None = None,
         num = t["number"]
         try:
             path = client.save_image(num, out_dir)
+            # Don't regress a row already advanced past download (e.g. extracted).
+            existing = store.fetch_one(
+                "SELECT status FROM work_queue WHERE dedup_key=?", (f"okc::{num}",))
+            status = existing["status"] if existing and existing["status"] in (
+                "extracted", "review", "done") else "downloaded"
             qid = store.upsert_queue({
                 "dedup_key": f"okc::{num}", "source": "okcounty",
                 "instrument_number": num, "book_page": t.get("bkpg"),
                 "doc_type": t.get("type"), "grantor": t.get("party"),
                 "document_url": f"{client.base_url}/images?county={config.TARGET_COUNTY}&number={num}",
-                "status": "downloaded", "diff_kind": t["_group"],
+                "status": status, "diff_kind": t["_group"],
             })
-            store.add_evidence(qid or 0, "pdf", source_url=num, file_path=str(path))
+            if qid:
+                store.add_evidence(qid, "pdf", source_url=num, file_path=str(path))
             fetched.append({"number": num, "path": str(path)})
             print(f"  [{i}/{len(targets)}] {num} -> {path.name}")
         except OkCountyError as e:

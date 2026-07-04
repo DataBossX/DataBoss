@@ -57,8 +57,20 @@ def verify_workbook(output_path: Path, source_path: Path) -> dict:
                 ov = ws_out[f"{col}{row}"].value
                 if not (isinstance(ov, str) and ov.startswith("=")):
                     clobbered.append(f"{col}{row}")
-    check("formula_columns_intact", not clobbered,
-          f"clobbered={clobbered[:20]}")
+    # Appended rows (below the source range) that carry data in A–N MUST also
+    # carry the O–S formulas, or their acreage/interest math is dead.
+    missing_on_appended = []
+    for row in range(ws_src.max_row + 1, ws_out.max_row + 1):
+        has_data = any(ws_out[f"{c}{row}"].value not in (None, "")
+                       for c in ("A", "D", "G", "H", "I"))
+        if not has_data:
+            continue
+        for col in FORMULA_COLUMNS:
+            ov = ws_out[f"{col}{row}"].value
+            if not (isinstance(ov, str) and ov.startswith("=")):
+                missing_on_appended.append(f"{col}{row}")
+    check("formula_columns_intact", not clobbered and not missing_on_appended,
+          f"clobbered={clobbered[:20]} missing_on_appended={missing_on_appended[:20]}")
 
     # 5) no error tokens introduced in the Runsheet
     introduced = []

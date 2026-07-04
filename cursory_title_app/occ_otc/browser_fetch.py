@@ -57,12 +57,13 @@ def run(dry_run: bool = False) -> dict:
                 "source": t["_source"], "doc_type": t["label"],
                 "document_url": t["portal_url"], "status": "pending",
                 "diff_kind": "well_production",
-            }) or 0
+            })
             print(f"  [{i}/{len(items)}] {t['label']} — search: {t['search_for']}")
             try:
                 cap = doc_worker.capture_document(s, t["portal_url"], qid)
                 status = "takeover" if cap.get("takeover") else "captured"
-                store.execute("UPDATE work_queue SET status=? WHERE id=?", (status, qid))
+                if qid:
+                    store.execute("UPDATE work_queue SET status=? WHERE id=?", (status, qid))
                 results.append({"label": t["label"], "status": status,
                                 "screenshot": cap.get("screenshot"),
                                 "search_for": t["search_for"],

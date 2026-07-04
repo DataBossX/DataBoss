@@ -72,18 +72,24 @@ class TitleReportGenerator:
                  *, prospect: str = "") -> dict[str, str]:
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
+        findings = findings or []
         chain = self._chain_out(manifest)
         ogl = self._ogl_tieout(manifest)
         legals = self._legals(manifest)
+        net_acres = self._total_net_acres(manifest)
+        exceptions = self._exceptions(manifest)
+        completeness = self._completeness(chain, ogl, findings)
 
         md_path = out_dir / "title_report.md"
-        md_path.write_text(self._render_md(manifest, chain, ogl, legals,
-                                           findings or [], prospect),
+        md_path.write_text(self._render_md(manifest, chain, ogl, legals, net_acres,
+                                           exceptions, completeness, findings,
+                                           prospect),
                            encoding="utf-8")
         json_path = out_dir / "title_report.json"
-        json_path.write_text(json.dumps(self._render_json(manifest, chain, ogl,
-                                                          legals), indent=2,
-                                        default=str), encoding="utf-8")
+        json_path.write_text(json.dumps(
+            self._render_json(manifest, chain, ogl, legals, net_acres, exceptions,
+                              completeness), indent=2, default=str),
+            encoding="utf-8")
         return {"title_report_md": str(md_path), "title_report_json": str(json_path)}
 
     # -- interest chain-out -------------------------------------------------
@@ -238,6 +244,63 @@ class TitleReportGenerator:
                 out.setdefault(key, sheet.name)
         return out
 
+    # -- net mineral acres --------------------------------------------------
+    def _total_net_acres(self, manifest: WorkbookManifest) -> Optional[float]:
+        """Foot the tract net acres (preferring a summary tab) for NMA math."""
+        from ..validators._helpers import numeric
+        from ..validators.val_acreage import AcreageValidator
+        tracts = manifest.by_category(SheetCategory.TRACT)
+        if not tracts:
+            return None
+        total = 0.0
+        found = False
+        for sheet in AcreageValidator._acreage_sheets(tracts):
+            col = AcreageValidator._acre_col(sheet)
+            if not col:
+                continue
+            for cell in data_cells_in_column(sheet, col):
+                if is_total_row(sheet, cell.row):
+                    continue
+                v = numeric(cell.value)
+                if v is not None:
+                    total += v
+                    found = True
+        return round(total, 4) if found else None
+
+    # -- curative requirements / exceptions ---------------------------------
+    def _exceptions(self, manifest: WorkbookManifest) -> list[dict]:
+        out: list[dict] = []
+        for sheet in manifest.by_category(SheetCategory.EXCEPTION_CURATIVE):
+            hdr = sheet.header_row
+            for r in range(hdr + 1, sheet.max_row + 1):
+                if is_total_row(sheet, r):
+                    continue
+                cells = [c for c in sheet.cells.values()
+                         if c.row == r and c.value is not None]
+                if not cells:
+                    continue
+                text = " | ".join(str(c.value).strip()
+                                  for c in sorted(cells, key=lambda c: c.coord))
+                out.append({"sheet": sheet.name, "row": r, "text": text})
+        return out
+
+    # -- report completeness (the honest "how perfect is it?") --------------
+    def _completeness(self, chain: ChainResult, ogl: list[dict],
+                      findings: list[Finding]) -> tuple[list[tuple[str, bool]], int, int]:
+        checks: list[tuple[str, bool]] = []
+        checks.append(("Interest chains out and reconciles to 100%",
+                       bool(chain.ownership) and chain.total_owned == 1))
+        checks.append(("Every chain link has a recorded source",
+                       bool(chain.links) and all(
+                           k.source_ref != "(no source)" for k in chain.links)))
+        checks.append(("No unresolved chain gaps", not chain.warnings))
+        checks.append(("Every OGL ties to tracts and WI",
+                       all(o["tie_status"] == "tied" for o in ogl) if ogl else True))
+        checks.append(("No open escalation flags",
+                       not any(f.escalate for f in findings)))
+        passed = sum(1 for _, ok in checks if ok)
+        return checks, passed, len(checks)
+
     # -- legals -------------------------------------------------------------
     def _legals(self, manifest: WorkbookManifest) -> list[dict]:
         seen: dict[str, dict] = {}
@@ -259,8 +322,9 @@ class TitleReportGenerator:
         return list(seen.values())
 
     # -- rendering ----------------------------------------------------------
-    def _render_md(self, manifest, chain: ChainResult, ogl, legals, findings,
-                   prospect) -> str:
+    def _render_md(self, manifest, chain: ChainResult, ogl, legals, net_acres,
+                   exceptions, completeness, findings, prospect) -> str:
+        checks, passed, total_checks = completeness
         L: list[str] = []
         title = f"Title Report{' -- ' + prospect if prospect else ''}"
         L.append(f"# {title}")
@@ -268,7 +332,10 @@ class TitleReportGenerator:
         L.append(f"- Source workbook: `{manifest.path.name}`")
         L.append(f"- SHA-256: `{manifest.sha256}`")
         L.append(f"- Sheets: {len(manifest.sheets)} | "
-                 f"tracts: {len(manifest.by_category(SheetCategory.TRACT))}")
+                 f"tracts: {len(manifest.by_category(SheetCategory.TRACT))}"
+                 + (f" | net acres: {net_acres}" if net_acres is not None else ""))
+        pct = round(100 * passed / total_checks) if total_checks else 0
+        L.append(f"- **Report completeness: {passed}/{total_checks} ({pct}%)**")
         L.append("")
         L.append("> Automated title analysis. No legal or title fact is fabricated; "
                  "gaps are flagged for examiner determination.")
@@ -299,12 +366,20 @@ class TitleReportGenerator:
         L.append("## 2. Chained-Out Interest (current net mineral ownership)")
         L.append("")
         if chain.ownership:
-            L.append("| Owner | Interest | Decimal | Percent |")
-            L.append("|-------|----------|---------|---------|")
+            nma_hdr = " Net Acres |" if net_acres is not None else ""
+            nma_sep = "-----------|" if net_acres is not None else ""
+            L.append(f"| Owner | Interest | Decimal | Percent |{nma_hdr}")
+            L.append(f"|-------|----------|---------|---------|{nma_sep}")
             for owner, frac in sorted(chain.ownership.items(),
                                       key=lambda kv: (-float(kv[1]), kv[0])):
+                nma = (f" {float(frac) * net_acres:.4f} |"
+                       if net_acres is not None else "")
                 L.append(f"| {self._esc(owner)} | {self._frac(frac)} | "
-                         f"{float(frac):.6f} | {float(frac) * 100:.4f}% |")
+                         f"{float(frac):.6f} | {float(frac) * 100:.4f}% |{nma}")
+            if net_acres is not None:
+                L.append("")
+                L.append(f"- Net mineral acres computed against a footed "
+                         f"{net_acres} gross tract acres.")
             total = chain.total_owned
             recon = "reconciles to 100%" if total == 1 else \
                 f"**does NOT reconcile** (sums to {self._frac(total)} = {float(total):.6f})"
@@ -349,8 +424,31 @@ class TitleReportGenerator:
             L.append("_No legal descriptions found in the workbook._")
         L.append("")
 
+        # Curative requirements / exceptions
+        L.append("## 5. Curative Requirements & Exceptions")
+        L.append("")
+        if exceptions:
+            for e in exceptions:
+                L.append(f"- {self._esc(e['text'])} [{self._esc(e['sheet'])} "
+                         f"row {e['row']}]")
+        else:
+            L.append("_No exception/curative sheet rows found._")
+        L.append("")
+
+        # Report completeness
+        L.append("## 6. Report Completeness")
+        L.append("")
+        L.append(f"**{passed}/{total_checks} checks passed ({pct}%).** A report "
+                 f"is examiner-ready when every check passes; a failing check is "
+                 f"work the automation could not complete without a human "
+                 f"determination.")
+        L.append("")
+        for label, ok in checks:
+            L.append(f"- [{'x' if ok else ' '}] {label}")
+        L.append("")
+
         # Flags
-        L.append("## 5. Open Flags")
+        L.append("## 7. Open Flags")
         L.append("")
         flags = [f for f in findings if f.escalate]
         if flags:
@@ -362,10 +460,13 @@ class TitleReportGenerator:
         L.append("")
         return "\n".join(L)
 
-    def _render_json(self, manifest, chain: ChainResult, ogl, legals) -> dict:
+    def _render_json(self, manifest, chain: ChainResult, ogl, legals, net_acres,
+                     exceptions, completeness) -> dict:
+        checks, passed, total_checks = completeness
         return {
             "source": manifest.path.name,
             "sha256": manifest.sha256,
+            "net_acres": net_acres,
             "chain": [{
                 "order": k.order, "instrument_type": k.instrument_type,
                 "date": k.date, "grantor": k.grantor, "grantee": k.grantee,
@@ -373,9 +474,15 @@ class TitleReportGenerator:
                 "source": k.source_ref, "legal": k.legal, "note": k.note,
             } for k in chain.links],
             "ownership": {o: self._frac(v) for o, v in chain.ownership.items()},
+            "ownership_net_acres": (
+                {o: round(float(v) * net_acres, 4) for o, v in chain.ownership.items()}
+                if net_acres is not None else {}),
             "ownership_reconciles": chain.total_owned == 1,
             "ogl_tieout": ogl,
             "legals": legals,
+            "exceptions": exceptions,
+            "completeness": {"passed": passed, "total": total_checks,
+                             "checks": {label: ok for label, ok in checks}},
             "warnings": chain.warnings,
         }
 

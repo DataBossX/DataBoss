@@ -53,6 +53,37 @@ python -m validation_agent.main path/to/workbook.xlsx
 streamlit run scripts/validation_agent/app/dashboard.py
 ```
 
+### Organize a folder and build final title reports (one command)
+
+Point the runner at a messy source folder (e.g. your Windows desktop). It
+unzips everything, quarantines trash/duplicates, finds every workbook, runs the
+perfection loop on each, and writes a full title report + validation packet per
+workbook:
+
+```bat
+:: Windows -- run against D:\Desktop\Horizon
+set PYTHONPATH=D:\Desktop\DataBossX\scripts
+python -m validation_agent.run_horizon D:\Desktop\Horizon
+:: results land in D:\Desktop\Horizon\rogermillsfinalreports\
+```
+
+Each `rogermillsfinalreports/<workbook>/` contains:
+
+* `title_report.md` / `.json` -- the chained-out interest ledger (exact
+  fractions, reconciled to 100%), OGL register tie-out by OGL number, legal
+  descriptions, runsheet notes, and open flags,
+* `validation/` -- scorecard, audit report, machine summary,
+* `certification.md` **or** `escalations/ESC-*.md`.
+
+A `_quarantine/` folder holds extracted zips' duplicates and trash (moved, never
+deleted) plus an `inventory.md`. Nothing in the source folder is destroyed.
+
+Organize only (no reports):
+
+```bat
+python -m validation_agent.tools.organize_workspace D:\Desktop\Horizon
+```
+
 Outputs land in `scripts/validation_agent/outputs/validation_run_<timestamp>/`
 (overridable via `DATABOSSX_ROOT`). The source workbook is copied to `v0` and
 **never modified**.

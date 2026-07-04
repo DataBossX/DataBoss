@@ -300,12 +300,16 @@ def load_dotenv(path: Path) -> int:
         return 0
     loaded = 0
     try:
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        # utf-8-sig strips a Windows/Notepad BOM so the first key is not stored
+        # as "﻿KEY" and lost.
+        for line in path.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
+            if line.startswith("export "):   # tolerate shell-style 'export KEY=val'
+                line = line[len("export "):].lstrip()
             key, _, val = line.partition("=")
-            key, val = key.strip(), val.strip().strip('"').strip("'")
+            key, val = key.strip().lstrip("﻿"), val.strip().strip('"').strip("'")
             if key and key not in os.environ:
                 os.environ[key] = val
                 loaded += 1
@@ -595,10 +599,12 @@ def _is_title_sheet(s: SheetAnalysis) -> bool:
     """
     fields = set(s.header_map.values())
     has_parties = "grantor" in fields and "grantee" in fields
-    has_instrument = ("instrument_no" in fields
-                      or ("book" in fields and "page" in fields)
-                      or "ogl" in fields)
-    return bool(s.header_map) and (has_parties or has_instrument)
+    has_ogl = "ogl" in fields
+    # Require parties (a real conveyance table) or an OGL column (the lease
+    # sheet). Book/Page alone does NOT qualify -- tract sheets carry Book/Page
+    # for the tract's source but are legals/acreage, not chain rows, so this is
+    # how we avoid "going off the tract sheets" for the chain.
+    return bool(s.header_map) and (has_parties or has_ogl)
 
 
 def extract_rows(wa: WorkbookAnalysis) -> List[TitleRow]:
@@ -850,7 +856,9 @@ def chain_out_interest(merged: List["TitleRow"]) -> Dict[str, Any]:
         dtype = norm_text(d.get("doc_type", "")).lower()
         has_ogl = bool(norm_text(d.get("ogl", "")))
         has_mineral_ref = bool(d.get("book") or d.get("instrument_no"))
-        if ("lease" in dtype or "ogl" in dtype
+        # Word-boundary match so "Release of Lien"/"Partial Release" (which
+        # contain the substring "lease") are NOT mistaken for a lease.
+        if (re.search(r"\blease\b", dtype) or re.search(r"\bogl\b", dtype)
                 or (has_ogl and not has_mineral_ref)):
             continue
         grantor = norm_name(d.get("grantor", ""))
@@ -1223,17 +1231,22 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
 # ----------------------------------------------------------------------------
 # Backups
 # ----------------------------------------------------------------------------
-def backup_originals(recs: List[FileRec], support_dir: Path) -> Path:
+def backup_originals(recs: List[FileRec], support_dir: Path,
+                     roots: Optional[Sequence[Path]] = None) -> Path:
     stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_dir = support_dir / f"backup_{stamp}"
     backup_dir.mkdir(parents=True, exist_ok=True)
+    # Stable index per distinct root path so same-basename roots (D:\A\Roger
+    # Mills vs D:\B\Roger Mills) get distinct backup namespaces, not a collision.
+    root_index = {str(r): i for i, r in enumerate(roots or [])}
     copied = 0
     failed: List[str] = []
     for rec in recs:
         try:
-            # Namespace by root so same-named files from different source folders
-            # (Roger Mills / Roger Mills 2) do not collide in the backup.
-            prefix = rec.root.name if rec.root else ""
+            prefix = ""
+            if rec.root is not None:
+                i = root_index.get(str(rec.root), 0)
+                prefix = f"{i:02d}_{rec.root.name}"
             dest = backup_dir / prefix / rec.rel if prefix else backup_dir / rec.rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(rec.path, dest)  # copy2 preserves mtime; originals untouched
@@ -1402,7 +1415,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
     args = ap.parse_args(argv)
 
-    roots = [Path(r) for r in args.root]
+    # De-duplicate roots (resolved) so passing the same folder twice does not
+    # double-inventory / double-back-up every file.
+    roots: List[Path] = []
+    _seen_roots = set()
+    for r in args.root:
+        rp = Path(r)
+        try:
+            key = str(rp.resolve())
+        except OSError:
+            key = str(rp)
+        if key not in _seen_roots:
+            _seen_roots.add(key)
+            roots.append(rp)
     output_path = Path(args.output)
     support_dir = Path(args.support_dir)
 
@@ -1446,7 +1471,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # 2. backups (skip in dry-run)
     if not args.dry_run:
         LOG.section("2. Timestamped backups")
-        backup_originals(recs, support_dir)
+        backup_originals(recs, support_dir, roots=roots)
     else:
         LOG("DRY-RUN: skipping backups.")
 

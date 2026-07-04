@@ -142,8 +142,10 @@ def test_is_title_sheet():
                                 formula_cells=0, blank_ratio=0.5)
     assert rm._is_title_sheet(sa({1: "grantor", 2: "grantee"}))     # chain sheet
     assert rm._is_title_sheet(sa({1: "ogl", 2: "interest"}))         # OGL sheet
-    assert rm._is_title_sheet(sa({1: "book", 2: "page"}))            # instrument
-    assert not rm._is_title_sheet(sa({1: "legal_description", 2: "acreage"}))  # tract
+    # Book/Page ALONE (no parties, no OGL) is a tract-style sheet -> not a chain
+    # source; we don't "go off the tract sheets".
+    assert not rm._is_title_sheet(sa({1: "book", 2: "page"}))
+    assert not rm._is_title_sheet(sa({1: "legal_description", 2: "acreage"}))
 
 
 def test_load_dotenv(tmp_path, monkeypatch):
@@ -156,6 +158,29 @@ def test_load_dotenv(tmp_path, monkeypatch):
     assert n == 2
     assert os.environ["OKCOUNTY_API_KEY"] == "abc123"
     assert os.environ["FOO"] == "bar"
+
+
+def test_load_dotenv_bom_and_export(tmp_path, monkeypatch):
+    import os
+    env = tmp_path / ".env"
+    # BOM + a shell-style 'export' prefix -- both must yield the clean key name.
+    env.write_bytes("﻿KEYA=1\nexport KEYB=2\n".encode("utf-8"))
+    for k in ("KEYA", "KEYB"):
+        monkeypatch.delenv(k, raising=False)
+    rm.load_dotenv(env)
+    assert os.environ.get("KEYA") == "1"      # not "﻿KEYA"
+    assert os.environ.get("KEYB") == "2"      # not "export KEYB"
+
+
+def test_release_not_treated_as_lease():
+    # "Release of Lien" contains "lease" but must remain in the mineral chain.
+    chain = rm.chain_out_interest([
+        rm.TitleRow({"grantor": "US PATENT", "grantee": "ALICE", "book": "1",
+                     "page": "1", "interest": "1", "doc_type": "Patent"}, "s", 1),
+        rm.TitleRow({"grantor": "ALICE", "grantee": "BOB", "book": "2", "page": "2",
+                     "interest": "1/2", "doc_type": "Release of Lien"}, "s", 2),
+    ])
+    assert chain["ownership"].get("BOB") == Fraction(1, 2)  # not dropped
 
 
 def test_report_quality_score():

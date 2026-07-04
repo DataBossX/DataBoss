@@ -37,6 +37,17 @@ def test_generates_both_artifacts(tmp: Path) -> None:
     assert "CERTIFICATION_REPORT" in actions
 
 
+def test_markdown_pipes_are_escaped(tmp: Path) -> None:
+    # A version reason containing a pipe must not break the Markdown table.
+    mgr = SQLiteManager(tmp / "s.db")
+    vc = VersionController(mgr, workbook_dir=tmp / "wb")
+    v1 = vc.mint_new_version("TitleReport", reason="repair a|b footing")
+    v1.file_path.write_bytes(b"PK wb")
+    report = CertificationReporter(mgr, output_dir=tmp / "reports").generate(v1)
+    text = report.audit_report.read_text(encoding="utf-8")
+    assert "a\\|b" in text  # the pipe was escaped, not left raw
+
+
 def test_refuses_to_overwrite(tmp: Path) -> None:
     mgr, vc, v1 = _seed(tmp)
     reporter = CertificationReporter(mgr, output_dir=tmp / "reports")

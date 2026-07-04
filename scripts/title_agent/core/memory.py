@@ -264,17 +264,41 @@ class AuditLogger:
         reference, result)`` while adding an ``actor`` (defaults to ``agent``,
         set to an Examiner id for overrides) and structured ``metadata``.
         """
-        ts = timestamp or _utc_now()
-        meta_json = json.dumps(metadata, sort_keys=True) if metadata is not None else None
         with self._db.transaction() as conn:
-            cur = conn.execute(
-                "INSERT INTO audit_log (timestamp, action, reference, result, actor, metadata) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (ts, action, reference, result, actor, meta_json),
+            row_id, ts, meta_json = self._insert(
+                conn, action, reference, result, actor=actor,
+                metadata=metadata, timestamp=timestamp,
             )
-            row_id = _last_row_id(cur)
         self._mirror_to_file(ts, action, reference, result, actor, meta_json)
         return row_id
+
+    def _insert(
+        self,
+        conn: sqlite3.Connection,
+        action: str,
+        reference: str,
+        result: str,
+        *,
+        actor: str = "agent",
+        metadata: Optional[dict[str, Any]] = None,
+        timestamp: Optional[str] = None,
+    ) -> tuple[int, str, Optional[str]]:
+        """Emit the audit INSERT on an already-open connection **without**
+        opening its own transaction. This lets a caller fold an audit record
+        into the same transaction as the state change it describes, so the two
+        commit atomically — the file mirror is done by the caller after commit.
+        Returns (row_id, timestamp, metadata_json)."""
+        ts = timestamp or _utc_now()
+        meta_json = (
+            json.dumps(metadata, sort_keys=True, default=str)
+            if metadata is not None else None
+        )
+        cur = conn.execute(
+            "INSERT INTO audit_log (timestamp, action, reference, result, actor, metadata) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (ts, action, reference, result, actor, meta_json),
+        )
+        return _last_row_id(cur), ts, meta_json
 
     def log_examiner_override(
         self,
@@ -473,6 +497,24 @@ class VersionController:
             created_at=created_at,
         )
 
+    def discard_version(self, version: ArtifactVersion) -> bool:
+        """Remove a just-minted version row whose file was never written.
+
+        Used to roll back a reserved version when the repair that was supposed
+        to populate it fails, so a fileless row can never become the "latest"
+        version and wedge the loop. Refuses if the file exists on disk — a
+        version with real bytes is never silently dropped. Version rows are not
+        append-only (only audit_log and budget_ledger are), so this DELETE is
+        permitted.
+        """
+        if version.file_path.exists():
+            raise VersionOverwriteError(
+                f"refusing to discard a version whose file exists: {version.file_path}"
+            )
+        with self._db.transaction() as conn:
+            conn.execute("DELETE FROM artifact_versions WHERE id = ?", (version.id,))
+        return True
+
     def history(self, artifact_key: str) -> list[ArtifactVersion]:
         """Full version lineage for an artifact, oldest first."""
         with self._db.connection() as conn:
@@ -543,6 +585,8 @@ class EscalationStore:
     ) -> Escalation:
         created = _utc_now()
         proof_json = json.dumps(proof, sort_keys=True, default=str)
+        # Escalation state and its ESCALATION_OPENED audit record commit in one
+        # transaction so an escalation can never exist without its audit trail.
         with self._db.transaction() as conn:
             cur = conn.execute(
                 "INSERT INTO escalations (category, gate, reference, proof, status, created_at) "
@@ -550,10 +594,11 @@ class EscalationStore:
                 (category, gate, reference, proof_json, created),
             )
             esc_id = _last_row_id(cur)
-        self._audit.log_action(
-            "ESCALATION_OPENED", reference, category,
-            metadata={"gate": gate, "escalation_id": esc_id},
-        )
+            _, ts, meta_json = self._audit._insert(
+                conn, "ESCALATION_OPENED", reference, category,
+                metadata={"gate": gate, "escalation_id": esc_id},
+            )
+        self._audit._mirror_to_file(ts, "ESCALATION_OPENED", reference, category, "agent", meta_json)
         return self.get(esc_id)
 
     def resolve(self, escalation_id: int, examiner_id: str, resolution: str) -> Escalation:
@@ -564,6 +609,9 @@ class EscalationStore:
         infer any fact on their behalf.
         """
         resolved = _utc_now()
+        # The resolution and its immutable EXAMINER_OVERRIDE record commit in one
+        # transaction: a resolved escalation can never exist without the audit of
+        # who decided it — the core Golden Law guarantee for HITL.
         with self._db.transaction() as conn:
             row = conn.execute(
                 "SELECT reference, status FROM escalations WHERE id = ?", (escalation_id,)
@@ -578,10 +626,12 @@ class EscalationStore:
                 (resolution, examiner_id, resolved, escalation_id),
             )
             reference = row["reference"]
-        self._audit.log_examiner_override(
-            examiner_id, reference, resolution,
-            metadata={"escalation_id": escalation_id},
-        )
+            _, ts, meta_json = self._audit._insert(
+                conn, AuditLogger.EXAMINER_OVERRIDE, reference, resolution,
+                actor=examiner_id, metadata={"escalation_id": escalation_id},
+            )
+        self._audit._mirror_to_file(
+            ts, AuditLogger.EXAMINER_OVERRIDE, reference, resolution, examiner_id, meta_json)
         return self.get(escalation_id)
 
     def get(self, escalation_id: int) -> Escalation:

@@ -170,6 +170,24 @@ def test_stalled_repair_escalates(tmp: Path) -> None:
     assert any(e.category == "METADATA_MISSING" for e in outcome.escalations)
 
 
+def test_repairer_failure_escalates_and_leaves_no_phantom_version(tmp: Path) -> None:
+    # A repairer that raises must not crash the loop or wedge a fileless "latest"
+    # version — it escalates and the latest version stays v1.
+    mgr, vc = _setup(tmp)
+
+    class _Boom:
+        def apply(self, failures, old_version, new_version):
+            raise RuntimeError("surgery blew up")
+
+    evaluator = _ScriptedEvaluator([[_fail(FailureCategory.MATH_FOOTING_ERROR)]])
+    loop = _loop(mgr, vc, evaluator, _Boom())
+    outcome = loop.run()
+    assert outcome.state == LoopState.ESCALATED
+    latest = vc.get_latest_version("report")
+    assert latest is not None and latest.version_number == 1  # no phantom v2
+    assert latest.file_path.exists()
+
+
 def test_max_iterations_guard(tmp: Path) -> None:
     mgr, vc = _setup(tmp)
     # A never-converging stream whose signature *changes* each pass (so stall
@@ -183,6 +201,10 @@ def test_max_iterations_guard(tmp: Path) -> None:
     outcome = loop.run()
     assert outcome.state == LoopState.MAX_ITERATIONS
     assert outcome.iterations == 5
+    # Hitting the cap must still queue the outstanding work for a human, not
+    # abandon the workbook with only an audit line.
+    assert len(outcome.escalations) >= 1
+    assert EscalationStore(mgr).list_open()
 
 
 def _run_all() -> None:

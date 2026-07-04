@@ -155,10 +155,24 @@ class CalcChainDestroyer:
         root = etree.fromstring(archive.read(_WORKBOOK_PART))
         calc_pr = root.find(f"{{{_NS_MAIN}}}calcPr")
         if calc_pr is None:
-            calc_pr = etree.SubElement(root, f"{{{_NS_MAIN}}}calcPr")
-            # calcPr must sit in the correct schema position; appending is
-            # tolerated by Excel/LibreOffice, but place it after sheets if we
-            # can find a stable anchor. Appending at end is schema-valid here.
+            # CT_Workbook is an ordered sequence: calcPr must precede oleSize,
+            # customWorkbookViews, pivotCaches, smartTagPr/Types, webPublishing,
+            # fileRecoveryPr, webPublishObjects, and extLst. Appending at the end
+            # would put it after any of those and produce a schema-invalid file
+            # that Excel "repairs" on open. Insert before the first such element.
+            calc_pr = etree.Element(f"{{{_NS_MAIN}}}calcPr")
+            anchor = None
+            for tag in ("oleSize", "customWorkbookViews", "pivotCaches",
+                        "smartTagPr", "smartTagTypes", "webPublishing",
+                        "fileRecoveryPr", "webPublishObjects", "extLst"):
+                found = root.find(f"{{{_NS_MAIN}}}{tag}")
+                if found is not None:
+                    anchor = found
+                    break
+            if anchor is not None:
+                anchor.addprevious(calc_pr)
+            else:
+                root.append(calc_pr)
         calc_pr.set("fullCalcOnLoad", "1")
         calc_pr.set("calcId", "0")  # force a recompute; 0 == "unknown engine"
         archive.replace(_WORKBOOK_PART, self._serialize(root))

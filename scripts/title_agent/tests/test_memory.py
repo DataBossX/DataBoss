@@ -110,6 +110,48 @@ def test_two_artifacts_track_independently(tmp: Path) -> None:
     assert a1.version_number == 1 and b1.version_number == 1 and a2.version_number == 2
 
 
+def test_escalation_and_audit_are_atomic(tmp: Path) -> None:
+    # Resolving an escalation writes the status change and the EXAMINER_OVERRIDE
+    # audit record in a single transaction. If the audit insert would fail, the
+    # resolution must not commit either — the two are inseparable.
+    from ..core.memory import EscalationStore
+
+    mgr = SQLiteManager(tmp / "s.db")
+    audit = AuditLogger(mgr, audit_log_path=tmp / "a.log")
+    store = EscalationStore(mgr, audit)
+    esc = store.open_escalation("TITLE_GAP", "Gate 3", "Tract 3", {"detail": "gap"})
+    # Opening the escalation already wrote its ESCALATION_OPENED audit atomically.
+    assert any(r.action == "ESCALATION_OPENED" for r in audit.read_all())
+
+    resolved = store.resolve(esc.id, "examiner-9", "Book 412/Page 89")
+    assert not resolved.is_open
+    overrides = audit.read_all(action=AuditLogger.EXAMINER_OVERRIDE)
+    assert len(overrides) == 1 and overrides[0].actor == "examiner-9"
+    # There is exactly one resolved escalation and exactly one override — no
+    # orphaned state.
+    assert len(store.list_all()) == 1 and not store.list_open()
+
+
+def test_discard_version_refuses_when_file_exists(tmp: Path) -> None:
+    from ..core.memory import VersionController, VersionOverwriteError
+
+    mgr = SQLiteManager(tmp / "s.db")
+    vc = VersionController(mgr, workbook_dir=tmp / "wb")
+    v1 = vc.mint_new_version("wb", reason="init")
+    v1.file_path.write_bytes(b"real")
+    try:
+        vc.discard_version(v1)  # file exists -> must refuse
+    except VersionOverwriteError:
+        pass
+    else:
+        raise AssertionError("discard must refuse a version whose file exists")
+    # A fileless minted version can be discarded, freeing the number.
+    v2 = vc.mint_new_version("wb", reason="fix")  # file not written
+    assert vc.discard_version(v2)
+    latest = vc.get_latest_version("wb")
+    assert latest is not None and latest.version_number == 1
+
+
 def _run_all() -> None:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in tests:

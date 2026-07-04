@@ -102,6 +102,24 @@ def test_budget_tracks_and_caps(tmp: Path) -> None:
     assert abs(budget.total_spent() - 90.0) < 1e-9  # ledger unchanged
 
 
+def test_budget_refuses_charge_that_reaches_cap(tmp: Path) -> None:
+    # A charge bringing cumulative spend to *exactly* the cap must be refused
+    # (reach-or-exceed), so the ledger never reaches or breaches the ceiling.
+    budget = BudgetManager(_mgr(tmp), cap=100.0)
+    budget.track_spend(95.0, "img-1")
+    assert budget.would_exceed(5.0)  # 95 + 5 == 100 -> would reach the cap
+    try:
+        budget.track_spend(5.0, "img-2")
+    except BudgetCapReached:
+        pass
+    else:
+        raise AssertionError("a charge reaching exactly the cap must be refused")
+    assert abs(budget.total_spent() - 95.0) < 1e-9  # ledger unchanged
+    # A charge staying strictly under the cap is still allowed.
+    budget.track_spend(4.5, "img-3")
+    assert abs(budget.total_spent() - 99.5) < 1e-9
+
+
 def test_budget_persists_across_instances(tmp: Path) -> None:
     mgr = _mgr(tmp)
     BudgetManager(mgr, cap=100.0).track_spend(25.0, "img-1")

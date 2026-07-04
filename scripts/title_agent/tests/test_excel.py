@@ -104,6 +104,28 @@ def test_calc_chain_destroyer(tmp: Path) -> None:
     assert calc_pr is not None and calc_pr.get("fullCalcOnLoad") == "1"
 
 
+def test_calc_pr_inserted_before_trailing_elements(tmp: Path) -> None:
+    # When workbook.xml has no calcPr but does have a later-sequence element
+    # (e.g. extLst), calcPr must be inserted *before* it — appending at the end
+    # would be schema-invalid and Excel would flag the file as corrupt.
+    src = tmp / "wb.xlsx"
+    _build_workbook(src)
+    am = ArchiveManager()
+    arc = am.load(src)
+    root = etree.fromstring(arc.read(_WORKBOOK_PART))
+    for existing in root.findall(f"{{{_NS_MAIN}}}calcPr"):
+        root.remove(existing)  # ensure the "absent calcPr" branch is taken
+    etree.SubElement(root, f"{{{_NS_MAIN}}}extLst")  # trailing element
+    arc.replace(_WORKBOOK_PART, etree.tostring(root))
+
+    CalcChainDestroyer().destroy(arc)
+
+    result = etree.fromstring(arc.read(_WORKBOOK_PART))
+    children = [etree.QName(c).localname for c in result]
+    assert "calcPr" in children and "extLst" in children
+    assert children.index("calcPr") < children.index("extLst")
+
+
 def test_xml_patcher_sets_formula_and_clears_value(tmp: Path) -> None:
     src = tmp / "wb.xlsx"
     _build_workbook(src)

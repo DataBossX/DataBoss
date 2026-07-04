@@ -353,6 +353,11 @@ class DocumentVerifier:
 # --------------------------------------------------------------------------- #
 
 
+# Tolerance for the cap comparison: a charge landing within this of the cap is
+# treated as reaching it. Keeps binary float dust from letting spend sneak over.
+_CAP_EPS = 1e-9
+
+
 @dataclass(frozen=True)
 class BudgetStatus:
     spent: float
@@ -402,24 +407,28 @@ class BudgetManager:
             spent=spent,
             cap=self._cap,
             remaining=max(0.0, self._cap - spent),
-            halted=spent >= self._cap,
+            halted=spent >= self._cap - _CAP_EPS,
         )
 
     def would_exceed(self, cost: float) -> bool:
-        return (self.total_spent() + cost) >= self._cap + 1e-9
+        """True if charging ``cost`` would take cumulative spend to or past the
+        cap. Uses the same comparison as ``track_spend`` so a pre-check can
+        never disagree with what the recording call actually does."""
+        return (self.total_spent() + cost) >= self._cap - _CAP_EPS
 
     def track_spend(self, cost: float, reference: str) -> BudgetStatus:
         """Record ``cost`` against ``reference`` after enforcing the cap.
 
         A non-positive cost is recorded as-is (free fetches leave a zero-cost
-        audit trail). A cost that would breach the cap is refused and the loop
-        is expected to escalate BUDGET_CAP_REACHED.
+        audit trail). A charge that would take cumulative spend to or past the
+        cap is refused (never recorded), so the ledger never reaches or breaches
+        the ceiling, and the loop escalates BUDGET_CAP_REACHED.
         """
         if cost < 0:
             raise ValueError("spend cost cannot be negative")
 
         spent = self.total_spent()
-        if cost > 0 and (spent + cost) > self._cap + 1e-9:
+        if cost > 0 and (spent + cost) >= self._cap - _CAP_EPS:
             self._audit.log_action(
                 "BUDGET_CAP_REACHED", reference, "HALT",
                 metadata={"spent": spent, "attempted": cost, "cap": self._cap},
@@ -441,5 +450,5 @@ class BudgetManager:
             spent=new_total,
             cap=self._cap,
             remaining=max(0.0, self._cap - new_total),
-            halted=new_total >= self._cap,
+            halted=new_total >= self._cap - _CAP_EPS,
         )

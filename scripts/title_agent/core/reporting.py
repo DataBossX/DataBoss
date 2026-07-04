@@ -37,6 +37,12 @@ from .taxonomy import Gate
 from ..api.okcounty import BudgetManager
 
 
+def _md(cell: object) -> str:
+    """Escape a value for a Markdown table cell: pipes would spawn extra
+    columns and newlines would break the row."""
+    return str(cell).replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ").replace("\r", " ")
+
+
 class ReportExistsError(RuntimeError):
     """A certification artifact already exists for this version — refusing to
     overwrite it."""
@@ -117,7 +123,7 @@ class CertificationReporter:
         w("| Version | Reason | Created (UTC) |")
         w("| --- | --- | --- |")
         for v in self._versions.history(version.artifact_key):
-            w(f"| {v.version_label} | {v.reason} | {v.created_at} |")
+            w(f"| {_md(v.version_label)} | {_md(v.reason)} | {_md(v.created_at)} |")
         w("")
         w("## Budget")
         w("")
@@ -132,8 +138,7 @@ class CertificationReporter:
         w("| Time (UTC) | Action | Reference | Result | Actor |")
         w("| --- | --- | --- | --- | --- |")
         for r in records:
-            ref = r.reference.replace("|", "\\|")
-            res = r.result.replace("|", "\\|")
-            w(f"| {r.timestamp} | {r.action} | {ref} | {res} | {r.actor} |")
+            w(f"| {_md(r.timestamp)} | {_md(r.action)} | {_md(r.reference)} "
+              f"| {_md(r.result)} | {_md(r.actor)} |")
         w("")
         return "\n".join(lines)

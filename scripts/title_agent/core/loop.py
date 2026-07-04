@@ -223,21 +223,57 @@ class PerfectionLoop:
 
             # All failures are Category A: mint N+1 and auto-repair, then loop.
             last_signature = signature
-            self._auto_repair(current, decision.auto_repairs)
+            repaired = self._auto_repair(current, decision.auto_repairs)
+            if repaired is None:
+                # The repair itself failed (exception, or produced no file). The
+                # agent cannot clear these on its own — escalate rather than
+                # crash or spin.
+                opened = self._halt_for_examiner(decision.auto_repairs)
+                return LoopOutcome(
+                    LoopState.ESCALATED, iterations, current,
+                    escalations=opened, unresolved_failures=decision.auto_repairs,
+                )
 
-        self._audit.log_action(
-            "MAX_ITERATIONS", self._key, f"stopped after {iterations} iterations"
-        )
+        # Iteration cap hit without convergence (signatures kept changing, so
+        # the stall detector never fired). Do not abandon the workbook: queue
+        # the outstanding failures for the Examiner.
         final = self._versions.get_latest_version(self._key)
-        return LoopOutcome(LoopState.MAX_ITERATIONS, iterations, final)
+        remaining = tuple(self._evaluator.evaluate(final)) if final is not None else ()
+        opened = self._halt_for_examiner(remaining) if remaining else ()
+        self._audit.log_action(
+            "MAX_ITERATIONS", self._key,
+            f"stopped after {iterations} iterations; {len(opened)} escalation(s) opened",
+        )
+        return LoopOutcome(
+            LoopState.MAX_ITERATIONS, iterations, final,
+            escalations=opened, unresolved_failures=remaining,
+        )
 
     def _auto_repair(
         self, current: ArtifactVersion, repairs: Sequence[Failure]
-    ) -> ArtifactVersion:
+    ) -> Optional[ArtifactVersion]:
+        """Mint N+1 and apply the repairs. Returns the new version, or None if
+        the repair failed — in which case the phantom (fileless) version row is
+        discarded so it cannot become the wedged "latest" version."""
         reason = "auto-repair: " + ", ".join(sorted({f.category.value for f in repairs}))
         new_version = self._versions.mint_new_version(self._key, reason=reason)
-        # The repairer writes the N+1 file; the old file is never overwritten.
-        self._repairer.apply(repairs, current, new_version)
+        try:
+            # The repairer writes the N+1 file; the old file is never overwritten.
+            self._repairer.apply(repairs, current, new_version)
+            if not new_version.file_path.exists():
+                raise RuntimeError("repairer produced no output file")
+        except Exception as exc:  # noqa: BLE001 - any repair failure must be contained
+            self._audit.log_action(
+                "AUTO_REPAIR_FAILED",
+                f"{self._key} {current.version_label} -> {new_version.version_label}",
+                str(exc)[:200], metadata={"repairs": [f.reference for f in repairs]},
+            )
+            if not new_version.file_path.exists():
+                try:
+                    self._versions.discard_version(new_version)
+                except Exception:  # noqa: BLE001 - discard is best-effort cleanup
+                    pass
+            return None
         self._audit.log_action(
             "AUTO_REPAIR",
             f"{self._key} {current.version_label} -> {new_version.version_label}",
@@ -288,7 +324,24 @@ class PerfectionLoop:
         new_version = self._versions.mint_new_version(
             self._key, reason=f"examiner resolution (esc {escalation_id})"
         )
-        repairer.apply(failures, current, new_version)
+        try:
+            repairer.apply(failures, current, new_version)
+            if not new_version.file_path.exists():
+                raise RuntimeError("repairer produced no output file")
+        except Exception:
+            # Roll back the phantom version so the resolved escalation can be
+            # re-applied cleanly rather than leaving a wedged fileless latest.
+            if not new_version.file_path.exists():
+                try:
+                    self._versions.discard_version(new_version)
+                except Exception:  # noqa: BLE001 - best-effort cleanup
+                    pass
+            self._audit.log_action(
+                "EXAMINER_RESOLUTION_FAILED",
+                f"{self._key} {current.version_label}", "repair failed",
+                actor=examiner_id, metadata={"escalation_id": escalation_id},
+            )
+            raise
         self._audit.log_action(
             "EXAMINER_RESOLUTION_APPLIED",
             f"{self._key} {current.version_label} -> {new_version.version_label}",

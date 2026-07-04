@@ -52,14 +52,11 @@ def _cmd_run_section(args) -> int:
 
     conn = db.connect(Path(args.db) if args.db else None)
     try:
-        # Re-run extraction locally too so the report can show the chain.
-        from agents.extractor import ExtractorAgent
-
-        extractor = ExtractorAgent()
-        extracted = [extractor.run(text, source_url=src) for src, text in documents]
-        decision = run_pipeline(documents, owner=args.owner, section=args.section, conn=conn)
+        outcome = run_pipeline(documents, owner=args.owner, section=args.section, conn=conn)
     finally:
         conn.close()
+    decision = outcome["decision"]
+    extracted = outcome["extracted"]
 
     text = report.render_decision_report(args.owner, args.section, decision, extracted)
     out_dir = Path(args.out) if args.out else None
@@ -67,6 +64,34 @@ def _cmd_run_section(args) -> int:
 
     print(f"[DECISION] {decision['status']} (confidence {decision['confidence']})")
     print(f"[REPORT]   {path}")
+    return 0
+
+
+def _cmd_run_notice_list(args) -> int:
+    from workflows.notice_list_driver import drive, make_corpus_resolver
+
+    rows = load_rows(args.csv)
+    resolver = make_corpus_resolver(args.corpus, section_field=args.section_field)
+    conn = db.connect(Path(args.db) if args.db else None)
+    try:
+        results = drive(
+            rows, resolver,
+            owner_field=args.owner_field, section_field=args.section_field, conn=conn,
+        )
+    finally:
+        conn.close()
+
+    out_dir = Path(args.out) if args.out else None
+    for r in results:
+        text = report.render_decision_report(r["owner"], r["section"], r["decision"], r["docs"])
+        report.write_report(text, r["section"], out_dir=out_dir)
+    summary_path = report.write_report(report.render_summary_report(results), "notice_list_summary", out_dir=out_dir)
+
+    print(f"[OK] Processed {len(results)} sections from {args.csv}")
+    for r in results:
+        print(f"     {r['owner']} / {r['section']}: {r['decision']['status']} "
+              f"({r['decision']['confidence']})")
+    print(f"[SUMMARY] {summary_path}")
     return 0
 
 
@@ -91,6 +116,15 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--db", default=None)
     pr.add_argument("--out", default=None, help="output dir for the report")
     pr.set_defaults(func=_cmd_run_section)
+
+    pn = sub.add_parser("run-notice-list", help="run the pipeline for every row in a notice list")
+    pn.add_argument("--csv", required=True, help="CSV/XLSX notice list")
+    pn.add_argument("--corpus", required=True, help="dir laid out as <corpus>/<Section>/*.txt")
+    pn.add_argument("--owner-field", default="owner")
+    pn.add_argument("--section-field", default="section")
+    pn.add_argument("--db", default=None)
+    pn.add_argument("--out", default=None, help="output dir for reports")
+    pn.set_defaults(func=_cmd_run_notice_list)
 
     return p
 

@@ -57,6 +57,29 @@ def render_decision_report(
     return "\n".join(lines)
 
 
+def render_summary_report(results: List[Dict[str, Any]], generated_at: str | None = None) -> str:
+    """Render a one-line-per-section summary across a notice-list run."""
+    generated_at = generated_at or datetime.datetime.now().isoformat(timespec="seconds")
+    lines = [
+        "# DataBossX Notice-List Summary",
+        "",
+        f"**Generated:** {generated_at}",
+        f"**Sections processed:** {len(results)}",
+        "",
+        "| Owner | Section | Status | Confidence | Docs |",
+        "|-------|---------|--------|------------|------|",
+    ]
+    for r in results:
+        d = r.get("decision", {})
+        lines.append(
+            f"| {r.get('owner') or '—'} | {r.get('section') or '—'} | {d.get('status') or '—'} "
+            f"| {d.get('confidence') if d.get('confidence') is not None else '—'} "
+            f"| {len(r.get('docs') or [])} |"
+        )
+    lines += ["", "_AI-assisted; review by a qualified professional. See per-section reports and audit_log._", ""]
+    return "\n".join(lines)
+
+
 def write_report(
     text: str,
     section: str,

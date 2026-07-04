@@ -20,8 +20,9 @@ class TestPipeline(unittest.TestCase):
             ("weld://doc/2", "Assignment. Recorded: 2023-06-01.\n"
                              "Grantor: Rodney G\nGrantee: Buyer LLC\nLegal: Sec 1, T7N, R63W"),
         ]
-        decision = run_pipeline(docs, owner="Rodney G", section="Sec 1", conn=conn)
-        self.assertEqual(decision["status"], "Assigned out")
+        outcome = run_pipeline(docs, owner="Rodney G", section="Sec 1", conn=conn)
+        self.assertEqual(outcome["decision"]["status"], "Assigned out")
+        self.assertEqual(len(outcome["extracted"]), 2)
 
         # Proof persisted: 2 documents, extractions rows, and audit entries.
         self.assertEqual(conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0], 2)

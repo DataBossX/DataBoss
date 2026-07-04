@@ -47,6 +47,20 @@ class ReasonerAgent(BaseAgent):
         return json.loads(raw[start : end + 1])
 
     def _offline_reason(self, docs: List[Dict[str, Any]], owner: str, section: str) -> Dict[str, Any]:
+        # Prefer the canonical rule engine in automation/status_logic.py so the
+        # ownership rules live in exactly one place (it also sorts by recording
+        # date). Fall back to the local implementation if it can't be imported.
+        try:
+            from automation.status_logic import decide_status_rule_based
+
+            decision = decide_status_rule_based(owner, docs)
+            if decision.get("status") in VALID_STATUS:
+                return decision
+        except Exception:  # noqa: BLE001 - any import/runtime issue -> fallback
+            pass
+        return self._fallback_reason(docs, owner, section)
+
+    def _fallback_reason(self, docs: List[Dict[str, Any]], owner: str, section: str) -> Dict[str, Any]:
         owner_l = owner.lower()
 
         def in_section(d: Dict[str, Any]) -> bool:

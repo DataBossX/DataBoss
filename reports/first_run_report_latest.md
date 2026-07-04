@@ -66,6 +66,31 @@ produced a correct **Leased HBP** decision and a title-review report — fully o
 > Safety note on the recorder client: it is built but does **not** hit the live county site.
 > Live fetching stays disabled until explicitly enabled and confirmed with Rodney.
 
+## Reconciliation, batch mode & CI (build round 5)
+Reconciled the new code with the pre-existing `automation/` scraper and hardened CI:
+
+- **Single source of truth for the rules:** `agents/reasoner.py` now delegates its offline
+  path to the existing `automation/status_logic.decide_status_rule_based` (which also sorts by
+  recording date). Verified: deliberately out-of-order documents still resolve correctly.
+- **CI portability:** the existing `.github/workflows/python-app.yml` targets Python 3.10, but
+  `tomllib` is 3.11+. Made `app/config.py` import-safe on 3.10 (degrades to empty settings) and
+  added `.github/workflows/databossx-tests.yml` (Python 3.11) that runs the stdlib-only suite on
+  every PR — no heavy deps, fast and reliable.
+- **Batch mode:** `app/cli.py run-notice-list --csv … --corpus … --out …` drives the pipeline for
+  every notice-list row (documents resolved from a local `<corpus>/<Section>/*.txt` layout) and
+  writes per-section reports plus a summary. `pipeline.run_pipeline` now returns
+  `{decision, extracted}` so reports don't re-extract.
+
+### ⚠ Finding surfaced for Rodney's approval (risk gate)
+`automation/writer.py` writes results with `pd.ExcelWriter(path, mode="w")`, which **overwrites the
+source workbook in place** — a violation of Security Policy rule #1 ("Original files … NEVER
+modified. Use `_REVIEW_<timestamp>`"). A compliant, no-overwrite replacement is provided in
+`app/workbook_review.py` (writes a `<stem>_REVIEW_<ts>.xlsx` copy, refuses protected roots and the
+source path). Swapping the scraper's write call to it is a behavior change, so it is **left for
+Rodney to approve** rather than applied silently.
+
+**Verification:** `python -m unittest discover -s tests` → **Ran 35 tests … OK** (fully offline).
+
 ## Environment note
 This baseline was executed inside the remote cloud workspace for the
 `databossx/databoss` repository (Linux container, working dir `/home/user/DataBoss`),

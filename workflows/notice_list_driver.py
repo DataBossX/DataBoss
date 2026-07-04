@@ -9,12 +9,32 @@ WeldRecorderClient) from the extract->reason->persist pipeline.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app import db
 from workflows.extraction_pipeline import run_pipeline
 
 Resolver = Callable[[Dict[str, Any]], List[Tuple[str, str]]]
+
+
+def make_corpus_resolver(corpus_dir: Path | str, section_field: str = "section") -> Resolver:
+    """Resolve documents from a local corpus laid out as <corpus>/<Section>/*.txt.
+
+    Section names are sanitized (spaces/slashes -> underscore) to match folder
+    names. Returns (path, text) tuples sorted by filename. Missing folders yield
+    an empty list rather than raising, so unknown sections are simply 'no docs'.
+    """
+    base = Path(corpus_dir)
+
+    def resolver(row: Dict[str, Any]) -> List[Tuple[str, str]]:
+        section = str(row.get(section_field) or "").strip()
+        folder = base / section.replace(" ", "_").replace("/", "_")
+        if not folder.is_dir():
+            return []
+        return [(str(p), p.read_text(encoding="utf-8")) for p in sorted(folder.glob("*.txt"))]
+
+    return resolver
 
 
 def drive(
@@ -33,10 +53,13 @@ def drive(
             owner = str(row.get(owner_field, "")).strip()
             section = str(row.get(section_field) or default_section).strip()
             docs = resolver(row)
-            decision = run_pipeline(docs, owner=owner, section=section, conn=conn)
+            outcome = run_pipeline(docs, owner=owner, section=section, conn=conn)
             db.log_audit(conn, actor="notice_list_driver", action="section_processed",
                          target=f"{owner}/{section}", detail={"n_docs": len(docs)})
-            results.append({"owner": owner, "section": section, "decision": decision, "docs": docs})
+            results.append({
+                "owner": owner, "section": section,
+                "decision": outcome["decision"], "docs": outcome["extracted"],
+            })
         return results
     finally:
         if own_conn:

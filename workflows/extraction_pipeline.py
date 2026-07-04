@@ -21,9 +21,10 @@ def run_pipeline(
     section: str = "Sec 1",
     conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, Any]:
-    """Process documents and return the ownership decision.
+    """Process documents and return {"decision": ..., "extracted": [...]}.
 
-    documents: list of (source_path, text). Returns the reasoner decision dict.
+    documents: list of (source_path, text). The extracted chain is included so
+    callers (reports, batch driver) don't have to re-extract.
     """
     own_conn = conn is None
     conn = conn or db.connect()
@@ -52,12 +53,13 @@ def run_pipeline(
 
     wf.step("extract", step_extract).step("reason", step_reason)
 
+    ctx: Dict[str, Any] = {}
     try:
-        result = wf.run()
+        result = wf.run(ctx)
         if not result.ok:
             failed = next(r for r in result.results if not r.ok)
             raise RuntimeError(f"pipeline step '{failed.name}' failed: {failed.error}")
-        return result.results[-1].value
+        return {"decision": ctx["reason"], "extracted": ctx["extract"]}
     finally:
         if own_conn:
             conn.close()

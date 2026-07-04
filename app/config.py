@@ -7,8 +7,12 @@ returns raw secret values — callers get presence booleans or redacted strings.
 from __future__ import annotations
 
 import os
-import tomllib
 from dataclasses import dataclass, field
+
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # pragma: no cover - depends on interpreter version
+    tomllib = None  # type: ignore
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +57,7 @@ class Config:
 def load_config(settings_path: Path | None = None) -> Config:
     path = settings_path or SETTINGS_PATH
     settings: dict[str, Any] = {}
-    if path.exists():
+    if path.exists() and tomllib is not None:
         with open(path, "rb") as fh:
             settings = tomllib.load(fh)
     return Config(settings=settings)

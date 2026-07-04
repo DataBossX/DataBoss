@@ -5,13 +5,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import app.config as cfgmod  # noqa: E402
 from app.config import Config, load_config  # noqa: E402
 
 
 class TestConfig(unittest.TestCase):
+    @unittest.skipIf(cfgmod.tomllib is None, "tomllib unavailable (Python < 3.11)")
     def test_loads_settings_toml(self):
         cfg = load_config()
-        # settings.toml ships with an [llms] section in this repo.
+        # settings.toml ships with an [execution] section in this repo.
         self.assertIsInstance(cfg.settings, dict)
         self.assertIsNotNone(cfg.get("execution", "max_concurrent", default=None))
 

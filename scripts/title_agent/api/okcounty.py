@@ -412,9 +412,10 @@ class BudgetManager:
 
     def would_exceed(self, cost: float) -> bool:
         """True if charging ``cost`` would take cumulative spend to or past the
-        cap. Uses the same comparison as ``track_spend`` so a pre-check can
-        never disagree with what the recording call actually does."""
-        return (self.total_spent() + cost) >= self._cap - _CAP_EPS
+        cap. Uses the same guard and comparison as ``track_spend`` (a
+        non-positive charge never exceeds), so a pre-check can never disagree
+        with what the recording call actually does."""
+        return cost > 0 and (self.total_spent() + cost) >= self._cap - _CAP_EPS
 
     def track_spend(self, cost: float, reference: str) -> BudgetStatus:
         """Record ``cost`` against ``reference`` after enforcing the cap.

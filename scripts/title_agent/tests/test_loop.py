@@ -188,6 +188,61 @@ def test_repairer_failure_escalates_and_leaves_no_phantom_version(tmp: Path) -> 
     assert latest.file_path.exists()
 
 
+def test_repairer_writes_then_fails_fully_rolls_back(tmp: Path) -> None:
+    # If the repairer writes the file and THEN fails (e.g. recalc raises), the
+    # partial file and its version row are both removed — latest stays v1.
+    mgr, vc = _setup(tmp)
+
+    class _WriteThenBoom:
+        def apply(self, failures, old_version, new_version):
+            new_version.file_path.write_text("partially repaired")  # file now exists
+            raise RuntimeError("recalc blew up after save")
+
+    evaluator = _ScriptedEvaluator([[_fail(FailureCategory.MATH_FOOTING_ERROR)]])
+    loop = _loop(mgr, vc, evaluator, _WriteThenBoom())
+    outcome = loop.run()
+    assert outcome.state == LoopState.ESCALATED
+    latest = vc.get_latest_version("report")
+    assert latest is not None and latest.version_number == 1  # v2 fully rolled back
+    assert not (tmp / "wb" / "report_v002.xlsx").exists()  # partial file removed
+
+
+def test_failed_examiner_resolution_keeps_escalation_open(tmp: Path) -> None:
+    # If the repair for an Examiner resolution fails, the escalation must stay
+    # OPEN so it can be retried — not left closed with no corrected version.
+    mgr, vc = _setup(tmp)
+    evaluator = _ScriptedEvaluator([[_fail(FailureCategory.TITLE_GAP, "Tract 3")]])
+    loop = _loop(mgr, vc, evaluator, _WritingRepairer())
+    first = loop.run()
+    assert first.state == LoopState.ESCALATED
+    esc_id = first.escalations[0].id
+
+    class _Boom:
+        def apply(self, failures, old_version, new_version):
+            raise RuntimeError("could not apply the verified fact")
+
+    try:
+        loop.apply_examiner_resolution(
+            esc_id, "examiner-1", "Book 5/Page 9", _Boom(),
+            [_fail(FailureCategory.TITLE_GAP, "Tract 3")])
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("a failed resolution repair should propagate")
+    # Escalation is still open and retryable; latest version unchanged.
+    still_open = EscalationStore(mgr).list_open()
+    assert len(still_open) == 1 and still_open[0].id == esc_id
+    latest = vc.get_latest_version("report")
+    assert latest is not None and latest.version_number == 1
+
+    # Retry with a working repairer now succeeds and closes the escalation.
+    loop.apply_examiner_resolution(
+        esc_id, "examiner-1", "Book 5/Page 9", _WritingRepairer(),
+        [_fail(FailureCategory.TITLE_GAP, "Tract 3")])
+    assert not EscalationStore(mgr).list_open()
+    assert vc.get_latest_version("report").version_number == 2
+
+
 def test_max_iterations_guard(tmp: Path) -> None:
     mgr, vc = _setup(tmp)
     # A never-converging stream whose signature *changes* each pass (so stall

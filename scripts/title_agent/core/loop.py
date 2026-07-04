@@ -176,6 +176,7 @@ class PerfectionLoop:
 
         iterations = 0
         last_signature: Optional[frozenset[tuple[str, str]]] = None
+        failures: tuple[Failure, ...] = ()
         while iterations < self._max:
             iterations += 1
             current = self._versions.get_latest_version(self._key)
@@ -236,17 +237,19 @@ class PerfectionLoop:
 
         # Iteration cap hit without convergence (signatures kept changing, so
         # the stall detector never fired). Do not abandon the workbook: queue
-        # the outstanding failures for the Examiner.
+        # the last-seen failures for the Examiner. We reuse the failures from
+        # the final iteration rather than re-evaluating — a fresh evaluate()
+        # would re-charge the OKCounty budget for already-fetched documents and,
+        # if that tripped the cap, manufacture phantom SOURCE failures.
         final = self._versions.get_latest_version(self._key)
-        remaining = tuple(self._evaluator.evaluate(final)) if final is not None else ()
-        opened = self._halt_for_examiner(remaining) if remaining else ()
+        opened = self._halt_for_examiner(failures) if failures else ()
         self._audit.log_action(
             "MAX_ITERATIONS", self._key,
             f"stopped after {iterations} iterations; {len(opened)} escalation(s) opened",
         )
         return LoopOutcome(
             LoopState.MAX_ITERATIONS, iterations, final,
-            escalations=opened, unresolved_failures=remaining,
+            escalations=opened, unresolved_failures=failures,
         )
 
     def _auto_repair(
@@ -268,11 +271,7 @@ class PerfectionLoop:
                 f"{self._key} {current.version_label} -> {new_version.version_label}",
                 str(exc)[:200], metadata={"repairs": [f.reference for f in repairs]},
             )
-            if not new_version.file_path.exists():
-                try:
-                    self._versions.discard_version(new_version)
-                except Exception:  # noqa: BLE001 - discard is best-effort cleanup
-                    pass
+            self._rollback_failed_repair(new_version)
             return None
         self._audit.log_action(
             "AUTO_REPAIR",
@@ -281,6 +280,19 @@ class PerfectionLoop:
             metadata={"repairs": [f.reference for f in repairs]},
         )
         return new_version
+
+    def _rollback_failed_repair(self, new_version: ArtifactVersion) -> None:
+        """Undo a failed repair completely: remove any partially written output
+        (ArchiveManager.save is atomic temp+move, but recalc may have rewritten
+        the file after a successful save) and discard the reserved version row,
+        so the prior version stays the latest — no phantom or half-processed
+        N+1 can wedge the loop."""
+        try:
+            if new_version.file_path.exists():
+                new_version.file_path.unlink()
+            self._versions.discard_version(new_version)
+        except Exception:  # noqa: BLE001 - cleanup is best-effort
+            pass
 
     def _halt_for_examiner(self, escalations: Sequence[Failure]) -> tuple[Escalation, ...]:
         opened: list[Escalation] = []
@@ -316,8 +328,12 @@ class PerfectionLoop:
         The *fact* comes entirely from the Examiner (via ``resolution`` and the
         ``repairer`` they parameterize) — the agent applies it, it does not
         author it.
+
+        The escalation is resolved only **after** the repair succeeds: if the
+        repair fails, the escalation stays open so the Examiner can retry
+        cleanly rather than being left with a closed escalation and no
+        corrected version.
         """
-        self._escalations.resolve(escalation_id, examiner_id, resolution)
         current = self._versions.get_latest_version(self._key)
         if current is None:
             raise RuntimeError("cannot resume: no current version")
@@ -329,19 +345,16 @@ class PerfectionLoop:
             if not new_version.file_path.exists():
                 raise RuntimeError("repairer produced no output file")
         except Exception:
-            # Roll back the phantom version so the resolved escalation can be
-            # re-applied cleanly rather than leaving a wedged fileless latest.
-            if not new_version.file_path.exists():
-                try:
-                    self._versions.discard_version(new_version)
-                except Exception:  # noqa: BLE001 - best-effort cleanup
-                    pass
+            # Roll back the failed repair and leave the escalation OPEN.
+            self._rollback_failed_repair(new_version)
             self._audit.log_action(
                 "EXAMINER_RESOLUTION_FAILED",
                 f"{self._key} {current.version_label}", "repair failed",
                 actor=examiner_id, metadata={"escalation_id": escalation_id},
             )
             raise
+        # Repair succeeded — now close the escalation and record the override.
+        self._escalations.resolve(escalation_id, examiner_id, resolution)
         self._audit.log_action(
             "EXAMINER_RESOLUTION_APPLIED",
             f"{self._key} {current.version_label} -> {new_version.version_label}",

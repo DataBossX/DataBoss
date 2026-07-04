@@ -33,6 +33,11 @@ The script is `roger_mills_title_report_builder.py` (in this folder).
    grantor's interest" transfers half of whatever the grantor then holds, not
    half of the whole tract (flagged `PROPORTIONAL`; `PROPORTIONAL_NO_BASIS` if
    the grantor's prior interest isn't established).
+5d. **Extracts deed instruments** (best-effort, review-only): scans PDF/DOCX
+   instruments (files named `*deed*`, `*lease*`, `*assignment*`, etc.) and pulls
+   grantor/grantee/date/book-page/instrument type into a **`Deeds (auto-extract
+   VERIFY)`** sheet. These are **never** merged into the authoritative chain —
+   they are a starting point you verify against the original.
 6. **Verifies** rows against the index PDF (text → pdfplumber → PyMuPDF → OCR).
 7. **Builds** the final workbook by copying your `Template(30).xlsx` formatting
    and writing the merged rows, then **appends** analysis sheets:
@@ -41,8 +46,10 @@ The script is `roger_mills_title_report_builder.py` (in this folder).
    consolidated examiner punch-list of every flagged conveyance and
    negative-net party. It **loops till perfect**: rebuild + validate up to
    `--max-passes`.
-8/9. Writes support files and a `final_validation_summary_codexv2.txt` that ends
-   with a **PERFECTION CHECKLIST** — the exact human-review items that remain.
+8/9. Writes support files, a `final_validation_summary_codexv2.txt` that ends
+   with a **PERFECTION CHECKLIST**, and a self-contained **HTML** interest-chain
+   report you can open in any browser or share (no external assets, works
+   offline).
 
 **It never invents data.** Anything it cannot confirm or parse is *flagged*
 (over-conveyance, unparsed interest, missing party, unverified row), not guessed.
@@ -50,11 +57,11 @@ The script is `roger_mills_title_report_builder.py` (in this folder).
 ## Install (once)
 
 ```bat
-py -m pip install --upgrade openpyxl pandas pdfplumber PyMuPDF pytesseract Pillow python-dateutil rapidfuzz
+py -m pip install --upgrade openpyxl pandas pdfplumber PyMuPDF pytesseract Pillow python-dateutil rapidfuzz python-docx
 ```
 
-Only `openpyxl` is strictly required; the rest degrade gracefully (PDF/OCR and
-fuzzy matching just do less without them).
+Only `openpyxl` is strictly required; the rest degrade gracefully (PDF/OCR,
+DOCX deed extraction, and fuzzy matching just do less without them).
 
 ## Run
 
@@ -106,14 +113,17 @@ whole; without it they are left unparsed and flagged.
 | `--max-passes` | loop-till-perfect rebuild attempts (default 3) |
 | `--no-unzip` | skip archive extraction |
 | `--no-tidy` | detect duplicates/trash but do **not** move them |
+| `--no-deeds` | skip best-effort deed/DOCX instrument extraction |
+| `--no-html` | skip the HTML interest-chain report |
 | `--dry-run` | analyze/plan only; write nothing, move nothing |
 
 ## Outputs
 
 In `rogermillsfinalreports\`:
 - `31-12N-24W_Roger_Mills_Cursory_Title_Report_codexv2.xlsx` — the report, with
-  `Interest Chain`, `Ownership Ledger`, `OGL Summary`, and `Review Flags`
-  sheets.
+  `Interest Chain`, `Ownership Ledger`, `OGL Summary`, `Review Flags`, and
+  (when instruments are found) `Deeds (auto-extract VERIFY)` sheets.
+- `31-12N-24W_interest_chain_report_codexv2.html` — self-contained browser view.
 
 In `rogermillsfinalreports\files\`:
 - `final_validation_summary_codexv2.txt` — stats + **PERFECTION CHECKLIST**

@@ -22,6 +22,11 @@ WHAT'S NEW IN codexv2
 * OGL SHEET / OGL NUMBERS: ingests an OGL (oil & gas lease) schedule, attaches
   the OGL number to each matching lease row, and emits an "OGL Summary" sheet.
 * LEGALS carried through the merge and shown alongside the chain.
+* DEED EXTRACTION: best-effort parse of PDF/DOCX instruments into a clearly
+  labeled, review-only "Deeds (auto-extract VERIFY)" sheet - never merged into
+  the authoritative chain.
+* HTML REPORT: a self-contained (offline, no external assets) interest-chain
+  report written alongside the workbook.
 * "LOOP TILL PERFECT": builds, validates, and re-builds up to --max-passes,
   writing a perfection checklist of the exact human-review items that remain.
 
@@ -135,6 +140,12 @@ try:
     _HAVE_RAPIDFUZZ = True
 except BaseException:
     _HAVE_RAPIDFUZZ = False
+
+try:
+    import docx as _docx  # python-docx  # type: ignore
+    _HAVE_DOCX = True
+except BaseException:
+    _HAVE_DOCX = False
 
 # PDF extraction backends (any/all optional)
 try:
@@ -312,6 +323,9 @@ def classify(rec: FileRec) -> str:
     if rec.ext in PDF_EXT:
         if "runsheet" in name or "run sheet" in name:
             return "runsheet"  # PDF runsheet -> best-effort note harvesting
+        if re.search(r"deed|lease|assign|probate|affidavit|conveyance|patent|"
+                     r"warranty|quit\s?claim|mineral|easement|right.?of.?way", name):
+            return "deed"      # a specific instrument -> deed extraction (review-only)
         return "index_pdf"
     if rec.ext in DATA_EXT:
         # CSV/TSV can be a runsheet / OGL / report table; TXT stays freeform data
@@ -1242,6 +1256,251 @@ def extract_pdf_text(pdf_path: Path) -> Tuple[str, str]:
     return "", "none"
 
 
+# ----------------------------------------------------------------------------
+# Deed / instrument document extraction (review-only; NEVER merged into chain)
+# ----------------------------------------------------------------------------
+_DEED_TYPES = [
+    ("oil and gas lease", "Oil & Gas Lease"), ("o&g lease", "Oil & Gas Lease"),
+    ("mineral deed", "Mineral Deed"), ("royalty deed", "Royalty Deed"),
+    ("warranty deed", "Warranty Deed"), ("quitclaim", "Quitclaim Deed"),
+    ("quit claim", "Quitclaim Deed"), ("assignment", "Assignment"),
+    ("probate", "Probate"), ("affidavit", "Affidavit"), ("easement", "Easement"),
+    ("right of way", "Right of Way"), ("patent", "Patent"), ("deed", "Deed"),
+]
+_DEED_BP_RE = re.compile(r"\b(?:book|bk|vol(?:ume)?)\.?\s*(\d+)[,\s]+(?:page|pg)s?\.?\s*(\d+)", re.I)
+_DEED_INST_RE = re.compile(
+    r"(?:instrument|document|reception|file)\s*(?:no\.?|number|#)?\s*[:#]?\s*([0-9][0-9\-]{3,})", re.I)
+_DEED_DATE_RES = [
+    re.compile(r"\b(\d{1,2}/\d{1,2}/\d{2,4})\b"),
+    re.compile(r"\b(\d{1,2}(?:st|nd|rd|th)?\s+day\s+of\s+[A-Za-z]+,?\s+\d{4})", re.I),
+    re.compile(r"\b([A-Za-z]+\s+\d{1,2},\s+\d{4})\b"),
+]
+_DEED_GRANTOR_RES = [
+    re.compile(r"by\s+and\s+between\s+(.+?)\s*,?\s*(?:hereinafter.+?)?\b(?:grantor|lessor)", re.I | re.S),
+    re.compile(r"^\s*(.+?),?\s+(?:hereinafter.+?)?\bgrantor\b", re.I | re.M),
+]
+_DEED_GRANTEE_RES = [
+    # stop at a comma/newline/semicolon or a common following clause, so initials
+    # like "E. WHITE" are not truncated at the first period.
+    re.compile(r"\bunto\s+(.+?)(?=,|\n|;|\s+an?\s+undiv|\s+all\b|\s+the\s+following|"
+               r"\s+a\s+tract|$)", re.I | re.S),
+    re.compile(r"\band\s+(.+?)\s*,?\s*(?:hereinafter.+?)?\b(?:grantee|lessee)", re.I | re.S),
+]
+
+
+def _clean_party(s: str) -> str:
+    s = norm_text(s)
+    s = re.sub(r"\b(hereinafter|whose|of\s+the\s+county|a\s+single|husband|wife).*$", "", s, flags=re.I)
+    return s[:80].strip(" ,;:-")
+
+
+def extract_text_any(rec: FileRec) -> Tuple[str, str]:
+    """Extract text from a PDF, DOCX, or TXT instrument. (text, method)."""
+    if rec.ext in PDF_EXT:
+        return extract_pdf_text(rec.path)
+    if rec.ext == ".docx" and _HAVE_DOCX:
+        try:
+            d = _docx.Document(str(rec.path))
+            return "\n".join(p.text for p in d.paragraphs).strip(), "docx"
+        except Exception as exc:
+            LOG(f"  docx read failed for {rec.rel}: {exc}", "WARN")
+            return "", "none"
+    if rec.ext in {".txt"}:
+        try:
+            return rec.path.read_text(encoding="utf-8", errors="ignore").strip(), "text"
+        except Exception:
+            return "", "none"
+    return "", "unsupported"
+
+
+def parse_deed_text(text: str) -> Dict[str, str]:
+    """Best-effort structured fields from one instrument's text. Conservative -
+    leaves a field blank rather than guessing. Confidence = fields found / 6."""
+    low = text.lower()
+    out = {"doc_type": "", "grantor": "", "grantee": "",
+           "date": "", "book": "", "page": "", "instrument_no": ""}
+    for needle, label in _DEED_TYPES:
+        if needle in low:
+            out["doc_type"] = label
+            break
+    for rx in _DEED_GRANTOR_RES:
+        m = rx.search(text)
+        if m and _clean_party(m.group(1)):
+            out["grantor"] = _clean_party(m.group(1))
+            break
+    for rx in _DEED_GRANTEE_RES:
+        m = rx.search(text)
+        if m and _clean_party(m.group(1)):
+            out["grantee"] = _clean_party(m.group(1))
+            break
+    m = _DEED_BP_RE.search(text)
+    if m:
+        out["book"], out["page"] = m.group(1), m.group(2)
+    m = _DEED_INST_RE.search(text)
+    if m:
+        out["instrument_no"] = m.group(1)
+    for rx in _DEED_DATE_RES:
+        m = rx.search(text)
+        if m:
+            out["date"] = norm_text(m.group(1))
+            break
+    found = sum(1 for k in ("doc_type", "grantor", "grantee", "date", "instrument_no") if out[k])
+    out["confidence"] = f"{found}/5"
+    return out
+
+
+def extract_deed_records(recs: List[FileRec]) -> List[Dict[str, str]]:
+    """Scan deed/doc instruments and return review-only extracted rows."""
+    targets = [r for r in recs if r.kind == "deed" or r.ext in DOC_EXT]
+    records: List[Dict[str, str]] = []
+    for rec in targets:
+        text, method = extract_text_any(rec)
+        if not text:
+            records.append({"file": rec.rel, "method": method, "doc_type": "",
+                            "grantor": "", "grantee": "", "date": "", "book": "",
+                            "page": "", "instrument_no": "", "confidence": "0/5",
+                            "note": "no extractable text"})
+            continue
+        d = parse_deed_text(text)
+        d["file"] = rec.rel
+        d["method"] = method
+        d["note"] = "AUTO-EXTRACTED - VERIFY against the instrument; NOT in the chain"
+        records.append(d)
+    if targets:
+        LOG(f"  scanned {len(targets)} deed/doc file(s) -> {len(records)} extracted rows")
+    return records
+
+
+def append_deeds_sheet(output_path: Path, deeds: List[Dict[str, str]]) -> None:
+    """Append a clearly-labeled review-only 'Deeds (auto-extract VERIFY)' sheet."""
+    if not deeds:
+        return
+    from openpyxl.styles import Font, PatternFill
+    AMBER = PatternFill("solid", fgColor="FFEB9C")
+    wb = openpyxl.load_workbook(output_path)
+    title = "Deeds (auto-extract VERIFY)"
+    if title in wb.sheetnames:
+        del wb[title]
+    ws = wb.create_sheet(title)
+    ws.append(["File", "Doc Type", "Grantor?", "Grantee?", "Date?", "Book",
+               "Page", "Instrument No?", "Confidence", "Method", "Note"])
+    for d in deeds:
+        ws.append([d.get("file", ""), d.get("doc_type", ""), d.get("grantor", ""),
+                   d.get("grantee", ""), d.get("date", ""), d.get("book", ""),
+                   d.get("page", ""), d.get("instrument_no", ""),
+                   d.get("confidence", ""), d.get("method", ""), d.get("note", "")])
+        for c in range(1, 12):
+            ws.cell(row=ws.max_row, column=c).fill = AMBER
+    ws.freeze_panes = "A2"
+    for i, w in enumerate([34, 16, 26, 26, 16, 8, 8, 16, 11, 10, 46], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    for c in ws[1]:
+        c.font = Font(bold=True)
+    wb.save(output_path)
+    wb.close()
+
+
+def _esc(v: Any) -> str:
+    s = "" if v is None else str(v)
+    return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace('"', "&quot;"))
+
+
+def write_html_report(path: Path, section: str, links: List[ChainLink],
+                      ledger: Dict[str, Fraction], ogl_summary: List[Dict[str, str]],
+                      deeds: List[Dict[str, str]], stats: Dict[str, Any],
+                      checklist: List[str]) -> None:
+    """Write a self-contained (no external assets) HTML interest-chain report."""
+    def table(headers, rows, row_class=None):
+        h = "".join(f"<th>{_esc(x)}</th>" for x in headers)
+        body = []
+        for r in rows:
+            cls = f' class="{row_class(r)}"' if row_class else ""
+            cells = "".join(f"<td>{_esc(c)}</td>" for c in r)
+            body.append(f"<tr{cls}>{cells}</tr>")
+        return f"<table><thead><tr>{h}</tr></thead><tbody>{''.join(body)}</tbody></table>"
+
+    chain_rows = [[lk.order, lk.date.isoformat() if lk.date else "", lk.doc_type,
+                   lk.grantor, lk.grantee, lk.raw_interest, frac_str(lk.fraction),
+                   frac_str(lk.grantee_running), frac_str(lk.grantor_balance_after),
+                   lk.ogl_no, lk.flags] for lk in links]
+    chain_html = table(
+        ["#", "Date", "Doc Type", "Grantor", "Grantee", "Interest", "Conveyed",
+         "Grantee Cum.", "Grantor Bal.", "OGL", "Flags"],
+        chain_rows, row_class=lambda r: "flag" if r[-1] else "")
+
+    total = sum(ledger.values(), Fraction(0))
+    led_rows = [[p, frac_str(f), frac_dec(f)]
+                for p, f in sorted(ledger.items(), key=lambda kv: float(kv[1]), reverse=True)]
+    led_html = table(["Party", "Net (fraction)", "Net (decimal)"], led_rows,
+                     row_class=lambda r: "neg" if r[1].startswith("-") else "")
+    led_html += f'<p class="total">Ledger total: <b>{_esc(frac_str(total))}</b> ' \
+                f'({_esc(frac_dec(total))}) &mdash; should be 0 if the chain balances.</p>'
+
+    ogl_html = ""
+    if ogl_summary:
+        ogl_html = "<h2>OGL Summary</h2>" + table(
+            ["OGL No", "Lessor", "Lessee", "Date", "Book", "Page", "Instrument", "Interest", "Legal"],
+            [[d.get("ogl_no", ""), d.get("lessor", ""), d.get("lessee", ""), d.get("date", ""),
+              d.get("book", ""), d.get("page", ""), d.get("instrument_no", ""),
+              d.get("interest", ""), d.get("legal", "")] for d in ogl_summary])
+
+    deeds_html = ""
+    if deeds:
+        deeds_html = ('<h2>Deeds (auto-extracted &mdash; VERIFY)</h2>'
+                      '<p class="warn">These rows were parsed from instrument documents and '
+                      'are <b>not</b> part of the authoritative chain. Verify each against the '
+                      'original before relying on it.</p>' + table(
+            ["File", "Doc Type", "Grantor?", "Grantee?", "Date?", "Book", "Page",
+             "Instrument?", "Confidence", "Method"],
+            [[d.get("file", ""), d.get("doc_type", ""), d.get("grantor", ""), d.get("grantee", ""),
+              d.get("date", ""), d.get("book", ""), d.get("page", ""), d.get("instrument_no", ""),
+              d.get("confidence", ""), d.get("method", "")] for d in deeds]))
+
+    stat_html = "".join(f'<div class="stat"><span>{_esc(v)}</span><label>{_esc(k)}</label></div>'
+                        for k, v in stats.items())
+    check_html = "".join(f"<li>{_esc(c)}</li>" for c in checklist) or "<li>No automated issues.</li>"
+
+    html = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{_esc(section)} Roger Mills - Interest Chain Report</title>
+<style>
+:root{{color-scheme:light dark}}
+body{{font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:2rem;
+ background:#f7f7f8;color:#1a1a1a}}
+@media(prefers-color-scheme:dark){{body{{background:#15171a;color:#e6e6e6}}}}
+h1{{margin:0 0 .25rem}} h2{{margin:2rem 0 .5rem;border-bottom:2px solid #8883;padding-bottom:.25rem}}
+.sub{{color:#8a8a8a;margin:0 0 1.5rem}}
+.stats{{display:flex;flex-wrap:wrap;gap:.75rem;margin:1rem 0}}
+.stat{{background:#fff2;border:1px solid #8883;border-radius:10px;padding:.6rem .9rem;min-width:120px}}
+.stat span{{font-size:1.4rem;font-weight:700;display:block}} .stat label{{font-size:.75rem;color:#8a8a8a}}
+.wrap{{overflow-x:auto}}
+table{{border-collapse:collapse;width:100%;margin:.5rem 0;font-size:13px;background:#fff1}}
+th,td{{border:1px solid #8883;padding:.35rem .5rem;text-align:left;vertical-align:top}}
+th{{background:#8881;position:sticky;top:0}}
+tr.flag td{{background:#ffd5d5;color:#7a1010}} tr.neg td{{background:#ffe8b0;color:#7a5210}}
+@media(prefers-color-scheme:dark){{tr.flag td{{background:#5a1e1e;color:#ffcaca}}
+ tr.neg td{{background:#5a4410;color:#ffe6a8}}}}
+.total{{font-size:14px}} .warn{{color:#a05a00;font-size:13px}}
+ul.check{{background:#fff1;border:1px solid #8883;border-radius:10px;padding:1rem 1rem 1rem 2.2rem}}
+footer{{margin-top:2rem;color:#8a8a8a;font-size:12px}}
+</style></head><body>
+<h1>{_esc(section)} &mdash; Roger Mills County</h1>
+<p class="sub">Cursory Title Report &mdash; Interest Chain (codexv2). This view never
+invents data; unresolved items are flagged, not guessed.</p>
+<div class="stats">{stat_html}</div>
+<h2>Interest Chain</h2><div class="wrap">{chain_html}</div>
+<h2>Ownership Ledger</h2><div class="wrap">{led_html}</div>
+{ogl_html and '<div class="wrap">' + ogl_html + '</div>'}
+{deeds_html and '<div class="wrap">' + deeds_html + '</div>'}
+<h2>Perfection Checklist</h2><ul class="check">{check_html}</ul>
+<footer>Generated by roger_mills_title_report_builder.py (codexv2). Excel workbook is the
+authoritative deliverable; this HTML is a convenience view.</footer>
+</body></html>"""
+    path.write_text(html, encoding="utf-8")
+
+
 def verify_against_index(merged: List[TitleRow], index_text: str) -> Dict[str, bool]:
     """Mark each merged row 'verified' if its instrument/book-page or party names
     appear in the index text. Never fabricates - only confirms presence."""
@@ -1486,6 +1745,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     help="Do NOT recursively extract .zip archives before scanning")
     ap.add_argument("--no-tidy", action="store_true",
                     help="Detect duplicates/trash but do NOT move them to quarantine")
+    ap.add_argument("--no-deeds", action="store_true",
+                    help="Skip best-effort extraction of deed/DOCX instruments (review-only sheet)")
+    ap.add_argument("--no-html", action="store_true",
+                    help="Do NOT write the self-contained HTML interest-chain report")
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
     args = ap.parse_args(argv)
 
@@ -1651,6 +1914,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     LOG(f"Chained {len(chain_links)} conveyances: {n_parsed} with parsed interest, "
         f"{n_flagged} flagged for review; {len(ledger)} parties in ownership ledger.")
 
+    # 5d. deed/instrument document extraction (review-only, never merged)
+    LOG.section("5d. Deed document extraction (review-only)")
+    deeds: List[Dict[str, str]] = []
+    if args.no_deeds:
+        LOG("--no-deeds: skipping instrument document extraction.")
+    else:
+        deeds = extract_deed_records(recs)
+        if not deeds:
+            LOG("No deed/DOCX instruments found to extract.")
+
     # 6. PDF / index verification
     LOG.section("6. Index PDF verification")
     index_text, method = "", "none"
@@ -1686,6 +1959,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     template_rec.path, output_path, merged, verified, args.section)
                 append_analysis_sheets(output_path, chain_links, ledger,
                                        ogl_summary, args.gross_acres)
+                append_deeds_sheet(output_path, deeds)
                 LOG(f"  wrote {rows_written} rows to '{data_sheet}' + analysis sheets -> {output_path}")
             except Exception as exc:
                 LOG(f"  build failed: {exc}\n{traceback.format_exc()}", "ERROR")
@@ -1804,6 +2078,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         checklist.append(f"{dup_extra} duplicate + {len(trash)} trash file(s) detected but NOT "
                          "moved (--no-tidy/dry-run). Review tidy_manifest_codexv2.csv, then "
                          "re-run without --no-tidy to quarantine them.")
+    if deeds:
+        checklist.append(f"{len(deeds)} instrument(s) were auto-extracted into the "
+                         "'Deeds (auto-extract VERIFY)' sheet - verify each against the "
+                         "original and fold confirmed ones into a report source; they are "
+                         "NOT in the chain.")
     checklist.append("Spot-check legal descriptions / acreage on the data + Interest Chain sheets.")
     if not checklist:
         checklist.append("No automated issues remain. Do a final examiner spot-check and sign off.")
@@ -1814,6 +2093,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "\n".join(summary) + "\n", encoding="utf-8")
     LOG("Wrote final_validation_summary_codexv2.txt")
 
+    # 9b. self-contained HTML interest-chain report (convenience view)
+    html_path = None
+    if not args.no_html:
+        html_path = final_dir / f"{safe_section}_interest_chain_report_codexv2.html"
+        stats = {
+            "Records": len(merged), "Conveyances": len(chain_links),
+            "Parsed": n_parsed, "Flagged": n_flagged,
+            "OGL leases": len(ogl_summary), "Deeds": len(deeds),
+            "Ledger net": frac_str(total_ledger),
+            "Build": "PASS" if build_ok else ("DRY-RUN" if args.dry_run else "REVIEW"),
+        }
+        try:
+            write_html_report(html_path, args.section, chain_links, ledger,
+                              ogl_summary, deeds, stats, checklist)
+            LOG(f"Wrote HTML report -> {html_path}")
+        except Exception as exc:
+            LOG(f"HTML report failed: {exc}", "WARN")
+            html_path = None
+
     # build log last (captures everything above)
     LOG.dump(support_dir / "build_log_codexv2.txt")
 
@@ -1823,7 +2121,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("=" * 70)
     print(f"Final workbook:        {output_path if not args.dry_run else '(dry-run, not written)'}")
     print(f"  sheets added:        Interest Chain, Ownership Ledger, Review Flags"
-          f"{', OGL Summary' if ogl_summary else ''}")
+          f"{', OGL Summary' if ogl_summary else ''}"
+          f"{', Deeds(VERIFY)' if deeds else ''}")
+    if html_path:
+        print(f"HTML report:           {html_path}")
+    print(f"Deeds auto-extracted:  {len(deeds)} (review-only, not in chain)")
     print(f"Support files in:      {support_dir}")
     print("  - source_inventory_codexv2.csv")
     print("  - merge_audit_codexv2.csv")

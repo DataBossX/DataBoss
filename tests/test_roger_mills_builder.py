@@ -183,6 +183,47 @@ class DelimitedLoaderTests(unittest.TestCase):
 
 
 @unittest.skipIf(openpyxl is None, "openpyxl not installed")
+class DeedExtractionTests(unittest.TestCase):
+    def test_parse_deed_text(self):
+        text = ("MINERAL DEED made this 7th day of July, 2018, by and between "
+                "A. RANCHER, Grantor, and E. WHITE, Grantee. Grantor does grant, "
+                "bargain, sell and convey unto E. WHITE an undivided 1/4 interest "
+                "in the NW/4. Recorded in Book 455 Page 9. Instrument No. 2018-345.")
+        d = rm.parse_deed_text(text)
+        self.assertEqual(d["doc_type"], "Mineral Deed")
+        self.assertEqual(d["grantor"], "A. RANCHER")
+        self.assertEqual(d["grantee"], "E. WHITE")
+        self.assertEqual((d["book"], d["page"]), ("455", "9"))
+        self.assertEqual(d["instrument_no"], "2018-345")
+        self.assertEqual(d["confidence"], "5/5")
+
+    def test_parse_deed_blank_when_absent(self):
+        d = rm.parse_deed_text("Some unrelated text with no title fields at all.")
+        self.assertEqual(d["grantor"], "")
+        self.assertEqual(d["instrument_no"], "")
+        self.assertEqual(d["confidence"], "0/5")
+
+
+@unittest.skipIf(openpyxl is None, "openpyxl not installed")
+class HtmlReportTests(unittest.TestCase):
+    def test_html_report_is_self_contained(self):
+        links, ledger = rm.build_interest_chain(_title_rows([
+            ("USA", "ALPHA CORP", "1", "1", "1/1/1980"),
+            ("ALPHA CORP", "BRAVO LLC", "see deed", "2", "1/1/1990"),  # flagged
+        ]))
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "report.html"
+            rm.write_html_report(p, "31-12N-24W", links, ledger, [], [],
+                                 {"Records": 2}, ["do a spot-check"])
+            html = p.read_text(encoding="utf-8")
+        self.assertIn("<table", html)
+        self.assertIn('class="flag"', html)          # the flagged row is marked
+        self.assertNotIn("http://", html)             # no external assets
+        self.assertNotIn("https://", html)
+        self.assertIn("do a spot-check", html)        # checklist rendered
+
+
+@unittest.skipIf(openpyxl is None, "openpyxl not installed")
 class FullBuildTests(unittest.TestCase):
     def test_end_to_end_build(self):
         with tempfile.TemporaryDirectory() as td:

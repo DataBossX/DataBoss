@@ -205,6 +205,34 @@ class DeedExtractionTests(unittest.TestCase):
 
 
 @unittest.skipIf(openpyxl is None, "openpyxl not installed")
+class TitleSummaryTests(unittest.TestCase):
+    def test_current_owners_positive_only_with_nma(self):
+        _, ledger = rm.build_interest_chain(_title_rows([
+            ("USA", "ALPHA CORP", "1", "1", "1/1/1980"),
+            ("ALPHA CORP", "BRAVO LLC", "1/2", "2", "1/1/1990"),
+        ]), gross_acres=160)
+        owners = rm.current_owners(ledger, gross_acres=160)
+        parties = {o["party"]: o for o in owners}
+        # USA is negative (-1) and must be excluded; positives keep their NMA
+        self.assertNotIn(rm.norm_name("USA"), parties)
+        self.assertEqual(parties[rm.norm_name("BRAVO LLC")]["fraction"], Fraction(1, 2))
+        self.assertEqual(parties[rm.norm_name("BRAVO LLC")]["nma"], 80.0)
+
+    def test_current_owners_no_gross_leaves_nma_none(self):
+        _, ledger = rm.build_interest_chain(_title_rows([
+            ("USA", "ALPHA CORP", "1", "1", "1/1/1980"),
+        ]))
+        owners = rm.current_owners(ledger)
+        self.assertTrue(all(o["nma"] is None for o in owners))
+
+
+@unittest.skipIf(openpyxl is None, "openpyxl not installed")
+class SelfTestModeTests(unittest.TestCase):
+    def test_self_test_passes(self):
+        self.assertEqual(rm.run_self_test(), 0)
+
+
+@unittest.skipIf(openpyxl is None, "openpyxl not installed")
 class HtmlReportTests(unittest.TestCase):
     def test_html_report_is_self_contained(self):
         links, ledger = rm.build_interest_chain(_title_rows([

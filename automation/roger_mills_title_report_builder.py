@@ -26,7 +26,11 @@ WHAT'S NEW IN codexv2
   labeled, review-only "Deeds (auto-extract VERIFY)" sheet - never merged into
   the authoritative chain.
 * HTML REPORT: a self-contained (offline, no external assets) interest-chain
-  report written alongside the workbook.
+  report written alongside the workbook, leading with current ownership.
+* TITLE SUMMARY: a roll-up sheet of current net ownership per party (fraction,
+  decimal, and NMA when --gross-acres is given) plus active OGL leases.
+* SELF-TEST (--self-test) and a double-click Windows launcher (run_roger_mills.bat)
+  so a non-technical user can verify the install and run without a command line.
 * "LOOP TILL PERFECT": builds, validates, and re-builds up to --max-passes,
   writing a perfection checklist of the exact human-review items that remain.
 
@@ -1122,6 +1126,73 @@ def attach_notes_and_ogl(merged: List["TitleRow"], runsheet_idx: Dict[str, str],
     return n_notes, n_ogl
 
 
+def current_owners(ledger: Dict[str, Fraction],
+                   gross_acres: Optional[float] = None) -> List[Dict[str, Any]]:
+    """Parties holding a positive net interest per the computed chain, richest
+    first, with NMA when gross acreage is known. Derived, not authoritative."""
+    owners: List[Dict[str, Any]] = []
+    for party, f in sorted(ledger.items(), key=lambda kv: float(kv[1]), reverse=True):
+        if f > 0:
+            nma = (float(f) * float(gross_acres)) if gross_acres else None
+            owners.append({"party": party, "fraction": f, "decimal": float(f),
+                           "nma": nma})
+    return owners
+
+
+def append_title_summary_sheet(output_path: Path, ledger: Dict[str, Fraction],
+                               ogl_summary: List[Dict[str, str]],
+                               gross_acres: Optional[float]) -> None:
+    """Append a plain-English 'Title Summary' roll-up: current net ownership per
+    the chain + active leases. Clearly marked as derived/verify."""
+    from openpyxl.styles import Font, PatternFill
+    HDR = PatternFill("solid", fgColor="D9E1F2")
+    wb = openpyxl.load_workbook(output_path)
+    title = "Title Summary"
+    if title in wb.sheetnames:
+        del wb[title]
+    ws = wb.create_sheet(title, 0)  # make it the first sheet after the report? index 0
+    ws.append(["TITLE SUMMARY (derived from the computed interest chain - VERIFY)"])
+    ws["A1"].font = Font(bold=True, size=13)
+    ws.append([])
+    ws.append(["CURRENT MINERAL OWNERSHIP (net positive positions)"])
+    ws[f"A{ws.max_row}"].font = Font(bold=True)
+    row = ws.max_row
+    ws.append(["Party", "Net (fraction)", "Net (decimal)",
+               "Net Mineral Acres" + ("" if gross_acres else " (need --gross-acres)")])
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+        c.fill = HDR
+    owners = current_owners(ledger, gross_acres)
+    tot = Fraction(0)
+    for o in owners:
+        tot += o["fraction"]
+        ws.append([o["party"], frac_str(o["fraction"]), f"{o['decimal']:.6f}",
+                   (f"{o['nma']:.2f}" if o["nma"] is not None else "")])
+    ws.append(["TOTAL of positive positions", frac_str(tot), f"{float(tot):.6f}",
+               (f"{float(tot) * gross_acres:.2f}" if gross_acres else "")])
+    ws[f"A{ws.max_row}"].font = Font(bold=True, italic=True)
+    if any(v < 0 for v in ledger.values()):
+        ws.append(["NOTE: some parties hold NEGATIVE net interest (over-conveyance / "
+                   "gaps). Positive positions above may sum above 1 until resolved - "
+                   "see Review Flags."])
+    ws.append([])
+    ws.append([f"ACTIVE OIL & GAS LEASES (OGL): {len(ogl_summary)}"])
+    ws[f"A{ws.max_row}"].font = Font(bold=True)
+    if ogl_summary:
+        ws.append(["OGL No", "Lessor", "Lessee", "Date", "Book", "Page", "Instrument No"])
+        for c in ws[ws.max_row]:
+            c.font = Font(bold=True)
+            c.fill = HDR
+        for d in ogl_summary:
+            ws.append([d.get("ogl_no", ""), d.get("lessor", ""), d.get("lessee", ""),
+                       d.get("date", ""), d.get("book", ""), d.get("page", ""),
+                       d.get("instrument_no", "")])
+    for i, w in enumerate([40, 16, 14, 26, 8, 8, 16], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    wb.save(output_path)
+    wb.close()
+
+
 def append_analysis_sheets(output_path: Path, links: List[ChainLink],
                            ledger: Dict[str, Fraction],
                            ogl_summary: List[Dict[str, str]],
@@ -1409,7 +1480,7 @@ def _esc(v: Any) -> str:
 def write_html_report(path: Path, section: str, links: List[ChainLink],
                       ledger: Dict[str, Fraction], ogl_summary: List[Dict[str, str]],
                       deeds: List[Dict[str, str]], stats: Dict[str, Any],
-                      checklist: List[str]) -> None:
+                      checklist: List[str], gross_acres: Optional[float] = None) -> None:
     """Write a self-contained (no external assets) HTML interest-chain report."""
     def table(headers, rows, row_class=None):
         h = "".join(f"<th>{_esc(x)}</th>" for x in headers)
@@ -1428,6 +1499,13 @@ def write_html_report(path: Path, section: str, links: List[ChainLink],
         ["#", "Date", "Doc Type", "Grantor", "Grantee", "Interest", "Conveyed",
          "Grantee Cum.", "Grantor Bal.", "OGL", "Flags"],
         chain_rows, row_class=lambda r: "flag" if r[-1] else "")
+
+    owners = current_owners(ledger, gross_acres)
+    own_rows = [[o["party"], frac_str(o["fraction"]), f"{o['decimal']:.6f}",
+                 (f"{o['nma']:.2f}" if o["nma"] is not None else "")] for o in owners]
+    own_html = "<h2>Current Mineral Ownership (net, per chain &mdash; VERIFY)</h2>" + table(
+        ["Party", "Net (fraction)", "Net (decimal)",
+         "NMA" + ("" if gross_acres else " (need --gross-acres)")], own_rows)
 
     total = sum(ledger.values(), Fraction(0))
     led_rows = [[p, frac_str(f), frac_dec(f)]
@@ -1490,6 +1568,7 @@ footer{{margin-top:2rem;color:#8a8a8a;font-size:12px}}
 <p class="sub">Cursory Title Report &mdash; Interest Chain (codexv2). This view never
 invents data; unresolved items are flagged, not guessed.</p>
 <div class="stats">{stat_html}</div>
+<div class="wrap">{own_html}</div>
 <h2>Interest Chain</h2><div class="wrap">{chain_html}</div>
 <h2>Ownership Ledger</h2><div class="wrap">{led_html}</div>
 {ogl_html and '<div class="wrap">' + ogl_html + '</div>'}
@@ -1725,12 +1804,59 @@ def validate_output(output_path: Path, data_sheet: str, expected_rows: int) -> T
     return ok, notes
 
 
+def run_self_test() -> int:
+    """Build a tiny synthetic report end-to-end to prove the environment works.
+    Uses only a temp directory; touches nothing of the user's. Returns 0 on PASS.
+    """
+    import tempfile
+    print("=" * 60)
+    print("SELF-TEST: building a synthetic Roger Mills report ...")
+    print("=" * 60)
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "Roger Mills"
+        root.mkdir()
+        hdr = ["Entry", "Instrument Date", "Doc Type", "Grantor", "Grantee",
+               "Book", "Page", "Instrument No", "Legal Description", "Interest", "Remarks"]
+
+        def _wb(path, rows):
+            wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Title Report"
+            ws.append(hdr)
+            for r in rows:
+                ws.append(r)
+            wb.save(path)
+
+        _wb(root / "Template(30).xlsx", [])
+        _wb(root / "Roger_Mills_Title_Report.xlsx", [
+            [1, "1/1/1980", "Patent", "USA", "ALPHA CORP", 10, 1, "1980-1", "NW/4 31-12N-24W", "1", ""],
+            [2, "1/1/1990", "Mineral Deed", "ALPHA CORP", "BRAVO LLC", 20, 2, "1990-2", "NW/4 31-12N-24W", "1/2", ""],
+        ])
+        out = root / "out.xlsx"
+        rc = main(["--root", str(root), "--output", str(out),
+                   "--support-dir", str(root / "files"), "--section", "31-12N-24W",
+                   "--gross-acres", "160", "--no-html"])
+        ok = rc == 0 and out.exists()
+        sheets = []
+        if out.exists():
+            wb = openpyxl.load_workbook(out)
+            sheets = wb.sheetnames
+            for need in ("Interest Chain", "Ownership Ledger", "Title Summary", "Review Flags"):
+                if need not in sheets:
+                    ok = False
+        print("\n" + "=" * 60)
+        print(f"SELF-TEST: {'PASS - your environment can build reports.' if ok else 'FAIL - see messages above.'}")
+        print(f"  sheets produced: {sheets}")
+        print("=" * 60)
+        return 0 if ok else 1
+
+
 # ----------------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------------
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="Roger Mills Cursory Title Report builder (codexv2)")
-    ap.add_argument("--root", required=True, help="Root folder to scan recursively")
+    ap.add_argument("--root", default="", help="Root folder to scan recursively")
+    ap.add_argument("--self-test", action="store_true",
+                    help="Run a built-in synthetic build to verify the install, then exit")
     ap.add_argument("--output", default="", help="Final .xlsx output path (default: <final-dir>/<section>_...xlsx)")
     ap.add_argument("--support-dir", default="", help="Folder for support files (default: <final-dir>/files)")
     ap.add_argument("--final-dir", default="",
@@ -1751,6 +1877,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     help="Do NOT write the self-contained HTML interest-chain report")
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
     args = ap.parse_args(argv)
+
+    if args.self_test:
+        return run_self_test()
+    if not args.root:
+        print("FATAL: --root is required (or use --self-test to verify your install).")
+        return 2
 
     root = Path(args.root)
     final_dir = Path(args.final_dir) if args.final_dir else (root / "rogermillsfinalreports")
@@ -1959,6 +2091,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     template_rec.path, output_path, merged, verified, args.section)
                 append_analysis_sheets(output_path, chain_links, ledger,
                                        ogl_summary, args.gross_acres)
+                append_title_summary_sheet(output_path, ledger, ogl_summary,
+                                           args.gross_acres)
                 append_deeds_sheet(output_path, deeds)
                 LOG(f"  wrote {rows_written} rows to '{data_sheet}' + analysis sheets -> {output_path}")
             except Exception as exc:
@@ -2106,7 +2240,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         }
         try:
             write_html_report(html_path, args.section, chain_links, ledger,
-                              ogl_summary, deeds, stats, checklist)
+                              ogl_summary, deeds, stats, checklist, args.gross_acres)
             LOG(f"Wrote HTML report -> {html_path}")
         except Exception as exc:
             LOG(f"HTML report failed: {exc}", "WARN")
@@ -2120,7 +2254,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("FINAL REPORT (codexv2)")
     print("=" * 70)
     print(f"Final workbook:        {output_path if not args.dry_run else '(dry-run, not written)'}")
-    print(f"  sheets added:        Interest Chain, Ownership Ledger, Review Flags"
+    print(f"  sheets added:        Title Summary, Interest Chain, Ownership Ledger, Review Flags"
           f"{', OGL Summary' if ogl_summary else ''}"
           f"{', Deeds(VERIFY)' if deeds else ''}")
     if html_path:

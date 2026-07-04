@@ -41,11 +41,11 @@ The script is `roger_mills_title_report_builder.py` (in this folder).
 6. **Verifies** rows against the index PDF (text → pdfplumber → PyMuPDF → OCR).
 7. **Builds** the final workbook by copying your `Template(30).xlsx` formatting
    and writing the merged rows, then **appends** analysis sheets:
-   `Interest Chain` (flagged rows highlighted red), `Ownership Ledger`
-   (negative positions amber), `OGL Summary`, and `Review Flags` — a single
-   consolidated examiner punch-list of every flagged conveyance and
-   negative-net party. It **loops till perfect**: rebuild + validate up to
-   `--max-passes`.
+   `Title Summary` (current net ownership per party — fraction, decimal, and NMA
+   — plus active leases), `Interest Chain` (flagged rows highlighted red),
+   `Ownership Ledger` (negative positions amber), `OGL Summary`, `Review Flags`
+   (a single consolidated examiner punch-list), and `Deeds (auto-extract
+   VERIFY)`. It **loops till perfect**: rebuild + validate up to `--max-passes`.
 8/9. Writes support files, a `final_validation_summary_codexv2.txt` that ends
    with a **PERFECTION CHECKLIST**, and a self-contained **HTML** interest-chain
    report you can open in any browser or share (no external assets, works
@@ -64,6 +64,24 @@ Only `openpyxl` is strictly required; the rest degrade gracefully (PDF/OCR,
 DOCX deed extraction, and fuzzy matching just do less without them).
 
 ## Run
+
+### Easiest: double-click the launcher (Windows)
+
+Double-click **`run_roger_mills.bat`** (in this folder). It installs the Python
+packages, runs a quick **self-test**, then asks you for the folder, the section,
+and (optionally) the gross acres — and offers a preview-only mode. No command
+line needed. The finished reports land in `<your folder>\rogermillsfinalreports`.
+
+### Verify your install first (optional)
+
+```bat
+py automation\roger_mills_title_report_builder.py --self-test
+```
+
+Builds a tiny synthetic report in a temp folder and prints PASS/FAIL — touches
+none of your files. Do this once before the first real run.
+
+### Command line
 
 Simplest — output auto-lands in `D:\Desktop\Horizon\rogermillsfinalreports`:
 
@@ -104,7 +122,8 @@ whole; without it they are left unparsed and flagged.
 
 | Flag | Effect |
 |------|--------|
-| `--root` | folder to scan (required) |
+| `--root` | folder to scan (required, unless `--self-test`) |
+| `--self-test` | build a synthetic report to verify the install, then exit |
 | `--section` | tract label, e.g. `31-12N-24W` |
 | `--gross-acres` | gross mineral acres → enables NMA chaining |
 | `--final-dir` | output folder (default `<root>\rogermillsfinalreports`) |
@@ -121,9 +140,11 @@ whole; without it they are left unparsed and flagged.
 
 In `rogermillsfinalreports\`:
 - `31-12N-24W_Roger_Mills_Cursory_Title_Report_codexv2.xlsx` — the report, with
-  `Interest Chain`, `Ownership Ledger`, `OGL Summary`, `Review Flags`, and
-  (when instruments are found) `Deeds (auto-extract VERIFY)` sheets.
-- `31-12N-24W_interest_chain_report_codexv2.html` — self-contained browser view.
+  `Title Summary`, `Interest Chain`, `Ownership Ledger`, `OGL Summary`,
+  `Review Flags`, and (when instruments are found) `Deeds (auto-extract VERIFY)`
+  sheets.
+- `31-12N-24W_interest_chain_report_codexv2.html` — self-contained browser view
+  (leads with current ownership).
 
 In `rogermillsfinalreports\files\`:
 - `final_validation_summary_codexv2.txt` — stats + **PERFECTION CHECKLIST**

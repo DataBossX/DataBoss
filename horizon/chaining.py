@@ -200,16 +200,21 @@ def _norm_party(name: str) -> str:
 
 
 def _legal_ties(link_legal: str, tract_legal: str) -> bool:
-    """Cheap containment check that a conveyance's legal description ties to the
+    """Token-boundary check that a conveyance's legal description ties to the
     tract's legal description from the canonical cursory report. Empty conveyance
-    legal is treated as "inherits tract" (ties)."""
+    legal is treated as "inherits tract" (ties).
+
+    Uses whole-token subset rather than raw substring so that, e.g., "Sec 3" does
+    NOT tie to "Sec 31" and "Lot 1" does NOT tie to "Lot 10" (a raw ``in`` check
+    would falsely accept those, letting a conveyance leak into the wrong tract).
+    """
     if not link_legal:
         return True
-    a = re.sub(r"[^A-Za-z0-9]+", "", link_legal).upper()
-    b = re.sub(r"[^A-Za-z0-9]+", "", tract_legal).upper()
-    if not b:
+    a = set(re.sub(r"[^A-Za-z0-9]+", " ", link_legal).upper().split())
+    b = set(re.sub(r"[^A-Za-z0-9]+", " ", tract_legal).upper().split())
+    if not a or not b:
         return True
-    return a in b or b in a
+    return a <= b or b <= a
 
 
 def reconcile_chain(

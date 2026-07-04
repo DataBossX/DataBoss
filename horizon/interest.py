@@ -70,7 +70,13 @@ def parse_interest(value: Optional[Number]) -> Fraction:
 
     m = _PERCENT_RE.match(cleaned)
     if m:
-        return Fraction(Decimal(m.group(1))) / 100
+        try:
+            return Fraction(Decimal(m.group(1))) / 100
+        except (InvalidOperation, ValueError) as exc:
+            # e.g. "1.2.3%" or "..%" match the regex but aren't valid decimals;
+            # raise InterestError (caught by try_parse_interest) rather than
+            # letting an ArithmeticError abort the whole build.
+            raise InterestError(f"unparseable percent {value!r}") from exc
 
     m = _MIXED_RE.match(cleaned)
     if m:

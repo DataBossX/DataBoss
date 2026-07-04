@@ -205,6 +205,17 @@ def _validate_row_interest(idx: int, row: TitleRow) -> List[ValidationIssue]:
         ret = try_parse_interest(row.retained_interest)
         if c is not None and ret is not None:
             grantor_side = c + ret  # implied grantor holding
+            # The implied holding (conveyed + retained) cannot exceed the full
+            # 8/8 estate. Reconstructing grantor_side from the row's own numbers
+            # makes reconcile() trivially "balanced", so this is the only gate
+            # that can catch an impossible/fabricated retained interest.
+            if grantor_side > 1:
+                issues.append(ValidationIssue(
+                    row_index=idx, field="retained_interest", severity="error",
+                    message=(f"Conveyed + retained = {grantor_side} implies a "
+                             f"grantor holding greater than the full 8/8 estate."),
+                ))
+                return issues
     rc = reconcile(grantor_side, row.conveyed_interest)
     if rc.status == "over_conveyance":
         issues.append(ValidationIssue(

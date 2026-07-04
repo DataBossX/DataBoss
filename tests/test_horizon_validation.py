@@ -18,17 +18,24 @@ def test_clean_report_passes():
     assert not vr.errors
 
 
-def test_over_conveyance_is_error():
+def test_impossible_implied_holding_is_error():
     rows = [
         TitleRow(grantor="A", grantee="B", instrument_number="100",
                  conveyed_interest="3/4", retained_interest="1/2"),  # implies 5/4 held
     ]
-    # grantor implied = 3/4 + 1/2 = 5/4 which is > 1; reconcile(5/4, 3/4) balances,
-    # so instead test a real over-conveyance: retained negative is impossible to
-    # express, so use conveyed > implied via mismatched values.
+    # conveyed 3/4 + retained 1/2 = 5/4 implies the grantor held more than the
+    # full 8/8 estate, which is impossible -> the gate must flag it as an error.
     vr = validate_report(_report(rows), Requirements())
-    # 3/4 + 1/2 = 5/4 held, conveyed 3/4 -> retained 1/2, balanced. Not an error.
-    assert vr.passed
+    assert not vr.passed
+    assert any(i.severity == "error" and "8/8 estate" in i.message for i in vr.errors)
+
+
+def test_valid_split_passes():
+    rows = [
+        TitleRow(grantor="A", grantee="B", instrument_number="100",
+                 conveyed_interest="1/4", retained_interest="1/2"),  # implies 3/4 held
+    ]
+    assert validate_report(_report(rows), Requirements()).passed
 
 
 def test_escalated_row_is_flagged_not_failed():

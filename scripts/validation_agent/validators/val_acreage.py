@@ -12,6 +12,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
+from openpyxl.utils import get_column_letter
+
 from core.enums import FailureCategory, Severity
 from ingestion.workbook_ingestor import SheetView
 from .base_validator import ValidationResult, ValidatorBase
@@ -26,12 +28,15 @@ _TOTAL_ALIASES = ("total", "total acres", "grand total", "sum", "footing")
 class AcreageFootingGate(ValidatorBase):
     gate_name = "Acreage Footing Gate"
 
-    def _collect(self, sheets: List[SheetView]) -> Tuple[Decimal, int, List[str], Optional[Decimal], Optional[str]]:
+    def _collect(
+        self, sheets: List[SheetView]
+    ) -> Tuple[Decimal, int, List[str], Optional[Decimal], Optional[str], Optional[str]]:
         running = Decimal("0")
         counted = 0
         cells: List[str] = []
         declared_total: Optional[Decimal] = None
         total_cell: Optional[str] = None
+        total_sheet: Optional[str] = None
         for sheet in sheets:
             col = column_index(sheet.headers, *_ACREAGE_ALIASES)
             if col is None:
@@ -44,17 +49,18 @@ class AcreageFootingGate(ValidatorBase):
                 label = str(row[0]).strip().lower() if row and row[0] is not None else ""
                 val = parse_decimal(row[col])
                 excel_row = header_offset + 1 + r_idx
-                coord = f"{sheet.name}!R{excel_row}C{col + 1}"
+                coord = f"{get_column_letter(col + 1)}{excel_row}"
                 if any(t in label for t in _TOTAL_ALIASES):
                     if val is not None:
                         declared_total = val
                         total_cell = coord
+                        total_sheet = sheet.name
                     continue
                 if val is not None:
                     running += val
                     counted += 1
                     cells.append(coord)
-        return running, counted, cells, declared_total, total_cell
+        return running, counted, cells, declared_total, total_cell, total_sheet
 
     def validate(self, context: Dict[str, Any]) -> List[ValidationResult]:
         sheets = find_sheets_by_category(context, "tracts")
@@ -72,7 +78,7 @@ class AcreageFootingGate(ValidatorBase):
                 )
             ]
 
-        summed, counted, cells, declared_total, total_cell = self._collect(sheets)
+        summed, counted, cells, declared_total, total_cell, total_sheet = self._collect(sheets)
         results: List[ValidationResult] = []
 
         if counted == 0:
@@ -91,6 +97,7 @@ class AcreageFootingGate(ValidatorBase):
                 self._failed(
                     severity=Severity.MEDIUM,
                     repairable=True,
+                    affected_sheet=total_sheet,
                     affected_cell_or_range=total_cell,
                     affected_subject="acreage total",
                     reason=(

@@ -82,6 +82,22 @@ def plan_repairs(triages: List[Triage], structure: WorkbookStructure) -> RepairP
             sheet = _sheet_by_name(structure, sheet_name)
             if parsed and sheet:
                 col_letter, row_num = parsed
+
+                # Acreage total: derive =SUM(col_header+1 : col_total-1).
+                if result.affected_subject == "acreage total":
+                    header = sheet.header_row_index or 0
+                    first = header + 1
+                    last = row_num - 1
+                    if last >= first:
+                        formula = f"SUM({col_letter}{first}:{col_letter}{last})"
+                        plan.ops.append(
+                            RepairOp(sheet_name=sheet_name, coordinate=coord, formula=formula)
+                        )
+                        plan.notes.append(
+                            f"planned SUM restore {sheet_name}!{coord} = ={formula}"
+                        )
+                        continue
+
                 template = _column_template(sheet, col_letter)
                 if template:
                     formula = template.replace("<row>", str(row_num))

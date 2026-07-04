@@ -8,6 +8,7 @@ and recorded in the append-only audit DB.
 
 from __future__ import annotations
 
+import re
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -106,7 +107,9 @@ class RunManager:
 
     # -- versioning ---------------------------------------------------- #
     def _version_filename(self, source_name: str, index: int) -> str:
-        stem = Path(source_name).stem
+        # Strip any existing _vNNN suffix so versions don't accumulate
+        # (clean.xlsx -> clean_v000.xlsx -> clean_v001.xlsx, not _v000_v001).
+        stem = re.sub(r"_v\d{3}$", "", Path(source_name).stem)
         suffix = Path(source_name).suffix or ".xlsx"
         return f"{stem}_v{index:03d}{suffix}"
 

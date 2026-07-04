@@ -91,6 +91,25 @@ def test_hashes_before_and_after_differ(tmp_path):
     assert len(outcome.before_sha256) == 64 and len(outcome.after_sha256) == 64
 
 
+def test_safe_parser_does_not_resolve_external_entities(tmp_path):
+    # An XXE payload must not be expanded into file contents.
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP-SECRET-TITLE-DATA", encoding="utf-8")
+    payload = (
+        '<?xml version="1.0"?>'
+        f'<!DOCTYPE r [<!ENTITY xxe SYSTEM "file://{secret}">]>'
+        "<r>&xxe;</r>"
+    )
+    xml_file = tmp_path / "evil.xml"
+    xml_file.write_text(payload, encoding="utf-8")
+
+    from repair.xml_editor import _parse
+
+    tree = _parse(xml_file)
+    text = tree.getroot().text or ""
+    assert "TOP-SECRET-TITLE-DATA" not in text
+
+
 def test_refuses_to_overwrite_existing_version(tmp_path):
     src = _make_calc_workbook(tmp_path / "calc4.xlsx")
     dest = tmp_path / "calc4_v001.xlsx"

@@ -49,7 +49,11 @@ def parse_decimal(value: Any) -> Optional[Decimal]:
             return Decimal(str(value))
         except InvalidOperation:
             return None
-    text = str(value).strip().replace(",", "").replace("$", "")
+    text = str(value).strip()
+    if text.startswith("="):
+        # a formula string, not a literal number — do not mine digits out of it
+        return None
+    text = text.replace(",", "").replace("$", "")
     if not text:
         return None
     m = re.search(r"-?\d+(\.\d+)?", text)
@@ -76,7 +80,8 @@ def parse_fraction(value: Any) -> Optional[Fraction]:
     if isinstance(value, Decimal):
         return Fraction(value)
     text = str(value).strip()
-    if not text:
+    if not text or text.startswith("="):
+        # empty, or a formula string — not a literal interest value
         return None
     percent = text.endswith("%")
     text = text.rstrip("%").strip()

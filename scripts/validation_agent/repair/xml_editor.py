@@ -24,6 +24,22 @@ from lxml import etree
 
 from core.hashing import sha256_file
 
+# Hardened parser: never resolve external entities, load DTDs, or hit the
+# network. XLSX XML can come from an untrusted workbook, so this closes XXE /
+# billion-laughs / SSRF-via-entity vectors while parsing.
+_SAFE_PARSER = etree.XMLParser(
+    resolve_entities=False,
+    no_network=True,
+    load_dtd=False,
+    dtd_validation=False,
+    huge_tree=False,
+)
+
+
+def _parse(path: Path) -> "etree._ElementTree":
+    return etree.parse(str(path), _SAFE_PARSER)
+
+
 _MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
@@ -78,9 +94,9 @@ class XmlWorkbookEditor:
         rels_xml = self._tmp / "xl" / "_rels" / "workbook.xml.rels"
         if not wb_xml.exists() or not rels_xml.exists():
             raise XmlRepairError("workbook.xml or its rels missing")
-        wb_tree = etree.parse(str(wb_xml))
+        wb_tree = _parse(wb_xml)
         rid_to_target: Dict[str, str] = {}
-        rels_tree = etree.parse(str(rels_xml))
+        rels_tree = _parse(rels_xml)
         for rel in rels_tree.getroot():
             rid = rel.get("Id")
             target = rel.get("Target")
@@ -97,7 +113,7 @@ class XmlWorkbookEditor:
 
     # ------------------------------------------------------------------ #
     def _edit_cell(self, worksheet_path: Path, coordinate: str, formula: str) -> bool:
-        tree = etree.parse(str(worksheet_path))
+        tree = _parse(worksheet_path)
         root = tree.getroot()
         for cell in root.iter(f"{{{_MAIN_NS}}}c"):
             if cell.get("r") == coordinate:
@@ -128,7 +144,7 @@ class XmlWorkbookEditor:
         # remove content-type override
         ct = self._tmp / "[Content_Types].xml"
         if ct.exists():
-            tree = etree.parse(str(ct))
+            tree = _parse(ct)
             root = tree.getroot()
             for override in list(root):
                 if override.get("PartName") == "/xl/calcChain.xml":
@@ -137,7 +153,7 @@ class XmlWorkbookEditor:
         # remove workbook rels entry pointing at calcChain
         rels = self._tmp / "xl" / "_rels" / "workbook.xml.rels"
         if rels.exists():
-            tree = etree.parse(str(rels))
+            tree = _parse(rels)
             root = tree.getroot()
             for rel in list(root):
                 if (rel.get("Target") or "").endswith("calcChain.xml"):
@@ -147,7 +163,7 @@ class XmlWorkbookEditor:
     def _set_full_calc_on_load(self) -> None:
         assert self._tmp is not None
         wb_xml = self._tmp / "xl" / "workbook.xml"
-        tree = etree.parse(str(wb_xml))
+        tree = _parse(wb_xml)
         root = tree.getroot()
         calc_pr = root.find(f"{{{_MAIN_NS}}}calcPr")
         if calc_pr is None:

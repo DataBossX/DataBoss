@@ -26,6 +26,8 @@ not touching validators. The convention this expects:
 
 from __future__ import annotations
 
+import dataclasses
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
@@ -83,6 +85,36 @@ class ColumnMap:
     owner: tuple[str, ...] = ("owner",)
     working_interest: tuple[str, ...] = ("working interest", "wi")
     nri: tuple[str, ...] = ("nri", "net revenue")
+
+    @classmethod
+    def from_mapping(cls, data: Mapping[str, Sequence[str]]) -> "ColumnMap":
+        """Build a ColumnMap from a {field: [aliases]} mapping, overriding only
+        the fields provided and keeping the defaults for the rest. This lets an
+        operator retarget the layout to a real workbook by editing a small
+        config file — no code change. Unknown field names are rejected so a
+        typo fails loudly rather than being silently ignored."""
+        known = {f.name for f in dataclasses.fields(cls)}
+        kwargs: dict[str, tuple[str, ...]] = {}
+        for name, aliases in data.items():
+            if name not in known:
+                raise ValueError(
+                    f"unknown ColumnMap field {name!r}; valid fields: {sorted(known)}")
+            if isinstance(aliases, str) or not isinstance(aliases, Sequence):
+                raise ValueError(f"aliases for {name!r} must be a list of strings")
+            cleaned = tuple(str(a).strip() for a in aliases if str(a).strip())
+            if not cleaned:
+                raise ValueError(f"field {name!r} has no non-empty aliases")
+            kwargs[name] = cleaned
+        return cls(**kwargs)
+
+    @classmethod
+    def from_json(cls, path: Path) -> "ColumnMap":
+        """Load a ColumnMap from a JSON file of {field: [aliases]}. JSON (not
+        TOML) keeps this dependency-free on Python 3.10."""
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError(f"column map file must be a JSON object: {path}")
+        return cls.from_mapping(raw)
 
 
 def _norm(text: Any) -> str:

@@ -22,7 +22,7 @@ from .core.config import config
 from .core.loop import PerfectionLoop
 from .core.memory import AuditLogger, SQLiteManager, VersionController
 from .core.reporting import CertificationReporter
-from .core.wiring import OKCountySourceProbe, SurgeonRepairer, WorkbookGateSuite
+from .core.wiring import ColumnMap, OKCountySourceProbe, SurgeonRepairer, WorkbookGateSuite
 from .excel.recalc import LibreOfficeEngine
 
 ARTIFACT_KEY = "TitleReport"
@@ -31,6 +31,19 @@ ARTIFACT_KEY = "TitleReport"
 def _manager() -> SQLiteManager:
     config.ensure_dirs()
     return SQLiteManager(config.DB_PATH)
+
+
+def _column_map(args: argparse.Namespace) -> ColumnMap | None:
+    """Load a ColumnMap from --column-map, else an auto-detected columnmap.json
+    in the base dir, else None (built-in defaults)."""
+    explicit = getattr(args, "column_map", None)
+    if explicit:
+        return ColumnMap.from_json(Path(explicit))
+    default = config.BASE_DIR / "columnmap.json"
+    if default.exists():
+        print(f"(using column map {default})")
+        return ColumnMap.from_json(default)
+    return None
 
 
 def _source_probe(mgr: SQLiteManager):
@@ -81,7 +94,7 @@ def cmd_map(args: argparse.Namespace) -> int:
         print("error: no workbook registered; run `register <workbook.xlsx>` first",
               file=sys.stderr)
         return 2
-    report = WorkbookGateSuite().coverage(latest.file_path)
+    report = WorkbookGateSuite(column_map=_column_map(args)).coverage(latest.file_path)
     _print_coverage(report)
     print(f"\ncoverage {'OK' if report.ok else 'INCOMPLETE'}")
     return 0 if report.ok else 1
@@ -97,6 +110,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 2
     recalc = LibreOfficeEngine()
     suite = WorkbookGateSuite(
+        column_map=_column_map(args),
         source_probe=_source_probe(mgr),
         recalc_engine=recalc if recalc.conversion_works() else None,
     )
@@ -156,11 +170,13 @@ def main(argv: list[str] | None = None) -> int:
     reg.set_defaults(func=cmd_register)
 
     mp = sub.add_parser("map", help="preflight: show how columns map to the gates")
+    mp.add_argument("--column-map", help="path to a JSON column-map override")
     mp.set_defaults(func=cmd_map)
 
     run = sub.add_parser("run", help="drive the perfection loop")
     run.add_argument("--force", action="store_true",
                      help="run even if mapping coverage is incomplete")
+    run.add_argument("--column-map", help="path to a JSON column-map override")
     run.set_defaults(func=cmd_run)
 
     stat = sub.add_parser("status", help="print the scorecard")

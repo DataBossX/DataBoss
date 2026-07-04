@@ -84,6 +84,20 @@ exists — otherwise those gates would pass on no data and produce a false
 against the real headers before running. `run --force` overrides the guard
 (gates with unread inputs simply don't run).
 
+**Retarget without editing code.** When `map` shows unresolved columns, supply a
+JSON override instead of editing Python — pass `--column-map cm.json`, or drop a
+`columnmap.json` in the base dir (auto-loaded). Only the fields you name are
+overridden; unknown field names are rejected. Example:
+
+```json
+{ "grantor": ["from", "grantor"], "grantee": ["to", "grantee"],
+  "net_acres": ["net mineral acres"] }
+```
+
+Valid fields: `grantor, grantee, date, interest_change, book, page, instrument,
+tract, gross_acres, net_acres, interest_fraction, lessor, royalty, owner,
+working_interest, nri`.
+
 ## Note on Gate 6 in CI
 
 `LibreOfficeEngine.conversion_works()` is a functional probe. Some sandboxed

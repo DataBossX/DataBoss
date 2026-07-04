@@ -42,20 +42,51 @@ def _canon(header: str) -> Optional[str]:
     return _HEADER_SYNONYMS.get(key)
 
 
-def write_report(report: ReportModel, path: Path) -> Path:
-    """Write ``report`` to ``path`` using the canonical column layout."""
+DATA_SHEET_TITLE = "Title Report"
+
+
+def _has_media(path: Path) -> bool:
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return any(n.startswith("xl/media/") for n in zf.namelist())
+    except (zipfile.BadZipFile, OSError):
+        return False
+
+
+def write_report(report: ReportModel, path: Path, template: Optional[Path] = None) -> Path:
+    """Write ``report`` to ``path`` using the canonical column layout.
+
+    If ``template`` is an existing workbook that carries embedded media (plats),
+    the output is written *into a copy of that template* so ``xl/media`` parts
+    and other sheets survive (openpyxl preserves images across load/save); only
+    the data sheet is rewritten. Otherwise a fresh workbook is created.
+    """
     import openpyxl
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Title Report"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if template is not None and Path(template).exists() and _has_media(Path(template)):
+        import shutil
+        shutil.copy2(template, path)
+        wb = openpyxl.load_workbook(path)
+        # find the data sheet (preferred title, else the active sheet) and
+        # rewrite only it -- every other sheet (e.g. embedded plats) is preserved.
+        ws = wb[DATA_SHEET_TITLE] if DATA_SHEET_TITLE in wb.sheetnames else wb.active
+        if ws.max_row:
+            ws.delete_rows(1, ws.max_row)
+        ws.title = DATA_SHEET_TITLE
+    else:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = DATA_SHEET_TITLE
+
     headers = [c.replace("_", " ").title() for c in CANONICAL_COLUMNS]
     ws.append([f"{report.section} - Roger Mills County - Cursory Title Report"])
     ws.append(headers)
     for row in report.rows:
         ws.append([getattr(row, c, "") or "" for c in CANONICAL_COLUMNS])
     ws.freeze_panes = "A3"
-    path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)
     wb.close()
     return path

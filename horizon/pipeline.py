@@ -198,14 +198,17 @@ def score_reference_workbook(path: Path) -> int:
     ogl_sheets = [n for n in names if _is_ogl_sheet(n)]
     run_sheets = [n for n in names if _is_runsheet_sheet(n)]
     has_ogl = bool(ogl_sheets)
+    # A usable reference workbook MUST have an OGL register. Without one, no
+    # filename bonus can rescue it -- otherwise a file merely *named* like the
+    # report but containing no register would be auto-selected and its first
+    # sheet processed as OGL data. Return 0 so it is never chosen.
+    if not has_ogl:
+        return 0
     # Require the runsheet to be a *different* sheet than the chosen OGL one.
     has_run = any(n not in ogl_sheets for n in run_sheets)
-    score = 0
-    if has_ogl:
-        score += 3
+    score = 3  # has_ogl
     if has_run:
         score += 3
-    if has_ogl and has_run:
         score += 4  # a single workbook carrying both registers is ideal
     low_name = path.name.lower()
     if "cursory" in low_name or "nhe" in low_name or "title report" in low_name:
@@ -327,7 +330,12 @@ def chain_to_report(
                     "Instrument spans multiple tracts; per-tract interest not "
                     "assumed to be independent")
                 status = REVIEW_TAG
-            if not link.tied_to_legal:
+            if not str(rec.legal_description).strip():
+                # No legal to tie the conveyance to a tract; the legal-tie check
+                # can't verify it, so flag rather than silently accept.
+                remarks_bits.append("No legal description to tie to a tract")
+                status = REVIEW_TAG
+            elif not link.tied_to_legal:
                 remarks_bits.append("Legal description does not tie to tract")
                 status = REVIEW_TAG
             if not link.grantor_continuity:

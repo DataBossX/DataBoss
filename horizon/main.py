@@ -45,6 +45,14 @@ else:
     from .versioning import latest_version, next_version_path
 
 
+def _is_newer(candidate: Path, reference: Path) -> bool:
+    """True if ``candidate`` was modified more recently than ``reference``."""
+    try:
+        return candidate.stat().st_mtime > reference.stat().st_mtime
+    except OSError:
+        return False
+
+
 def build_config(args: argparse.Namespace) -> HorizonConfig:
     cfg = HorizonConfig.from_env(args.root)
     if args.section:
@@ -90,12 +98,21 @@ def run(args: argparse.Namespace) -> int:
         if not wb_path.exists():
             audit.error("build_from_missing", f"workbook not found: {wb_path}")
             wb_path = None
-    elif latest_version(cfg.final_reports, base_stem) is None:
+    else:
+        latest = latest_version(cfg.final_reports, base_stem)
         candidates = [r.path for r in cleanup.kept] or [r.path for r in cleanup.scanned]
-        wb_path = find_reference_workbook(candidates)
-        if wb_path is not None:
-            audit.info("reference_autodetect", f"selected {wb_path.name}")
-        else:
+        detected = find_reference_workbook(candidates)
+        # Build from the detected reference workbook when there is no report yet,
+        # OR when the reference workbook is newer than the latest report -- so a
+        # rerun after adding/updating OGL sources doesn't keep perfecting a stale
+        # file. An unchanged source on rerun is left alone (loop improves latest).
+        if detected is not None and (
+            latest is None or _is_newer(detected, latest)
+        ):
+            wb_path = detected
+            reason = "no prior report" if latest is None else "source newer than latest report"
+            audit.info("reference_autodetect", f"selected {detected.name} ({reason})")
+        elif latest is None and detected is None:
             audit.warn("reference_autodetect",
                        "no OGL+runsheet workbook found among sources")
 

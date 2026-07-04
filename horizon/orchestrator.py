@@ -97,7 +97,8 @@ class Orchestrator:
         from .report_io import write_report
 
         out = next_version_path(self.cfg.final_reports, base_stem)
-        write_report(report, out)
+        # Preserve any embedded plats/media from the ingested version.
+        write_report(report, out, template=src)
         self.audit.info("emit_version", f"wrote {out.name}")
         return out
 
@@ -166,6 +167,24 @@ class Orchestrator:
                 self.audit.error("reingest_failed", f"{repaired_path.name}: {exc}")
                 result.exhausted = True
                 return result
+
+        # The loop reloaded `working_report` from the last repair but the final
+        # iteration ended before re-validating it. Give the repaired report one
+        # last validation so a workbook that repairs into a passing state
+        # converges instead of being wrongly reported as exhausted.
+        final_vr = self.validate(working_report, reqs)
+        if final_vr.passed:
+            out = self.emit_version(working_report, base_stem,
+                                    latest_version(self.cfg.final_reports, base_stem))
+            result.iterations.append(LoopIteration(
+                index=self.cfg.max_loops + 1,
+                version_in=None, version_out=out.name, passed=True,
+                validation_summary=final_vr.summary(), repaired=False,
+            ))
+            result.final_version = out
+            result.converged = True
+            self.audit.info("loop_converged", f"final revalidation -> {out.name}")
+            return result
 
         result.exhausted = True
         self.audit.warn("loop_exhausted", f"reached max_loops={self.cfg.max_loops}")

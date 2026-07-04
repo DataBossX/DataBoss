@@ -87,3 +87,34 @@ def test_norm_date_does_not_fabricate():
     assert rm.norm_date("Section 31 twp 12N") is None
     # A real date still parses.
     assert rm.norm_date("1975-06-01") is not None
+
+
+def test_norm_date_recovers_annotated_dates():
+    # Real dates embedded in annotated cells are recovered (no fuzzy fabrication).
+    assert rm.norm_date("1/2/1990 re-recorded") is not None
+    assert rm.norm_date("June 5, 1975 filed") is not None
+
+
+def test_header_abbreviations_with_punctuation_map():
+    assert rm.match_header("No.") == "entry_no"
+    assert rm.match_header("Pg.") == "page"
+    assert rm.match_header("Bk.") == "book"
+
+
+def test_name_match_tolerates_variance_but_not_distinct():
+    assert rm._name_match("ALICE J JONES", "ALICE JONES") is True
+    assert rm._name_match("ALICE", "ALICE JONES") is False
+    assert rm._name_match("BOB SMITH", "BOB JONES") is False
+
+
+def test_chain_out_reconciles_name_variance():
+    chain = rm.chain_out_interest([
+        _row("US PATENT", "ALICE JONES", "1"),
+        _row("ALICE J JONES", "BOB SMITH", "1/2"),   # variance -> reconcile
+        _row("BOB SMITH", "CAROL", "1/4"),
+        _row("DAVE", "EVE", "1/8"),                  # genuine gap
+        _row("CAROL", "FRANK", "1/4"),
+    ])
+    assert chain["gap_count"] == 1                    # only DAVE
+    assert chain["name_notes"]
+    assert chain["ownership"].get("ALICE JONES") == Fraction(1, 2)

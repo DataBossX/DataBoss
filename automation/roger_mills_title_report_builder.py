@@ -223,18 +223,27 @@ def norm_date(value: Any) -> Optional[_dt.date]:
             return base + _dt.timedelta(days=int(s))
         except Exception:
             return None
-    if _HAVE_DATEUTIL:
-        try:
-            # fuzzy=False: never fabricate a date from a messy non-date cell.
-            return _dateparser.parse(s, dayfirst=False, fuzzy=False).date()
-        except Exception:
-            return None
-    # minimal fallback parser
-    for fmt in ("%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y"):
-        try:
-            return _dt.datetime.strptime(s, fmt).date()
-        except Exception:
-            continue
+    # fuzzy=False: never fabricate a date from a messy non-date cell. But many
+    # runsheet cells annotate a real date ("1/2/1990 re-recorded"); recover the
+    # explicit date token by regex first, then parse THAT strictly.
+    candidates = [s]
+    frag = re.search(
+        r"\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2}"
+        r"|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}", s)
+    if frag:
+        candidates.append(frag.group(0))
+    for cand in candidates:
+        if _HAVE_DATEUTIL:
+            try:
+                return _dateparser.parse(cand, dayfirst=False, fuzzy=False).date()
+            except Exception:
+                pass
+        for fmt in ("%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d", "%m/%d/%y",
+                    "%B %d, %Y", "%b %d, %Y"):
+            try:
+                return _dt.datetime.strptime(cand, fmt).date()
+            except Exception:
+                continue
     return None
 
 
@@ -308,7 +317,10 @@ def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[File
             e = e.resolve()
         except OSError:
             continue
-        if e.is_dir():
+        # Classify by type; for a path that does not exist yet (e.g. the output
+        # workbook, or a support dir not created until step 2) infer from the
+        # suffix so the support dir is pruned as a directory, not a file.
+        if e.is_dir() or (not e.exists() and not e.suffix):
             excl_dirs.append(e)
         else:
             excl_files.add(e)
@@ -331,9 +343,10 @@ def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[File
 
     for dirpath, dirs, files in os.walk(root):
         here = Path(dirpath)
-        # prune excluded subtrees in-place so os.walk never descends into them
-        dirs[:] = [d for d in dirs if not _excluded(here / d)
-                   and (here / d).name.lower() not in ("files",)]
+        # prune excluded subtrees in-place so os.walk never descends into them.
+        # Only the explicitly-excluded paths (support dir / output / artifacts)
+        # are pruned -- never a source folder just because it is named "files".
+        dirs[:] = [d for d in dirs if not _excluded(here / d)]
         for fn in files:
             p = here / fn
             if _excluded(p):
@@ -391,11 +404,12 @@ def match_header(cell_text: str) -> Optional[str]:
         for syn in syns:
             if syn == t:
                 return field_name
-            # Only allow *containment* for synonyms of length >= 3, matched on a
-            # word boundary. Short tokens ("no", "to", "#", "pg") match by exact
-            # header only -- otherwise "Notes" -> entry_no (via "no") and "Total"
-            # -> grantee (via "to") silently miscolumn the data.
-            if len(syn) >= 3 and re.search(r"\b" + re.escape(syn) + r"\b", t):
+            # Allow *containment* only on a word boundary (>= 2-char synonyms).
+            # The boundary keeps "Notes" from matching entry_no via "no" and
+            # "Total" from matching grantee via "to", while still mapping
+            # abbreviated headers like "No.", "Pg.", "Bk." (the trailing dot is a
+            # word boundary). 1-char synonyms ("#") match by exact header only.
+            if len(syn) >= 2 and re.search(r"\b" + re.escape(syn) + r"\b", t):
                 score = len(syn) / max(len(t), 1)
                 if score > best_score:
                     best_field, best_score = field_name, score
@@ -739,6 +753,7 @@ def chain_out_interest(merged: List["TitleRow"]) -> Dict[str, Any]:
     ownership: Dict[str, Fraction] = {}
     links: List[Dict[str, Any]] = []
     warnings: List[str] = []
+    name_notes: List[str] = []
     gap_count = 0
 
     for i, row in enumerate(merged, start=1):
@@ -786,6 +801,16 @@ def chain_out_interest(merged: List["TitleRow"]) -> Dict[str, Any]:
 
         prev = ownership.get(grantor)
         if prev is None:
+            # Tolerate minor name variance (a middle initial, a spelling
+            # difference across sources) before declaring a vesting gap: match
+            # the grantor to a currently-vested party by fuzzy similarity.
+            match = _best_vested_match(grantor, ownership)
+            if match is not None:
+                name_notes.append(f"Row {i}: grantor '{grantor}' reconciled to "
+                                  f"vested party '{match}' (name variance).")
+                grantor = match
+                prev = ownership.get(grantor)
+        if prev is None:
             gap_count += 1
             warnings.append(f"Row {i}: grantor '{grantor}' not previously vested "
                             f"(chain gap -- examiner review).")
@@ -803,8 +828,39 @@ def chain_out_interest(merged: List["TitleRow"]) -> Dict[str, Any]:
     # A single consistent gross acreage lets us report net mineral acres.
     gross = _single_gross_acreage(merged)
     return {"links": links, "ownership": ownership, "warnings": warnings,
-            "gap_count": gap_count, "total": total, "reconciles": reconciles,
-            "gross_acres": gross}
+            "name_notes": name_notes, "gap_count": gap_count, "total": total,
+            "reconciles": reconciles, "gross_acres": gross}
+
+
+def _name_core_tokens(name: str) -> set:
+    """Significant name tokens, dropping single-letter middle initials."""
+    return {t for t in name.split() if len(t) > 1}
+
+
+def _name_match(a: str, b: str) -> bool:
+    """True when two party names denote the same person despite minor variance
+    (a middle initial, a suffix) -- conservative, so distinct parties are kept
+    apart. Works without rapidfuzz (uses a surname-anchored token subset plus a
+    character-ratio fallback for spelling variants)."""
+    if a == b:
+        return True
+    ta, tb = _name_core_tokens(a), _name_core_tokens(b)
+    ap, bp = a.split(), b.split()
+    if ta and tb and (ta <= tb or tb <= ta) and ap and bp and ap[-1] == bp[-1]:
+        # e.g. "ALICE J JONES" vs "ALICE JONES" (same surname, initial dropped).
+        return True
+    import difflib
+    return difflib.SequenceMatcher(None, a, b).ratio() >= 0.90
+
+
+def _best_vested_match(name: str, ownership: Dict[str, Fraction]) -> Optional[str]:
+    """Return a currently-vested owner (positive balance) whose name matches
+    ``name`` under :func:`_name_match`. A genuinely different grantor still
+    surfaces as a gap; only name variance is reconciled."""
+    for key, bal in ownership.items():
+        if bal > 0 and key != name and _name_match(name, key):
+            return key
+    return None
 
 
 def _single_gross_acreage(merged: List["TitleRow"]) -> Optional[float]:
@@ -881,6 +937,13 @@ def write_chain_sheet(wb, chain: Dict[str, Any], section: str) -> None:
         ws.cell(row=r, column=1,
                 value=f"Net mineral acres = ownership x {gross} gross acres.")
         r += 1
+    if chain.get("name_notes"):
+        r += 1
+        ws.cell(row=r, column=1, value="NAME RECONCILIATIONS (variance tolerated):")
+        r += 1
+        for n in chain["name_notes"]:
+            ws.cell(row=r, column=1, value=n)
+            r += 1
     if chain["warnings"]:
         r += 1
         ws.cell(row=r, column=1, value="EXAMINER REVIEW (chain notes):")
@@ -935,14 +998,40 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
 
     from copy import copy as _copy
 
-    def clone_style(src_cell, dst_cell):
+    # Snapshot the style-row styling BEFORE any unmerge. A merged style band
+    # keeps its styling only in the anchor cell, so resolve each column to its
+    # anchor now; otherwise the unmerge below would leave most columns default.
+    style_snap: Dict[int, Dict[str, Any]] = {}
+    for col in field_to_col.values():
+        cell = target_ws.cell(row=style_row_idx, column=col)
+        src = cell
+        if isinstance(cell, openpyxl.cell.cell.MergedCell):
+            for rng in target_ws.merged_cells.ranges:
+                if (rng.min_row <= style_row_idx <= rng.max_row
+                        and rng.min_col <= col <= rng.max_col):
+                    src = target_ws.cell(row=rng.min_row, column=rng.min_col)
+                    break
         try:
-            dst_cell.font = _copy(src_cell.font)
-            dst_cell.fill = _copy(src_cell.fill)
-            dst_cell.border = _copy(src_cell.border)
-            dst_cell.alignment = _copy(src_cell.alignment)
-            dst_cell.number_format = src_cell.number_format
-            dst_cell.protection = _copy(src_cell.protection)
+            style_snap[col] = {
+                "font": _copy(src.font), "fill": _copy(src.fill),
+                "border": _copy(src.border), "alignment": _copy(src.alignment),
+                "number_format": src.number_format,
+                "protection": _copy(src.protection),
+            }
+        except Exception:
+            style_snap[col] = {}
+
+    def apply_style(dst_cell, col):
+        snap = style_snap.get(col)
+        if not snap:
+            return
+        try:
+            dst_cell.font = snap["font"]
+            dst_cell.fill = snap["fill"]
+            dst_cell.border = snap["border"]
+            dst_cell.alignment = snap["alignment"]
+            dst_cell.number_format = snap["number_format"]
+            dst_cell.protection = snap["protection"]
         except Exception:
             pass
 
@@ -973,7 +1062,7 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
             value = row.data.get(fld, "")
             cell = _safe_set(write_row, col, value or None)
             if cell is not None and write_row != style_row_idx:
-                clone_style(target_ws.cell(row=style_row_idx, column=col), cell)
+                apply_style(cell, col)
         # verification flag in remarks column if present
         if "remarks" in field_to_col and not verified.get(k, False):
             rc = target_ws.cell(row=write_row, column=field_to_col["remarks"])
@@ -1231,13 +1320,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if best_base:
         LOG(f"Best base data workbook: {best_base.rec.rel}")
 
-    # 5. extract + merge rows from ALL report workbooks
+    # 5. extract + merge rows from ALL report AND runsheet workbooks. The
+    # runsheet is the primary chain-of-title source, so its rows must feed the
+    # merge and the interest chain-out -- not just "report"-named workbooks.
     LOG.section("5. Extract & merge data")
+    data_analyses = [analyses[str(r.path)] for r in recs
+                     if r.kind in ("report", "runsheet") and str(r.path) in analyses]
     all_rows: List[List[TitleRow]] = []
-    for wa in report_analyses:
+    for wa in data_analyses:
         rows = extract_rows(wa)
         if rows:
-            LOG(f"  {wa.rec.rel}: {len(rows)} rows")
+            LOG(f"  {wa.rec.rel} [{wa.rec.kind}]: {len(rows)} rows")
             all_rows.append(rows)
     merged, audit, conflicts = merge_rows(all_rows)
     LOG(f"Merged unique records: {len(merged)}  | field conflicts: {len(conflicts)}")

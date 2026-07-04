@@ -86,3 +86,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Grocery Report generated artifacts (rerunnable; not source of truth)
+output/

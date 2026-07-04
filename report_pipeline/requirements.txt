@@ -1,0 +1,27 @@
+# Grocery Report pipeline — OPTIONAL dependencies.
+# The pipeline RUNS WITHOUT ANY of these (CSV-only, no PDF/OCR), degrading
+# gracefully and logging what it skipped. Install these to unlock full coverage.
+
+# Excel (.xlsx) output + reading ownership/OGL spreadsheets
+openpyxl>=3.1.5
+
+# Nicer tables / optional (not required by the pipeline itself)
+pandas>=2.2.0
+
+# PDF text extraction (choose one; pypdf is lighter)
+pypdf>=4.0.0
+# pdfminer.six>=20231228
+
+# Word (.docx) reading + report .docx output
+python-docx>=1.1.0
+
+# OCR for scanned PDFs / images (also needs the Tesseract binary installed)
+pytesseract>=0.3.13
+Pillow>=10.0.0
+
+# Better fuzzy duplicate matching (optional; falls back to normalized stems)
+rapidfuzz>=3.0.0
+
+# Install everything:
+#   pip install -r report_pipeline/requirements.txt
+# Windows Tesseract binary: https://github.com/UB-Mannheim/tesseract/wiki

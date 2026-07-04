@@ -82,12 +82,17 @@ is missing or the call fails, it silently falls back to deterministic formatting
 | `--use-llm` | reformat legals via `ANTHROPIC_API_KEY` (formatting only) |
 
 ## 6. Prove the machinery works without touching real data
+Simplest — one flag builds a synthetic corpus in a temp folder and runs everything:
+```bat
+py <path-to-repo>\automation\roger_mills_report_builder_v2.py --self-test
+```
+It prints `SELF-TEST: PASS` and the path to the workbook it produced. Or generate
+the sample where you can browse it:
 ```bat
 py <path-to-repo>\automation\make_roger_mills_sample.py .\_sample
 py <path-to-repo>\automation\roger_mills_report_builder_v2.py --horizon ".\_sample\Horizon"
 ```
-Generates a clearly-labeled **synthetic** Horizon corpus and runs the whole build
-against it, so you can see exactly what the real run will produce.
+Every value in the sample is clearly SYNTHETIC — it only proves the plumbing.
 
 ## 7. Troubleshooting
 | Symptom | Fix |

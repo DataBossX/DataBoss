@@ -578,7 +578,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--use-llm", action="store_true",
                     help="Reformat legal descriptions via ANTHROPIC_API_KEY (formatting only)")
     ap.add_argument("--dry-run", action="store_true", help="Plan only; write nothing final")
+    ap.add_argument("--self-test", action="store_true",
+                    help="Generate a synthetic Horizon corpus and build against it (no real data)")
     args = ap.parse_args(argv)
+
+    if args.self_test:
+        return _run_self_test()
 
     horizon = Path(args.horizon)
     out_dir = Path(args.out_dir) if args.out_dir else horizon / "rogermillsfinalreports"
@@ -951,6 +956,37 @@ def _final_console(out_dir, all_recs, merged, conflicts, n_verified, method,
     print(f"Conflicts:          {len(conflicts)}")
     print(f"Index verified:     {n_verified}/{len(merged)}  (method: {method})")
     print("Review:             see final_summary_codexv2.txt")
+
+
+def _run_self_test() -> int:
+    """Generate a synthetic Horizon corpus in a temp dir and build against it.
+    Proves the whole pipeline works without touching any real data."""
+    import tempfile
+    try:
+        import make_roger_mills_sample as sample  # sibling module
+    except Exception as exc:
+        LOG(f"FATAL: self-test needs make_roger_mills_sample.py beside this file ({exc}).", "ERROR")
+        return 2
+    tmp = Path(tempfile.mkdtemp(prefix="rm_selftest_"))
+    horizon = tmp / "Horizon"
+    sample.make_template(horizon / "Template(30).xlsx")
+    sample.make_report(horizon / "Roger Mills" / "31-12N-24W_Cursory_Title_Report_v1.xlsx",
+                       sample.BASE_ROWS[:4], note="Need recording info for Tract 1 lease.")
+    r2 = [list(r) for r in sample.BASE_ROWS]
+    r2[1][6] = "89"  # book typo -> exercises near-dup collapse
+    sample.make_report(horizon / "Roger Mills 2" / "31-12N-24W_Cursory_Title_Report_FINAL.xlsx",
+                       r2, title_date="6/27/2026", prepared="Horizon Minerals")
+    sample.make_report(horizon / "Roger Mills 3" / "31-12N-24W_Cursory_Title_Report_updated_best.xlsx",
+                       sample.BASE_ROWS, title_date="6/27/2026", prepared="Horizon Minerals",
+                       note="Curative: obtain lessor affidavits for OGL-002.")
+    (horizon / ".env").write_text("ANTHROPIC_API_KEY=\n", encoding="utf-8")
+    LOG(f"SELF-TEST: synthetic corpus at {horizon}")
+    rc = main(["--horizon", str(horizon)])
+    out = horizon / "rogermillsfinalreports"
+    wb_path = out / "31-12N-24W_Roger_Mills_Cursory_Title_Report_codexv2.xlsx"
+    ok = rc == 0 and wb_path.exists()
+    print("\nSELF-TEST:", "PASS" if ok else "FAIL", "->", wb_path)
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

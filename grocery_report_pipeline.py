@@ -655,6 +655,19 @@ def load_text(tr: Optional[TextRec], output_dir: Path) -> str:
 # ===========================================================================
 # STAGE B -- DUPLICATE DETECTION
 # ===========================================================================
+def canonical_paths(recs: List[FileRec]) -> Dict[str, str]:
+    """Map sha256 -> the canonical file's absolute path, choosing the earliest
+    'modified' (tie-broken by rel_path). Shared by Stage B (which quarantines the
+    NON-canonical copies) and Stage E (which extracts only the canonical copy) so
+    the two stages can never disagree about which file is kept."""
+    by_hash: Dict[str, List[FileRec]] = defaultdict(list)
+    for r in recs:
+        if r.sha256:
+            by_hash[r.sha256].append(r)
+    return {h: min(g, key=lambda r: (r.modified, r.rel_path)).path
+            for h, g in by_hash.items()}
+
+
 def detect_duplicates(recs: List[FileRec], texts: Dict[str, TextRec],
                       output_dir: Path, log: BuildLog) -> List[Dict[str, Any]]:
     log.section("STAGE B -- Duplicate detection")
@@ -665,12 +678,15 @@ def detect_duplicates(recs: List[FileRec], texts: Dict[str, TextRec],
     for r in recs:
         if r.sha256:
             by_hash[r.sha256].append(r)
+    canonical_for_hash = canonical_paths(recs)
+    rec_by_path = {r.path: r for r in recs}
     for h, group in by_hash.items():
         if len(group) < 2:
             continue
-        group = sorted(group, key=lambda r: (r.modified, r.rel_path))
-        canonical = group[0]
-        for dup in group[1:]:
+        canonical = rec_by_path[canonical_for_hash[h]]
+        for dup in group:
+            if dup.path == canonical.path:
+                continue
             candidates.append(dict(
                 match_type="exact-sha256", confidence=1.0,
                 canonical=canonical.rel_path, duplicate=dup.rel_path,
@@ -1028,18 +1044,16 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
                   log: BuildLog) -> List[Fact]:
     log.section("STAGE E -- Structured extraction (deterministic)")
     facts: List[Fact] = []
-    seen_hashes: set = set()
+    # Byte-identical duplicates yield identical facts; extracting them twice
+    # would double-count decimals and fabricate chain gaps. Extract the canonical
+    # copy only -- using the SAME rule as Stage B's quarantine (earliest modified,
+    # then rel_path) so facts never cite a file that quarantine would move.
+    canonical_for_hash = canonical_paths(recs)
     skipped_dupes = 0
     for r in recs:
-        # Byte-identical duplicates yield identical facts; extracting them twice
-        # would double-count decimals and fabricate chain gaps. Extract the
-        # canonical (first-seen) copy only; the duplicate is still inventoried
-        # and reported in Stage B.
-        if r.sha256:
-            if r.sha256 in seen_hashes:
-                skipped_dupes += 1
-                continue
-            seen_hashes.add(r.sha256)
+        if r.sha256 and canonical_for_hash.get(r.sha256) != r.path:
+            skipped_dupes += 1
+            continue
         tr = texts.get(r.path)
         text = load_text(tr, output_dir)
         cats = classes.get(r.path, [])
@@ -1230,23 +1244,39 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     calc_rows = []
     conflicts: List[List[Any]] = []
     for legal, group in sorted(tract_groups.items()):
-        # Sum ALL decimals found in each doc (multi-owner sheets contribute many).
-        decs = [(d, f) for f in group for d in (f.all_decimals or [])]
-        if not decs:
-            decs = [(_to_float(f.values.get("decimal_interest")), f) for f in group
-                    if f.values.get("decimal_interest")]
-        dec_sum = round(sum(d for d, _ in decs if d is not None), 8) if decs else None
+        # Per-fact: prefer that fact's own all_decimals (multi-owner text doc),
+        # else fall back to its single decimal_interest. This mixes row-wise and
+        # free-text facts in the same tract without dropping either, and counts
+        # any single fact only once. Track rows whose decimal won't parse.
+        decs: List[Tuple[float, Fact]] = []
+        unparseable = 0
+        for f in group:
+            if f.all_decimals:
+                decs += [(d, f) for d in f.all_decimals]
+            elif f.values.get("decimal_interest"):
+                v = _to_float(f.values.get("decimal_interest"))
+                if v is None:
+                    unparseable += 1
+                else:
+                    decs.append((v, f))
+        dec_sum = round(sum(d for d, _ in decs), 8) if decs else None
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
+        excl = f" ({unparseable} unparseable decimal(s) excluded)" if unparseable else ""
+        if dec_sum is None:
+            dec_check = f"{REVIEW}: no numeric decimals{excl}" if unparseable else "OK"
+        elif abs(dec_sum - 1.0) < 1e-4 and not unparseable:
+            dec_check = "OK"
+        else:
+            dec_check = f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0{excl}"
         calc_rows.append([legal, len(group),
-                          dec_sum if dec_sum is not None else "n/a",
-                          ("OK" if dec_sum is None or abs(dec_sum - 1.0) < 1e-4
-                           else f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"),
+                          dec_sum if dec_sum is not None else "n/a", dec_check,
                           ", ".join(str(g) for g in gross_vals) or "n/a",
                           ("OK" if len(gross_vals) <= 1 else f"{REVIEW}: gross acreage disagrees")])
         if dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
-            conflicts.append(["decimal-sum", legal, f"Decimals sum to {dec_sum} (expected 1.0)",
-                              "; ".join(f.source_file for _, f in decs)])
+            conflicts.append(["decimal-sum", legal,
+                              f"Decimals sum to {dec_sum} (expected 1.0){excl}",
+                              "; ".join(sorted({f.source_file for _, f in decs}))])
         if len(gross_vals) > 1:
             conflicts.append(["acreage-mismatch", legal,
                               f"Conflicting gross acres: {gross_vals}",

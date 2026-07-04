@@ -181,6 +181,38 @@ def test_header_synonym_wholeword():
     assert 0 not in m  # 'Filename' maps to nothing
 
 
+def test_dup_extraction_matches_quarantine_canonical(run):
+    """The file Stage B would quarantine must NOT be the source of any fact, and
+    its canonical must be a fact source -> extraction & quarantine agree."""
+    facts = {f["source_file"] for f in _read_csv(run["out"] / "extracted_facts.csv")}
+    q = _read_csv(run["out"] / "quarantine_plan.csv")
+    exact = [r for r in q if r["match_type"] == "exact-sha256"]
+    assert exact, "expected an exact-duplicate pair"
+    for row in exact:
+        assert row["duplicate"] not in facts, \
+            "a to-be-quarantined duplicate is cited as a fact source"
+        assert row["canonical_kept"] in facts, \
+            "the kept canonical produced no facts"
+
+
+def test_unparseable_decimal_excluded_and_noted(tmp_path):
+    """A non-numeric decimal cell must be excluded from the sum AND surfaced."""
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / "own.csv").write_text(
+        "Mineral Owner,Legal Description,Decimal Interest\n"
+        "A,\"Section 9, T2N, R2W\",0.50000000\n"
+        "B,\"Section 9, T2N, R2W\",PENDING\n", encoding="utf-8")
+    out = tmp_path / "o"
+    grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=grp.BuildLog())
+    rr = _read_csv(out / "review_required.csv")
+    dec = [r for r in rr if r["rule"] == "decimal-sum"]
+    assert dec, "tract summing to 0.5 (excluding the unparseable row) not flagged"
+    assert "unparseable" in dec[0]["detail"]
+    facts = _read_csv(out / "extracted_facts.csv")
+    assert any("non-numeric:decimal_interest" in f["review_flags"] for f in facts)
+
+
 def test_percentage_ownership_sheet_not_flagged(tmp_path):
     """A CSV whose decimals are percentages summing to 100% must reconcile to 1.0."""
     corpus = tmp_path / "c"

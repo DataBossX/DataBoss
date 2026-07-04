@@ -1,12 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Roger Mills Cursory Title Report Builder  (codexv1)
+Roger Mills Cursory Title Report Builder  (codexv2)
 ===================================================
 
 A single-file, defensive, *run-it-locally* tool that executes the full
 "build the best possible updated Excel title report" mission against a real
 folder tree on your machine (e.g. D:\\Desktop\\Horizon\\Roger Mills).
+
+WHAT'S NEW IN codexv2
+---------------------
+* INTEREST CHAINING: walks every conveyance in chronological order and chains
+  the mineral interest, parsing fractions (1/2), fraction products ("1/2 of
+  1/8"), decimals, percents and NMA (net mineral acres, when --gross-acres is
+  given). Emits an "Interest Chain" sheet with each grantee's cumulative
+  interest and an "Ownership Ledger" of net positions, FLAGGING over-conveyance
+  / unparseable interest / missing parties instead of guessing.
+* RUNSHEET NOTES: ingests a runsheet workbook and attaches its notes to the
+  matching title rows (by instrument no. or book/page).
+* OGL SHEET / OGL NUMBERS: ingests an OGL (oil & gas lease) schedule, attaches
+  the OGL number to each matching lease row, and emits an "OGL Summary" sheet.
+* LEGALS carried through the merge and shown alongside the chain.
+* "LOOP TILL PERFECT": builds, validates, and re-builds up to --max-passes,
+  writing a perfection checklist of the exact human-review items that remain.
 
 WHY THIS IS A LOCAL TOOL
 ------------------------
@@ -48,11 +64,24 @@ USAGE (Windows PowerShell or CMD)
 ---------------------------------
     py -m pip install --upgrade openpyxl pandas pdfplumber PyMuPDF pytesseract Pillow python-dateutil rapidfuzz
 
+    :: Simplest form - output auto-lands in D:\\Desktop\\Horizon\\rogermillsfinalreports
     py automation\\roger_mills_title_report_builder.py ^
         --root "D:\\Desktop\\Horizon\\Roger Mills" ^
-        --output "D:\\Desktop\\Horizon\\Roger Mills\\31-12N-24W_Roger_Mills_Cursory_Title_Report_(6-27-2026)codexv1.xlsx" ^
-        --support-dir "D:\\Desktop\\Horizon\\Roger Mills\\files" ^
-        --section "31-12N-24W"
+        --section "31-12N-24W" ^
+        --gross-acres 640
+
+    :: Explicit final-dir (matches the requested destination) + tuning
+    py automation\\roger_mills_title_report_builder.py ^
+        --root "D:\\Desktop\\Horizon\\Roger Mills" ^
+        --final-dir "D:\\Desktop\\Horizon\\rogermillsfinalreports" ^
+        --section "31-12N-24W" ^
+        --gross-acres 640 ^
+        --max-passes 3
+
+Naming hints so the extra engines fire:
+    * a workbook with "runsheet" in its filename  -> runsheet notes are chained in
+    * a workbook with "ogl" in its filename        -> OGL numbers are attached
+    * pass --gross-acres to convert NMA interests into fractions of the whole
 
 Run with --dry-run first to see the plan without writing the final workbook.
 
@@ -72,6 +101,7 @@ import shutil
 import sys
 import traceback
 from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -148,7 +178,7 @@ class BuildLog:
 
     def dump(self, path: Path) -> None:
         header = [
-            "Roger Mills Title Report Builder - build log (codexv1)",
+            "Roger Mills Title Report Builder - build log (codexv2)",
             f"Started:  {self.start:%Y-%m-%d %H:%M:%S}",
             f"Finished: {_dt.datetime.now():%Y-%m-%d %H:%M:%S}",
             "",
@@ -256,7 +286,7 @@ class FileRec:
     ext: str
     size: int
     mtime: _dt.datetime
-    kind: str = "other"  # template|report|runsheet|index_pdf|data|doc|image|other
+    kind: str = "other"  # template|report|runsheet|ogl|index_pdf|data|doc|image|other
     note: str = ""
 
 
@@ -267,6 +297,9 @@ def classify(rec: FileRec) -> str:
             return "template"
         if "runsheet" in name or "run sheet" in name:
             return "runsheet"
+        if ("ogl" in name or "o&g lease" in name or "oil and gas lease" in name
+                or "lease schedule" in name or "lease sheet" in name):
+            return "ogl"
         if "title_report" in name or "title report" in name or "cursory" in name:
             return "report"
         return "report"  # treat unknown workbooks as candidate reports
@@ -283,10 +316,28 @@ def classify(rec: FileRec) -> str:
     return "other"
 
 
-def inventory(root: Path) -> List[FileRec]:
+def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[FileRec]:
     recs: List[FileRec] = []
-    for dirpath, _dirs, files in os.walk(root):
-        # never descend into our own backup/output 'files' churn loops
+    # resolve excluded dirs (our own output/support/backup trees) so re-runs do
+    # not re-ingest generated workbooks and compound the merge on every pass.
+    excluded = []
+    for e in (exclude or []):
+        try:
+            excluded.append(e.resolve())
+        except Exception:
+            excluded.append(e)
+    for dirpath, dirs, files in os.walk(root):
+        here = Path(dirpath)
+        try:
+            here_res = here.resolve()
+        except Exception:
+            here_res = here
+        # prune excluded subtrees in-place so os.walk never descends into them
+        if any(here_res == ex or ex in here_res.parents for ex in excluded):
+            dirs[:] = []
+            continue
+        dirs[:] = [d for d in dirs
+                   if not any((here_res / d).resolve() == ex for ex in excluded)]
         for fn in files:
             p = Path(dirpath) / fn
             try:
@@ -312,7 +363,8 @@ def inventory(root: Path) -> List[FileRec]:
 CANON_FIELDS = [
     "entry_no", "instrument_date", "recorded_date", "doc_type",
     "grantor", "grantee", "book", "page", "instrument_no",
-    "legal_description", "acreage", "nma", "interest", "remarks",
+    "legal_description", "acreage", "nma", "interest", "ogl_no",
+    "runsheet_note", "remarks",
 ]
 
 HEADER_SYNONYMS: Dict[str, Sequence[str]] = {
@@ -328,7 +380,11 @@ HEADER_SYNONYMS: Dict[str, Sequence[str]] = {
     "legal_description": ("legal", "description", "land", "tract", "lands described"),
     "acreage": ("acres", "acreage", "gross acres"),
     "nma": ("nma", "net mineral", "net acres", "nra"),
-    "interest": ("interest", "fraction", "decimal", "ri", "ori", "wi", "nri"),
+    "interest": ("interest", "fraction", "decimal", "ri", "ori", "wi", "nri",
+                 "mineral interest", "royalty", "interest conveyed"),
+    "ogl_no": ("ogl", "ogl no", "ogl number", "ogl #", "lease no", "lease number",
+               "lease #", "o&g no", "og no"),
+    "runsheet_note": ("runsheet note", "run sheet note", "rs note", "abstractor note"),
     "remarks": ("remarks", "notes", "comments", "exceptions", "review"),
 }
 
@@ -566,6 +622,321 @@ def merge_rows(all_rows: List[List[TitleRow]]) -> Tuple[List[TitleRow], List[Dic
 
     merged.sort(key=sort_key)
     return merged, audit, conflicts
+
+
+# ----------------------------------------------------------------------------
+# Interest parsing & chaining, runsheet notes, OGL cross-reference (codexv2)
+# ----------------------------------------------------------------------------
+_FRAC_RE = re.compile(r"(\d+)\s*/\s*(\d+)")
+_DEC_RE = re.compile(r"^\s*(\d*\.\d+|\d+\.\d*|\d+)\s*$")
+_PCT_RE = re.compile(r"(\d*\.?\d+)\s*%")
+_NMA_RE = re.compile(
+    r"(\d*\.?\d+)\s*(?:nma|nra|net\s*mineral\s*ac(?:re)?s?|net\s*ac(?:re)?s?)", re.I)
+_ONE = Fraction(1)
+_EPS = Fraction(1, 10 ** 6)
+
+
+def parse_interest(raw: Any, gross_acres: Optional[float] = None
+                   ) -> Tuple[Optional[Fraction], str, str]:
+    """Parse an interest expression into (Fraction | None, kind, detail).
+
+    Never guesses. Returns (None, kind, detail) when it cannot parse a value.
+    Supported forms:
+      * fractions             "1/2", "3/16", "an undivided 1/4"
+      * fraction products     "1/2 of 1/8", "1/2 x 1/8"  (multiplied)
+      * decimals              "0.5", ".25"
+      * percents              "50%", "12.5 %"
+      * net mineral acres     "20 NMA" -> 20 / gross_acres (only if given)
+    """
+    s = norm_text(raw)
+    if not s:
+        return None, "empty", ""
+    low = s.lower()
+
+    # NMA -> fraction of the whole (requires gross acreage; otherwise flag it)
+    m = _NMA_RE.search(low)
+    if m:
+        nma = m.group(1)
+        if gross_acres and float(gross_acres) > 0:
+            frac = (Fraction(nma).limit_denominator(10 ** 6)
+                    / Fraction(str(gross_acres)).limit_denominator(10 ** 6))
+            return frac, "nma", f"{nma} NMA / {gross_acres} ac"
+        return None, "nma_no_gross", f"{nma} NMA (supply --gross-acres to convert)"
+
+    # percent (only when it isn't actually a fraction like 1/8)
+    m = _PCT_RE.search(low)
+    if m and "/" not in low:
+        try:
+            return (Fraction(m.group(1)) / 100).limit_denominator(10 ** 6), "percent", m.group(0)
+        except Exception:
+            pass
+
+    # fractions / fraction products
+    fracs = _FRAC_RE.findall(low)
+    if fracs:
+        if len(fracs) > 1 and re.search(r"\bof\b|[x*]", low):
+            val = _ONE
+            for num, den in fracs:
+                d = int(den) or 1
+                val *= Fraction(int(num), d)
+            return val, "fraction_product", s
+        num, den = fracs[0]
+        d = int(den) or 1
+        return Fraction(int(num), d), "fraction", f"{num}/{den}"
+
+    # bare decimal / integer
+    m = _DEC_RE.match(low)
+    if m:
+        try:
+            return Fraction(m.group(1)).limit_denominator(10 ** 6), "decimal", m.group(1)
+        except Exception:
+            return None, "unknown", s
+
+    return None, "unknown", s
+
+
+def frac_str(f: Optional[Fraction]) -> str:
+    if f is None:
+        return ""
+    return str(f.numerator) if f.denominator == 1 else f"{f.numerator}/{f.denominator}"
+
+
+def frac_dec(f: Optional[Fraction]) -> str:
+    return "" if f is None else f"{float(f):.6f}"
+
+
+@dataclass
+class ChainLink:
+    order: int
+    date: Optional[_dt.date]
+    doc_type: str
+    grantor: str
+    grantee: str
+    raw_interest: str
+    fraction: Optional[Fraction]
+    kind: str
+    grantee_running: Optional[Fraction]
+    grantor_balance_after: Optional[Fraction]
+    legal: str
+    ogl_no: str
+    flags: str
+    source: str
+
+
+def build_interest_chain(merged: List["TitleRow"], gross_acres: Optional[float] = None
+                         ) -> Tuple[List[ChainLink], Dict[str, Fraction]]:
+    """Chain the mineral interest across every conveyance, chronologically.
+
+    Tracks a running ledger of each party's net interest (as a fraction of the
+    whole) and each grantee's cumulative interest. Anomalies are FLAGGED, never
+    silently corrected:
+      * UNPARSED_INTEREST - an interest string we could not parse
+      * OVER_CONVEYANCE    - grantor conveyed more than the ledger shows it held
+      * NO_GRANTOR/GRANTEE - a party is missing from the row
+    Ownership is not seeded with an assumed 100% owner, so early grantor
+    balances can legitimately go negative; that is surfaced, not hidden.
+    """
+    ledger: Dict[str, Fraction] = {}
+    links: List[ChainLink] = []
+    for i, row in enumerate(merged, start=1):
+        grantor_raw = norm_text(row.data.get("grantor", ""))
+        grantee_raw = norm_text(row.data.get("grantee", ""))
+        grantor = norm_name(grantor_raw)
+        grantee = norm_name(grantee_raw)
+        raw = row.data.get("interest", "")
+        frac, kind, _detail = parse_interest(raw, gross_acres)
+        date = (norm_date(row.data.get("instrument_date", ""))
+                or norm_date(row.data.get("recorded_date", "")))
+        flags: List[str] = []
+        if norm_text(raw) and frac is None:
+            flags.append(f"UNPARSED_INTEREST({kind})")
+        if not grantor:
+            flags.append("NO_GRANTOR")
+        if not grantee:
+            flags.append("NO_GRANTEE")
+
+        grantor_before = ledger.get(grantor)
+        if frac is not None:
+            if grantor and grantor_before is not None and frac > grantor_before + _EPS:
+                flags.append(f"OVER_CONVEYANCE(grantor_held={frac_str(grantor_before)})")
+            if grantee:
+                ledger[grantee] = ledger.get(grantee, Fraction(0)) + frac
+            if grantor:
+                ledger[grantor] = ledger.get(grantor, Fraction(0)) - frac
+
+        links.append(ChainLink(
+            order=i, date=date,
+            doc_type=norm_text(row.data.get("doc_type", "")),
+            grantor=grantor_raw, grantee=grantee_raw,
+            raw_interest=norm_text(raw), fraction=frac, kind=kind,
+            grantee_running=ledger.get(grantee) if grantee else None,
+            grantor_balance_after=ledger.get(grantor) if grantor else None,
+            legal=norm_text(row.data.get("legal_description", "")),
+            ogl_no=norm_text(row.data.get("ogl_no", "")),
+            flags="; ".join(flags), source=row.source,
+        ))
+    return links, ledger
+
+
+def _load_table(rec: FileRec) -> List[Dict[str, str]]:
+    """Load a supporting workbook's best sheet as canon-field dict rows."""
+    wa = analyze_workbook(rec)
+    s = wa.best_sheet
+    if not s:
+        LOG(f"  {rec.rel}: no recognizable table (skipped)", "WARN")
+        return []
+    out: List[Dict[str, str]] = []
+    try:
+        wb = openpyxl.load_workbook(rec.path, data_only=True, read_only=True)
+        ws = wb[s.name]
+        for r in range(s.header_row + 1, ws.max_row + 1):
+            d: Dict[str, str] = {}
+            for col, fld in s.header_map.items():
+                d[fld] = norm_text(ws.cell(row=r, column=col).value)
+            if any(d.values()):
+                out.append(d)
+        wb.close()
+    except Exception as exc:
+        LOG(f"  table load failed for {rec.rel}: {exc}", "WARN")
+    return out
+
+
+def _row_ref_keys(d: Dict[str, str]) -> List[str]:
+    """Cross-reference keys for a row: instrument no. and/or book+page."""
+    keys: List[str] = []
+    inst = norm_doc_ref(d.get("instrument_no", ""))
+    if inst and len(inst) >= 3:
+        keys.append(f"INST:{inst}")
+    bp = norm_doc_ref(d.get("book", "") + d.get("page", ""))
+    if bp and bp not in ("", "0"):
+        keys.append(f"BP:{bp}")
+    return keys
+
+
+def load_runsheet_notes(recs: List[FileRec]) -> Tuple[Dict[str, str], Optional[FileRec]]:
+    """Build {ref_key -> combined note text} from the runsheet workbook."""
+    rec = next((r for r in recs if r.kind == "runsheet"), None)
+    if not rec:
+        return {}, None
+    LOG(f"Runsheet: {rec.rel}")
+    index: Dict[str, List[str]] = {}
+    for d in _load_table(rec):
+        note = norm_text(d.get("remarks", "")) or norm_text(d.get("runsheet_note", ""))
+        if not note:
+            continue
+        for k in _row_ref_keys(d):
+            index.setdefault(k, []).append(note)
+    flat = {k: " | ".join(dict.fromkeys(v)) for k, v in index.items()}
+    LOG(f"  runsheet notes indexed: {len(flat)} references")
+    return flat, rec
+
+
+def load_ogl_index(recs: List[FileRec]
+                   ) -> Tuple[Dict[str, str], List[Dict[str, str]], Optional[FileRec]]:
+    """Build ({ref_key -> OGL no.}, summary_rows) from the OGL schedule."""
+    rec = next((r for r in recs if r.kind == "ogl"), None)
+    if not rec:
+        return {}, [], None
+    LOG(f"OGL schedule: {rec.rel}")
+    by_ref: Dict[str, str] = {}
+    summary: List[Dict[str, str]] = []
+    for d in _load_table(rec):
+        ogl = norm_text(d.get("ogl_no", ""))
+        summary.append({
+            "ogl_no": ogl,
+            "lessor": norm_text(d.get("grantor", "")),
+            "lessee": norm_text(d.get("grantee", "")),
+            "date": norm_text(d.get("instrument_date", "")) or norm_text(d.get("recorded_date", "")),
+            "book": norm_text(d.get("book", "")),
+            "page": norm_text(d.get("page", "")),
+            "instrument_no": norm_text(d.get("instrument_no", "")),
+            "interest": norm_text(d.get("interest", "")),
+            "legal": norm_text(d.get("legal_description", "")),
+        })
+        if ogl:
+            for k in _row_ref_keys(d):
+                by_ref.setdefault(k, ogl)
+    LOG(f"  OGL numbers indexed: {len(by_ref)} references, {len(summary)} leases")
+    return by_ref, summary, rec
+
+
+def attach_notes_and_ogl(merged: List["TitleRow"], runsheet_idx: Dict[str, str],
+                         ogl_ref: Dict[str, str]) -> Tuple[int, int]:
+    """Attach runsheet notes and OGL numbers onto merged rows by ref key."""
+    n_notes = n_ogl = 0
+    for row in merged:
+        for k in _row_ref_keys(row.data):
+            if k in runsheet_idx:
+                existing = norm_text(row.data.get("runsheet_note", ""))
+                add = runsheet_idx[k]
+                if add and add not in existing:
+                    row.data["runsheet_note"] = (existing + " | " + add).strip(" |") if existing else add
+                    n_notes += 1
+            if k in ogl_ref and not norm_text(row.data.get("ogl_no", "")):
+                row.data["ogl_no"] = ogl_ref[k]
+                n_ogl += 1
+    return n_notes, n_ogl
+
+
+def append_analysis_sheets(output_path: Path, links: List[ChainLink],
+                           ledger: Dict[str, Fraction],
+                           ogl_summary: List[Dict[str, str]],
+                           gross_acres: Optional[float]) -> None:
+    """Append Interest Chain / Ownership Ledger / OGL Summary sheets to output."""
+    from openpyxl.styles import Font
+    wb = openpyxl.load_workbook(output_path)
+
+    def _fresh(title: str):
+        if title in wb.sheetnames:
+            del wb[title]
+        return wb.create_sheet(title)
+
+    def _finish(ws, widths):
+        ws.freeze_panes = "A2"
+        for i, w in enumerate(widths, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        for c in ws[1]:
+            c.font = Font(bold=True)
+
+    ws = _fresh("Interest Chain")
+    headers = ["#", "Instr Date", "Doc Type", "Grantor", "Grantee",
+               "Interest (raw)", "Interest (fraction)", "Interest (decimal)",
+               "Grantee Cumulative", "Grantor Balance After", "OGL No",
+               "Legal", "Flags", "Source"]
+    ws.append(headers)
+    for lk in links:
+        ws.append([
+            lk.order, lk.date.isoformat() if lk.date else "", lk.doc_type,
+            lk.grantor, lk.grantee, lk.raw_interest, frac_str(lk.fraction),
+            frac_dec(lk.fraction), frac_str(lk.grantee_running),
+            frac_str(lk.grantor_balance_after), lk.ogl_no, lk.legal,
+            lk.flags, lk.source,
+        ])
+    _finish(ws, [5, 12, 18, 26, 26, 16, 16, 14, 16, 18, 12, 40, 34, 24])
+
+    ws2 = _fresh("Ownership Ledger")
+    ws2.append(["Party (normalized)", "Net Interest (fraction)",
+                "Net Interest (decimal)", "Note"])
+    total = sum(ledger.values(), Fraction(0))
+    for party, f in sorted(ledger.items(), key=lambda kv: float(kv[1]), reverse=True):
+        note = "negative net (see chain / over-conveyance flags)" if f < 0 else ""
+        ws2.append([party, frac_str(f), frac_dec(f), note])
+    ws2.append([])
+    ws2.append(["TOTAL (should trend to 0 if chain balances)",
+                frac_str(total), frac_dec(total), ""])
+    _finish(ws2, [40, 22, 22, 44])
+
+    if ogl_summary:
+        ws3 = _fresh("OGL Summary")
+        cols = ["ogl_no", "lessor", "lessee", "date", "book", "page",
+                "instrument_no", "interest", "legal"]
+        ws3.append([c.replace("_", " ").upper() for c in cols])
+        for d in ogl_summary:
+            ws3.append([d.get(c, "") for c in cols])
+        _finish(ws3, [12, 26, 26, 12, 8, 8, 16, 14, 40])
+
+    wb.save(output_path)
+    wb.close()
 
 
 # ----------------------------------------------------------------------------
@@ -836,38 +1207,50 @@ def validate_output(output_path: Path, data_sheet: str, expected_rows: int) -> T
 # Main
 # ----------------------------------------------------------------------------
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description="Roger Mills Cursory Title Report builder (codexv1)")
+    ap = argparse.ArgumentParser(description="Roger Mills Cursory Title Report builder (codexv2)")
     ap.add_argument("--root", required=True, help="Root folder to scan recursively")
-    ap.add_argument("--output", required=True, help="Final .xlsx output path")
-    ap.add_argument("--support-dir", required=True, help="Folder for support files")
+    ap.add_argument("--output", default="", help="Final .xlsx output path (default: <final-dir>/<section>_...xlsx)")
+    ap.add_argument("--support-dir", default="", help="Folder for support files (default: <final-dir>/files)")
+    ap.add_argument("--final-dir", default="",
+                    help="Folder for finished reports (default: <root>/rogermillsfinalreports)")
     ap.add_argument("--section", default="31-12N-24W", help="Target section label")
     ap.add_argument("--template", default="", help="Explicit template .xlsx (else auto-detect)")
+    ap.add_argument("--gross-acres", type=float, default=None,
+                    help="Gross mineral acres for the tract (enables NMA->fraction interest chaining)")
+    ap.add_argument("--max-passes", type=int, default=3,
+                    help="Loop-till-perfect: rebuild up to N times until validation passes (default 3)")
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
     args = ap.parse_args(argv)
 
     root = Path(args.root)
-    output_path = Path(args.output)
-    support_dir = Path(args.support_dir)
+    final_dir = Path(args.final_dir) if args.final_dir else (root / "rogermillsfinalreports")
+    safe_section = re.sub(r"[^A-Za-z0-9._-]+", "_", args.section).strip("_") or "section"
+    output_path = (Path(args.output) if args.output
+                   else final_dir / f"{safe_section}_Roger_Mills_Cursory_Title_Report_codexv2.xlsx")
+    support_dir = Path(args.support_dir) if args.support_dir else (final_dir / "files")
 
     if not root.exists():
         print(f"FATAL: root folder does not exist: {root}")
         print("Are you running this on the machine where the files live?")
         return 2
+    final_dir.mkdir(parents=True, exist_ok=True)
     support_dir.mkdir(parents=True, exist_ok=True)
 
     LOG.section(f"Roger Mills Title Report Builder - section {args.section}")
     LOG(f"Root:        {root}")
+    LOG(f"Final dir:   {final_dir}")
     LOG(f"Output:      {output_path}")
     LOG(f"Support dir: {support_dir}")
+    LOG(f"Gross acres: {args.gross_acres if args.gross_acres else '(not given; NMA interests will be flagged)'}")
     LOG(f"Capabilities: pandas={_HAVE_PANDAS} dateutil={_HAVE_DATEUTIL} "
         f"rapidfuzz={_HAVE_RAPIDFUZZ} pdfplumber={_HAVE_PDFPLUMBER} "
         f"pymupdf={_HAVE_PYMUPDF} ocr={_HAVE_OCR}")
 
     # 1. inventory
     LOG.section("1. Inventory")
-    recs = inventory(root)
-    LOG(f"Found {len(recs)} files.")
-    for kind in ("template", "report", "runsheet", "index_pdf", "data", "doc", "image", "other"):
+    recs = inventory(root, exclude=[final_dir, support_dir])
+    LOG(f"Found {len(recs)} files (excluding generated output/support trees).")
+    for kind in ("template", "report", "runsheet", "ogl", "index_pdf", "data", "doc", "image", "other"):
         n = sum(1 for r in recs if r.kind == kind)
         if n:
             LOG(f"  {kind:10s}: {n}")
@@ -923,7 +1306,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         template_rec = best_base.rec
     if template_rec is None:
         LOG("FATAL: no template and no usable report workbook found. Cannot build.", "ERROR")
-        LOG.dump(support_dir / "build_log_codexv1.txt")
+        LOG.dump(support_dir / "build_log_codexv2.txt")
         return 3
     LOG(f"Formatting authority: {template_rec.rel}")
     if best_base:
@@ -939,6 +1322,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             all_rows.append(rows)
     merged, audit, conflicts = merge_rows(all_rows)
     LOG(f"Merged unique records: {len(merged)}  | field conflicts: {len(conflicts)}")
+
+    # 5b. runsheet notes + OGL numbers -> attach onto merged rows
+    LOG.section("5b. Runsheet notes & OGL numbers")
+    runsheet_idx, runsheet_rec = load_runsheet_notes(recs)
+    ogl_ref, ogl_summary, ogl_rec = load_ogl_index(recs)
+    n_notes, n_ogl = attach_notes_and_ogl(merged, runsheet_idx, ogl_ref)
+    LOG(f"Attached runsheet notes to {n_notes} rows; OGL numbers to {n_ogl} rows.")
+
+    # 5c. interest chaining
+    LOG.section("5c. Interest chain")
+    chain_links, ledger = build_interest_chain(merged, args.gross_acres)
+    n_flagged = sum(1 for lk in chain_links if lk.flags)
+    n_parsed = sum(1 for lk in chain_links if lk.fraction is not None)
+    LOG(f"Chained {len(chain_links)} conveyances: {n_parsed} with parsed interest, "
+        f"{n_flagged} flagged for review; {len(ledger)} parties in ownership ledger.")
 
     # 6. PDF / index verification
     LOG.section("6. Index PDF verification")
@@ -956,45 +1354,61 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     n_verified = sum(1 for v in verified.values() if v)
     LOG(f"Rows verified against index: {n_verified}/{len(merged)}")
 
-    # 7. build output
+    # 7. build output (loop till perfect)
     data_sheet = ""
     rows_written = 0
+    build_ok = False
+    passes_used = 0
+    val_lines: List[str] = []
     if args.dry_run:
         LOG.section("7. DRY-RUN: skipping final workbook write")
+        val_lines = ["DRY-RUN: final workbook not written; validation skipped."]
     else:
-        LOG.section("7. Build final workbook")
-        try:
-            data_sheet, rows_written = build_output(
-                template_rec.path, output_path, merged, verified, args.section)
-            LOG(f"Wrote {rows_written} rows to sheet '{data_sheet}' -> {output_path}")
-        except Exception as exc:
-            LOG(f"Build failed: {exc}\n{traceback.format_exc()}", "ERROR")
+        LOG.section(f"7. Build final workbook (loop till perfect, max {args.max_passes} passes)")
+        for attempt in range(1, max(1, args.max_passes) + 1):
+            passes_used = attempt
+            LOG(f"  --- pass {attempt}/{args.max_passes} ---")
+            try:
+                data_sheet, rows_written = build_output(
+                    template_rec.path, output_path, merged, verified, args.section)
+                append_analysis_sheets(output_path, chain_links, ledger,
+                                       ogl_summary, args.gross_acres)
+                LOG(f"  wrote {rows_written} rows to '{data_sheet}' + analysis sheets -> {output_path}")
+            except Exception as exc:
+                LOG(f"  build failed: {exc}\n{traceback.format_exc()}", "ERROR")
+                continue
+            ok, notes = validate_output(output_path, data_sheet, rows_written)
+            val_lines = notes
+            for n in notes:
+                LOG(f"    {n}")
+            if ok:
+                build_ok = True
+                LOG(f"  pass {attempt}: VALIDATION PASS - stopping loop.")
+                break
+            LOG(f"  pass {attempt}: validation not clean; retrying.", "WARN")
 
     # 8. support files
     LOG.section("8. Support files")
-    write_inventory_csv(support_dir / "source_inventory_codexv1.csv", recs, analyses)
-    write_audit_csv(support_dir / "merge_audit_codexv1.csv", audit, verified)
-    write_conflicts_xlsx(support_dir / "conflicts_review_codexv1.xlsx", conflicts)
-    LOG("Wrote source_inventory_codexv1.csv, merge_audit_codexv1.csv, conflicts_review_codexv1.xlsx")
+    write_inventory_csv(support_dir / "source_inventory_codexv2.csv", recs, analyses)
+    write_audit_csv(support_dir / "merge_audit_codexv2.csv", audit, verified)
+    write_conflicts_xlsx(support_dir / "conflicts_review_codexv2.xlsx", conflicts)
+    LOG("Wrote source_inventory_codexv2.csv, merge_audit_codexv2.csv, conflicts_review_codexv2.xlsx")
 
-    # 9. validation
-    LOG.section("9. Validation")
-    val_lines: List[str] = []
-    if not args.dry_run:
-        ok, notes = validate_output(output_path, data_sheet, rows_written)
-        val_lines = notes
-        for n in notes:
-            LOG(f"  {n}")
-        LOG(f"VALIDATION: {'PASS' if ok else 'FAIL - see notes'}")
-    else:
-        val_lines = ["DRY-RUN: final workbook not written; validation skipped."]
+    # 9. review items derived from the interest chain / notes / OGL work
+    total_ledger = sum(ledger.values(), Fraction(0))
+    over_conveyances = [lk for lk in chain_links if "OVER_CONVEYANCE" in lk.flags]
+    unparsed = [lk for lk in chain_links if "UNPARSED_INTEREST" in lk.flags]
+    negatives = {p: f for p, f in ledger.items() if f < 0}
+    n_verified_pct = f"{n_verified}/{len(merged)}" if merged else "0/0"
 
     # validation summary file
     summary = [
-        "Roger Mills Title Report - final validation summary (codexv1)",
+        "Roger Mills Title Report - final validation summary (codexv2)",
         f"Generated: {_dt.datetime.now():%Y-%m-%d %H:%M:%S}",
         f"Section: {args.section}",
         "",
+        f"Build status:            {'PASS' if build_ok else ('DRY-RUN' if args.dry_run else 'NEEDS REVIEW')}"
+        f" (passes used: {passes_used}/{args.max_passes})",
         f"Source files reviewed:   {len(recs)}",
         f"Workbooks analyzed:      {len(analyses)}",
         f"Report workbooks merged: {len(all_rows)}",
@@ -1002,7 +1416,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"Rows written to output:  {rows_written}",
         f"Field-level conflicts:   {len(conflicts)}",
         f"Index extraction method: {method}",
-        f"Rows verified vs index:  {n_verified}/{len(merged)}",
+        f"Rows verified vs index:  {n_verified_pct}",
+        "",
+        "Interest chain:",
+        f"  Conveyances chained:   {len(chain_links)}",
+        f"  Parsed interests:      {n_parsed}",
+        f"  Gross acres (for NMA): {args.gross_acres if args.gross_acres else '(not supplied)'}",
+        f"  Over-conveyance flags: {len(over_conveyances)}",
+        f"  Unparsed interests:    {len(unparsed)}",
+        f"  Parties in ledger:     {len(ledger)}  (net total {frac_str(total_ledger)} = {frac_dec(total_ledger)})",
+        "",
+        "Runsheet & OGL:",
+        f"  Runsheet workbook:     {runsheet_rec.rel if runsheet_rec else '(none found)'}",
+        f"  Rows w/ runsheet note: {n_notes}",
+        f"  OGL schedule:          {ogl_rec.rel if ogl_rec else '(none found)'}",
+        f"  Rows w/ OGL number:    {n_ogl}   (OGL leases catalogued: {len(ogl_summary)})",
+        "",
         f"Formatting authority:    {template_rec.rel if template_rec else '(none)'}",
         f"Best base workbook:      {best_base.rec.rel if best_base else '(none)'}",
         f"Output workbook:         {output_path}",
@@ -1016,35 +1445,74 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         summary.append("  [REVIEW: not found in index] where they could not be confirmed.")
     else:
         summary.append(f"  Index extracted via '{method}'. {n_verified} rows confirmed present.")
-    summary += ["", "Validation:", *[f"  {l}" for l in val_lines], "",
-                "HUMAN REVIEW NEEDED:",
-                "  - Any rows flagged [REVIEW: not found in index].",
-                "  - All field conflicts in conflicts_review_codexv1.xlsx.",
-                "  - Spot-check legal descriptions / acreage against the index PDF."]
-    (support_dir / "final_validation_summary_codexv1.txt").write_text(
+
+    # perfection checklist - the exact remaining human-review items
+    summary += ["", "=" * 60, "PERFECTION CHECKLIST (resolve every item, then re-run):", "=" * 60]
+    checklist: List[str] = []
+    if not build_ok and not args.dry_run:
+        checklist.append("Output did not pass clean validation - see 'Validation' notes below.")
+    if unparsed:
+        checklist.append(f"{len(unparsed)} conveyance(s) have an interest string the parser "
+                         "could not read - fix the wording or fill the interest on the "
+                         "'Interest Chain' sheet (rows flagged UNPARSED_INTEREST).")
+    if over_conveyances:
+        checklist.append(f"{len(over_conveyances)} OVER_CONVEYANCE flag(s): a grantor conveyed "
+                         "more than the chain shows they held - verify against the deeds.")
+    if negatives:
+        checklist.append(f"{len(negatives)} party(ies) end with a negative net interest in the "
+                         "Ownership Ledger - usually a missing prior conveyance-in or a wrong "
+                         "grantor/grantee. Check the earliest links for those parties.")
+    if args.gross_acres is None:
+        checklist.append("No --gross-acres supplied: any NMA-stated interests were left "
+                         "unparsed. Re-run with --gross-acres <acres> to chain them.")
+    if conflicts:
+        checklist.append(f"{len(conflicts)} field-level conflict(s) across sources - resolve in "
+                         "conflicts_review_codexv2.xlsx.")
+    if n_verified < len(merged):
+        checklist.append(f"{len(merged) - n_verified} row(s) not confirmed against the index PDF - "
+                         "spot-check them (flagged [REVIEW: not found in index]).")
+    if runsheet_rec is None:
+        checklist.append("No runsheet workbook was found/recognized - name it with 'runsheet' "
+                         "in the filename so its notes can be chained in.")
+    if ogl_rec is None:
+        checklist.append("No OGL schedule was found/recognized - name it with 'ogl' in the "
+                         "filename so OGL numbers can be attached.")
+    checklist.append("Spot-check legal descriptions / acreage on the data + Interest Chain sheets.")
+    if not checklist:
+        checklist.append("No automated issues remain. Do a final examiner spot-check and sign off.")
+    summary += [f"  [ ] {item}" for item in checklist]
+
+    summary += ["", "Validation:", *[f"  {l}" for l in val_lines]]
+    (support_dir / "final_validation_summary_codexv2.txt").write_text(
         "\n".join(summary) + "\n", encoding="utf-8")
-    LOG("Wrote final_validation_summary_codexv1.txt")
+    LOG("Wrote final_validation_summary_codexv2.txt")
 
     # build log last (captures everything above)
-    LOG.dump(support_dir / "build_log_codexv1.txt")
+    LOG.dump(support_dir / "build_log_codexv2.txt")
 
     # final console report
     print("\n" + "=" * 70)
-    print("FINAL REPORT")
+    print("FINAL REPORT (codexv2)")
     print("=" * 70)
     print(f"Final workbook:        {output_path if not args.dry_run else '(dry-run, not written)'}")
+    print(f"  sheets added:        Interest Chain, Ownership Ledger"
+          f"{', OGL Summary' if ogl_summary else ''}")
     print(f"Support files in:      {support_dir}")
-    print("  - source_inventory_codexv1.csv")
-    print("  - merge_audit_codexv1.csv")
-    print("  - conflicts_review_codexv1.xlsx")
-    print("  - build_log_codexv1.txt")
-    print("  - final_validation_summary_codexv1.txt")
+    print("  - source_inventory_codexv2.csv")
+    print("  - merge_audit_codexv2.csv")
+    print("  - conflicts_review_codexv2.xlsx")
+    print("  - build_log_codexv2.txt")
+    print("  - final_validation_summary_codexv2.txt")
     print(f"Source files reviewed: {len(recs)}")
     print(f"Records merged:        {len(merged)}  (written: {rows_written})")
+    print(f"Interest chained:      {len(chain_links)}  (parsed {n_parsed}, flagged {n_flagged})")
+    print(f"Runsheet notes/OGL:    notes={n_notes}  ogl={n_ogl}  leases={len(ogl_summary)}")
     print(f"Conflicts found:       {len(conflicts)}")
-    print(f"Index verified rows:   {n_verified}/{len(merged)}  (method: {method})")
-    print("Human review:          see final_validation_summary_codexv1.txt")
-    return 0
+    print(f"Index verified rows:   {n_verified_pct}  (method: {method})")
+    print(f"Build/validation:      {'PASS' if build_ok else ('DRY-RUN' if args.dry_run else 'NEEDS REVIEW')}"
+          f" in {passes_used} pass(es)")
+    print("Human review:          see final_validation_summary_codexv2.txt (PERFECTION CHECKLIST)")
+    return 0 if (build_ok or args.dry_run) else 1
 
 
 if __name__ == "__main__":

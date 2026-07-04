@@ -36,6 +36,11 @@ WHAT IT DOES (matches the mission spec)
     instruments are preserved), and verifies against the PDF/index where
     practical.
 9.  Sorts rows chronologically (configurable) and writes them into the report.
+9b. CHAINS OUT the interest: walks the chronological chain moving each
+    instrument's conveyed interest grantor->grantee with exact rational math,
+    and writes a "Chain of Title" sheet with current net mineral ownership
+    (reconciled to 100%, net-mineral-acres when a single gross acreage is
+    present). An unvested grantor is flagged as a gap, never invented.
 10. Writes the final workbook to --output and creates all support files in
     --support-dir.
 11. VALIDATES: reopens the output to prove it is not corrupted, confirms sheets
@@ -72,6 +77,7 @@ import shutil
 import sys
 import traceback
 from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -172,6 +178,10 @@ _MONTHS = (
 def norm_text(value: Any) -> str:
     if value is None:
         return ""
+    # An integral float from openpyxl (e.g. 456.0) must render as "456", not
+    # "456.0", so an instrument/book/page number keeps a stable dedup key.
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
     s = str(value).replace(" ", " ").strip()
     return _WS_RE.sub(" ", s)
 
@@ -204,8 +214,10 @@ def norm_date(value: Any) -> Optional[_dt.date]:
     s = norm_text(value)
     if not s:
         return None
-    # numeric excel serials sometimes leak through as ints
-    if re.fullmatch(r"\d{5}", s):
+    # Excel serials sometimes leak through as ints, but a bare 5-digit string is
+    # just as likely a page/reference number. Only treat it as a serial in a
+    # plausible modern-date range (~1954-2064) to avoid inventing dates from refs.
+    if re.fullmatch(r"\d{5}", s) and 20000 <= int(s) <= 60000:
         try:
             base = _dt.date(1899, 12, 30)
             return base + _dt.timedelta(days=int(s))
@@ -213,7 +225,8 @@ def norm_date(value: Any) -> Optional[_dt.date]:
             return None
     if _HAVE_DATEUTIL:
         try:
-            return _dateparser.parse(s, dayfirst=False, fuzzy=True).date()
+            # fuzzy=False: never fabricate a date from a messy non-date cell.
+            return _dateparser.parse(s, dayfirst=False, fuzzy=False).date()
         except Exception:
             return None
     # minimal fallback parser
@@ -283,12 +296,48 @@ def classify(rec: FileRec) -> str:
     return "other"
 
 
-def inventory(root: Path) -> List[FileRec]:
+def inventory(root: Path, exclude: Optional[Sequence[Path]] = None) -> List[FileRec]:
     recs: List[FileRec] = []
-    for dirpath, _dirs, files in os.walk(root):
-        # never descend into our own backup/output 'files' churn loops
+    # Resolve the dirs/files we must never ingest: our own support dir, the
+    # output workbook, and prior-run artifacts. Re-ingesting them would grow
+    # backups exponentially and merge the tool's own output back in as "source".
+    excl_dirs: List[Path] = []
+    excl_files: set = set()
+    for e in (exclude or []):
+        try:
+            e = e.resolve()
+        except OSError:
+            continue
+        if e.is_dir():
+            excl_dirs.append(e)
+        else:
+            excl_files.add(e)
+
+    def _excluded(p: Path) -> bool:
+        try:
+            rp = p.resolve()
+        except OSError:
+            return True
+        if rp in excl_files:
+            return True
+        for d in excl_dirs:
+            if d == rp or d in rp.parents:
+                return True
+        name = p.name.lower()
+        # Excel lock files and prior-run outputs/backups by naming convention.
+        if name.startswith("~$") or "codexv1" in name or name.startswith("backup_"):
+            return True
+        return False
+
+    for dirpath, dirs, files in os.walk(root):
+        here = Path(dirpath)
+        # prune excluded subtrees in-place so os.walk never descends into them
+        dirs[:] = [d for d in dirs if not _excluded(here / d)
+                   and (here / d).name.lower() not in ("files",)]
         for fn in files:
-            p = Path(dirpath) / fn
+            p = here / fn
+            if _excluded(p):
+                continue
             try:
                 st = p.stat()
             except OSError:
@@ -342,7 +391,11 @@ def match_header(cell_text: str) -> Optional[str]:
         for syn in syns:
             if syn == t:
                 return field_name
-            if syn in t:
+            # Only allow *containment* for synonyms of length >= 3, matched on a
+            # word boundary. Short tokens ("no", "to", "#", "pg") match by exact
+            # header only -- otherwise "Notes" -> entry_no (via "no") and "Total"
+            # -> grantee (via "to") silently miscolumn the data.
+            if len(syn) >= 3 and re.search(r"\b" + re.escape(syn) + r"\b", t):
                 score = len(syn) / max(len(t), 1)
                 if score > best_score:
                     best_field, best_score = field_name, score
@@ -489,15 +542,24 @@ def extract_rows(wa: WorkbookAnalysis) -> List[TitleRow]:
     if not s:
         return rows
     try:
+        # Stream with iter_rows (not random .cell()) and do NOT rely on
+        # ws.max_row, which is None/unreliable in read-only mode -- that made a
+        # whole source silently contribute zero rows.
         wb = openpyxl.load_workbook(wa.rec.path, data_only=True, read_only=True)
         ws = wb[s.name]
-        for r in range(s.header_row + 1, ws.max_row + 1):
+        rownum = 0
+        for row_cells in ws.iter_rows(min_row=1):
+            rownum += 1
+            if rownum <= s.header_row:
+                continue
             data: Dict[str, str] = {}
             for col_idx, field_name in s.header_map.items():
-                val = ws.cell(row=r, column=col_idx).value
+                idx = col_idx - 1
+                val = row_cells[idx].value if 0 <= idx < len(row_cells) else None
                 data[field_name] = norm_text(val)
             if any(v for v in data.values()):
-                rows.append(TitleRow(data=data, source=wa.rec.path.name, source_row=r))
+                rows.append(TitleRow(data=data, source=wa.rec.path.name,
+                                     source_row=rownum))
         wb.close()
     except Exception as exc:
         LOG(f"  extract failed for {wa.rec.path.name}: {exc}", "WARN")
@@ -633,6 +695,202 @@ def verify_against_index(merged: List[TitleRow], index_text: str) -> Dict[str, b
 
 
 # ----------------------------------------------------------------------------
+# Interest chain-out (running mineral ownership from the merged chain)
+# ----------------------------------------------------------------------------
+_SOVEREIGN_ROOTS = {
+    "US PATENT", "USA", "UNITED STATES", "UNITED STATES OF AMERICA", "PATENT",
+    "STATE OF OKLAHOMA", "STATE", "SOVEREIGN", "US GOVERNMENT", "GOVERNMENT",
+}
+
+
+def parse_interest_fraction(text: Any) -> Optional[Fraction]:
+    """Parse a runsheet interest value into an exact fraction of the estate.
+
+    Accepts ``1/2``, ``0.25``, ``12.5%``, ``1/8 RI`` (leading token wins).
+    Returns None if unparseable or clearly not a mineral fraction (>1).
+    """
+    t = norm_text(text)
+    if not t:
+        return None
+    m = re.search(r"(\d+\s*/\s*\d+|\d*\.\d+|\d+(?:\.\d+)?)\s*(%?)", t)
+    if not m:
+        return None
+    num, pct = m.group(1), m.group(2)
+    try:
+        if "/" in num:
+            a, b = num.split("/")
+            frac = Fraction(int(a.strip()), int(b.strip()))
+        else:
+            frac = Fraction(num)
+    except (ValueError, ZeroDivisionError):
+        return None
+    if pct == "%":
+        frac = frac / 100
+    if frac < 0 or frac > 1:
+        return None
+    return frac
+
+
+def chain_out_interest(merged: List["TitleRow"]) -> Dict[str, Any]:
+    """Walk the chronological chain, moving the interest each instrument conveys
+    from grantor to grantee with exact rational math. Never invents a holding:
+    an unvested grantor is flagged as a gap.
+    """
+    ownership: Dict[str, Fraction] = {}
+    links: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+    gap_count = 0
+
+    for i, row in enumerate(merged, start=1):
+        d = row.data
+        grantor = norm_name(d.get("grantor", ""))
+        grantee = norm_name(d.get("grantee", ""))
+        interest = parse_interest_fraction(d.get("interest", ""))
+        link = {
+            "order": i,
+            "date": d.get("instrument_date", "") or d.get("recorded_date", ""),
+            "doc_type": d.get("doc_type", ""),
+            "grantor": grantor, "grantee": grantee,
+            "interest": interest,
+            "ref": (f"Bk {d.get('book','')}/Pg {d.get('page','')}"
+                    if d.get("book") and d.get("page")
+                    else (f"Inst {d.get('instrument_no','')}"
+                          if d.get("instrument_no") else "")),
+            "legal": d.get("legal_description", ""),
+            "remarks": d.get("remarks", ""),
+        }
+        links.append(link)
+
+        if not grantee:
+            warnings.append(f"Row {i}: blank grantee; interest not moved.")
+            continue
+        if grantor and grantor == grantee:
+            warnings.append(f"Row {i}: grantor==grantee ({grantor}); correction, "
+                            f"no interest moved.")
+            continue
+        if interest is None:
+            warnings.append(f"Row {i} ({grantor}->{grantee}): interest "
+                            f"'{norm_text(d.get('interest',''))}' unparseable; "
+                            f"ledger not advanced.")
+            continue
+
+        is_root = grantor in _SOVEREIGN_ROOTS or not ownership
+        if is_root:
+            if grantor not in _SOVEREIGN_ROOTS:
+                ownership[grantor] = ownership.get(grantor, Fraction(1))
+                ownership[grantee] = ownership.get(grantee, Fraction(0)) + interest
+                ownership[grantor] = ownership[grantor] - interest
+            else:
+                ownership[grantee] = ownership.get(grantee, Fraction(0)) + interest
+            continue
+
+        prev = ownership.get(grantor)
+        if prev is None:
+            gap_count += 1
+            warnings.append(f"Row {i}: grantor '{grantor}' not previously vested "
+                            f"(chain gap -- examiner review).")
+            ownership[grantee] = ownership.get(grantee, Fraction(0)) + interest
+            ownership[grantor] = -interest
+            continue
+        ownership[grantee] = ownership.get(grantee, Fraction(0)) + interest
+        ownership[grantor] = prev - interest
+
+    ownership = {k: v for k, v in ownership.items() if v != 0}
+    total = sum(ownership.values(), Fraction(0))
+    reconciles = (bool(ownership) and gap_count == 0 and total == Fraction(1)
+                  and all(v > 0 for v in ownership.values()))
+
+    # A single consistent gross acreage lets us report net mineral acres.
+    gross = _single_gross_acreage(merged)
+    return {"links": links, "ownership": ownership, "warnings": warnings,
+            "gap_count": gap_count, "total": total, "reconciles": reconciles,
+            "gross_acres": gross}
+
+
+def _single_gross_acreage(merged: List["TitleRow"]) -> Optional[float]:
+    vals = set()
+    for row in merged:
+        raw = norm_text(row.data.get("acreage", ""))
+        m = re.search(r"\d+(?:\.\d+)?", raw.replace(",", ""))
+        if m:
+            vals.add(round(float(m.group(0)), 4))
+    return next(iter(vals)) if len(vals) == 1 else None
+
+
+def _frac_str(v: Optional[Fraction]) -> str:
+    if v is None:
+        return "-"
+    return str(v.numerator) if v.denominator == 1 else f"{v.numerator}/{v.denominator}"
+
+
+def write_chain_sheet(wb, chain: Dict[str, Any], section: str) -> None:
+    """Add a 'Chain of Title' analysis sheet with the chained-out ownership."""
+    name = "Chain of Title"
+    if name in wb.sheetnames:
+        del wb[name]
+    ws = wb.create_sheet(title=name)
+    r = 1
+    ws.cell(row=r, column=1,
+            value=f"{section} - Roger Mills County - Chained-Out Interest")
+    r += 2
+
+    ws.cell(row=r, column=1, value="CHAIN OF TITLE")
+    r += 1
+    headers = ["#", "Date", "Doc Type", "Grantor", "Grantee",
+               "Interest Conveyed", "Book/Page/Inst", "Legal", "Remarks"]
+    for c, h in enumerate(headers, start=1):
+        ws.cell(row=r, column=c, value=h)
+    r += 1
+    for link in chain["links"]:
+        vals = [link["order"], link["date"], link["doc_type"], link["grantor"],
+                link["grantee"], _frac_str(link["interest"]), link["ref"],
+                link["legal"], link["remarks"]]
+        for c, v in enumerate(vals, start=1):
+            ws.cell(row=r, column=c, value=v)
+        r += 1
+    r += 1
+
+    ws.cell(row=r, column=1, value="CURRENT NET MINERAL OWNERSHIP (chained out)")
+    r += 1
+    gross = chain.get("gross_acres")
+    own_headers = ["Owner", "Interest", "Decimal", "Percent"]
+    if gross is not None:
+        own_headers.append("Net Mineral Acres")
+    for c, h in enumerate(own_headers, start=1):
+        ws.cell(row=r, column=c, value=h)
+    r += 1
+    for owner, frac in sorted(chain["ownership"].items(),
+                              key=lambda kv: (-float(kv[1]), kv[0])):
+        vals = [owner, _frac_str(frac), round(float(frac), 6),
+                f"{float(frac) * 100:.4f}%"]
+        if gross is not None:
+            vals.append(round(float(frac) * gross, 4))
+        for c, v in enumerate(vals, start=1):
+            ws.cell(row=r, column=c, value=v)
+        r += 1
+    r += 1
+
+    recon = ("Ownership reconciles to 100%." if chain["reconciles"]
+             else f"Ownership does NOT cleanly reconcile (sums to "
+                  f"{_frac_str(chain['total'])}"
+                  + ("; contains a chain-gap deficit"
+                     if chain["gap_count"] else "") + ").")
+    ws.cell(row=r, column=1, value=recon)
+    r += 1
+    if gross is not None:
+        ws.cell(row=r, column=1,
+                value=f"Net mineral acres = ownership x {gross} gross acres.")
+        r += 1
+    if chain["warnings"]:
+        r += 1
+        ws.cell(row=r, column=1, value="EXAMINER REVIEW (chain notes):")
+        r += 1
+        for w in chain["warnings"]:
+            ws.cell(row=r, column=1, value=w)
+            r += 1
+
+
+# ----------------------------------------------------------------------------
 # Output: copy template formatting, write data, save
 # ----------------------------------------------------------------------------
 def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
@@ -688,21 +946,41 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
         except Exception:
             pass
 
+    # Unmerge any merged ranges in the region we are about to write so that
+    # assigning cell values cannot raise on a read-only MergedCell (common in
+    # hand-formatted templates). Header/banner merges above the data stay intact.
+    data_top = header_row + 1
+    for rng in list(getattr(target_ws, "merged_cells", []).ranges
+                    if getattr(target_ws, "merged_cells", None) else []):
+        if rng.max_row >= data_top:
+            try:
+                target_ws.unmerge_cells(str(rng))
+            except Exception:
+                pass
+
+    def _safe_set(cell_row: int, cell_col: int, value):
+        try:
+            c = target_ws.cell(row=cell_row, column=cell_col, value=value)
+            return c
+        except (AttributeError, ValueError):
+            return None  # merged/locked target -- skip rather than abort
+
     write_row = header_row + 1
     rows_written = 0
     for row in merged:
         k = row.key()
         for fld, col in field_to_col.items():
             value = row.data.get(fld, "")
-            cell = target_ws.cell(row=write_row, column=col, value=value or None)
-            if write_row != style_row_idx:
+            cell = _safe_set(write_row, col, value or None)
+            if cell is not None and write_row != style_row_idx:
                 clone_style(target_ws.cell(row=style_row_idx, column=col), cell)
         # verification flag in remarks column if present
         if "remarks" in field_to_col and not verified.get(k, False):
             rc = target_ws.cell(row=write_row, column=field_to_col["remarks"])
             existing = norm_text(rc.value)
             flag = "[REVIEW: not found in index]"
-            rc.value = (existing + " " + flag).strip() if existing else flag
+            if not isinstance(rc, openpyxl.cell.cell.MergedCell):
+                rc.value = (existing + " " + flag).strip() if existing else flag
         write_row += 1
         rows_written += 1
 
@@ -713,6 +991,16 @@ def build_output(template_path: Path, output_path: Path, merged: List[TitleRow],
             title_cell.value = f"{section} - Roger Mills County - Cursory Title Report"
     except Exception:
         pass
+
+    # Chain out the interest into a dedicated analysis sheet (the explicit ask:
+    # actually chain out ownership, don't just copy the interest column).
+    try:
+        chain = chain_out_interest(merged)
+        write_chain_sheet(wb, chain, section)
+        LOG(f"  chain-out: {len(chain['ownership'])} owner(s), "
+            f"reconciles={chain['reconciles']}, gaps={chain['gap_count']}")
+    except Exception as exc:  # never let the analysis sheet block the main report
+        LOG(f"  chain-out sheet skipped: {exc}", "WARN")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
@@ -728,6 +1016,7 @@ def backup_originals(root: Path, recs: List[FileRec], support_dir: Path) -> Path
     backup_dir = support_dir / f"backup_{stamp}"
     backup_dir.mkdir(parents=True, exist_ok=True)
     copied = 0
+    failed: List[str] = []
     for rec in recs:
         try:
             dest = backup_dir / rec.rel
@@ -735,8 +1024,15 @@ def backup_originals(root: Path, recs: List[FileRec], support_dir: Path) -> Path
             shutil.copy2(rec.path, dest)  # copy2 preserves mtime; originals untouched
             copied += 1
         except Exception as exc:
+            failed.append(rec.rel)
             LOG(f"  backup failed for {rec.rel}: {exc}", "WARN")
     LOG(f"Backed up {copied}/{len(recs)} originals -> {backup_dir}")
+    if failed:
+        # The safety promise is "every original is backed up before reading."
+        # If some could not be copied (locked/OneDrive), say so prominently.
+        LOG(f"WARNING: {len(failed)} original(s) were NOT backed up (locked/"
+            f"in use): {', '.join(failed[:10])}"
+            + (" ..." if len(failed) > 10 else ""), "ERROR")
     return backup_dir
 
 
@@ -863,9 +1159,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"rapidfuzz={_HAVE_RAPIDFUZZ} pdfplumber={_HAVE_PDFPLUMBER} "
         f"pymupdf={_HAVE_PYMUPDF} ocr={_HAVE_OCR}")
 
-    # 1. inventory
+    # 1. inventory (never ingest our own support dir / output / prior artifacts)
     LOG.section("1. Inventory")
-    recs = inventory(root)
+    recs = inventory(root, exclude=[support_dir, output_path])
     LOG(f"Found {len(recs)} files.")
     for kind in ("template", "report", "runsheet", "index_pdf", "data", "doc", "image", "other"):
         n = sum(1 for r in recs if r.kind == kind)
@@ -898,7 +1194,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         template_rec = next((r for r in recs if r.path.name.lower() == Path(args.template).name.lower()
                              or str(r.path).lower() == args.template.lower()), None)
     if template_rec is None:
-        templates = [r for r in recs if r.kind == "template"]
+        # Only real, openable templates: .xlsx/.xlsm, no ~$ lock stubs. Prefer an
+        # exact "template(30)"-style name, then newest, for a deterministic pick.
+        templates = [r for r in recs if r.kind == "template"
+                     and r.ext in (".xlsx", ".xlsm")
+                     and not r.path.name.startswith("~$")]
+        templates.sort(key=lambda r: ("template(" not in r.path.name.lower(),
+                                      -r.mtime.timestamp()))
         template_rec = templates[0] if templates else None
 
     # 4. tournament: pick best base report workbook
@@ -959,6 +1261,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # 7. build output
     data_sheet = ""
     rows_written = 0
+    build_ok = False
     if args.dry_run:
         LOG.section("7. DRY-RUN: skipping final workbook write")
     else:
@@ -966,7 +1269,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         try:
             data_sheet, rows_written = build_output(
                 template_rec.path, output_path, merged, verified, args.section)
+            build_ok = True
             LOG(f"Wrote {rows_written} rows to sheet '{data_sheet}' -> {output_path}")
+        except PermissionError as exc:
+            LOG(f"Build failed (output not writable -- is it open in Excel/"
+                f"OneDrive?): {exc}", "ERROR")
         except Exception as exc:
             LOG(f"Build failed: {exc}\n{traceback.format_exc()}", "ERROR")
 
@@ -980,12 +1287,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # 9. validation
     LOG.section("9. Validation")
     val_lines: List[str] = []
+    val_ok = True
     if not args.dry_run:
-        ok, notes = validate_output(output_path, data_sheet, rows_written)
-        val_lines = notes
-        for n in notes:
-            LOG(f"  {n}")
-        LOG(f"VALIDATION: {'PASS' if ok else 'FAIL - see notes'}")
+        if not build_ok:
+            # Never let validation "PASS" by reopening a STALE prior output.
+            val_ok = False
+            val_lines = ["Build did not complete; the new report was NOT written "
+                         "this run. Any existing output file is STALE."]
+            LOG("VALIDATION: FAIL - build did not complete (output not written).",
+                "ERROR")
+        else:
+            val_ok, notes = validate_output(output_path, data_sheet, rows_written)
+            val_lines = notes
+            for n in notes:
+                LOG(f"  {n}")
+            LOG(f"VALIDATION: {'PASS' if val_ok else 'FAIL - see notes'}")
     else:
         val_lines = ["DRY-RUN: final workbook not written; validation skipped."]
 
@@ -1044,7 +1360,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"Conflicts found:       {len(conflicts)}")
     print(f"Index verified rows:   {n_verified}/{len(merged)}  (method: {method})")
     print("Human review:          see final_validation_summary_codexv1.txt")
-    return 0
+    # Exit code reflects reality: non-zero on a failed build/validation so an
+    # unattended caller (scheduled task) is not told a stale/absent report is fine.
+    exit_code = 0 if (args.dry_run or (build_ok and val_ok)) else 2
+    if exit_code != 0:
+        print(f"\nRESULT: FAILED (exit {exit_code}) -- see build_log_codexv1.txt")
+    return exit_code
 
 
 if __name__ == "__main__":

@@ -40,11 +40,13 @@ from recalc.libreoffice_runner import recalculate
 from reports.output_generator import OutputGenerator
 from sources.spend_guard import SpendGuard
 
+# AuditCompletenessGate is a finalize-time check (it needs the run's live audit
+# counts) so it is NOT in the per-iteration order — it runs once at certify time.
 GATE_ORDER = [
     WorkbookIntegrityGate, SheetClassificationGate, InterestConservationGate,
     AcreageFootingGate, ChainContinuityGate, InstrumentSourceAuditGate,
     OGLRegisterAuditGate, WIDepthConsistencyGate, WellHBPSupportGate,
-    FormulaIntegrityGate, SourceVerificationGate, AuditCompletenessGate,
+    FormulaIntegrityGate, SourceVerificationGate,
 ]
 
 
@@ -208,8 +210,13 @@ class Orchestrator:
                                   domain_context.get("source_documents", []), guard, latest_workbook)
 
         # ---- CERTIFY / ESCALATE ----
-        cert_ctx = {"gate_results": all_results}
-        final_gate = FinalCertificationGate().run(cert_ctx)[0]
+        # Audit completeness runs here with the run's live append-only counts.
+        counts = {t: self.db.count(t) for t in
+                  ("runs", "workbook_versions", "validation_results", "audit_events")}
+        audit_gate = AuditCompletenessGate().run({"audit_counts": counts})[0]
+        self.audit.validation_result(run_id, self.settings.max_iterations, audit_gate)
+        all_results = all_results + [audit_gate]
+        final_gate = FinalCertificationGate().run({"gate_results": all_results})[0]
         self.audit.validation_result(run_id, self.settings.max_iterations, final_gate)
         final_status = "CERTIFY" if final_gate["status"] == "PASS" else "ESCALATE"
         self._transition(run_id, "STATE_CERTIFY" if final_status == "CERTIFY" else "STATE_ESCALATE")

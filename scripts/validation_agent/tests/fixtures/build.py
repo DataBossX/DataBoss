@@ -24,8 +24,9 @@ def build_workbook(path: str | Path) -> Path:
     ws["C4"] = "N/2 NE/4"
     ws["B5"] = "Containing:"
     ws["C5"] = "40 acres, more or less"
-    ws["B7"] = "Mineral Owner"; ws["C7"] = "Net Acres"
-    ws["B8"] = "Fixture Owner A"; ws["C8"] = 25
+    ws["B7"] = "Mineral Owner"; ws["C7"] = "Net Acres"; ws["D7"] = "OGL No."; ws["E7"] = "Royalty"
+    # 'Fixture Lessor' matches the OGL register grantor below (blank OGL -> should fill).
+    ws["B8"] = "Fixture Lessor"; ws["C8"] = 25
     ws["B9"] = "Fixture Owner B"; ws["C9"] = 15
     ws["B10"] = "REPORT TOTAL"; ws["C10"] = 40   # HARD-CODED total -> formula defect (repairable)
     ws["B11"] = "TOTAL"; ws["C11"] = 40

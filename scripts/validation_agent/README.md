@@ -37,7 +37,33 @@ tools\launch_dashboard.bat        REM healthcheck + Streamlit dashboard
 tools\run_agent.bat "C:\path\to\workbook.xlsx"   REM one run, headless
 tools\run_tests.bat               REM pytest + coverage
 tools\create_desktop_launcher.ps1 REM writes "DataBossX Validation Agent.bat" to the Desktop
+tools\build_final_reports.bat     REM batch tournament: Horizon folders -> rogermillsfinalreports
 ```
+
+### Batch tournament builder (multiple folders → final reports)
+
+`tools\build_final_reports.bat` (or the CLI below) scans one or more source
+folders, finds the best report in each, runs a **tournament** of OGL/title
+reconciliation strategies, and writes the winning final report (template naming)
+plus a per-folder reconciliation note into an output folder. It:
+
+* fills blank **OGL No. / Royalty / Expiration** on Title owner rows by matching
+  the owner to the **OGL register grantor** (tract-coverage aware), **verifying**
+  existing values instead of overwriting them and **flagging conflicts**;
+* converts hard-coded tract totals to `SUM` formulas;
+* **does not alter tract legal descriptions** ("don't go off the tract sheets");
+* reports unmatched owners for examiner review and **never invents** lease data.
+
+```bat
+python tools\build_final_reports.py ^
+  --input "D:\Desktop\Horizon\Roger Mills" ^
+  --input "D:\Desktop\Horizon\Roger Mills 2" ^
+  --input "D:\Desktop\Horizon\Roger Mills 3" ^
+  --out   "D:\Desktop\Horizon\rogermillsfinalreports" ^
+  --env   "D:\Desktop\Horizon\.env"
+```
+
+Sources are never overwritten; each final report is a new file.
 
 Dashboard: `streamlit run app/dashboard.py`. CLI:
 `python tools/run_agent_cli.py <workbook.xlsx>`.

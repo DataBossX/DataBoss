@@ -1,0 +1,45 @@
+name: validation-agent-tests
+
+on:
+  push:
+    paths:
+      - "scripts/validation_agent/**"
+      - ".github/workflows/validation_agent.yml"
+  pull_request:
+    paths:
+      - "scripts/validation_agent/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: scripts/validation_agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Healthcheck (dry-run; secrets never printed)
+        env:
+          DATABOSSX_DRY_RUN: "true"
+        run: python tools/healthcheck.py || true
+
+      - name: Run tests with coverage
+        run: python -m pytest tests -q --cov=. --cov-report=term-missing
+
+      - name: Assert append-only + spend-cap invariants held
+        run: |
+          python -m pytest tests/test_db_append_only.py tests/test_spend_guard.py tests/test_config_caps.py -q

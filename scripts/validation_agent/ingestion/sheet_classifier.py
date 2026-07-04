@@ -54,22 +54,30 @@ class Classification:
 
 
 def _score_sheet(name: str, header: List[str]) -> Tuple[str, float, List[str]]:
-    hay = (name + " " + " ".join(header or [])).lower()
+    """
+    The sheet NAME is the strongest signal (0.95); header-only keyword hits are
+    weaker (0.5) so a stray column like 'Tracts' on the OGL register does not
+    misroute the sheet to the 'tract' category. Ties break toward the higher
+    name-derived score.
+    """
     name_l = name.lower().strip()
+    header_hay = " ".join(header or []).lower()
     best_cat, best_score, sig = "unknown", 0.0, []
     for cat, kws in KEYWORDS.items():
         score = 0.0
         local_sig = []
         for kw in kws:
-            if kw in hay:
+            if kw in name_l:                       # keyword in the sheet name — strong
                 score = max(score, 0.95)
-                local_sig.append(f"kw:{kw}")
-            else:
-                fr = _ratio(kw, name_l)
-                if fr > score:
-                    score = max(score, fr * 0.8)  # fuzzy weighted below exact
-                    if fr > 0.7:
-                        local_sig.append(f"fuzzy:{kw}={fr:.2f}")
+                local_sig.append(f"name:{kw}")
+                continue
+            fr = _ratio(kw, name_l)                # fuzzy name match — medium
+            if fr > 0.7:
+                score = max(score, fr * 0.85)
+                local_sig.append(f"fuzzy:{kw}={fr:.2f}")
+            if kw in header_hay:                   # keyword only in headers — weak
+                score = max(score, 0.5)
+                local_sig.append(f"header:{kw}")
         if score > best_score:
             best_cat, best_score, sig = cat, score, local_sig
     return best_cat, round(best_score, 3), sig

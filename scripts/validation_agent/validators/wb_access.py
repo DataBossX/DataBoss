@@ -56,16 +56,32 @@ def read_tract_blocks(workbook_path: str, sheet_name: Optional[str] = None) -> L
         for idx, (i, label) in enumerate(headers):
             end = headers[idx + 1][0] if idx + 1 < len(headers) else len(rows)
             gross = None
-            # 'Containing: N acres' usually next row, col C
-            for j in range(i, min(i + 3, end)):
-                for cell in rows[j]:
-                    if isinstance(cell.value, str):
-                        m = CONTAINING_RE.search(cell.value)
+            # Prefer the explicit 'Containing:' label row (col B) and read its
+            # acreage from col C — a tract's long legal description can itself
+            # contain other '… N acres' phrases (e.g. 'the South 51 acres'),
+            # which must NOT be mistaken for the tract's gross.
+            for j in range(i, min(i + 4, end)):
+                b = rows[j][1].value if len(rows[j]) > 1 else None
+                if isinstance(b, str) and "containing" in b.strip().lower():
+                    c = rows[j][2].value if len(rows[j]) > 2 else None
+                    if isinstance(c, str):
+                        m = CONTAINING_RE.search(c)
                         if m:
                             gross = to_decimal(m.group(1))
-                            break
-                if gross is not None:
+                    elif isinstance(c, (int, float)):
+                        gross = to_decimal(c)
                     break
+            # Fallback: scan for an 'acres' phrase only if no Containing row found.
+            if gross is None:
+                for j in range(i, min(i + 3, end)):
+                    for cell in rows[j]:
+                        if isinstance(cell.value, str):
+                            m = CONTAINING_RE.search(cell.value)
+                            if m:
+                                gross = to_decimal(m.group(1))
+                                break
+                    if gross is not None:
+                        break
             owner_sum = Decimal("0")
             has_balance = False
             owner_rows = 0

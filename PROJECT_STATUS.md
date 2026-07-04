@@ -22,7 +22,9 @@ matching the Grocery Report mission. One has now been built.
 A single-file, deterministic, **rerunnable** pipeline: **`grocery_report_pipeline.py`**
 implementing all mission stages A–I, plus:
 - `make_sample_data.py` — generates a clearly-labeled **synthetic** test corpus.
-- `tests/test_grocery_pipeline.py` — 10 end-to-end tests (all passing).
+- `tests/test_grocery_pipeline.py` — 13 end-to-end tests (all passing), incl. row-wise
+  ownership extraction and canonical tract grouping.
+- `examples/sample_output_synthetic/` — committed sample outputs from the synthetic run.
 - `requirements-grocery.txt` — pinned/optional dependency list.
 - Planning docs: this file, `TODO_NOW.md`, `REPORT_PIPELINE_PLAN.md`, `QA_CHECKLIST.md`,
   `RUNBOOK.md`.
@@ -39,7 +41,7 @@ unfound fields are left blank and flagged `REVIEW REQUIRED`.
 | B Duplicates | `output/duplicate_candidates.csv`, `quarantine_plan.csv` | ✅ working (plan-only; non-destructive) |
 | C Text extraction | `output/extracted_text/`, `source_text_index.csv` | ✅ txt/csv/xlsx/docx; PDF/OCR optional |
 | D Classification | `output/document_classification.csv` | ✅ working (deterministic keyword rules) |
-| E Structured extraction | `output/extracted_facts.csv/.xlsx` | ✅ working (regex; confidence + flags) |
+| E Structured extraction | `output/extracted_facts.csv/.xlsx` | ✅ working (row-wise for sheets; regex for free text; confidence + flags) |
 | F Reconciliation | `output/reconciliation_table.xlsx`, `chain_summary.xlsx`, `conflicts_and_gaps.xlsx` | ✅ working |
 | G Validation | `output/validation_report.xlsx`, `review_required.csv` | ✅ working (13 rules) |
 | H Report assembly | `Grocery_Report_DRAFT.md/.docx`, `Executive_Summary.md`, `Curative_List.xlsx`, `Source_Index.xlsx` | ✅ working |

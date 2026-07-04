@@ -40,15 +40,22 @@ those stages consume extracted text).
   extension/option, reservations. **Every field is nullable — unfound = blank, never
   guessed.** Per-field + overall confidence; review flags for high-value low-confidence
   fields. Out: `extracted_facts.csv`, `extracted_facts.xlsx`.
-- **Known limits:** regex extraction is a *cursory* first pass. Multi-owner ownership
-  spreadsheets: all decimals in a document are summed for the per-tract check, but
-  row-level owner→decimal mapping should be verified by a human or a tuned header map.
-  Legacy `.doc` and image-only PDFs need OCR backends installed to yield text.
+- **Row-wise ingestion:** spreadsheets, runsheets and ownership/OGL sheets (`.xlsx`,
+  `.csv`, `.tsv`) are parsed *by row*, not as a text blob. A header row is detected and
+  columns are mapped to fields via a synonym map (`COLMAP`), so each owner/instrument row
+  becomes its own fact with a `sheet:<name> row:<n>` anchor. This makes per-tract decimal
+  sums and ownership chains precise. Free-text documents still use the regex path.
+- **Known limits:** free-text regex extraction is a *cursory* first pass; unusual column
+  headers may need a synonym added to `COLMAP`. Legacy `.doc` and image-only PDFs need OCR
+  backends installed to yield text.
 - **AI extraction (opt-in only):** a hook exists for enriching low-confidence rows via an
   LLM. It is **off by default**, requires `--use-llm` + an API key from the environment
   (never stored in code/outputs), and always records a confidence score and audit note.
 
 ## F. Reconciliation / chain engine
+- Tracts are grouped by a **canonical Section-Township-Range key** (`canonical_tract`),
+  so "Section 12, T7N, R63W", "Sec 12 T7N R63W" and "Section 12, Township 7 North,
+  Range 63 West" all reconcile as one tract.
 - Party chain, tract/legal-description chain, lease/OGL chain, assignment chain.
 - Per-tract acreage + decimal calculations; flags decimals not summing to 1.0 and gross
   acreage disagreements; detects grantor↔grantee continuity gaps.

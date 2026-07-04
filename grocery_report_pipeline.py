@@ -273,6 +273,25 @@ def is_impossible_date(iso: Optional[str]) -> bool:
     return dt.year < 1700 or dt > _dt.date.today()
 
 
+_STR_SEC = re.compile(r"\bsec(?:tion)?\.?\s*(\d+)", re.I)
+_STR_TWP = re.compile(r"\bt(?:wp|ownship)?\.?\s*(\d+)\s*([NS])", re.I)
+_STR_RNG = re.compile(r"\br(?:ge|ange)?\.?\s*(\d+)\s*([EW])", re.I)
+
+
+def canonical_tract(legal: Any) -> str:
+    """Normalize a legal description to a canonical Section-Township-Range key so
+    'Section 12, T7N, R63W', 'Sec 12 T7N R63W' and 'Section 12, Township 7 North,
+    Range 63 West' all group together. Falls back to whitespace-normalized text."""
+    s = norm_ws(legal)
+    if not s:
+        return ""
+    sec, twp, rng = _STR_SEC.search(s), _STR_TWP.search(s), _STR_RNG.search(s)
+    if sec and twp and rng:
+        return (f"SEC {int(sec.group(1))}-T{int(twp.group(1))}{twp.group(2).upper()}"
+                f"-R{int(rng.group(1))}{rng.group(2).upper()}")
+    return s.upper()
+
+
 # ---------------------------------------------------------------------------
 # Output writers (CSV always; XLSX/DOCX when libs available)
 # ---------------------------------------------------------------------------
@@ -803,7 +822,8 @@ def classify_documents(recs: List[FileRec], texts: Dict[str, TextRec],
 # ===========================================================================
 FACT_FIELDS = [
     "grantor", "grantee", "lessor", "lessee", "assignor", "assignee",
-    "decedent_heir_devisee", "effective_date", "execution_date", "recording_date",
+    "decedent_heir_devisee", "owner",
+    "effective_date", "execution_date", "recording_date",
     "book_page_or_instrument", "county", "state", "legal_description",
     "tract_description", "gross_acres", "net_acres", "royalty",
     "working_interest", "net_revenue_interest", "lease_burden", "mineral_interest",
@@ -848,6 +868,138 @@ def _capture_party(text: str, roles: List[str]) -> Optional[str]:
     return None
 
 
+# Header-synonym map for row-wise ingestion of spreadsheets / runsheets /
+# ownership sheets. Match is case-insensitive substring against the header cell.
+COLMAP: Dict[str, List[str]] = {
+    "grantor": ["grantor"],
+    "grantee": ["grantee"],
+    "lessor": ["lessor"],
+    "lessee": ["lessee"],
+    "assignor": ["assignor"],
+    "assignee": ["assignee"],
+    "owner": ["name (owner)", "mineral owner", "record owner", "owner name",
+              "owner", "party name", "name"],
+    "legal_description": ["legal description", "legal", "description", "lands",
+                          "tract description", "tract"],
+    "county": ["county"],
+    "state": ["state"],
+    "gross_acres": ["gross acres", "gross ac", "gross"],
+    "net_acres": ["net mineral acres", "net acres", "net ac", "nma"],
+    "royalty": ["royalty", "lease royalty", "rr"],
+    "working_interest": ["working interest", "wi"],
+    "net_revenue_interest": ["net revenue interest", "nri"],
+    "decimal_interest": ["decimal interest", "net decimal", "decimal", "di"],
+    "mineral_interest": ["mineral interest"],
+    "book_page_or_instrument": ["book/page", "book page", "instrument", "doc no",
+                                "document no", "reception", "recording no"],
+    "recording_date": ["recording date", "recorded", "file date", "filed"],
+    "effective_date": ["effective date", "effective"],
+    "execution_date": ["execution date", "instrument date", "executed", "dated"],
+    "term": ["term"],
+    "depth_restrictions": ["depth", "formation"],
+}
+_DATE_FIELDS = {"recording_date", "effective_date", "execution_date"}
+
+
+def _map_header(cells: List[str]) -> Dict[int, str]:
+    """Return {col_index: field} for a header row, longest-synonym-wins."""
+    mapping: Dict[int, str] = {}
+    used_fields: set = set()
+    for idx, cell in enumerate(cells):
+        c = norm_ws(cell).lower()
+        if not c:
+            continue
+        best_field, best_len = None, 0
+        for field_name, syns in COLMAP.items():
+            if field_name in used_fields:
+                continue
+            for syn in syns:
+                if syn in c and len(syn) > best_len:
+                    best_field, best_len = field_name, len(syn)
+        if best_field:
+            mapping[idx] = best_field
+            used_fields.add(best_field)
+    return mapping
+
+
+def _rows_from_spreadsheet(rec: "FileRec") -> Tuple[str, List[List[str]]]:
+    """Yield (sheet_label, rows) for xlsx/csv/tsv. Read-only, values only."""
+    p = Path(rec.path)
+    ext = rec.ext
+    out: List[Tuple[str, List[List[str]]]] = []
+    if ext in EXCEL_EXT and _HAVE_OPENPYXL:
+        try:
+            wb = openpyxl.load_workbook(p, read_only=True, data_only=True)
+            for ws in wb.worksheets:
+                rows = [[("" if c is None else str(c)) for c in row]
+                        for row in ws.iter_rows(values_only=True)]
+                out.append((f"sheet:{ws.title}", rows))
+            wb.close()
+        except Exception:
+            return []
+    elif ext in CSV_EXT:
+        try:
+            delim = "\t" if ext == ".tsv" else ","
+            with p.open("r", encoding="utf-8", errors="replace", newline="") as fh:
+                rows = [list(r) for r in csv.reader(fh, delimiter=delim)]
+            out.append(("csv", rows))
+        except Exception:
+            return []
+    return out
+
+
+def extract_table_facts(rec: "FileRec") -> List["Fact"]:
+    """Row-wise extraction: detect a header row, map columns to fields, and emit
+    ONE Fact per data row. This is how ownership/runsheet/OGL spreadsheets become
+    precise, per-row, per-owner facts (so decimal sums and chains are real)."""
+    facts: List["Fact"] = []
+    for sheet_label, rows in _rows_from_spreadsheet(rec):
+        if not rows:
+            continue
+        # find the header row = the row (within first 25) mapping >=2 columns.
+        header_idx, mapping = None, {}
+        for i, row in enumerate(rows[:25]):
+            m = _map_header(row)
+            if len(m) >= 2:
+                header_idx, mapping = i, m
+                break
+        if header_idx is None:
+            continue
+        for r in range(header_idx + 1, len(rows)):
+            row = rows[r]
+            values: Dict[str, Any] = {}
+            for col, fld in mapping.items():
+                if col >= len(row):
+                    continue
+                raw = norm_ws(row[col])
+                if not raw:
+                    continue
+                if fld in _DATE_FIELDS:
+                    d = parse_date(raw)
+                    if d:
+                        values[fld] = d
+                else:
+                    values[fld] = raw
+            if not values:
+                continue
+            f = Fact(source_file=rec.rel_path,
+                     source_page=f"{sheet_label} row:{r + 1}")
+            f.values = values
+            # column-mapped values are more reliable than free-text regex.
+            f.confidence = {k: 0.75 for k in values}
+            dv = values.get("decimal_interest")
+            fv = _to_float(dv)
+            if fv is not None:
+                f.all_decimals = [fv]
+            f.overall_confidence = 0.75
+            for key in ("decimal_interest", "net_acres", "net_revenue_interest"):
+                if key in values and _to_float(values[key]) is None:
+                    f.review_flags.append(f"non-numeric:{key}")
+            f.snippet = " | ".join(f"{fld}={values[fld]}" for fld in values)[:200]
+            facts.append(f)
+    return facts
+
+
 @dataclass
 class Fact:
     source_file: str = ""
@@ -871,6 +1023,19 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         if not text.strip():
             continue
         cats = classes.get(r.path, [])
+
+        # Spreadsheets/runsheets/ownership sheets: extract row-wise so each
+        # owner/instrument row is its own traceable fact. Fall back to the
+        # free-text regex path only if no header row could be mapped.
+        if r.ext in EXCEL_EXT | CSV_EXT:
+            table_facts = extract_table_facts(r)
+            if table_facts:
+                if "unknown/review required" in cats:
+                    for tf in table_facts:
+                        tf.review_flags.append("unclassified-document")
+                facts.extend(table_facts)
+                continue
+
         f = Fact(source_file=r.rel_path)
         v = f.values
         c = f.confidence
@@ -965,19 +1130,14 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
     # write CSV/XLSX
     headers = ["source_file", "source_page", *FACT_FIELDS, "overall_confidence",
                "review_flags", "categories", "snippet"]
+    rel_to_cats = {r.rel_path: "; ".join(classes.get(r.path, [])) for r in recs}
     rows = []
     for f in facts:
-        cats = "; ".join(classes.get_by_relpath(f.source_file) if hasattr(classes, "get_by_relpath") else [])
         rows.append([
             f.source_file, f.source_page,
             *[f.values.get(k, "") for k in FACT_FIELDS],
-            f.overall_confidence, "; ".join(f.review_flags), "", f.snippet])
-    # categories by rel_path
-    rel_to_cats = {}
-    for r in recs:
-        rel_to_cats[r.rel_path] = "; ".join(classes.get(r.path, []))
-    for row, f in zip(rows, facts):
-        row[-2] = rel_to_cats.get(f.source_file, "")
+            f.overall_confidence, "; ".join(f.review_flags),
+            rel_to_cats.get(f.source_file, ""), f.snippet])
     write_csv(output_dir / "extracted_facts.csv", headers, rows)
     write_xlsx(output_dir / "extracted_facts.xlsx", [("facts", headers, rows)], log)
     log(f"Extracted structured facts from {len(facts)} documents "
@@ -999,7 +1159,8 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     # Party chain: every party mention -> role -> doc -> date
     party_rows = []
     for f in facts:
-        for role in ("grantor", "grantee", "lessor", "lessee", "assignor", "assignee"):
+        for role in ("grantor", "grantee", "lessor", "lessee", "assignor",
+                     "assignee", "owner"):
             if f.values.get(role):
                 party_rows.append([norm_ws(f.values[role]), role, dkey(f),
                                    f.values.get("book_page_or_instrument", ""),
@@ -1011,7 +1172,7 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     for f in facts:
         legal = f.values.get("legal_description")
         if legal:
-            tract_groups[norm_ws(legal).upper()].append(f)
+            tract_groups[canonical_tract(legal)].append(f)
     tract_rows = []
     for legal, group in sorted(tract_groups.items()):
         for f in sorted(group, key=dkey):
@@ -1163,7 +1324,8 @@ def validate(recs: List[FileRec], texts: Dict[str, TextRec], classes: Dict[str, 
     # inconsistent party names (near-duplicates that may be the same entity)
     names = defaultdict(list)
     for f in facts:
-        for role in ("grantor", "grantee", "lessor", "lessee", "assignor", "assignee"):
+        for role in ("grantor", "grantee", "lessor", "lessee", "assignor",
+                     "assignee", "owner"):
             if f.values.get(role):
                 names[norm_name(f.values[role])].append((f.values[role], f.source_file))
     display_variants = defaultdict(set)
@@ -1438,7 +1600,7 @@ def build_dashboard(root: Path, recs, texts, classes, facts, recon, issues,
     n_yellow = sum(1 for i in issues if i["severity"] == "yellow")
 
     def pct(n, d):
-        return round(100 * n / d) if d else 0
+        return min(100, round(100 * n / d)) if d else 0
 
     stages = [
         ("A. Inventory", 100, "green"),
@@ -1643,6 +1805,14 @@ def make_synthetic_corpus(dest: Path) -> None:
         (dest / name).write_text(body, encoding="utf-8")
     # an exact duplicate to exercise dedupe
     (dest / "01_warranty_deed_COPY.txt").write_text(docs["01_warranty_deed.txt"], encoding="utf-8")
+    # a row-wise ownership schedule (SYNTHETIC) on a *different* tract that sums
+    # cleanly to 1.0 -- exercises header-mapped, per-owner extraction.
+    (dest / "08_ownership_schedule.csv").write_text(
+        "Mineral Owner,Legal Description,Net Mineral Acres,Decimal Interest,County,State\n"
+        "Alpha Family Trust,\"Section 8, T7N, R63W\",40,0.25000000,Sample,Oklahoma\n"
+        "Beta Holdings LLC,\"Section 8, T7N, R63W\",40,0.25000000,Sample,Oklahoma\n"
+        "Gamma Resources LP,\"Section 8, T7N, R63W\",80,0.50000000,Sample,Oklahoma\n",
+        encoding="utf-8")
 
 
 def self_test(base_dir: Path, log: BuildLog) -> Dict[str, Any]:

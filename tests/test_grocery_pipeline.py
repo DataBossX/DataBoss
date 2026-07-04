@@ -120,8 +120,39 @@ def test_decimal_sum_flagged(run):
 
 def test_manifest_counts(run):
     m = run["manifest"]
-    assert m["counts"]["documents"] == 8  # 7 unique + 1 exact copy
+    # 7 text docs + 1 ownership CSV + 1 exact copy
+    assert m["counts"]["documents"] == 9
     assert m["counts"]["issues_red"] >= 2
+    assert m["counts"]["tracts"] == 2  # Section 12 and Section 8, canonicalized
+
+
+def test_rowwise_ownership_extraction(run):
+    """The ownership CSV must yield one traceable fact per owner row."""
+    facts = _read_csv(run["out"] / "extracted_facts.csv")
+    owners = [f for f in facts if f["source_file"] == "08_ownership_schedule.csv"]
+    assert len(owners) == 3, "expected one fact per owner row"
+    names = {f["owner"] for f in owners}
+    assert names == {"Alpha Family Trust", "Beta Holdings LLC", "Gamma Resources LP"}
+    for f in owners:
+        assert "row:" in f["source_page"], "row-level source anchor missing"
+        assert f["decimal_interest"], "decimal not captured from column"
+
+
+def test_clean_tract_not_flagged(run):
+    """Section 8 owners sum to exactly 1.0 -> must NOT raise a decimal-sum flag."""
+    rr = _read_csv(run["out"] / "review_required.csv")
+    dec = [r for r in rr if r["rule"] == "decimal-sum"]
+    subjects = {r["subject"] for r in dec}
+    assert not any("SEC 8-" in s for s in subjects), "clean tract wrongly flagged"
+    assert any("SEC 12-" in s for s in subjects), "dirty tract not flagged"
+
+
+def test_canonical_tract_key():
+    import grocery_report_pipeline as g
+    a = g.canonical_tract("Section 12, T7N, R63W")
+    b = g.canonical_tract("Sec 12 T7N R63W")
+    c = g.canonical_tract("Section 12, Township 7 North, Range 63 West")
+    assert a == b == c == "SEC 12-T7N-R63W"
 
 
 def test_rerunnable_idempotent(run, tmp_path):

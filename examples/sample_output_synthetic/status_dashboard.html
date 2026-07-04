@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grocery Report — Status Dashboard</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 0; padding: 24px;
+         background:#0d1117; color:#e6edf3; }
+  @media (prefers-color-scheme: light) { body { background:#f6f8fa; color:#1f2328; } }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { opacity:.7; font-size:13px; margin-bottom:20px; }
+  .cards { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
+  .card { flex:1 1 140px; background:rgba(127,127,127,.12); border-radius:10px; padding:14px; }
+  .card .n { font-size:26px; font-weight:700; }
+  .card .l { font-size:12px; opacity:.75; }
+  .stage { display:flex; align-items:center; gap:12px; margin:8px 0; }
+  .stage-name { flex:0 0 210px; font-size:14px; }
+  .bar { flex:1; height:14px; background:rgba(127,127,127,.2); border-radius:7px; overflow:hidden; }
+  .fill { height:100%; }
+  .pct { flex:0 0 48px; text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .risk { padding:14px 16px; border-radius:10px; font-weight:600; margin:20px 0;
+          background:rgba(127,127,127,.12); border-left:6px solid #cf222e; }
+  ul { line-height:1.6; }
+  footer { margin-top:28px; font-size:12px; opacity:.6; }
+</style></head><body>
+  <h1>Grocery Report — Status Dashboard</h1>
+  <div class="sub">Generated 2026-07-04 01:12:07 • pipeline v1.0.0 • root: /home/user/DataBoss/_synthetic_corpus</div>
+  <div class="cards">
+    <div class="card"><div class="n">9</div><div class="l">Documents</div></div>
+    <div class="card"><div class="n">9</div><div class="l">With text</div></div>
+    <div class="card"><div class="n">11</div><div class="l">Fact records</div></div>
+    <div class="card"><div class="n">2</div><div class="l">Tracts</div></div>
+    <div class="card"><div class="n" style="color:#cf222e">4</div><div class="l">Red issues</div></div>
+    <div class="card"><div class="n" style="color:#b58105">9</div><div class="l">Yellow issues</div></div>
+    <div class="card"><div class="n">100%</div><div class="l">Overall</div></div>
+  </div>
+  <h2 style="font-size:16px">Pipeline stages</h2>
+  
+        <div class="stage">
+          <div class="stage-name">A. Inventory</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">B. Duplicates</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">C. Text extraction</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">D. Classification</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">E. Structured extraction</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">F. Reconciliation</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#b58105"></div></div>
+          <div class="pct" style="color:#b58105">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">G. Validation</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#cf222e"></div></div>
+          <div class="pct" style="color:#cf222e">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">H. Report assembly</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+        <div class="stage">
+          <div class="stage-name">I. Dashboard</div>
+          <div class="bar"><div class="fill" style="width:100%;background:#1a7f37"></div></div>
+          <div class="pct" style="color:#1a7f37">100%</div>
+        </div>
+  <div class="risk">Monday (Jul 6, 2026) delivery risk: **YELLOW/RED** -- 4 hard conflict(s) and 9 review item(s); 9/9 documents yielded text. Resolve red items and OCR the untextable documents before delivery.</div>
+  <h2 style="font-size:16px">Remaining blockers</h2>
+  <ul><li><b>impossible-date</b> — 07_bad_date.txt: recording_date=2099-12-31 is out of valid range</li><li><b>decimal-sum</b> — SEC 12-T7N-R63W: Decimals sum to 0.95 (expected 1.0)</li><li><b>chain-gap</b> — SEC 12-T7N-R63W: Grantee &#x27;Acme Minerals LLC&#x27; (2019-03-20) != next grantor &#x27;John Q. Sample&#x27; (2019-03-20)</li><li><b>chain-gap</b> — SEC 12-T7N-R63W: Grantee &#x27;Acme Minerals LLC&#x27; (2019-03-20) != next grantor &#x27;Foo&#x27; (2099-12-31)</li></ul>
+  <footer>Auditable outputs in ./output/. REVIEW REQUIRED rows are unverified.
+  No legal/title facts were fabricated.</footer>
+</body></html>

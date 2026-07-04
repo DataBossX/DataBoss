@@ -1,0 +1,16 @@
+# Virtual environment
+.venv/
+# Secrets — never commit
+.env
+# Runtime artifacts (append-only DB + versioned run outputs)
+db/*.sqlite3
+db/*.sqlite3-wal
+db/*.sqlite3-shm
+outputs/validation_run_*/
+outputs/build_summary_*.md
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/

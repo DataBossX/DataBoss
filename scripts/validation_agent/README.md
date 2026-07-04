@@ -166,6 +166,38 @@ source finder / report improver never fabricate facts.
 
 ---
 
+## Roger Mills report finalizer
+
+Finalize title reports across multiple source folders into your template format:
+
+```bat
+python tools\rogermills_finalize.py ^
+    --horizon "D:\Desktop\Horizon" ^
+    --output  "D:\Desktop\Horizon\rogermillsfinalreports" ^
+    --template "D:\Desktop\Horizon\Roger Mills\Template(30).xlsx"
+```
+
+It reads the `.env` at the Horizon root (API key / OKCounty creds — never
+printed), inventories and **timestamp-backs-up** every workbook in
+`Roger Mills`, `Roger Mills 2`, `Roger Mills 3`, runs a **tournament + loops**
+to pick the best base per folder, and writes one **template-formatted** final
+per folder into the output folder (versioned, never overwriting). Rules:
+
+- **Tract sheet = scope.** The output never adds a tract that isn't on the
+  tract sheet ("don't go off the tract sheets"); footing/format are fixed,
+  legal facts are never invented.
+- **Title sheet data** (section, county, dates) is normalized into the
+  template's title block.
+- **OGL numbers** are taken from the OGL sheet and reconciled onto each tract.
+- Anything missing/ambiguous (a blank legal, a tract with no OGL number) is
+  written to a `REVIEW_*.md` file for the examiner — **never fabricated**.
+- Any paid source retrieval is gated by the $100 spend guard; nothing is spent
+  silently.
+
+Run with `--dry-run` first to see the tournament plan without writing anything.
+Override sheet detection with `--tract-sheet`, `--title-sheet`, `--ogl-sheet`
+if your tabs are named unusually.
+
 ## Troubleshooting
 
 - **Python not found:** install 3.12 from python.org, re-run setup.

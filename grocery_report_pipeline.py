@@ -862,7 +862,9 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
-_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{4,9})", re.I)
+# Anchored on the word "decimal", so 1-9 fractional digits is safe (matches
+# both "decimal interest 0.75000000" and prose "decimal interest of 0.25").
+_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{1,9})", re.I)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
@@ -1244,42 +1246,64 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     calc_rows = []
     conflicts: List[List[Any]] = []
     for legal, group in sorted(tract_groups.items()):
-        # Per-fact: prefer that fact's own all_decimals (multi-owner text doc),
-        # else fall back to its single decimal_interest. This mixes row-wise and
-        # free-text facts in the same tract without dropping either, and counts
-        # any single fact only once. Track rows whose decimal won't parse.
-        decs: List[Tuple[float, Fact]] = []
+        # Bucket decimal contributions BY SOURCE DOCUMENT. Each ownership schedule
+        # should independently sum to ~1.0, so we never add decimals across
+        # documents (that would double-count when a tract appears in both a prose
+        # summary and a spreadsheet). Prefer a fact's own all_decimals, else its
+        # single decimal_interest; count each fact once.
+        by_src: Dict[str, List[float]] = defaultdict(list)
         unparseable = 0
         for f in group:
             if f.all_decimals:
-                decs += [(d, f) for d in f.all_decimals]
+                by_src[f.source_file].extend(d for d in f.all_decimals if d is not None)
             elif f.values.get("decimal_interest"):
                 v = _to_float(f.values.get("decimal_interest"))
                 if v is None:
                     unparseable += 1
                 else:
-                    decs.append((v, f))
-        dec_sum = round(sum(d for d, _ in decs), 8) if decs else None
+                    by_src[f.source_file].append(v)
+        per_doc = {src: round(sum(vs), 8) for src, vs in by_src.items() if vs}
+        excl = f" ({unparseable} unparseable decimal(s) excluded)" if unparseable else ""
+
+        dec_sum: Optional[float] = None
+        dec_issue: Optional[Tuple[str, str]] = None  # (rule, detail)
+        if per_doc:
+            over = {s: v for s, v in per_doc.items() if v > 1.0 + 1e-4}
+            if len(per_doc) == 1:
+                (only_src, dec_sum), = per_doc.items()
+                if abs(dec_sum - 1.0) > 1e-4:
+                    dec_issue = ("decimal-sum",
+                                 f"Decimals sum to {dec_sum} (expected 1.0){excl}")
+            else:
+                dec_sum = max(per_doc.values())
+                doc_list = ", ".join(f"{Path(s).name}={v}" for s, v in sorted(per_doc.items()))
+                if over:
+                    dec_issue = ("decimal-sum",
+                                 f"A single source over-allocates (>1.0): {doc_list}{excl}")
+                else:
+                    dec_issue = ("multiple-ownership-sources",
+                                 f"Multiple ownership sources for this tract; reconcile "
+                                 f"which is authoritative: {doc_list}{excl}")
+
+        if dec_issue:
+            dec_check = f"{REVIEW}: {dec_issue[1]}"
+        elif unparseable:
+            dec_check = f"{REVIEW}: unparseable decimal(s) present{excl}"
+        else:
+            dec_check = "OK"
+
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
-        excl = f" ({unparseable} unparseable decimal(s) excluded)" if unparseable else ""
-        if dec_sum is None:
-            dec_check = f"{REVIEW}: no numeric decimals{excl}" if unparseable else "OK"
-        elif abs(dec_sum - 1.0) < 1e-4 and not unparseable:
-            dec_check = "OK"
-        else:
-            dec_check = f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0{excl}"
         calc_rows.append([legal, len(group),
                           dec_sum if dec_sum is not None else "n/a", dec_check,
                           ", ".join(str(g) for g in gross_vals) or "n/a",
                           ("OK" if len(gross_vals) <= 1 else f"{REVIEW}: gross acreage disagrees")])
-        if dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
-            conflicts.append(["decimal-sum", legal,
-                              f"Decimals sum to {dec_sum} (expected 1.0){excl}",
-                              "; ".join(sorted({f.source_file for _, f in decs}))])
+        if dec_issue:
+            conflicts.append([dec_issue[0], legal, dec_issue[1],
+                              "; ".join(sorted(by_src))])
         # An excluded (unparseable) decimal must always raise a review item, even
-        # when the remaining rows happen to sum to 1.0 -- otherwise a dropped
-        # owner row would be invisible in the curative list / dashboard.
+        # when the remaining rows happen to sum to 1.0 -- otherwise a dropped owner
+        # row would be invisible in the curative list / dashboard.
         if unparseable:
             conflicts.append(["decimal-unparseable", legal,
                               f"{unparseable} owner/decimal row(s) excluded from the "

@@ -232,6 +232,41 @@ def test_unparseable_row_flagged_even_when_sum_is_one(tmp_path):
         "excluded unparseable owner row is invisible in review output"
 
 
+def test_no_cross_document_decimal_double_count(tmp_path):
+    """Two sources that each sum to 1.0 for one tract must NOT sum to 2.0 and
+    false-red; they should raise a yellow multiple-ownership-sources review."""
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / "prose.txt").write_text(
+        "Owner A decimal interest 0.50000000. Owner B decimal interest 0.50000000.\n"
+        "Legal: Section 20, T4N, R4W\n", encoding="utf-8")
+    (corpus / "sheet.csv").write_text(
+        "Mineral Owner,Legal Description,Decimal Interest\n"
+        "X,\"Section 20, T4N, R4W\",0.50000000\n"
+        "Y,\"Section 20, T4N, R4W\",0.50000000\n", encoding="utf-8")
+    out = tmp_path / "o"
+    grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=grp.BuildLog())
+    rr = _read_csv(out / "review_required.csv")
+    assert not any(r["rule"] == "decimal-sum" for r in rr), \
+        "cross-document decimals were summed into a false conflict"
+    assert any(r["rule"] == "multiple-ownership-sources" for r in rr)
+
+
+def test_prose_two_place_decimal_counted(tmp_path):
+    """Prose decimals with fewer than 4 places must still be summed."""
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / "prose.txt").write_text(
+        "Alpha decimal interest of 0.25. Beta decimal interest of 0.25.\n"
+        "Legal: Section 21, T5N, R5W\n", encoding="utf-8")
+    out = tmp_path / "o"
+    grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=grp.BuildLog())
+    rr = _read_csv(out / "review_required.csv")
+    dec = [r for r in rr if r["rule"] == "decimal-sum"]
+    assert dec, "two-place prose decimals were not counted (0.25+0.25 not summed)"
+    assert "0.5" in dec[0]["detail"]
+
+
 def test_percentage_ownership_sheet_not_flagged(tmp_path):
     """A CSV whose decimals are percentages summing to 100% must reconcile to 1.0."""
     corpus = tmp_path / "c"

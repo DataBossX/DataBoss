@@ -1,0 +1,6 @@
+# DataBossX Validation & Repair Agent
+openpyxl>=3.1
+lxml>=5.0
+streamlit>=1.30
+pytest>=8.0
+# External binaries (not pip): LibreOffice (soffice), curl

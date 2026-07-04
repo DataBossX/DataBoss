@@ -53,6 +53,8 @@ class PerfectionLoop:
         source_path: str | Path,
         recalc: Optional[RecalcEngine] = None,
         registry: Optional[SafeFixRegistry] = None,
+        suite=None,
+        analyzers=None,
     ) -> None:
         self._source = Path(source_path)
         self._run_id = uuid.uuid4().hex[:12]
@@ -64,7 +66,11 @@ class PerfectionLoop:
         self._ledger = SpendLedger(self._conn, self._run_id)
         self._recalc = recalc or RecalcEngine()
         self._registry = registry or SafeFixRegistry()
-        self._suite = default_suite()
+        self._suite = suite or default_suite()
+        if analyzers is None:
+            from .repair.analyzers import FootingRangeAnalyzer
+            analyzers = [FootingRangeAnalyzer()]
+        self._analyzers = analyzers
 
     @property
     def run_id(self) -> str:
@@ -165,14 +171,20 @@ class PerfectionLoop:
     # -- routing ---------------------------------------------------------- #
     def _route(self, results, failures, model):
         safe, needs_source, unsafe = [], [], []
-        for r in results:
+        for i, r in enumerate(results):
             if r.passed:
                 continue
-            _, risk = FailureTaxonomy.classify(r)
-            failure = FailureTaxonomy.to_failure(r, 0)
-            if risk == RiskClass.SAFE:
-                plan = self._registry.plan_for(failure, model)
+            failure = FailureTaxonomy.to_failure(r, i)
+            # Analyzers may attach a SAFE proposed fix (e.g. footing-range repair).
+            for az in self._analyzers:
+                plan = az.analyze(r, model)
                 if plan is not None:
+                    failure.proposed_fix = plan
+                    break
+            _, risk = FailureTaxonomy.classify(r, failure)
+            if risk == RiskClass.SAFE:
+                plan = failure.proposed_fix or self._registry.plan_for(failure, model)
+                if plan is not None and plan.risk == RiskClass.SAFE:
                     safe.append(plan)
                 else:
                     unsafe.append(failure)

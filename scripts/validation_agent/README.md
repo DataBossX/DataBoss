@@ -63,9 +63,19 @@ pytest validation_agent/tests -q                    # 30 tests
   `free_to_view` and the spend ledger before any charge, and degrades to
   `SourceUnavailable` (→ escalation) when the host is unreachable.
 
-## Current behavior on the delivered workbook
-`final state: ESCALATED` — G2/G4/G5 pass; G1 (7 ARTI columns) and G3 (orphan
-grantors) surface as WARN and route to source-verification. Because those gaps
-need recorded instrument images (OKCR/OCC), the loop **escalates with a full proof
-trail instead of inventing interests** — the intended, honest terminal state.
+## Two proven terminal behaviors
+- **Repairs and certifies.** Seed a truncated footing SUMIF and the loop detects
+  the G2 break, applies a SAFE `extend_footing_range` fix (derived from the grid's
+  own dimensions), recalculates, re-validates to green, and emits a
+  `*_CERTIFIED.xlsx` + final title picture — with the embedded map byte-identical.
+  (`tests/test_p7_convergence.py`.)
+- **Escalates instead of fabricating.** On the delivered workbook,
+  `final state: ESCALATED` — G2/G4/G5 pass; G1 (7 ARTI columns) and G3 (orphan
+  grantors) surface as WARN. Those gaps need recorded instrument images (OKCR/OCC),
+  so the loop halts with a full proof trail rather than inventing interests — the
+  intended, honest terminal state.
+
+Analyzers (`repair/analyzers.py`) are what let a failure become auto-fixable: an
+analyzer attaches a SAFE `FixPlan` only when the repair is derivable from workbook
+structure. No analyzer, no auto-fix — the failure escalates.
 ```

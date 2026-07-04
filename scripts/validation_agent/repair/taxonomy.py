@@ -23,8 +23,14 @@ class FailureTaxonomy:
     """Classifies a ValidationResult into a (category, risk) route."""
 
     @staticmethod
-    def classify(result: ValidationResult) -> tuple[FailureCategory, RiskClass]:
+    def classify(
+        result: ValidationResult, failure: "Failure | None" = None
+    ) -> tuple[FailureCategory, RiskClass]:
         cat = _ID.get(result.gate, FailureCategory.XML_DAMAGE)
+        # A proposed SAFE fix (from an analyzer) always routes SAFE.
+        if failure is not None and failure.proposed_fix is not None:
+            if failure.proposed_fix.risk == RiskClass.SAFE:
+                return failure.category, RiskClass.SAFE
         # Formula errors override by message content.
         if "#REF" in result.message or "#VALUE" in result.message:
             return FailureCategory.FORMULA_ERROR, RiskClass.SAFE

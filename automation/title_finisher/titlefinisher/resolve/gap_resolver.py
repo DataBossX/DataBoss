@@ -29,25 +29,38 @@ def find_source_in(party: str, runsheet_rows: list[tuple], index_recs: list[dict
     gt = toks(party)
     if not gt:
         return None
-    excluded = re.compile(r"(?i)mortgage|release|lien|easement|right.of.way|financ|UCC|change of address")
+    # Only a conveyance vests title in a grantee. Proof-of-death, affidavit, ratification,
+    # change-of-address, release, mortgage, easement, etc. do NOT create a source-in.
+    conveyance = re.compile(r"(?i)deed|assignment|conveyance|decree|order|patent|"
+                            r"distribution|sheriff|guardian|\bMD\b|\bWD\b|\bQCD\b|\bASGT\b")
     best = None
     for (row, inst, typ, bkpg, date, grantor, grantee) in runsheet_rows:
-        if excluded.search(typ or ""):
+        if not conveyance.search(typ or ""):
             continue
         ht = toks(grantee)
         common = gt & ht
-        # A match must share a surname-strength token, not a lone common given-name or a
-        # generic word. Require >=2 shared tokens; a single shared token qualifies only when
-        # it is the party's surname (last token) AND both names are short (<=2 tokens each) —
-        # this rejects "Hamilton vs Hazel Ayers", "Bain vs John Lancaster", "Koala vs El Paso
-        # Production" style false positives from loose single-token overlap.
+        # A source-in match must identify the SAME person/entity, not merely share a surname
+        # or a generic word. Rules:
+        #  - reject matches that rest only on generic industry/common words;
+        #  - for a personal name (a leading given-name token), require BOTH the surname AND the
+        #    given name to appear on the grantee side — so "Clarence C. Bain" does NOT match a
+        #    "William C. Bain" grantee, but "Jesse Joe Newell" matches "Jesse Joe Newell";
+        #  - for an entity, require >=2 shared non-generic tokens.
         GENERIC = {"production", "energy", "resources", "oil", "gas", "minerals", "royalty",
-                   "holdings", "partners", "company", "corporation", "bank", "trust", "john",
-                   "james", "william", "mary", "robert", "charles"}
-        surname = (party.split()[-1].lower() if party.split() else "")
-        strong = (len(common) >= 2 and not common <= GENERIC) or \
-                 (len(common) == 1 and len(gt) <= 2 and len(ht) <= 2
-                  and next(iter(common)) == surname and surname not in GENERIC)
+                   "holdings", "partners", "company", "corporation", "corp", "inc", "bank",
+                   "trust", "and"}
+        if not common or common <= GENERIC:
+            continue
+        ptoks = [t for t in re.sub(r"[^A-Za-z ]", " ", party.lower()).split()
+                 if len(t) > 1]
+        given = ptoks[0] if ptoks else ""
+        surname = ptoks[-1] if ptoks else ""
+        is_entity = bool(re.search(r"(?i)\b(LLC|L\.L\.C|Inc|Co|Company|Corp|Trust|Ltd|LP|Partners|"
+                                   r"Fund|Bank|Resources|Energy|Royalty|Minerals|Production)\b", party))
+        if is_entity:
+            strong = len(common - GENERIC) >= 2
+        else:
+            strong = (surname in common) and (given in common) and (surname not in GENERIC)
         if not strong:
             continue
         yr = None

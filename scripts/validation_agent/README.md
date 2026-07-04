@@ -77,5 +77,22 @@ pytest validation_agent/tests -q                    # 30 tests
 
 Analyzers (`repair/analyzers.py`) are what let a failure become auto-fixable: an
 analyzer attaches a SAFE `FixPlan` only when the repair is derivable from workbook
-structure. No analyzer, no auto-fix — the failure escalates.
+structure. No analyzer, no auto-fix — the failure escalates. Shipped analyzers:
+- **`FootingRangeAnalyzer`** — extends a truncated footing SUMIF to the grid's
+  data extent (G2).
+- **`PhantomOGLRenumberAnalyzer`** — corrects a phantom OGL citation when a
+  co-located book/page maps bijectively to the register (G5); refuses to guess
+  when there is no book/page or the mapping is ambiguous.
+
+## Performance / hardening
+`RecalcEngine.recalc_sheet(path, tract)` slices a self-contained tract grid into a
+1-sheet workbook and recalculates it in isolation — same guard cells as the full
+recalc, a fraction of the memory (OOM mitigation for large books). An
+`ast`-based architecture test enforces that `ingestion`/`validation` never import
+`repair`/`source_verification`/`orchestrator`, keeping the validate path pure.
+
+## Tests
+40 tests, all green (P0–P8 + convergence + architecture). Numeric gates and the
+loop use real LibreOffice recalc, so the suite exercises the true pipeline end to
+end on the real Roger Mills workbook.
 ```

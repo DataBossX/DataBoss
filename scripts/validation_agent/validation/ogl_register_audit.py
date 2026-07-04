@@ -79,21 +79,27 @@ class OGLRegisterAuditValidator(Validator):
                 for c in row:
                     if not isinstance(c.value, str):
                         continue
-                    for m in _OGL_REF.finditer(c.value):
+                    text = c.value
+                    for m in _OGL_REF.finditer(text):
                         num = int(m.group(1))
-                        # ignore obvious range noise like "OGL 1-30"
-                        if num not in register_set and num <= max(register_set, default=0):
-                            results.append(
-                                ValidationResult(
-                                    gate=self.gate, passed=False,
-                                    severity=Severity.WARN,
-                                    message=(
-                                        f"{name}!{c.coordinate} cites OGL {num} "
-                                        f"absent from register"
-                                    ),
-                                    locations=[Coord(name, c.coordinate)],
-                                )
+                        if num in register_set:
+                            continue
+                        # Skip range citations like "OGL 64-69" / "109-114".
+                        after = text[m.end():m.end() + 1]
+                        before = text[max(0, m.start() - 1):m.start()]
+                        if after in ("-", "–") or before in ("-", "–"):
+                            continue
+                        results.append(
+                            ValidationResult(
+                                gate=self.gate, passed=False,
+                                severity=Severity.WARN,
+                                message=(
+                                    f"{name}!{c.coordinate} cites OGL {num} "
+                                    f"absent from register"
+                                ),
+                                locations=[Coord(name, c.coordinate)],
                             )
+                        )
 
         if not results:
             results.append(

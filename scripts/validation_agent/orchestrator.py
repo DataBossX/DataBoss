@@ -68,8 +68,11 @@ class PerfectionLoop:
         self._registry = registry or SafeFixRegistry()
         self._suite = suite or default_suite()
         if analyzers is None:
-            from .repair.analyzers import FootingRangeAnalyzer
-            analyzers = [FootingRangeAnalyzer()]
+            from .repair.analyzers import (
+                FootingRangeAnalyzer,
+                PhantomOGLRenumberAnalyzer,
+            )
+            analyzers = [FootingRangeAnalyzer(), PhantomOGLRenumberAnalyzer()]
         self._analyzers = analyzers
 
     @property

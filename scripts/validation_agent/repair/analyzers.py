@@ -40,6 +40,87 @@ _SUMIF = re.compile(
 )
 
 
+def _norm_bp(s: str) -> str:
+    """Normalise a book/page token to the register's unpadded 'BOOK/PAGE' form."""
+    m = re.match(r"(\d+)\s*/\s*0*(\d+)", s)
+    return f"{int(m.group(1))}/{int(m.group(2))}" if m else s.strip()
+
+
+_BP_TOKEN = re.compile(r"\b(\d{3,4})\s*/\s*(\d{3,4})\b")
+
+
+class PhantomOGLRenumberAnalyzer(Analyzer):
+    """Repair a G5 phantom OGL citation when a co-located book/page uniquely
+    identifies the intended register entry.
+
+    Only fires when the flagged cell contains exactly one book/page that the OGL
+    register maps bijectively to a single (different) OGL number — so the correct
+    number is *read from the register*, never guessed. Anything ambiguous
+    (no book/page, multiple candidates, non-bijective) returns None -> escalates.
+    """
+
+    strategy_id = "renumber_phantom_ogl"
+
+    def analyze(
+        self, result: ValidationResult, model: WorkbookModel
+    ) -> Optional[FixPlan]:
+        if "cites OGL" not in result.message or not result.locations:
+            return None
+        m = re.search(r"cites OGL (\d+)", result.message)
+        if not m:
+            return None
+        phantom = int(m.group(1))
+        coord = result.locations[0]
+        ws = self._sheet(model, coord.sheet)
+        ogl = model.ogl()
+        if ws is None or ogl is None:
+            return None
+        cell = ws[coord.cell]
+        if not isinstance(cell.value, str):
+            return None
+        # Build the register's book/page -> ogl_no map (must be bijective).
+        bp_map: dict[str, int] = {}
+        for lease in ogl.leases():
+            if lease.book_page and lease.ogl_no is not None:
+                key = _norm_bp(lease.book_page)
+                if key in bp_map and bp_map[key] != lease.ogl_no:
+                    return None  # non-bijective -> unsafe, escalate
+                bp_map[key] = lease.ogl_no
+        candidates = {
+            bp_map[_norm_bp(f"{a}/{b}")]
+            for a, b in _BP_TOKEN.findall(cell.value)
+            if _norm_bp(f"{a}/{b}") in bp_map
+        }
+        if len(candidates) != 1:
+            return None  # zero or ambiguous -> escalate
+        correct = candidates.pop()
+        if correct == phantom:
+            return None
+        fixed = re.sub(rf"\bOGL\s*#?\s*{phantom}\b", f"OGL {correct}", cell.value)
+        if fixed == cell.value:
+            return None
+        return FixPlan(
+            strategy_id=self.strategy_id,
+            risk=RiskClass.SAFE,
+            target=Coord(coord.sheet, coord.cell),
+            before=cell.value,
+            after=fixed,
+            justification=(
+                f"Cited OGL {phantom} is absent from the register; the cell's own "
+                f"book/page maps bijectively to register OGL {correct}. Correct "
+                f"number is read from the register, not inferred."
+            ),
+            source_refs=[SourceRef(SourceKind.FORMULA, f"OGL!register")],
+        )
+
+    @staticmethod
+    def _sheet(model: WorkbookModel, name: str):
+        for n in model.wb.sheetnames:
+            if n == name or n.strip() == name.strip():
+                return model.wb[n]
+        return None
+
+
 class FootingRangeAnalyzer(Analyzer):
     """Repair a G2 footing break caused by a SUMIF range that stops short of the
     tract grid's data extent.

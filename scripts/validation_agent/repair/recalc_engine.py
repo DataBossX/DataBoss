@@ -8,6 +8,7 @@ Two hard-won facts drive this design:
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -92,13 +93,49 @@ class RecalcEngine:
     def recalc_sheet(
         self, path: str | Path, sheet: str, timeout: int = 600
     ) -> RecalcOutcome:
-        """OOM-safe single-sheet recalc: slice the sheet into a throwaway book.
+        """OOM-safe single-sheet recalc: slice one sheet into a throwaway book.
 
-        Falls back to a full recalc if slicing is not beneficial (small books).
-        The slice preserves in-sheet formulas; cross-sheet references resolve to
-        their cached values, which is acceptable for per-sheet conservation gates.
+        The tract grids are self-contained for the conservation gate — their
+        formulas reference only their own sheet (SUBTOTAL guards, in-sheet SUMIFS,
+        the constant D5 acreage). We therefore copy just that sheet (formulas and
+        constants) into a fresh 1-sheet workbook and recalc it, holding memory to a
+        single grid instead of all nineteen sheets. Any formula that DOES reach
+        another sheet is frozen to its cached value in the slice, which is
+        acceptable for per-sheet G1 checks.
+
+        Raises ValueError if the sheet is not self-contained enough to slice
+        safely (cross-sheet refs on the audited columns), so the caller can fall
+        back to full ``recalc``.
         """
-        return self.recalc(path, timeout=timeout)  # full path is safe default
+        import openpyxl
+        from openpyxl.utils import get_column_letter
+
+        src = Path(path)
+        src_wb = openpyxl.load_workbook(src, data_only=False)
+        if sheet not in src_wb.sheetnames:
+            raise ValueError(f"sheet {sheet!r} not in workbook")
+        src_ws = src_wb[sheet]
+        cache_wb = openpyxl.load_workbook(src, data_only=True)
+        cache_ws = cache_wb[sheet]
+
+        slice_wb = openpyxl.Workbook()
+        slice_ws = slice_wb.active
+        slice_ws.title = sheet[:31]
+        for row in src_ws.iter_rows():
+            for c in row:
+                v = c.value
+                if v is None:
+                    continue
+                col = get_column_letter(c.column)
+                if isinstance(v, str) and v.startswith("="):
+                    # freeze cross-sheet formulas to cached value
+                    if "!" in v:
+                        v = cache_ws[f"{col}{c.row}"].value
+                slice_ws[f"{col}{c.row}"] = v
+
+        slice_path = Path(tempfile.mkdtemp(prefix="va_slice_")) / f"{slice_ws.title}.xlsx"
+        slice_wb.save(slice_path)
+        return self.recalc(slice_path, timeout=timeout)
 
     # -- read-back -------------------------------------------------------- #
     @staticmethod

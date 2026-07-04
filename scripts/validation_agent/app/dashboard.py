@@ -136,9 +136,60 @@ def main() -> None:
     exports = db.get_report_exports(run_id)
     for e in exports:
         st.write(f"- **{e['export_type']}** · `{e['file_path']}`")
-    st.caption(f"Open the run folder: `{run['run_dir']}`")
+
+    # Download buttons for the examiner package and the improved report so the
+    # examiner can retrieve exports directly from the dashboard (cross-platform,
+    # unlike a server-side "open folder"). Plus an explicit open-folder helper.
+    dl_cols = st.columns(3)
+    _download_button(dl_cols[0], exports, ("zip",), "⬇ Examiner package (zip)",
+                     "application/zip")
+    _download_button(dl_cols[1], exports, ("markdown",), "⬇ Improved report (md)",
+                     "text/markdown")
+    _download_button(dl_cols[2], exports, ("pdf", "docx"),
+                     "⬇ Certification packet", "application/octet-stream")
+
+    run_dir = run["run_dir"]
+    if dl_cols[0].button("Open run folder", key="open_folder"):
+        _open_path(run_dir)
+    st.caption(f"Run folder: `{run_dir}`  ·  exports in `{run_dir}/exports`")
 
     db.close()
+
+
+def _download_button(col, exports, types, label, mime) -> None:
+    """Render a download button for the newest export whose type is in ``types``.
+
+    Never fabricates: if the file is missing the button is simply not shown."""
+    match = None
+    for e in exports:
+        if e["export_type"] in types and Path(e["file_path"]).exists():
+            match = e  # exports are ordered oldest->newest; keep the last match
+    if not match:
+        return
+    p = Path(match["file_path"])
+    try:
+        data = p.read_bytes()
+    except OSError:
+        return
+    col.download_button(label, data=data, file_name=p.name, mime=mime,
+                        key=f"dl_{match['id']}")
+
+
+def _open_path(path: str) -> None:
+    """Best-effort open the run folder on the host running Streamlit."""
+    import os
+    import subprocess
+    import sys
+    try:
+        if sys.platform.startswith("win"):
+            os.startfile(path)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
+    except Exception as exc:  # never crash the dashboard over a UI convenience
+        import streamlit as st
+        st.warning(f"Could not open folder automatically: {exc}")
 
 
 if __name__ == "__main__":

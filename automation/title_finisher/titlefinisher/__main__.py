@@ -14,11 +14,13 @@ def _autofind(pattern, root):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="titlefinisher", description=__doc__)
-    ap.add_argument("mode", choices=["offline", "online", "worklist", "audit"])
+    ap.add_argument("mode", choices=["offline", "online", "worklist", "audit", "tournament", "batch"])
     ap.add_argument("--workbook", help="path to the NHE cursory workbook (.xlsx)")
     ap.add_argument("--index", help="path to the county index PDF")
     ap.add_argument("--baseline", help="baseline workbook for audit mode")
     ap.add_argument("--outdir", default="data/out")
+    ap.add_argument("--folders", nargs="*", help="source folders for tournament/batch modes")
+    ap.add_argument("--section-gross", type=float, default=637.42)
     ap.add_argument("--county"); ap.add_argument("--twprge"); ap.add_argument("--section")
     args = ap.parse_args(argv)
 
@@ -26,6 +28,24 @@ def main(argv=None):
     if args.county: cfg.county = args.county
     if args.twprge: cfg.twprge = args.twprge
     if args.section: cfg.section = args.section
+
+    if args.mode == "tournament":
+        from .tournament import run_tournament
+        folders = args.folders or ["data"]
+        ranked = run_tournament(folders, args.section_gross)
+        print(f"{'TOTAL':>6}  valid  file")
+        for s in ranked:
+            print(f"{s.total:6.1f}  {str(s.valid):5}  {os.path.basename(s.path)}")
+            for n in s.notes: print(f"          - {n}")
+        if ranked:
+            print("\nWINNER:", os.path.basename(ranked[0].path))
+        return
+    if args.mode == "batch":
+        from .pipeline import run_batch
+        folders = args.folders or ["data"]
+        res = run_batch(folders, args.outdir, cfg, args.section_gross)
+        print(json.dumps(res, indent=2, default=str))
+        return
 
     wb = args.workbook or _autofind("*NHE*.xlsx", "data") or _autofind("*.xlsx", "data")
     if args.mode in ("offline", "online", "worklist") and not wb:

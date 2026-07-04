@@ -113,11 +113,99 @@ def run_online(workbook: str, outdir: str, cfg: Config) -> dict:
             "audit_ok": ok, "issues": issues}
 
 
-def _write_audit(path, base, final, resolved, still_open, ok, issues, notes, mode, filled=None):
+def run_batch(folders, outdir, cfg, section_gross=637.42, max_loops=3):
+    """Tournament-select the strongest base across `folders`, finish it conservatively
+    (remove excluded rows + resolve documented source-in gaps + reconcile OGL refs), loop the
+    audit until clean, and write the finished workbook + reports to `outdir`.
+
+    Conservative by design: it does NOT overwrite an examiner's per-owner net-acre allocation
+    (tract sheets are the source of truth); it only removes rule-excluded rows, de-highlights
+    gaps with a documented grantee-side conveyance, and reports OGL/template issues."""
+    from .tournament import run_tournament
+    from .resolve.gap_resolver import find_source_in
+    from .resolve.ogl_reconcile import reconcile, suggest_ogl_for_owners
+    import openpyxl as _oxl
+
+    os.makedirs(outdir, exist_ok=True)
+    ranked = run_tournament(folders, section_gross)
+    if not ranked or not ranked[0].valid:
+        return {"error": "no structurally-valid (19-sheet) candidate found",
+                "ranked": [(os.path.basename(s.path), s.total, s.valid) for s in ranked]}
+    winner = ranked[0].path
+    final_xlsx, audit_md, punch_md = _out_paths(winner, outdir)
+
+    # gather grantee-side rows from Runsheet + rawdata for gap resolution
+    wb = _oxl.load_workbook(winner)
+    def _rows(sheet):
+        if sheet not in wb.sheetnames:
+            return []
+        ws = wb[sheet]
+        return [(r, str(ws.cell(r, 1).value or ""), str(ws.cell(r, 3).value or ""),
+                 str(ws.cell(r, 4).value or ""), str(ws.cell(r, 6).value or ""),
+                 str(ws.cell(r, 7).value or ""), str(ws.cell(r, 8).value or ""))
+                for r in range(2, ws.max_row + 1)]
+    grantee_rows = _rows("Runsheet") + _rows("rawdata")
+
+    items = build_worklist(winner)
+    ed = SurgicalEditor(winner)
+    unhighlighted, resolved, still_open = set(), [], []
+
+    # 1) remove rule-excluded Runsheet rows (values only)
+    from .resolve.normalize import exclusion_removal_ops
+    for sheet, coord, op in exclusion_removal_ops(winner):
+        ed.apply(sheet, coord, op)
+
+    # 2) resolve documented source-in gaps
+    for it in items:
+        if it.kind != "source_in_gap":
+            still_open.append(it); continue
+        yr = None
+        m = re.match(r"(\d{4})", it.instrument or "")
+        if m: yr = int(m.group(1))
+        hit = find_source_in(it.party, grantee_rows, [], convey_year=yr)
+        if hit:
+            ed.apply(it.sheet, it.coord, ("unhighlight",))
+            unhighlighted.add(f"{it.sheet}!{it.coord}")
+            resolved.append((it, hit))
+        else:
+            still_open.append(it)
+    ed.save(final_xlsx)
+
+    # 3) loop the audit until clean (or max_loops)
+    ok = False; issues = []; notes = []
+    for _ in range(max_loops):
+        ok, issues, notes = audit(winner, final_xlsx, expected_unhighlight=unhighlighted)
+        if ok:
+            break
+
+    ogl = reconcile(final_xlsx)
+    ogl_sugg = suggest_ogl_for_owners(final_xlsx)
+    _write_audit(audit_md, winner, final_xlsx, resolved, still_open, ok, issues, notes,
+                 mode="batch", ogl=ogl, ranked=ranked)
+    _write_punch(punch_md, still_open)
+    return {"winner": os.path.basename(winner), "final": final_xlsx,
+            "resolved": len(resolved), "still_open": len(still_open),
+            "audit_ok": ok, "issues": issues,
+            "ranked": [(os.path.basename(s.path), s.total) for s in ranked[:8]],
+            "ogl_check": {k: (len(v) if isinstance(v, list) else v) for k, v in ogl.items()},
+            "ogl_suggestions": len(ogl_sugg)}
+
+
+def _write_audit(path, base, final, resolved, still_open, ok, issues, notes, mode, filled=None, ogl=None, ranked=None):
     L = [f"# TitleFinisher audit log ({mode})",
          f"Base: `{os.path.basename(base)}`  →  Final: `{os.path.basename(final)}`", ""]
+    if ranked:
+        L += ["## Tournament ranking (best base first)"]
+        L += [f"- {s.total:.1f}  {'ok ' if s.valid else 'INVALID'}  {os.path.basename(s.path)}"
+              for s in ranked[:10]]
+        L.append("")
     L.append(f"## QC: {'PASS' if ok else 'ISSUES'}")
     L += [f"- {n}" for n in notes]
+    if ogl:
+        L += ["", "## OGL register reconciliation",
+              f"- OGL numbers cited on Title: {ogl.get('cited', 0)}",
+              f"- not in register: {ogl.get('not_in_register') or 'none'}",
+              f"- legacy 109-114: {ogl.get('legacy_109_114') or 'none'}"]
     if issues:
         L += ["", "### Issues"] + [f"- {i}" for i in issues]
     if resolved:

@@ -29,6 +29,14 @@ TitleFinisher automates that last 10% on a machine that **can** reach those sour
    passes.
 6. **Emits** an audit log + examiner punch list of anything still unresolved.
 
+## Tournament + batch (finish many candidates at once)
+
+- **`tournament`** — score every candidate workbook across one or more folders on a
+  deterministic compliance+completeness rubric and print the winner.
+- **`batch`** — tournament-select the best base, finish it (remove excluded rows, resolve
+  documented gaps, reconcile Title OGL numbers vs the OGL sheet), loop the audit until clean,
+  and write the final report to an output folder. See `docs/RUNBOOK_WINDOWS.md`.
+
 ## Two modes
 
 - **`offline`** (works with no network): reproduces the analysis pass — OCR the local

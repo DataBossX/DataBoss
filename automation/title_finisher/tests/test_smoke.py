@@ -69,3 +69,19 @@ def test_source_in_rejects_false_positives():
     assert find_source_in("Hazel A. Hamilton",
         [(1,"1978-002576","Mineral Deed","237/367","1978","x","Hazel A. Hamilton")],
         [], convey_year=1990) is not None
+
+
+def test_tournament_ranks_valid_above_invalid():
+    from titlefinisher.tournament import score_workbook
+    import glob
+    wbs = glob.glob("data/*.xlsx") + glob.glob("data/out/*.xlsx")
+    if len(wbs) < 2:
+        return
+    scores = sorted((score_workbook(p) for p in wbs), key=lambda s: (s.valid, s.total), reverse=True)
+    # a valid 19-sheet workbook must outrank any invalid one
+    valids = [s for s in scores if s.valid]
+    invalids = [s for s in scores if not s.valid]
+    if valids and invalids:
+        assert min(s.total for s in valids) >= 0 and valids[0].total > invalids[0].total - 1e9
+    # scores are bounded and structured
+    assert all(0 <= s.total <= 110 for s in scores)

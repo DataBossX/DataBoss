@@ -26,6 +26,26 @@ py horizon/main.py
 Useful flags: `--section 31-12N-24W`, `--base <report-stem>`, `--max-loops N`,
 `--no-backup`, `--dry-run` (scan + validate only).
 
+### Build a report from the reference workbook (Intelligence Layer)
+
+Point `--build-from` at a workbook that has an **OGL** sheet and a **Runsheet**
+sheet. Horizon reads both, cross-references them on `Instrument_Number`,
+reconciles interest down each tract's chain with exact fraction math, and writes
+a versioned report where every un-tied row carries a `Needs Examiner Review` tag:
+
+```bash
+py horizon/main.py --root "D:\Desktop\Horizon" \
+    --build-from "D:\Desktop\Horizon\31-12N-24W ... NHE.xlsx"
+```
+
+Example output row for a broken chain (instrument present in the OGL but absent
+from the runsheet):
+
+```
+2019-3  Z->W  conv=1/3  ret=2/3  status='Needs Examiner Review'
+        remarks='Chain break: instrument not matched across OGL/runsheet'
+```
+
 ## What it does (maps to the mission spec)
 
 | Mission section | Module |
@@ -33,6 +53,7 @@ Useful flags: `--section 31-12N-24W`, `--base <report-stem>`, `--max-loops N`,
 | 1. File system & cleanup — scan, unzip → `temp_raw`, SHA256 dedup → `trash`, snapshot backup | `foundation.py` |
 | 2. Interest logic — `Grantor − Conveyed = Retained`, **Fraction/Decimal only, no floats**, net-acre reconciliation | `interest.py` |
 | 2. Chaining — `Instrument_Number`-keyed cross-reference of OGL ↔ runsheet, chain-out reconciliation, tie to legal descriptions | `chaining.py` |
+| 2. Intelligence Layer — read OGL + runsheet sheets, reconcile chains, emit a tagged report (`--build-from`) | `pipeline.py` |
 | 3. Autonomous loop — Ingest → Validate → Repair → Evaluate → Iterate (5-loop cap) | `orchestrator.py` |
 | 3. Repair — XML-based (`lxml`) worksheet repair that preserves `xl/media` plats byte-for-byte | `repair.py` |
 | 3. Validate — gates against the Golden Source (`project_notes_updated.xlsx`) | `validation.py`, `models.py` |
@@ -56,6 +77,6 @@ Useful flags: `--section 31-12N-24W`, `--base <report-stem>`, `--max-loops N`,
 pytest tests/test_horizon_*.py -q
 ```
 
-61 unit tests cover exact-fraction interest math, chaining/chain-breaks,
+66 unit tests cover exact-fraction interest math, chaining/chain-breaks,
 SHA256 dedup, versioning, validation gates, lxml repair (media preservation),
-and the bounded improvement loop.
+the reference-workbook pipeline, and the bounded improvement loop.

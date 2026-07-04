@@ -11,6 +11,7 @@ from horizon.models import ReportModel, TitleRow
 from horizon.orchestrator import Orchestrator
 from horizon.repair import repair_workbook
 from horizon.report_io import read_report, write_report
+from horizon.repair import _HAVE_LXML
 from horizon.validation import Requirements
 
 
@@ -33,6 +34,7 @@ def _make_xlsx_with_error_formula(path: Path):
     tmp.replace(path)
 
 
+@pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
 def test_repair_removes_error_formula_and_preserves_media(tmp_path):
     src = tmp_path / "report.xlsx"
     _make_xlsx_with_error_formula(src)

@@ -28,17 +28,19 @@ if __package__ in (None, ""):
     from horizon.config import HorizonConfig
     from horizon.foundation import run_cleanup
     from horizon.orchestrator import Orchestrator
-    from horizon.report_io import read_report
+    from horizon.pipeline import build_from_workbook
+    from horizon.report_io import read_report, write_report
     from horizon.validation import load_requirements
-    from horizon.versioning import latest_version
+    from horizon.versioning import latest_version, next_version_path
 else:
     from .audit import AuditLog
     from .config import HorizonConfig
     from .foundation import run_cleanup
     from .orchestrator import Orchestrator
-    from .report_io import read_report
+    from .pipeline import build_from_workbook
+    from .report_io import read_report, write_report
     from .validation import load_requirements
-    from .versioning import latest_version
+    from .versioning import latest_version, next_version_path
 
 
 def build_config(args: argparse.Namespace) -> HorizonConfig:
@@ -72,6 +74,24 @@ def run(args: argparse.Namespace) -> int:
 
     # 3. Ingest the newest report iteration to perfect (if any exists yet).
     base_stem = args.base or f"{cfg.section}_Roger_Mills_Cursory_Title_Report"
+
+    # 3a. Optionally build an initial chained report from a reference workbook
+    #     (the Intelligence Layer): read OGL + runsheet, reconcile, tag reviews.
+    if args.build_from:
+        wb_path = Path(args.build_from)
+        if not wb_path.exists():
+            audit.error("build_from_missing", f"workbook not found: {wb_path}")
+        else:
+            build = build_from_workbook(wb_path, section=cfg.section)
+            audit.info("chain_build",
+                       f"ogl_rows={len(build.report.rows)} "
+                       f"chain_breaks={len(build.chain_breaks)} "
+                       f"tracts_needing_review={len(build.tracts_reviewed)}")
+            if not args.dry_run:
+                out = next_version_path(cfg.final_reports, base_stem)
+                write_report(build.report, out)
+                audit.info("chain_build_written", out.name)
+
     current = latest_version(cfg.final_reports, base_stem)
     if current is None:
         audit.escalate(
@@ -124,6 +144,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     ap.add_argument("--section", default="31-12N-24W", help="Target section label")
     ap.add_argument("--base", default=None,
                     help="Base stem of the report to improve (without _vNNN)")
+    ap.add_argument("--build-from", default=None,
+                    help="Reference workbook to chain (OGL + runsheet sheets) "
+                         "into an initial versioned report before the loop")
     ap.add_argument("--max-loops", type=int, default=0,
                     help="Override the improvement-loop cap (default 5)")
     ap.add_argument("--no-backup", action="store_true",

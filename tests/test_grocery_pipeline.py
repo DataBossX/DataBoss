@@ -252,6 +252,28 @@ def test_no_cross_document_decimal_double_count(tmp_path):
     assert any(r["rule"] == "multiple-ownership-sources" for r in rr)
 
 
+def test_multi_source_no_full_schedule_is_reviewed(tmp_path):
+    """Two partial sources for one tract, neither reaching 1.0, must surface as a
+    review item that explicitly says none sums to 1.0 (not a silent pass, and not
+    a false red -- the split could be legitimate fragments)."""
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / "a.csv").write_text(
+        "Mineral Owner,Legal Description,Decimal Interest\n"
+        "A,\"Section 22, T6N, R6W\",0.30000000\n", encoding="utf-8")
+    (corpus / "b.csv").write_text(
+        "Mineral Owner,Legal Description,Decimal Interest\n"
+        "B,\"Section 22, T6N, R6W\",0.40000000\n", encoding="utf-8")
+    out = tmp_path / "o"
+    grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=grp.BuildLog())
+    rr = _read_csv(out / "review_required.csv")
+    ms = [r for r in rr if r["rule"] == "multiple-ownership-sources"]
+    assert ms, "multi-source partial tract not surfaced for review"
+    assert "NONE sums to 1.0" in ms[0]["detail"]
+    # Not double-summed into a bogus over-1.0 red either.
+    assert not any(r["rule"] == "decimal-sum" for r in rr)
+
+
 def test_prose_two_place_decimal_counted(tmp_path):
     """Prose decimals with fewer than 4 places must still be summed."""
     corpus = tmp_path / "c"

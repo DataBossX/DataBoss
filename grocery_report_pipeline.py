@@ -1278,12 +1278,24 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
                 dec_sum = max(per_doc.values())
                 doc_list = ", ".join(f"{Path(s).name}={v}" for s, v in sorted(per_doc.items()))
                 if over:
+                    # A single source claiming >1.0 is a definite error -> red.
                     dec_issue = ("decimal-sum",
                                  f"A single source over-allocates (>1.0): {doc_list}{excl}")
-                else:
+                elif any(abs(v - 1.0) < 1e-4 for v in per_doc.values()):
+                    # At least one source is a complete schedule (==1.0); the
+                    # others likely overlap it -> reconcile which is authoritative.
                     dec_issue = ("multiple-ownership-sources",
-                                 f"Multiple ownership sources for this tract; reconcile "
-                                 f"which is authoritative: {doc_list}{excl}")
+                                 f"Multiple ownership sources for this tract; at least one "
+                                 f"sums to 1.0 -- reconcile which is authoritative: "
+                                 f"{doc_list}{excl}")
+                else:
+                    # No source reaches 1.0. Could be legitimately split fragments
+                    # OR a genuine under-allocation. We cannot tell which without a
+                    # human, so surface it explicitly as review (not a false red).
+                    dec_issue = ("multiple-ownership-sources",
+                                 f"Multiple partial ownership sources; NONE sums to 1.0 "
+                                 f"-- confirm no owner is missing / which source is "
+                                 f"authoritative: {doc_list}{excl}")
 
         if dec_issue:
             dec_check = f"{REVIEW}: {dec_issue[1]}"

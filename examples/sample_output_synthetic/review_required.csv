@@ -1,12 +1,12 @@
 ﻿severity,rule,subject,detail,source,generated_at
-yellow,high-value-low-confidence,02_oil_gas_lease.txt,royalty='3/16' confidence 0.55,02_oil_gas_lease.txt,2026-07-04 01:39:11
-yellow,high-value-low-confidence,03_assignment.txt,net_revenue_interest='78.5%' confidence 0.55,03_assignment.txt,2026-07-04 01:39:11
-yellow,missing-recording-data,04_ownership_note.txt,No book/page/instrument and no recording date extracted,04_ownership_note.txt,2026-07-04 01:39:11
-yellow,missing-recording-data,06_prior_report_DRAFT.txt,No book/page/instrument and no recording date extracted,06_prior_report_DRAFT.txt,2026-07-04 01:39:11
-red,impossible-date,07_bad_date.txt,recording_date=2099-12-31 is out of valid range,07_bad_date.txt,2026-07-04 01:39:11
-yellow,missing-recording-data,08_ownership_schedule.csv,No book/page/instrument and no recording date extracted,08_ownership_schedule.csv,2026-07-04 01:39:11
-yellow,missing-recording-data,08_ownership_schedule.csv,No book/page/instrument and no recording date extracted,08_ownership_schedule.csv,2026-07-04 01:39:11
-yellow,missing-recording-data,08_ownership_schedule.csv,No book/page/instrument and no recording date extracted,08_ownership_schedule.csv,2026-07-04 01:39:11
-red,decimal-sum,SEC 12-T7N-R63W,Decimals sum to 0.95 (expected 1.0),04_ownership_note.txt,2026-07-04 01:39:11
-yellow,chain-gap,SEC 12-T7N-R63W,Grantee 'Acme Minerals LLC' (2019-03-20) != next grantor 'Foo' (2099-12-31),01_warranty_deed.txt; 07_bad_date.txt,2026-07-04 01:39:11
-yellow,stale-prior-draft,06_prior_report_DRAFT.txt,Prior report/draft present -- confirm every carried-forward fact against current source documents before trusting it.,06_prior_report_DRAFT.txt,2026-07-04 01:39:11
+yellow,high-value-low-confidence,02_oil_gas_lease.txt,royalty='3/16' confidence 0.55,02_oil_gas_lease.txt,2026-07-04 01:49:11
+yellow,high-value-low-confidence,03_assignment.txt,net_revenue_interest='78.5%' confidence 0.55,03_assignment.txt,2026-07-04 01:49:11
+yellow,missing-recording-data,04_ownership_note.txt,No book/page/instrument and no recording date extracted,04_ownership_note.txt,2026-07-04 01:49:11
+yellow,missing-recording-data,06_prior_report_DRAFT.txt,No book/page/instrument and no recording date extracted,06_prior_report_DRAFT.txt,2026-07-04 01:49:11
+red,impossible-date,07_bad_date.txt,recording_date=2099-12-31 is out of valid range,07_bad_date.txt,2026-07-04 01:49:11
+yellow,missing-recording-data,08_ownership_schedule.csv,No book/page/instrument and no recording date extracted,08_ownership_schedule.csv,2026-07-04 01:49:11
+yellow,missing-recording-data,08_ownership_schedule.csv,No book/page/instrument and no recording date extracted,08_ownership_schedule.csv,2026-07-04 01:49:11
+yellow,missing-recording-data,08_ownership_schedule.csv,No book/page/instrument and no recording date extracted,08_ownership_schedule.csv,2026-07-04 01:49:11
+red,decimal-sum,SEC 12-T7N-R63W,Decimals sum to 0.95 (expected 1.0),04_ownership_note.txt,2026-07-04 01:49:11
+yellow,chain-gap,SEC 12-T7N-R63W,Grantee 'Acme Minerals LLC' (2019-03-20) != next grantor 'Foo' (2099-12-31),01_warranty_deed.txt; 07_bad_date.txt,2026-07-04 01:49:11
+yellow,stale-prior-draft,06_prior_report_DRAFT.txt,Prior report/draft present -- confirm every carried-forward fact against current source documents before trusting it.,06_prior_report_DRAFT.txt,2026-07-04 01:49:11

@@ -31,6 +31,8 @@ yarn-error.log*
 # local env files
 # .env*.local
 *token.json*
+.env
+*.env
 # vercel
 .vercel
 
@@ -73,3 +75,32 @@ android-sdk/
 /output/
 _synthetic_corpus/
 .pytest_cache/
+
+# ===================
+# HORIZON REPORT SECURITY & GENERATED FILES
+# ===================
+# Environment files with secrets
+.env
+.env.*
+!.env.example
+
+# Google service account credentials
+*service-account*.json
+*credentials*.json
+*client_secret*.json
+
+# Generated reports (may contain confidential data)
+/reports/generated/*.docx
+/reports/generated/*.xlsx
+/reports/generated/*.pdf
+
+# Logs (may contain sensitive info)
+/logs/*.txt
+/logs/*.log
+
+# Archive folder
+/archive/
+
+# Temp files
+*.tmp
+~$*

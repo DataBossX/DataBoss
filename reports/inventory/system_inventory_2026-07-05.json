@@ -1,0 +1,46 @@
+{
+  "report_date": "2026-07-05",
+  "generated_at": "2026-07-05T15:29:59.990217",
+  "total_files": 1,
+  "categories": {
+    "runsheets": 1,
+    "templates": 0,
+    "ownership_reports": 0,
+    "deeds": 0,
+    "leases": 0,
+    "other_spreadsheets": 0,
+    "other_documents": 0,
+    "other_pdfs": 0
+  },
+  "documents": [
+    {
+      "path": "/workspace/inputs/sample_runsheet.xlsx",
+      "file_type": ".xlsx",
+      "size": 5257,
+      "modified_time": "2026-07-05T15:29:54.809360",
+      "relevance": "Likely runsheet",
+      "warnings": [],
+      "has_parsed_data": false
+    }
+  ],
+  "categorized": {
+    "runsheets": [
+      {
+        "path": "/workspace/inputs/sample_runsheet.xlsx",
+        "file_type": ".xlsx",
+        "size": 5257,
+        "modified_time": "2026-07-05T15:29:54.809360",
+        "relevance": "Likely runsheet",
+        "warnings": [],
+        "has_parsed_data": false
+      }
+    ],
+    "templates": [],
+    "ownership_reports": [],
+    "deeds": [],
+    "leases": [],
+    "other_spreadsheets": [],
+    "other_documents": [],
+    "other_pdfs": []
+  }
+}

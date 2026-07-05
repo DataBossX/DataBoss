@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "horizon-report"
+version = "1.0.0"
+description = "DataBoss Horizon Ownership Report Generator"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "DataBoss Horizon Team"}
+]
+keywords = ["oil-gas", "ownership", "title", "reports"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "python-docx>=1.1.0",
+    "pypdf>=3.17.0",
+    "reportlab>=4.0.0",
+]
+
+[project.optional-dependencies]
+drive = [
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.1.1",
+    "google-auth-oauthlib>=1.1.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+]
+
+[project.scripts]
+horizon-report = "horizon_report.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["horizon_report*"]
+exclude = ["tests*"]

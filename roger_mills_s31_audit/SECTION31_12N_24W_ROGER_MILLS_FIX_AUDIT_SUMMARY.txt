@@ -1,0 +1,143 @@
+================================================================================
+SECTION 31-12N-24W, ROGER MILLS COUNTY, OKLAHOMA
+CURSORY OWNERSHIP / TITLE REPORT  —  FIX & QA AUDIT SUMMARY
+Prepared: 2026-07-05
+================================================================================
+
+FINAL OUTPUT
+  SECTION31_12N_24W_ROGER_MILLS_FINAL_OWNERSHIP_TITLE_REPORT_CLAUDE_FIXED.xlsx
+  (23 sheets; Overview Map preserved as first tab; full recalc on open)
+
+--------------------------------------------------------------------------------
+1. FILES USED
+--------------------------------------------------------------------------------
+  BASE / CURRENT FILE (from Google Drive, owner ryangille02@aol.com):
+    SECTION31_12N_24W_ROGER_MILLS_FINAL_OWNERSHIP_TITLE_REPORT.xlsx
+    (id 1JOO3VSZzr4-4TzjGKkHrb5nCayeIUjoi, modified 2026-07-05 03:36Z, 1.22 MB)
+    - This is the newest "FINAL_OWNERSHIP_TITLE_REPORT" workbook and is the same
+      base as the "(5)(1)" download named in the task.
+  BACKUP MADE BEFORE EDITING:
+    sources/BACKUP_ORIGINAL_20260705.xlsx (byte-for-byte copy of the base file)
+
+  NOTE ON SCOPE: The task described the current file as containing placeholders
+  such as "No final owners calculated" / "Needs Verification". A full-text scan of
+  the actual current file found NONE of those strings. The current file is an
+  advanced, substantially-complete cursory report. It was therefore treated as the
+  best-available working base and subjected to a QA / reconciliation / cleanup pass
+  rather than a from-scratch rebuild. No ownership, acreage, lease, assignment, or
+  OGL data was invented.
+
+--------------------------------------------------------------------------------
+2. CONTROLLING SOURCES SELECTED
+--------------------------------------------------------------------------------
+  CONTROLLING RUNSHEET .... "Runsheet" sheet inside the workbook (566 rows).
+  OGL SHEET ............... "OGL" sheet inside the workbook (OGL #, Bk/Pg, grantor,
+                            grantee, legal, net mineral acres, royalty, term).
+  TRACT-STYLE CONTROLLER .. "Tract 1" sheet (grantor-grantee incidence-matrix ledger).
+  TEMPLATE / FORMATTING ... existing workbook template (borders, merges, widths,
+                            print layout, colors) — preserved unchanged.
+  CHAIN LEDGERS (source of truth for net acres):
+    "Tract 1" .. "Tract 10" sheets. VERIFIED: every tract sheet's owner net-acre
+    column sums EXACTLY to that tract's acreage (rows below the structural header):
+        T1=80  T2=160  T3=40  T4=80  T5=38.28  T6=51  T7=40  T8=32.8  T9=75.34  T10=40.
+
+--------------------------------------------------------------------------------
+3. ROOT-CAUSE FINDING
+--------------------------------------------------------------------------------
+  The ten Tract sheets (the chain ledgers) were internally correct and balanced.
+  The corruption was confined to the TITLE roll-up:
+    * Title Tract 2 block summed to 221.70 NMA against a 160.00-acre tract.
+      Cause = two mis-transcribed literals vs. the balanced Tract 2 ledger:
+        - Dow C. Bain & Edris O. Bain, JTWROS (Title C63): 63.70 -> 0.00
+          (JTWROS capacity nets to zero in the ledger; the Bain "Trustees"
+           capacity, Title C66, correctly retains 9.74 NMA).
+        - Tim E. Jensen (Title C59): 7.27 -> 9.27 (ledger carries two Jensen
+           lines, 7.27 + 2.00). After both corrections Tract 2 = 160.00 exactly.
+    * 85+ net-acre cells carried 12-16 digit floating-point noise (incl. e-05
+      "ghost" values ~0.00004) instead of clean 2-decimal net mineral acres.
+
+--------------------------------------------------------------------------------
+4. SHEETS CHANGED  (110 tracked edits — see "Audit Log" sheet for every cell)
+--------------------------------------------------------------------------------
+  Title sheet only (data). New sheets added: "Audit Log", "Review Flags".
+    95  Net-acre cells rounded to 2 decimals (removed float artifacts / ghosts).
+     2  Tract 2 reconciliation corrections (C63, C59) -> balances to 160.00.
+     1  Balance-of-tract residual recomputed for exact tract total (Tract 4).
+    12  WI-chain rows (D191-D202): assignment Book/Page removed from the
+        "Base OGL's" column and replaced with "ASSN" (Book/Page retained verbatim
+        in the Comments column). Enforces "OGL columns = OGL numbers only".
+  No Tract 1-10 ledger cells, formulas, merges, widths, or print settings altered.
+
+--------------------------------------------------------------------------------
+5. TRACT TOTALS (final, after fix)
+--------------------------------------------------------------------------------
+  Tract 1  N/2 NE/4 ................................... 80.00 ac   BALANCED
+  Tract 2  SW/4 NE/4, NW/4 SE/4, S/2 SE/4 ............ 160.00 ac   BALANCED
+  Tract 3  SE/4 NE/4 ................................. 40.00 ac    BALANCED
+  Tract 4  E/2 NW/4 ................................. 80.00 ac     BALANCED (61.60 NMA open)
+  Tract 5  W/2 NW/4 (Lots 1&2) & SE/4 SW/4 (less/exc) 38.28 ac    BALANCED (37.54 NMA open)
+  Tract 6  S 51 ac metes-and-bounds .................. 51.00 ac    BALANCED (48.80 NMA open)
+  Tract 7  NE/4 SW/4 ................................. 40.00 ac    BALANCED (36.85 NMA open)
+  Tract 8  S 32.80 ac metes-and-bounds .............. 32.80 ac    BALANCED
+  Tract 9  Lot 4, S/2 Lot 3, S/2 NE/4 SW/4 (less/exc) 75.34 ac    BALANCED (18.82 NMA open)
+  Tract 10 NE/4 SE/4 ................................. 40.00 ac    BALANCED
+  ---------------------------------------------------------------------------
+  Section total (tracts 1-10) ....................... 637.42 ac
+
+--------------------------------------------------------------------------------
+6. UNRESOLVED REVIEW FLAGS  (full detail on "Review Flags" sheet)
+--------------------------------------------------------------------------------
+  HIGH  Tract 4  61.60 NMA of E/2 NW/4 undetermined of record (chain over-conveys).
+  HIGH  Tract 5  37.54 NMA undetermined of record.
+  HIGH  Tract 6  48.80 NMA Ella Pearl Kirk estate — probate PB-2022-33 required.
+  HIGH  Tract 7  36.85 NMA of NE/4 SW/4 undetermined of record.
+  HIGH  Tract 9  18.82 NMA undetermined; Mitchell->Dold heirship/probate open.
+  MED   Tract 2  C59/C63 reconciliation — confirm against source instruments.
+  MED   "HBP (base)" appears in some OGL-No. cells (lease-status token, not a
+        number). Per-owner numeric base OGL NOT guessed; see OGL sheet.
+  MED   WI 1 wellbore-assignment chain — exact WI/NRI not computable without
+        assignment exhibit percentages / OCC review.
+  MED   Mortgage/lien burden chain (Bk 2356/0001, 2356/0200, 2357/0001, 2357/0474)
+        not yet matched to releases of record.
+  LOW   First City NBT / ETA-Flag Royalty Trust (Tract 1, 20 NMA) is a 1/8
+        perpetual NPRI, NOT mineral fee — confirm column placement.
+  These items require source images / OCC / probate records not present in the
+  workbook and were NOT guessed. Left as disclosed open balances / Needs Verification.
+
+--------------------------------------------------------------------------------
+7. ASSUMPTIONS MADE (documented; review cells highlighted yellow)
+--------------------------------------------------------------------------------
+  A1. Tract sheets 1-10 are the authoritative net-acre ledgers; the Title sheet is
+      their roll-up. Basis: each tract sheet already balances exactly to acreage,
+      and Tract 1's Title block already matched its ledger. Tract 2 Title values
+      that contradicted the balanced ledger were treated as transcription errors
+      and reconciled (NOT re-derived from new evidence).
+  A2. Net mineral acres presented to 2 decimals (industry-standard NMA precision).
+  A3. Held-by-production (HBP) carried on base leases per explicit client direction
+      and the OGL sheet; production/spacing/HBP reach not independently confirmed.
+  A4. Image / OCC / OTC verification treated as optional QC (not a turn-in blocker)
+      per client direction for this cursory update.
+
+--------------------------------------------------------------------------------
+8. QA RESULTS  (12 / 12 PASS)
+--------------------------------------------------------------------------------
+  [PASS] Workbook opens without repair (zip/XML integrity valid).
+  [PASS] Overview Map remains the first tab.
+  [PASS] All original sheets preserved (21) plus Audit Log + Review Flags (=23).
+  [PASS] Every tract total equals its tract acreage exactly.
+  [PASS] No negative net acres.
+  [PASS] No cached formula errors (#REF!/#VALUE!/#DIV/0!/#NAME?/#NUM!/#NULL!).
+  [PASS] No formula-string errors.
+  [PASS] OGL columns contain OGL numbers only (or an explicitly-flagged status).
+  [PASS] No assignment Book/Page numbers remain in OGL/Base-OGL columns (ASSN).
+  [PASS] No floating-point artifacts remain in net-acre cells.
+  [PASS] Yellow fill only on the 7 critical human-review cells.
+  [PASS] fullCalcOnLoad set — Excel recomputes all formulas on open.
+
+================================================================================
+INTEGRITY STATEMENT
+  No owners, acres, leases, assignments, interests, or OGL numbers were invented.
+  Every net-acre change either (a) rounded existing values, or (b) reconciled the
+  Title roll-up to the workbook's own balanced Tract ledgers. Missing-evidence
+  items are disclosed as open balances / Needs Verification, not guessed.
+================================================================================

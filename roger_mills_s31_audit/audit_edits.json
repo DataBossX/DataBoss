@@ -1,0 +1,772 @@
+[
+[
+"Title",
+"C63",
+63.69864704592105,
+0.0,
+"Reconcile to balanced Tract 2 ledger: JTWROS capacity nets to 0.00 (Trustees capacity retains 9.74); Title literal 63.70 was a transcription error breaking the 160-ac balance."
+],
+[
+"Title",
+"C59",
+7.265084917937505,
+9.27,
+"Reconcile to Tract 2 ledger: Tim E. Jensen total 9.27 NMA (ledger lines 7.27 + 2.00); Title showed only 7.27."
+],
+[
+"Title",
+"C8",
+20,
+20.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C9",
+20,
+20.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C10",
+10,
+10.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C11",
+10,
+10.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C12",
+10,
+10.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C13",
+10,
+10.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C24",
+0.6064664485072081,
+0.61,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C26",
+0.5486732126399876,
+0.55,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C27",
+1.28769873660214,
+1.29,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C28",
+5.410626666666667,
+5.41,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C29",
+4.435946666666666,
+4.44,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C30",
+0.202155482835736,
+0.2,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C31",
+0.40416,
+0.4,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C32",
+0,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C33",
+0,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C34",
+16.17243983979181,
+16.17,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C35",
+17.55315976600502,
+17.55,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C36",
+8.086219313429442,
+8.09,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C37",
+3.976600502220151e-05,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C38",
+0.6065210749617722,
+0.61,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C39",
+15.90214855901044,
+15.9,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C40",
+7.548283573598213e-05,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C41",
+7.548283573601683e-05,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C42",
+1.617692445702298,
+1.62,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C43",
+7.548283573601683e-05,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C44",
+0.202155482835736,
+0.2,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C45",
+0.202155482835736,
+0.2,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C46",
+0.202155482835736,
+0.2,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C47",
+0.4043109656714721,
+0.4,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C48",
+0.4043109656714721,
+0.4,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C49",
+0.8292979614631657,
+0.83,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C50",
+1.01077741417868,
+1.01,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C51",
+0.4043109656714721,
+0.4,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C52",
+0.202155482835736,
+0.2,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C53",
+0.113097520327453,
+0.11,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C54",
+0.1130975203274528,
+0.11,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C55",
+0.1130975203274528,
+0.11,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C56",
+1.168590522445525,
+1.17,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C57",
+0.7068702035452945,
+0.71,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C58",
+9.265084917937505,
+9.27,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C60",
+2.021560893021847,
+2.02,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C61",
+0,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C62",
+0.6738509356008449,
+0.67,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C64",
+0.9770100698699888,
+0.98,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C65",
+0.4331903203622914,
+0.43,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C66",
+9.737030249030287,
+9.74,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C67",
+0.2887935469081943,
+0.29,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C68",
+0.2887935469081943,
+0.29,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C69",
+0.7219838672704859,
+0.72,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C70",
+0.2887935469081943,
+0.29,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C71",
+2.92552,
+2.93,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C72",
+1.38132,
+1.38,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C73",
+2.92552,
+2.93,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C74",
+3.999999999976245e-05,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C75",
+1.38132,
+1.38,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C76",
+2.931029838991581,
+2.93,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C77",
+1.46551491949579,
+1.47,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C78",
+1.46551491949579,
+1.47,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C79",
+0.404310965671472,
+0.4,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C80",
+0.1709620761368158,
+0.17,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C81",
+6.01388,
+6.01,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C82",
+0.9181859746210613,
+0.92,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C83",
+2.217973333333328,
+2.22,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C84",
+1.108986666666667,
+1.11,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C85",
+1.108986666666667,
+1.11,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C86",
+1.435946666666666,
+1.44,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C87",
+2.931029838991581,
+2.93,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C88",
+5.410626666666667,
+5.41,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C89",
+5.410626666666667,
+5.41,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C90",
+1.15942,
+1.16,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C91",
+1.15942,
+1.16,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C92",
+0.05052,
+0.05,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C93",
+0.05052,
+0.05,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C94",
+0.05052,
+0.05,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C95",
+0.05052,
+0.05,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C104",
+5.389689056401629,
+5.39,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C105",
+5.389689056401629,
+5.39,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C106",
+5.389689056401629,
+5.39,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C107",
+5.379689633291421,
+5.38,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C108",
+7.691863930920849,
+7.69,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C109",
+5.379689633291421,
+5.38,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C110",
+5.379689633291421,
+5.38,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C118",
+10,
+10.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C119",
+0,
+0.0,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C120",
+2.10135295407895,
+2.1,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C124",
+61.598647,
+61.6,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C133",
+0.738375635295881,
+0.74,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C134",
+37.54162436470412,
+37.54,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C171",
+18.835,
+18.84,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C172",
+18.835,
+18.84,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C173",
+18.835,
+18.84,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C174",
+18.835,
+18.84,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C182",
+13.31999999999996,
+13.32,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C183",
+13.31999999999996,
+13.32,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C184",
+13.35999999999996,
+13.36,
+"Round Net Acres to 2 decimals (remove floating-point artifact)."
+],
+[
+"Title",
+"C174",
+18.84,
+18.82,
+"Recompute balance-of-tract residual so Tract 9 totals exactly 75.34 ac."
+],
+[
+"Title",
+"D191",
+"1567/0006",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D192",
+"2343/0001",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D193",
+"2385/0072",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D194",
+"2425/0380",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D195",
+"2455/0446",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D196",
+"2480/0297",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D197",
+"2542/0413",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D198",
+"2567/0102",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D199",
+"2571/0579",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D200",
+"2584/0149",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D201",
+"2604/0111",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+],
+[
+"Title",
+"D202",
+"2698/0069",
+"ASSN",
+"Assignment book/page removed from OGL column per OGL-purity rule; labeled ASSN (conveyance type). Book/Page retained in Comments."
+]
+]

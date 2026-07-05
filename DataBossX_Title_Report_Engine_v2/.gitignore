@@ -1,0 +1,9 @@
+# Runtime-generated artifacts -- regenerated on every run, not source.
+data/input/*
+data/output/*
+data/template/*
+archive/*
+logs/*
+demo/horizon_sample/
+# keep folder structure
+!**/.gitkeep

@@ -1,0 +1,18 @@
+# Section 31 Report Machine -- runtime dependencies
+# Pinned-loosely so a fresh Windows box resolves cleanly on Python 3.10-3.12.
+openpyxl>=3.1.5
+pandas>=2.0.0
+python-dotenv>=1.0.1
+requests>=2.31.0
+streamlit>=1.30.0
+rapidfuzz>=3.6.0
+beautifulsoup4>=4.12.0
+pypdf>=4.0.0
+pdfplumber>=0.10.0
+pillow>=10.0.0
+tqdm>=4.66.0
+# Optional: browser fallback for OKCountyRecords (install + `playwright install`)
+playwright>=1.40.0
+# Optional: Google Drive fallback
+google-api-python-client>=2.100.0
+google-auth>=2.23.0

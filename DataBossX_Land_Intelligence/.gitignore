@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+# Local working data (keep the folders, ignore their contents)
+data/input/*
+data/output/*
+!data/input/.gitkeep
+!data/output/.gitkeep
+!data/input/sample_runsheet.xlsx
+# The template is a committed asset
+!data/template/template.xlsx

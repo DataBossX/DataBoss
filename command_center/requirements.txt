@@ -1,0 +1,26 @@
+# DataBossX Land Intelligence — Command Center dependencies.
+#
+# Install where the section workbooks live:
+#     py -m pip install -r command_center/requirements.txt
+#
+# The deterministic engine (the source of truth) needs only openpyxl + pydantic
+# + lxml. Streamlit powers the command-center UI. The CrewAI swarm is an OPTIONAL
+# narration layer — the pipeline runs, chains, verifies, and writes the
+# highlighted report with none of it.
+
+# --- deterministic engine + report writer (required) ---
+openpyxl>=3.1
+pydantic>=2.0
+lxml>=4.9
+
+# --- command center UI (required to run app.py) ---
+streamlit>=1.30
+
+# --- tests ---
+pytest>=7.0
+
+# --- OPTIONAL: LLM narration swarm ---
+# Uncomment to enable the CrewAI narrative layer, then set an API key
+# (e.g. OPENAI_API_KEY) or point LITELLM_MODEL / OLLAMA_BASE_URL at a local model.
+# crewai>=0.60
+# langchain-openai>=0.1

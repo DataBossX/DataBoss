@@ -73,3 +73,7 @@ android-sdk/
 /output/
 _synthetic_corpus/
 .pytest_cache/
+
+# Command Center runtime workspace (regenerable; may contain uploaded client data)
+/.command_center_run/
+command_center/sample/

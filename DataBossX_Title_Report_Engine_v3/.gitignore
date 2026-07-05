@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Synthetic test fixtures (regenerated on demand)
+tests/_synthetic_horizon/
+
+# Timestamped run backups (the canonical report lives at the Horizon root)
+data/output/*.xlsx
+
+# Copied source working files (originals never live here in the repo)
+data/input/*
+data/template/*.xlsx
+!data/input/.gitkeep
+!data/template/.gitkeep

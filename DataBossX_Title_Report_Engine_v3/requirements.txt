@@ -1,0 +1,9 @@
+openpyxl
+pandas
+pydantic
+rapidfuzz
+python-dateutil
+pdfplumber
+pypdf
+xlrd
+xlsxwriter

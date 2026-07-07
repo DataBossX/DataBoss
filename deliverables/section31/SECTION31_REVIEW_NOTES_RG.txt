@@ -1,0 +1,232 @@
+SECTION 31, TOWNSHIP 12 NORTH, RANGE 24 WEST, ROGER MILLS COUNTY, OKLAHOMA
+CURSORY TITLE REPORT - REVIEW NOTES
+Report file: SECTION31_12N_24W_ROGER_MILLS_FINAL_CLIENT_READY_RG.xlsx
+Report date: 7/7/2026          Prepared by: RG
+Posture: Cursory / source-limited. Not certified title. No probate, HBP,
+WI/NRI, or survey certification is made. Last entry: 2026-003315, Bk 2704
+Pg 142, recorded 6/5/2026.
+
+SOURCES
+- Data authority: 31-12N-24W_Runsheet ogls plat tract 1 well data and raw
+  data workbook (Runsheet 563 instruments; rawdata; Tract 1 grid; Well 1).
+- Formatting authority: Section 31 template workbook (layout, print setup,
+  fonts, borders, tract bars, title style). No facts were taken from any
+  source other than the Section 31 workbooks.
+
+===========================================================================
+1. TABS FIXED THIS PASS
+===========================================================================
+OVERVIEW
+- Schematic redrawn to the final ten-tract control so it now matches the
+  Title tract control table and the PLAT control sheet. The prior schematic
+  mixed two generations of tract numbering (e.g., E/2 NW/4 was labeled T2
+  from the old five-tract cut while the control calls it T4).
+- Each schematic block now cites the chain sheet that carries its
+  ownership work (e.g., "T4 | E/2 NW/4 | 80.00 ac | Chain detail: sheet
+  Tract 2").
+- Acreage line corrected: 637.42 tract-control acres (vs. 640.00 reference,
+  variance disclosed, not forced); the chain-sheet legal groups total
+  627.47 acres and that figure is disclosed alongside.
+- Report date set 7/7/2026; LAST ENTRY corrected from stale 2610/575 to
+  2704/142; examiner initials corrected to RG.
+
+RUNSHEET
+- Re-sequenced to source chronological order: Sheriff's Deed entries
+  I-1915-000349 (Bk D21/463) and I-1916-000206 (Bk D21/507), both R. L.
+  Trammell, Sheriff, covering N/2 NE/4 (Tract 1), moved from rows 563-564
+  to rows 27-28, matching the source runsheet. All 563 instruments in the
+  source runsheet are present; none added, none dropped.
+- All 84 textual "Runsheet row" pointers on WI 1, WI 2, Title, and the well
+  QA sheet were re-pointed to the new row numbers and spot-verified against
+  instrument numbers. Instrument number and book/page control over row
+  pointers.
+- Print area extended from the old shell range (A1:J145) to the full
+  runsheet (A1:J564).
+- Doc-type abbreviations and standardized legal punctuation from the
+  template presentation were kept (HS, PAT, SD; "(AOL)").
+
+OGL
+- Verified against the lease schedule carried from the source: 69 OGLs,
+  numbering 1-69 preserved. Lessor, lessee, book/page, execution/filing
+  dates, term, royalty, gross acres, tract calls, and clause flags left as
+  sourced. The six Silver Oak Natural Resources leases (OGL 64-69, filed
+  2026 at 2693/337, 2697/524, 2702/505, 2697/520, 2693/349, 2693/345) are
+  carried as TOP LEASES only, with top-lease clause flags set; they are not
+  treated as current leasehold.
+
+TRACT SHEETS (Tract 1 - Tract 5 chain sheets)
+- Tract 1 (N/2 NE/4, 80 ac) matches the data workbook's Tract 1 grid
+  cell-for-cell. Sheriff's Deed grantees (W. D. Wilson; H. L. Rowley and
+  Myrtie Rowley) are in the chain with their interests carried as review
+  items, not credited ownership.
+- Tracts 2-5 chain the recurring legal groups found of record (180 / 160 /
+  92.135 / 115.335 acres). All grids recomputed: current-owner totals foot
+  to 1.000000 of each tract group with zero open balance and zero negative
+  interests. Fractional conveyances honored; "all right, title and
+  interest" treated as the grantor's interest only.
+- Control Tracts 6-10 carry source-limited control sheets only (no
+  invented chains); each states gross acres, status, and the curative
+  action needed before owner credit.
+
+WI SHEETS
+- WI 1 (visible): 49 non-depth, non-top OGL rows with OGL number beside
+  every row, plus the Alexander 1-31 wellbore assignment chain header
+  (2007-008043 at 1567/6 -> 2016-001883 at 2343/1 -> 2016-002793 at
+  2354/229 -> 2017-000083 at 2356/399 -> 2018-000119 at 2385/72).
+- WI 2 (now unhidden as a report sheet): 14 depth-clause OGL rows, the 6
+  top-lease rows, and 81 runsheet assignment/WI-control rows shown
+  assignor -> assignee with instrument, book/page, tract, and legal. Stray
+  sheet-number artifact removed from the header note.
+- No WI or NRI decimal is forced anywhere: assignment percentages are
+  shown only where stated of record (e.g., 21% assignments at 1740/424,
+  1741/70, 1749/51); everything else is "Needs Verification." All WI check
+  formulas recomputed clean (no RECHECK flags fire).
+
+TITLE
+- Report date 7/7/2026. Tract control table (Tracts 1-10, 637.42 ac)
+  retained as the controlling framework.
+- Mineral ownership summary retitled "BY CHAIN-SHEET TRACT GROUP" and a
+  CHAIN-SHEET / FINAL TRACT CONTROL CROSSWALK added below the curative
+  section so the two numbering systems cannot be confused:
+    Chain sheet Tract 1  = Control Tract 1 (N/2 NE/4).
+    Chain sheet Tract 2 (180 ac) = Control Tracts 4, 3, 10 and N/2 of 7.
+    Chain sheet Tract 3 (160 ac) = Control Tract 2 (same lands).
+    Chain sheet Tract 4 (92.085-92.135 ac) = Control Tract 5 residual,
+      overlapping the T6/T8 metes-and-bounds carve-outs. VERIFY.
+    Chain sheet Tract 5 (115.335 ac) = Control Tract 9 plus the SE/4 SW/4
+      area and S/2 of 7. VERIFY.
+- Current owners with decimals/net acres, per-tract OGL summary, WI
+  summary, well summary, and curative section retained; no assignment
+  clutter on the Title sheet (chains live on WI 1 / WI 2).
+
+WELL 1
+- Well number restored to text "1-31" (the prior file had date-coerced it
+  to 2026-01-31). Stale shell header remnants cleared from row 1.
+- Alexander 1-31 (API 35-129-22925), operator Martin's Resources LLC,
+  Cherokee, C NW/4 SE/4, oil, completed 5/19/2006, last production shown
+  3/1/2026. All other fields "Not confirmed of record."
+
+WORKBOOK / QA
+- Every formula in the workbook recomputed independently (3,816 formulas):
+  0 formula errors, 0 #REF!, 0 fired RECHECK flags, and all recomputed
+  values match the prior verified state exactly.
+- Full-recalculation-on-open flag set so Excel refreshes all totals.
+- Print areas set/cleaned on Runsheet, OGL, WI 1, WI 2, Well 1, Title.
+- Work tabs hidden: PLAT control, QA sheets (QA Note, Tract QA, WI/Title/
+  Well/Map QA, red-team audit), Needs_Verification log, raw source tabs
+  (Raw_Runsheet_Source and Raw_OGL_Source), and the imported source
+  rawdata (Raw_Data_Source, 2,196 evidence rows, kept hidden for support).
+
+===========================================================================
+2. ASSUMPTIONS MADE (CURSORY BASIS - STATED, NOT SILENT)
+===========================================================================
+- HBP: Alexander 1-31 production is assumed to hold the leases it serves
+  ONLY as source posture; HBP is Assumed / Client to Confirm throughout.
+- Standardized entity punctuation (e.g., "Double L, LLC," "Presidio WAB,
+  LLC," "Windsor OK, LLC") was kept from the cleaned presentation even
+  where the source runsheet omits commas; the record instrument controls.
+- The ten-tract control is adopted as the presentation framework because
+  the source runsheet's tract-mapping column speaks that numbering; the
+  worked chains remain on the five legal-group chain sheets, tied together
+  by the crosswalk. Legal descriptions control over tract numbers.
+- Chain-sheet gross acreages (180 / 160 / 92.135 / 115.335) are carried as
+  found of record; no acreage was plugged to force 640.00.
+
+===========================================================================
+3. TITLE GAPS REMAINING (OPEN - NOT CURED BY THIS REPORT)
+===========================================================================
+- Section acreage tie-out: tract-control total 637.42 ac vs. 640.00
+  reference (2.58-ac variance); chain-group total 627.47 ac. Survey /
+  government-lot acreage verification required.
+- Tract 4 (chain group) acreage discrepancy: sources show both 92.085 and
+  92.135 acres; owner net-acre math flagged in QA.
+- Tract 5 (chain group) Lot 3 wording: instruments alternate "Lot 3" and
+  "S/2 Lot 3"; broad Lot 3 calls were NOT silently credited.
+- Control Tracts 6, 7, 8, 9, 10 have no verified independent chains; owner
+  credit remains open (51.00 / 40.00 / 32.80 / 75.34 / 40.00 NMA open).
+- T1/T3 split and OGL burden allocation review remains open where source
+  support is incomplete.
+- Sheriff's Deeds D21/463 (1927) and D21/507 (1929), N/2 NE/4: no online
+  images; doc type, interest, and grantor source unverified; grantor has
+  no exact prior-grantee match in the chain.
+- 417 runsheet rows remain on the Needs_Verification log (ambiguous
+  legals, section-level "all of 31" calls, control-text-only rows) and
+  were not assigned to ownership.
+- Chain headers lacking an exact runsheet doc#/book-page match: Tract 2:
+  29; Tract 3: 34; Tract 5: 33. Control-hint conflicts logged: Tract 2:
+  236; Tract 3: 123. Legal text controls over helper hints.
+
+===========================================================================
+4. INTERESTS THAT COULD NOT BE CHAINED
+===========================================================================
+- Current WI and NRI decimals: leasehold ownership, burden, and depth
+  severances are not certified; WI shown only as source posture. The 81
+  assignment/WI-control rows on WI 2 carry "all right, title and interest"
+  language without stated percentages except where the record states one.
+- Control Tracts 6-10 mineral ownership (no source chains imported).
+- Rows whose notes state "no source of title" or "confirm ownership"
+  remain curative and are not credited (includes the Leo Kennett root
+  where no source of title into Kennett was located ahead of the patent).
+- Stride Bank, Trustee of the "Unbrella Trust" (spelling as recorded)
+  assignment (2026-002547 at 2698/69, NW/4 NW/4 call) - legal call does
+  not match a Section 31 tract cleanly; Needs Verification.
+- Lots 1-3 partial assignments (e.g., 2009-000273 at 1945/595; 2012-006477
+  at 2159/361; 2012-007511 at 2166/194) - partial-lot calls unresolved.
+
+===========================================================================
+5. PROBATES / AFFIDAVITS / NAME ISSUES
+===========================================================================
+- Last entry 2026-003315 (2704/142, 6/5/2026) is a Roger Mills County
+  Court probate-type filing to Darren P. McSweeney - file must be read
+  before reliance; carried as last entry, not as cured ownership.
+- Beckham County Court matter at MIS21/471 (1942-000630) sits in the
+  chain as an out-of-county probate reference - obtain the file.
+- 1931 quitclaim among Shotwell heirs (1931-000994 at D43/608, SE/4 NE/4
+  and NE/4 SE/4) rests on a chain note to a 1922 mineral deed - heirship
+  not proven of record.
+- Gena W. Moore a/k/a Gena Mitchell William a/k/a Gena Williams a/k/a Gena
+  Willams Moore - multiple name forms carried; identity affidavit
+  recommended before division order reliance.
+- Mitchell / Williams / Buonaccorsi family conveyances rely on trustee
+  capacity (Mitchell-Buonaccorsi Living Trust, Carrie Leeann Mitchell,
+  Trustee) - trust instruments not of record here.
+- Entity name variants of record: Double L LLC / Double L, LLC; Windsor OK
+  LLC; Presidio WAB LLC; "JH Famiy, LLC" (spelling as recorded); BHP
+  Billiton Petroleum (North America) Inc. - merger/name-change support
+  not in the record reviewed.
+- Corporate successions in the leasehold chain (Newfield, Encore, Linn,
+  Templar, FourPoint, EnerVest, Mustang, Presidio, Martin's entities)
+  carried on WI 2 as-recorded; corporate merger documents not examined.
+
+===========================================================================
+6. GAS / HBP / TOP LEASE ISSUES
+===========================================================================
+- Alexander 1-31 (oil, Cherokee) shows last production 3/1/2026 in source
+  data; HBP status of every "HBP - Verify" lease rides on this well and
+  remains OPEN / VERIFY. No spacing/MU order of record (640-acre spacing
+  noted but order not of record). Allocation and bottomhole not confirmed.
+- Six Silver Oak Natural Resources 2026 leases (OGL 64-69) are TOP LEASES:
+  subordinate/springing only; they vest only if the base leasehold fails.
+  They must not be credited as current working interest.
+- Depth-limited leasehold rows are separated on WI 2; deep-rights vs.
+  shallow-rights severance requires assignment-exhibit review.
+- Gas payer/royalty-check data: none of record in the reviewed sources.
+
+===========================================================================
+7. NEEDS CERTIFIED IMAGES / ATTORNEY REVIEW
+===========================================================================
+- Sheriff's Deeds Bk D21/463 and D21/507 (courthouse pull; no online
+  image).
+- South 51-acre and South 32.80-acre metes-and-bounds instruments
+  (Control Tracts 6 and 8) - source images and M&B calls.
+- 55.32-acre less-and-except tract defining Control Tract 9.
+- Probate files: Roger Mills County Court 2026-003315 (2704/142) and
+  Beckham County Court MIS21/471 reference.
+- Trust instruments for trustee-executed conveyances and leases.
+- Assignment exhibits behind the 81 WI-control rows (percentages, depth
+  limits, wellbore-only vs. leasehold scope - several 2016-2018
+  assignments read wellbore-specific for Alexander 1-31).
+- Government lot acreage / survey data resolving the 627.47 / 637.42 /
+  640.00 variance, Tract 4 acreage, and Lot 3 wording.
+- Attorney examination before any division order, pay deck, or drilling
+  title reliance; this cursory report does not certify title.

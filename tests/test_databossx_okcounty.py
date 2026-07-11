@@ -131,7 +131,8 @@ def test_queue_run_stops_at_budget(tmp_path):
 def test_no_secrets_in_repo_files():
     """No API key material may ever be committed."""
     import subprocess
+    needle = "b62e" + "fd1d"  # split so this test file never matches itself
     out = subprocess.run(
-        ["git", "grep", "-l", "b62efd1d"], cwd=REPO_ROOT,
+        ["git", "grep", "-l", needle], cwd=REPO_ROOT,
         capture_output=True, text=True)
     assert out.stdout.strip() == "", f"secret found in: {out.stdout}"

@@ -1407,8 +1407,10 @@ def _field_span_is_semantic(
                 label_end = label_start + length
                 next_label_start = min(
                     (
-                        start for start, _end, _field in all_labels
-                        if start >= label_end and start != label_start
+                        start for start, _end, label_field in all_labels
+                        if start >= label_end
+                        and start != label_start
+                        and label_field != field
                     ),
                     default=line_end,
                 )

@@ -1,0 +1,18 @@
+{
+ "schema_id": "dbx.audit_event",
+ "schema_version": "1.0",
+ "record_id": "AUD-20260711-B015-APPROVAL",
+ "project_id": "DBX-OK-BECKHAM-32-11N-25W",
+ "created_at_utc": "2026-07-11T07:40:00Z",
+ "created_by": "claude-cloud-databoss",
+ "run_id": "claude-cloud-databoss-20260711T0740Z-s32wo2",
+ "event": "SPEND_APPROVAL_RECEIVED",
+ "detail": "Rodney approved the Tier 1 copy-pull queue (22 instruments, est. USD 8.80) in session chat.",
+ "execution_status": "ACCESS_BLOCKED in cloud session: okcountyrecords.com unreachable (network policy) and no API key held. Exact copy-pull order issued instead per directive section 4/Phase D rule.",
+ "open_item_updated": {
+  "issue_id": "B-015",
+  "new_status": "APPROVED_AWAITING_LOCAL_EXECUTION",
+  "delivery_blocked": true
+ },
+ "artifact": "TIER1_COPY_PULL_ORDER.txt"
+}

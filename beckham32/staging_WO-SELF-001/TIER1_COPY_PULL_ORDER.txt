@@ -1,0 +1,41 @@
+TIER 1 COPY-PULL ORDER — DBX-OK-BECKHAM-32-11N-25W
+Approval: RECEIVED from Rodney 2026-07-11 (this session). Budget: USD 8.80 est. (22 x $0.40 watermarked API rate).
+Execution: BLOCKED in cloud session (okcountyrecords.com unreachable through network policy; no API key held).
+Minimum human action: ~10 minutes on any machine with an OKCR account — purchase the 22 instruments below,
+save each PDF UNRENAMED-plus-suffix as shown, and upload to Drive folder 05_OKCOUNTYRECORDS_CONTINUATION
+(id 1QIr3JACr8pyfv1BEHe1eoPYnA77eBs5m, currently empty). The next run ingests them automatically.
+
+Naming convention:  I-<year>-<number>__<book>-<page>.pdf   (e.g. I-2022-000152__2371-470.pdf)
+CRITICAL: every exhibit, schedule and rider page must be included — the schedules ARE the deliverable.
+
+#  Instrument      Book/Page             Pages  Branch                    Detail URL (from register)
+1  I-2022-000152   2371/470-494          25     Direct Tapstone/Sooner    https://okcountyrecords.com/detail/beckham/2022-000152/27093726
+2  I-2022-003506   2389/500-580          81     Direct Tapstone/Sooner    https://okcountyrecords.com/detail/beckham/2022-003506/28108427
+3  I-2022-004838   2395/415-464          50     Direct Tapstone/Sooner    https://okcountyrecords.com/detail/beckham/2022-004838/28268306
+4  I-2023-000796   2400/551-567          17     Direct Tapstone/Sooner    https://okcountyrecords.com/detail/beckham/2023-000796/28512407
+5  I-2025-001808   2451/4-23             20     Diversified/MNR merger    https://okcountyrecords.com/detail/beckham/2025-001808/34086362
+6  I-2026-000211   2475/943-959          17     Canvas/DP Ponies          https://okcountyrecords.com/detail/beckham/2026-000211/34968244
+7  I-2026-000212   2476/1-66             66     Canvas/DP Ponies          https://okcountyrecords.com/detail/beckham/2026-000212/34968246
+8  I-2026-000213   2476/67-108           42     Canvas/DP Ponies (UMB mtg)https://okcountyrecords.com/detail/beckham/2026-000213/34968243
+9  I-2026-000214   2476/109-120          12     Canvas/DP Ponies (UMB FS) https://okcountyrecords.com/detail/beckham/2026-000214/34968245
+10 I-2026-000215   2476/121-130          10     Diversified/DP agreement  https://okcountyrecords.com/detail/beckham/2026-000215/34968247
+11 I-2023-000993   2401/214 et seq.      ?      Teocalli CARVEOUT (critical)search: 2023-000993 site:beckham
+12 I-2023-004455   2415/328-409          ?      Unbridled->MNR wellbore conv.search: 2023-004455
+13 I-2023-004457   2415/410-514          ?      MNR->UMB mortgage         search: 2023-004457
+14 I-2023-004458   2415/515-616          ?      Companion MNR mortgage    search: 2023-004458
+15 I-2023-004459   2415/617 et seq.      ?      MNR agreement/amendment   search: 2023-004459
+16 I-2020-001596   2328/269 et seq.      ?      Latigo/Lone Star mortgage search: 2020-001596
+17 I-2021-004510   2365/743 et seq.      ?      Latigo amended mortgage   search: 2021-004510
+18 I-2023-004424   2415/1 et seq.        ?      Latigo 2023 mortgage      search: 2023-004424
+19 I-2025-004873   2470/153 et seq.      ?      Latigo/Prosperity amended mtgsearch: 2025-004873
+20 I-2025-005515   2474/292 et seq.      ?      Prosperity partial releasesearch: 2025-005515
+21 I-2020-001026   2327/1 et seq.        ?      BP->Ellipse (title/operator disconnect)search: 2020-001026
+22 I-2020-001027   2327/108 et seq.      ?      BP->Ellipse companion     search: 2020-001027
+
+Tier 2 (pull only if budget allows after Tier 1): I-2020-004390 (2340/218), 2014 Fortune
+assignments (2167/241; 2168/35 or /44), I-2025-002299/002301 (2453/389; 2455/705),
+I-2022-004837/004938/004939 (2395/370; /967; /973).
+
+WHAT UNLOCKS WHEN THESE ARRIVE: every schedule/exhibit gets abstracted; the Teocalli
+carveout and MNR/UMB + DP Ponies/UMB lien scopes resolve; the Diversified entity chain
+becomes quantifiable; tract/WI/NRI decimals become computable per the exact-fraction rules.

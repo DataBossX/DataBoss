@@ -26,6 +26,12 @@ EVIDENCE_CHECKS = {
     "evidence_links_resolve",
 }
 TEMPLATE_CHECKS = {"no_broken_formulas", "template_compliance", "print_rendering"}
+TOTAL_CHECKS = {
+    "ownership_totals",
+    "tract_acreage_totals",
+    "lease_totals",
+    "working_interest_totals",
+}
 
 
 @dataclass(frozen=True)
@@ -167,6 +173,21 @@ def _failed(
     )
 
 
+def _check_result(
+    check_id: str,
+    findings: List[QAFinding],
+    metrics: Dict[str, Any],
+) -> CheckResult:
+    passed = not findings
+    return CheckResult(
+        check_id=check_id,
+        status="passed" if passed else "failed",
+        score=100.0 if passed else 0.0,
+        findings=findings,
+        metrics=metrics,
+    )
+
+
 def _check_formulas(workbook, template) -> CheckResult:
     findings: List[QAFinding] = []
     template_formulas = (
@@ -191,12 +212,10 @@ def _check_formulas(workbook, template) -> CheckResult:
                 repairable=bool(replacement and not _is_broken_formula(replacement)),
             )
         )
-    return CheckResult(
-        check_id="no_broken_formulas",
-        status="failed" if findings else "passed",
-        score=0.0 if findings else 100.0,
-        findings=findings,
-        metrics={"formula_cells_checked": count},
+    return _check_result(
+        "no_broken_formulas",
+        findings,
+        {"formula_cells_checked": count},
     )
 
 
@@ -259,10 +278,8 @@ def _check_template(workbook, template, profile: Dict[str, Any]) -> CheckResult:
                         sheet=name,
                     )
                 )
-    return CheckResult(
+    return _check_result(
         "template_compliance",
-        "failed" if findings else "passed",
-        0.0 if findings else 100.0,
         findings,
         {"expected_sheet_count": len(expected_order), "actual_sheet_count": len(actual)},
     )
@@ -291,8 +308,14 @@ def _check_total_assertions(workbook, profile: Dict[str, Any], check_id: str) ->
         sheet, cell = str(rule.get("sheet", "")), str(rule.get("cell", ""))
         if sheet not in workbook.sheetnames or not cell:
             findings.append(
-                QAFinding(check_id, "blocking", "assertion_target_missing",
-                          f"Assertion target {sheet}!{cell} does not exist", sheet, cell)
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "assertion_target_missing",
+                    f"Assertion target {sheet}!{cell} does not exist",
+                    sheet,
+                    cell,
+                )
             )
             continue
         value = workbook[sheet][cell].value
@@ -313,10 +336,8 @@ def _check_total_assertions(workbook, profile: Dict[str, Any], check_id: str) ->
                     cell,
                 )
             )
-    return CheckResult(
+    return _check_result(
         check_id,
-        "failed" if findings else "passed",
-        0.0 if findings else 100.0,
         findings,
         {"assertions_checked": len(assertions)},
     )
@@ -360,10 +381,8 @@ def _check_negative_ownership(workbook, profile: Dict[str, Any]) -> CheckResult:
                                 cell.coordinate,
                             )
                         )
-    return CheckResult(
+    return _check_result(
         "negative_current_ownership",
-        "failed" if findings else "passed",
-        0.0 if findings else 100.0,
         findings,
         {"numeric_cells_checked": checked},
     )
@@ -384,7 +403,10 @@ def _check_duplicate_owners(workbook, profile: Dict[str, Any]) -> CheckResult:
         sheet_name = str(rule.get("sheet", ""))
         column = str(rule.get("column", "A"))
         start_row = int(rule.get("start_row", 2))
-        end_row = int(rule.get("end_row", workbook[sheet_name].max_row if sheet_name in workbook.sheetnames else 1))
+        default_end_row = (
+            workbook[sheet_name].max_row if sheet_name in workbook.sheetnames else 1
+        )
+        end_row = int(rule.get("end_row", default_end_row))
         if sheet_name not in workbook.sheetnames:
             findings.append(
                 QAFinding(
@@ -415,10 +437,8 @@ def _check_duplicate_owners(workbook, profile: Dict[str, Any]) -> CheckResult:
                 )
             else:
                 seen[name] = cell.coordinate
-    return CheckResult(
+    return _check_result(
         "no_duplicate_owners",
-        "failed" if findings else "passed",
-        0.0 if findings else 100.0,
         findings,
         {"owners_checked": checked},
     )
@@ -461,10 +481,8 @@ def _check_evidence_links(workbook) -> CheckResult:
             "No workbook evidence links were available to validate",
             status="not_evaluated",
         )
-    return CheckResult(
+    return _check_result(
         "evidence_links_resolve",
-        "failed" if findings else "passed",
-        0.0 if findings else 100.0,
         findings,
         {"links_checked": checked},
     )
@@ -498,12 +516,6 @@ def inspect_workbook(
     template = _open_workbook(template_path) if template_path else None
     inventory = _workbook_inventory(workbook)
     results: List[CheckResult] = []
-    total_checks = {
-        "ownership_totals",
-        "tract_acreage_totals",
-        "lease_totals",
-        "working_interest_totals",
-    }
 
     try:
         for check_id in acceptance_tests:
@@ -515,7 +527,7 @@ def inspect_workbook(
                 result = _check_negative_ownership(workbook, profile)
             elif check_id == "no_duplicate_owners":
                 result = _check_duplicate_owners(workbook, profile)
-            elif check_id in total_checks:
+            elif check_id in TOTAL_CHECKS:
                 result = _check_total_assertions(workbook, profile, check_id)
             elif check_id == "evidence_links_resolve":
                 result = _check_evidence_links(workbook)

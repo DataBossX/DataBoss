@@ -3,8 +3,10 @@
 import hashlib
 import json
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 import openpyxl
+import pytest
 
 from horizon.controlled_loop import ControlledWorkbookLoop
 from horizon.project_manifest import (
@@ -39,8 +41,8 @@ def _write_controls(
     template: Path,
     *,
     candidate_hash: str = "",
-    allowed_repairs=None,
-):
+    allowed_repairs: Optional[List[str]] = None,
+) -> Tuple[Path, Path, Path]:
     project = root / "project"
     project.mkdir()
     profile = project / "workbook_profile.json"
@@ -173,12 +175,10 @@ def test_work_order_cannot_disable_human_approval(tmp_path):
     work_order_path.write_text(json.dumps(data), encoding="utf-8")
 
     manifest = load_project_manifest(manifest_path)
-    try:
+    with pytest.raises(
+        ControlFileError, match="human approval cannot be disabled"
+    ):
         load_work_order(work_order_path, manifest)
-    except ControlFileError as exc:
-        assert "human approval cannot be disabled" in str(exc)
-    else:
-        raise AssertionError("unsafe work order was accepted")
 
 
 def test_deterministic_qa_reports_rule_based_failures(tmp_path):
@@ -242,6 +242,7 @@ def test_loop_repairs_staging_only_and_stops_at_human_gate(tmp_path):
     assert receipt["human_approval_required"] is True
     assert receipt["promotion_executed"] is False
 
+    assert result.promotion_package is not None
     package = json.loads(result.promotion_package.read_text(encoding="utf-8"))
     assert package["status"] == "PENDING_HUMAN_APPROVAL"
     assert package["approval_must_name_sha256"] == receipt["output"]["sha256"]

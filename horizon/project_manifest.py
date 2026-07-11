@@ -21,6 +21,12 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _is_sha256(value: str) -> bool:
+    return len(value) == 64 and all(
+        character in "0123456789abcdef" for character in value
+    )
+
+
 def _read_json(path: Path) -> Dict[str, Any]:
     try:
         value = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -102,9 +108,7 @@ def load_project_manifest(path: Path) -> ProjectManifest:
     for raw in _required(data, "candidate_deliverables", path):
         try:
             reported_hash = str(raw["reported_sha256"]).lower()
-            if len(reported_hash) != 64 or any(
-                char not in "0123456789abcdef" for char in reported_hash
-            ):
+            if not _is_sha256(reported_hash):
                 raise ValueError
             candidates.append(
                 CandidateDeliverable(

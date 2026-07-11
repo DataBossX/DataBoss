@@ -13,7 +13,7 @@ import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from .project_manifest import (
@@ -24,7 +24,7 @@ from .project_manifest import (
     load_work_order,
     sha256_file,
 )
-from .workbook_qa import QAReport, inspect_workbook, load_workbook_profile
+from .workbook_qa import QAFinding, QAReport, inspect_workbook, load_workbook_profile
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,11 @@ def _is_improvement(before: QAReport, after: QAReport) -> bool:
     )
 
 
-def _next_formula_repair(report: QAReport, attempts: Dict[str, int], limit: int):
+def _next_formula_repair(
+    report: QAReport,
+    attempts: Dict[str, int],
+    limit: int,
+) -> Optional[Tuple[QAFinding, str]]:
     for finding in report.findings:
         key = f"{finding.sheet}!{finding.cell}"
         if (
@@ -105,7 +109,7 @@ def _next_formula_repair(report: QAReport, attempts: Dict[str, int], limit: int)
             and attempts.get(key, 0) < limit
         ):
             return finding, key
-    return None, ""
+    return None
 
 
 def _restore_formula_from_template(
@@ -206,19 +210,28 @@ class ControlledWorkbookLoop:
             )
             _write_json(run_directory / "qa_before.json", report.to_dict())
             attempts_by_defect: Dict[str, int] = {}
+            formula_repairs_allowed = (
+                "restore_formula_from_template" in self.work_order.allowed_repairs
+            )
 
             while not report.score.technical_pass:
-                allowed = "restore_formula_from_template" in self.work_order.allowed_repairs
-                finding, defect_key = _next_formula_repair(
+                repair_target = _next_formula_repair(
                     report,
                     attempts_by_defect,
                     self.work_order.max_attempts_per_defect,
                 )
-                if not allowed or finding is None or self.work_order.template_path is None:
+                if (
+                    not formula_repairs_allowed
+                    or repair_target is None
+                    or self.work_order.template_path is None
+                ):
                     status = "blocked"
                     break
 
-                attempts_by_defect[defect_key] = attempts_by_defect.get(defect_key, 0) + 1
+                finding, defect_key = repair_target
+                attempts_by_defect[defect_key] = (
+                    attempts_by_defect.get(defect_key, 0) + 1
+                )
                 snapshot = run_directory / (
                     f"before_attempt_{len(iterations) + 1:03d}{staged_path.suffix}"
                 )

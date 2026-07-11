@@ -366,12 +366,12 @@ def test_party_provenance_requires_complete_correct_label_region(tmp_path: Path)
 def test_cross_references_cannot_control_instrument_type_or_legal(tmp_path: Path):
     project = tmp_path / "project"
     project.mkdir()
-    text = """Instrument Number: 2026-001234
-Warranty Deed
+    text = """Warranty Deed
+Instrument Number: 2026-001234
+Assignment
 Grantor: Ada Owner
 Grantee: Beacon Minerals LLC
 Notes: Subject to prior instruments.
-Assignment
 NE/4 Section 32, Township 11 North, Range 25 West
 """
     (project / "source.txt").write_text(text, encoding="utf-8")

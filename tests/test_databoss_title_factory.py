@@ -290,9 +290,12 @@ def test_external_candidate_cannot_forge_source_support(tmp_path: Path):
     assert '"FORGED-999"' in archive
     assert '"retain me"' in archive
     assert '"malformed candidate"' in archive
-    assert (ctx.run_dir / "candidates" / "cursor_raw_input.json").read_bytes() == (
-        candidate_path.read_bytes()
+    raw_archives = list(
+        path for path in (ctx.run_dir / "candidates").glob("cursor_raw_input_*.json")
+        if ".manifest." not in path.name
     )
+    assert raw_archives
+    assert raw_archives[0].read_bytes() == candidate_path.read_bytes()
 
 
 def test_ocr_label_words_cannot_be_used_as_field_values(tmp_path: Path):
@@ -327,6 +330,37 @@ def test_ocr_label_words_cannot_be_used_as_field_values(tmp_path: Path):
     assert rows[0]["instrument_number"] == ""
     assert rows[0]["grantor"] == ""
     assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
+
+
+def test_party_provenance_requires_complete_correct_label_region(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "source.txt").write_text(_source_text(), encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    evidence = run_ocr(ctx)[0]
+    for index, forged_grantor in enumerate(("Ada", "Beacon Minerals LLC"), start=1):
+        candidate = {
+            "instrument_number": "2026-001234",
+            "grantor": forged_grantor,
+            "confidence": 1.0,
+            "citation": evidence["citation"],
+            "source_path": evidence["source_path"],
+            "source_file_hash": evidence["source_file_hash"],
+            "field_provenance": {
+                "grantor": {"source_support_score": 1.0},
+            },
+        }
+        path = project / f"party_forgery_{index}.json"
+        path.write_text(json.dumps([candidate]), encoding="utf-8")
+        rows = extract_and_reconcile(
+            ctx,
+            weak_threshold=0.4,
+            cursor_json=path,
+            codex_json=path,
+        )
+        assert rows[0]["grantor"] == ""
+        assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
 
 
 def test_source_hash_change_after_inventory_blocks_ocr(tmp_path: Path):

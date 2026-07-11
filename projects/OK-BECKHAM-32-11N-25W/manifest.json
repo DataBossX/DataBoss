@@ -1,0 +1,110 @@
+{
+  "project_id": "OK-BECKHAM-32-11N-25W",
+  "client": "Diversified",
+  "jurisdiction": "Oklahoma",
+  "county": "Beckham",
+  "section": "32",
+  "township": "11N",
+  "range": "25W",
+  "source_locations": [
+    {
+      "store": "gdrive",
+      "id": "1fhOPwB58SU7npZ6AmQzwFROUwDeEMK08",
+      "title": "32-11N-25W Diversified Cursory - Beckham County - 2026-07",
+      "role": "project folder (authoritative cloud copy)"
+    },
+    {
+      "store": "gdrive",
+      "id": "1gk0hofK94kjkw8ygHFtE-3YmtC-hyw4H",
+      "title": "11N 25W 32.zip",
+      "role": "county source images, 3.05 GB, 4,893 continuous images through Bk 1014/P75 (rec. 04/26/1988)"
+    },
+    {
+      "store": "gdrive",
+      "id": "1nZ46S1CSRk0CvREwHeJUuq8_OiStxerG",
+      "title": "Diversified_Title_Evidence_Register_32-11N-25W_2026-07-09.xlsx",
+      "role": "evidence register"
+    },
+    {
+      "store": "gdrive",
+      "id": "1DnS_zFKPa0_-TWmvv0XbNEclfdzgDxY3Okzzzhcr1cw",
+      "title": "Diversified 32-11N-25W - Project Control and Source Inventory",
+      "role": "project control sheet"
+    },
+    {
+      "store": "local",
+      "id": "D:\\Desktop\\Horizon\\32-11N-25W, Beckham County\\FINAL",
+      "title": "local FINAL folder",
+      "role": "local working/output directory (operator machine)"
+    }
+  ],
+  "templates": [
+    {
+      "sheets": ["Overview", "Title ", "OGL", "PLAT", "Runsheet", "Tract 1", "Tract 2", "Tract 3", "Tract 4", "Tract 5", "WI 2", "WI 1", "Well 1"],
+      "note": "Template.xlsx is NOT a clean shell (prior-project 27-15N-24W residue); structure/format reference only. NHE 7-10-26 workbook (SHA-256 3aae381a2297eb4b307d025bd37e69c8e819dd9487e06183e3a8647e2b253b13) is the adopted build base."
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_FINAL_VERIFIED_2026-07-11.xlsx",
+      "sha256": "fe6a8aa1ecf4f09751bf1ebb3941b9e8e0fc8eee7723cbbf931a9ba2cf4566cb",
+      "status": "QA PASS — qualified cursory with explicitly OPEN ownership conclusions; NOT a title opinion",
+      "superseded_versions_in_drive": [
+        "BEST_AVAILABLE_2026-07-10", "MERGED_BEST_2026-07-10", "PERFECT_2026-07-10",
+        "PERFECTED (1)", "2026-07-10", "7-10-26 - NHE (build base)"
+      ]
+    }
+  ],
+  "required_checks": [
+    "no negative interests",
+    "ownership totals reconcile with exact fractions",
+    "template sheet names and order match (PLAT hidden preserved; WI 2 visible is an approved variance)",
+    "no stale prior-project strings (448.333333, 377.53845154, 2237/381, 2572/490, 2610/574, Section 27, 15N-24W)",
+    "zero formula errors / external links / broken defined names",
+    "no duplicate Runsheet book/page",
+    "WI/Title-to-Runsheet cross-reference has zero dangling instruments"
+  ],
+  "open_issues": [
+    {
+      "severity": "critical",
+      "description": "Pull the 22-instrument Tier 1 OKCR queue (~$8.80, needs human authorization): 2340/403, 2340/490, 2371/470/495/514/533, 2389/500/581, 2393/1, 2395/415, 2400/551, 2451/4, 2476/1, 2476/121 + all exhibits/schedules."
+    },
+    {
+      "severity": "critical",
+      "description": "No exact Diversified WI/NRI/net-acre decimal is supportable until Tier 1 pulls and lien/ORRI traces close; current vested entity remains OPEN (2395/415; 2400/551; 2451/4 merger; 2476/1 and /121 Canvas/DP Ponies)."
+    },
+    {
+      "severity": "high",
+      "description": "Bridge 1988-2020 starting at 1014/76, 1014/228, 1016/38 (1014/76 grantor 'Union Oil & Chemical et al.' is a handwritten-index reading, unverified — Runsheet row 16)."
+    },
+    {
+      "severity": "high",
+      "description": "Resolve I-2011-001515 vs I-2011-001565 reception-number conflict (handwritten p.47 reads 1565) and Long Description records in the omitted 2011-2012 index interval (Runsheet row 51)."
+    },
+    {
+      "severity": "high",
+      "description": "Trace or carry: Hartman ORRI (376/287), GAEC formula ORRI, Great American/FNB Dallas mortgage family, MNR ABS/UMB liens (2415/410, /515), DP Ponies/UMB (2476/67, /109), Latigo/Lone Star/Prosperity family."
+    },
+    {
+      "severity": "medium",
+      "description": "Obtain Order 156126 owner elections/payments and JOA No. 1580; keep every HBP conclusion lease-, formation-, depth-, unit- and order-specific."
+    },
+    {
+      "severity": "medium",
+      "description": "Re-run exact-legal and party/lien searches on the final delivery date — checkpoint 2026-07-16."
+    },
+    {
+      "severity": "medium",
+      "description": "Examiner-identified 1536/368 and 2393/1 are OPEN metadata-unverified pull items (Runsheet rows 49-50); they appear in no supplied index, prior log, or OKCR continuation log."
+    }
+  ],
+  "approved_facts": [
+    "Direct-image cutoff: Bk 1014/P75, recorded 04/26/1988 (4,893 continuous supplied images).",
+    "Index effective date 07/01/2026 is an index-stated through-date, NOT a certification (no abstractor certificate, seal, or signature in either index PDF); OKCR continuation re-run through 07/09/2026 (145 tract records).",
+    "Post-cutoff filings captured: Release 2490/469-470 (I-2026-003623) and WD 2490/471-473 (I-2026-003624), both rec. 07/07/2026 (Runsheet rows 47-48, PUBLIC METADATA tier, images not reviewed).",
+    "Evidence census (Runsheet, 51 rows): 16 direct-image-reviewed, 24 index-only, 9 public-metadata, 5 rows carrying OPEN flags.",
+    "Assessor corroboration (BCAO 07/02/2026): 10 surface accounts totaling exactly 640.00 acres; no severed-mineral accounts in the assessor listing.",
+    "Index-defect bracketing rows vision-verified: Bk 2080/798 (I-2012-001013, rec. 02/09/2012) CONFIRMED; Bk 2042/9 (rec. 02/11/2011) CONFIRMED."
+  ],
+  "updated_at": "2026-07-11T00:00:00Z"
+}

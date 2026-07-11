@@ -12,3 +12,8 @@
 - Removed automatic client workbook worksheet additions.
 - Added separate control workbook and preservation-audited review package.
 - Added pinned dependencies and canonical Windows setup/run/test launchers.
+- Added adversarial safeguards for forged provenance, stale source hashes,
+  multi-frame TIFFs, raw malformed candidates, downstream resume invalidation,
+  truncated/adjacent field values, and document-type/legal cross-references.
+- Completed 19 focused tests and the full 154-pass repository suite; independent
+  review found no remaining Critical or High implemented-code release blocker.

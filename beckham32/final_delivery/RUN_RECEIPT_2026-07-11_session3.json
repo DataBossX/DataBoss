@@ -1,0 +1,46 @@
+{
+  "run_id": "databossx-master-directive-session3-2026-07-11",
+  "date": "2026-07-11",
+  "agent": "Claude Code (claude-fable-5), branch claude/databossx-master-directive-x5pojn",
+  "scope_executed": "Full-title directive, bounded to what this environment can reach: Drive corpus inspection, evidence-base verification, independent QA of FINAL_VERIFIED v2, staged corrective build v2.1, branch consolidation. External research (Dropbox, OKCountyRecords, OCC, oklahoma.gov) is egress-blocked in this cloud environment - verified by proxy policy denials this session.",
+  "files_inspected": [
+    "Drive: 00_SOURCE_READ_ONLY (SOURCE_PACKAGE_SHA256SUMS.txt; Images_Archives_0001-4893: 36 zips + IMAGE_ARCHIVE_MANIFEST.csv + IMAGE_ARCHIVE_SHA256SUMS.txt; Index: Blank Index.pdf, Protocoled Index.pdf; Plat Map.pdf; Tax Roll.pdf; Section Notes.xlsx)",
+    "Drive: 01_SOURCE_INVENTORY (Project Control and Source Inventory sheet)",
+    "Drive: 04_TITLE_CHAINS (4 evidence-pack PDFs)",
+    "Drive: 07_REPORT_WORKING (working workbook, findings doc, workfile v001, REFERENCE_ONLY template)",
+    "Drive: 09_FINAL_DELIVERY (FINAL_READINESS_STATEMENT, FINAL_VERIFIED v1+v2 delivery notes, QA_AND_CHECKPOINTS json, GITHUB_SYNC_NOTE)",
+    "git: origin/claude/kimi-section31-qa-audit-5lccqy beckham32/ tree"
+  ],
+  "files_inaccessible": [
+    "Dropbox evidence vault (egress 403; Drive 00_SOURCE_READ_ONLY is the working mirror per project records)",
+    "okcountyrecords.com, imaging.occ.ok.gov, occeweb.occ.ok.gov, oklahoma.gov, gisdata.occ.ok.gov (network policy CONNECT 403)",
+    "3.05GB image zips not bulk-ingested this session (targeted evidence already vision-verified in prior sessions per checkpoints)"
+  ],
+  "input_hashes": {
+    "FINAL_VERIFIED_2026-07-11.xlsx (v2)": "1d8b4a67c540ba41a6340530d9b17bae4e4c4c840de0e552daa2268ef3265b02",
+    "BEST_AVAILABLE_2026-07-10.xlsx (superseded lineage)": "30894717755cc6a0354a46d26e5a130f728d08ce53de4347a4b5001805a1913d",
+    "Tax Roll.pdf == Plat Map.pdf (hash-confirmed duplicate)": "5ddbcf65657aae75b993ec1067249d52ae1abf744da175712a711aa171810371"
+  },
+  "files_created": [
+    "beckham32/final_delivery/32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_FINAL_VERIFIED_v2.1_STAGED_2026-07-11.xlsx",
+    "beckham32/final_delivery/QA_DEFECT_REPORT_2026-07-11.md",
+    "beckham32/final_delivery/RUN_RECEIPT_2026-07-11_session3.json",
+    "Drive 09_FINAL_DELIVERY: QA + placement notes (see change log)"
+  ],
+  "files_modified": [],
+  "files_not_touched": [
+    "All Drive originals (00_SOURCE_READ_ONLY untouched; no renames/deletes anywhere)",
+    "FINAL_VERIFIED v2 binary (preserved as delivered; corrections staged as a separate v2.1 file)"
+  ],
+  "output_hashes": {
+    "FINAL_VERIFIED_v2.1_STAGED_2026-07-11.xlsx": "75b10fa70e835d46d3b392a954a3d57ea66d9393dbc4b835178bb62dd4398e60"
+  },
+  "change_log": [
+    {"file": "v2.1 staged copy", "part": "xl/workbook.xml", "change": "removed <definedNames> block", "previous": "22 names (21 #REF! + _Order1=255)", "new": "0", "reason": "AUDIT_1 defect; v2 note claimed purged but present in binary", "evidence": "QA_DEFECT_REPORT_2026-07-11.md defect 1"},
+    {"file": "v2.1 staged copy", "part": "Runsheet!A104:K104", "change": "populated", "previous": "empty styled row", "new": "OPEN row for 2393/1-698 (I-2022-004277) ConocoPhillips/LL&E/Burlington -> DP Legacy Central", "reason": "material omission vs v1 rows 49-50", "evidence": "AUDIT_3; FINAL_READINESS_STATEMENT; defect 2"},
+    {"file": "v2.1 staged copy", "part": "Runsheet!A105:K105", "change": "populated", "previous": "empty styled row", "new": "OPEN row for 1536/368 (Kabala/Leede branch, unresolved)", "reason": "omission vs v1", "evidence": "AUDIT_3; defect 2"}
+  ],
+  "qa_results": "v2: PASS except defect 1 (defined names) and defect 2 (omitted OPEN rows). v2.1 staged: all structural/content/residue/negative/media checks PASS. Repo test suite: see registry QA_REPORT.",
+  "open_issues": ["OI-01 Tier 1 pulls (approved; egress-blocked from cloud - run locally)", "OI-02..OI-09 evidence gates", "OI-10 Dropbox vault hash verification", "OI-11 qualified-examiner substantive review", "v2 vs v2.1 promotion decision", "I-2011-001515 vs I-2011-001565 reception-number conflict", "1014/76 grantor reading unverified"],
+  "promotion_status": "v2.1 STAGED ONLY - not promoted; controlled promotion process decides"
+}

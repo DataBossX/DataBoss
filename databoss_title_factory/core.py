@@ -1333,6 +1333,9 @@ _FIELD_LABEL_SEQUENCES: dict[str, tuple[tuple[str, ...], ...]] = {
         ("DOC", "NO"), ("RECEPTION", "NUMBER"),
     ),
     "instrument_date": (("INSTRUMENT", "DATE"), ("EXECUTION", "DATE"), ("DATED",)),
+    "instrument_type": (
+        ("INSTRUMENT", "TYPE"), ("DOCUMENT", "TYPE"), ("DOC", "TYPE"),
+    ),
     "recorded_date": (("RECORDED", "DATE"), ("RECORDING", "DATE"), ("FILED",)),
     "book": (("BOOK",), ("BK",)),
     "page": (("PAGE",), ("PG",)),
@@ -1368,8 +1371,6 @@ def _field_span_is_semantic(
     }
     if len(value_tokens) == 1 and value_tokens[0] in label_words:
         return False
-    if field == "instrument_type":
-        return bool(_TYPE_RX.fullmatch(value.strip()))
     match_end = match_start + len(value_tokens)
     line_key = _ocr_line_key(blocks[match_start])
     if any(_ocr_line_key(block) != line_key for block in blocks[match_start:match_end]):
@@ -1382,14 +1383,16 @@ def _field_span_is_semantic(
         return False
     line_start = min(line_indices)
     line_end = max(line_indices) + 1
-    if field == "legal_description" and len(value_tokens) >= 3:
-        legal_markers = {
-            "SECTION", "SEC", "TOWNSHIP", "RANGE", "NE4", "NW4", "SE4", "SW4"
-        }
+    if field == "instrument_type" and _TYPE_RX.fullmatch(value.strip()):
+        ordered_lines: list[tuple[Any, Any, Any]] = []
+        for block in blocks:
+            key = _ocr_line_key(block)
+            if key not in ordered_lines:
+                ordered_lines.append(key)
         if (
-            any(token in legal_markers for token in value_tokens)
-            and match_start == line_start
+            match_start == line_start
             and match_end == line_end
+            and ordered_lines.index(line_key) < 3
         ):
             return True
     sequences = _FIELD_LABEL_SEQUENCES.get(field, ())

@@ -123,7 +123,7 @@ def _write_csv(path: Path, rows: Sequence[dict[str, Any]], fields: Sequence[str]
         writer = csv.DictWriter(handle, fieldnames=list(fields), extrasaction="ignore")
         writer.writeheader()
         for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fields})
+            writer.writerow({field: _safe_cell(row.get(field, "")) for field in fields})
     temp.replace(path)
 
 
@@ -618,20 +618,56 @@ def extract_and_reconcile(
     return reconciled
 
 
-def _key(row: dict[str, Any]) -> str:
-    instrument = re.sub(r"[^A-Z0-9]", "", str(row.get("instrument_number", "")).upper())
-    if instrument:
-        return f"instrument:{instrument}"
-    citation = str(row.get("citation", ""))
-    parties = "|".join(
-        re.sub(r"\W", "", str(row.get(field, "")).upper())
-        for field in ("grantor", "grantee", "instrument_date")
-    )
-    return f"citation:{citation}|{parties}"
-
-
 def _norm(value: Any) -> str:
     return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())
+
+
+def _candidate_pairs(
+    cursor_rows: Sequence[dict[str, Any]],
+    codex_rows: Sequence[dict[str, Any]],
+) -> list[list[dict[str, Any]]]:
+    """Pair cross-engine candidates by instrument, then by source identity.
+
+    Instrument number cannot be the only grouping key because a disagreement in
+    that field is exactly what the tournament must surface. Source citations are
+    the fallback identity; each Codex row is consumed at most once.
+    """
+    available = [dict(row) for row in codex_rows]
+    groups: list[list[dict[str, Any]]] = []
+    for cursor in cursor_rows:
+        cursor = dict(cursor)
+        cursor_instrument = _norm(cursor.get("instrument_number", ""))
+        cursor_citation = str(cursor.get("citation", "")).strip()
+        match_index: Optional[int] = None
+        if cursor_instrument:
+            match_index = next(
+                (
+                    index for index, row in enumerate(available)
+                    if _norm(row.get("instrument_number", "")) == cursor_instrument
+                ),
+                None,
+            )
+        if match_index is None and cursor_citation:
+            citation_matches = [
+                index for index, row in enumerate(available)
+                if str(row.get("citation", "")).strip() == cursor_citation
+            ]
+            if citation_matches:
+                def evidence_score(index: int) -> int:
+                    row = available[index]
+                    return sum(
+                        bool(_norm(cursor.get(field, "")))
+                        and _norm(cursor.get(field, "")) == _norm(row.get(field, ""))
+                        for field in ("grantor", "grantee", "instrument_date", "recorded_date")
+                    )
+
+                match_index = max(citation_matches, key=evidence_score)
+        group = [cursor]
+        if match_index is not None:
+            group.append(available.pop(match_index))
+        groups.append(group)
+    groups.extend([[row] for row in available])
+    return groups
 
 
 def tournament_reconcile(
@@ -644,12 +680,8 @@ def tournament_reconcile(
     Exact normalized agreement wins. Conflicts use the higher-confidence
     candidate and are explicitly flagged. Unsupported fields stay blank.
     """
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for row in [*cursor_rows, *codex_rows]:
-        grouped.setdefault(_key(row), []).append(dict(row))
     output: list[dict[str, Any]] = []
-    for group_key in sorted(grouped):
-        candidates = grouped[group_key]
+    for candidates in _candidate_pairs(cursor_rows, codex_rows):
         candidates.sort(key=lambda row: float(row.get("confidence", 0.0)), reverse=True)
         winner: dict[str, Any] = {}
         agreements = 0
@@ -722,8 +754,8 @@ def build_runsheet(ctx: RunContext) -> dict[str, list[dict[str, Any]]]:
     runsheet = sorted(
         instruments,
         key=lambda row: (
-            str(row.get("recorded_date", "")),
-            str(row.get("instrument_date", "")),
+            _date_sort_value(row.get("recorded_date", "")),
+            _date_sort_value(row.get("instrument_date", "")),
             str(row.get("instrument_number", "")),
         ),
     )
@@ -786,6 +818,19 @@ def build_runsheet(ctx: RunContext) -> dict[str, list[dict[str, Any]]]:
     return result
 
 
+def _date_sort_value(value: Any) -> tuple[dt.date, str]:
+    text = str(value or "").strip()
+    for date_format in (
+        "%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m.%d.%Y",
+        "%m/%d/%y", "%m-%d-%y", "%B %d, %Y", "%b %d, %Y",
+    ):
+        try:
+            return dt.datetime.strptime(text, date_format).date(), text
+        except ValueError:
+            continue
+    return dt.date.max, text
+
+
 def _safe_cell(value: Any) -> Any:
     if value is None:
         return ""
@@ -802,6 +847,18 @@ def _unique_export_path(output_dir: Path, stem: str, suffix: str = ".xlsx") -> P
         candidate = output_dir / f"{stem}_{_now_id()}_{counter}{suffix}"
         counter += 1
     return candidate
+
+
+def _unique_sheet_title(workbook: Any, base: str) -> str:
+    if base not in workbook.sheetnames:
+        return base
+    number = 2
+    while True:
+        suffix = f" ({number})"
+        candidate = f"{base[:31 - len(suffix)]}{suffix}"
+        if candidate not in workbook.sheetnames:
+            return candidate
+        number += 1
 
 
 def export_safe_xlsx(
@@ -828,10 +885,6 @@ def export_safe_xlsx(
     )
     shutil.copy2(template_path, destination)
     workbook = openpyxl.load_workbook(destination, keep_vba=suffix == ".xlsm")
-    generated_names = ("DBTF Runsheet", "DBTF Missing Docs", "DBTF OGL Draft", "DBTF Tract Drafts")
-    for name in generated_names:
-        if name in workbook.sheetnames:
-            del workbook[name]
     sheet_specs = (
         ("DBTF Runsheet", EXPORT_FIELDS, bundle["runsheet"]),
         (
@@ -842,8 +895,11 @@ def export_safe_xlsx(
         ("DBTF OGL Draft", EXPORT_FIELDS, bundle["ogl_draft"]),
         ("DBTF Tract Drafts", ("tract_id", *EXPORT_FIELDS), bundle["tract_drafts"]),
     )
+    generated_sheets: dict[str, str] = {}
     for name, fields, rows in sheet_specs:
-        sheet = workbook.create_sheet(name)
+        actual_name = _unique_sheet_title(workbook, name)
+        generated_sheets[name] = actual_name
+        sheet = workbook.create_sheet(actual_name)
         sheet.append([field.replace("_", " ").title() for field in fields])
         for cell in sheet[1]:
             cell.font = Font(bold=True, color="FFFFFF")
@@ -859,7 +915,9 @@ def export_safe_xlsx(
         for row in sheet.iter_rows(min_row=2):
             for cell in row:
                 cell.alignment = Alignment(wrap_text=True, vertical="top")
-    manifest = workbook.create_sheet("DBTF Run Manifest")
+    manifest_name = _unique_sheet_title(workbook, "DBTF Run Manifest")
+    generated_sheets["DBTF Run Manifest"] = manifest_name
+    manifest = workbook.create_sheet(manifest_name)
     manifest_rows = (
         ("Run ID", ctx.run_id),
         ("Project Root", str(ctx.root)),
@@ -881,6 +939,7 @@ def export_safe_xlsx(
             "template_sha256": _sha256(template_path),
             "export_sha256": _sha256(destination),
             "section": section,
+            "generated_sheets": generated_sheets,
         },
     )
     return destination

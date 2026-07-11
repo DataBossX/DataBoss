@@ -1,0 +1,13 @@
+{
+  "generated": "2026-07-11T07:09:29+00:00",
+  "clients": [
+    {
+      "id": "CLIENT_DAN_DICKENSHEET",
+      "name": "Dan Dickensheet / Horizon",
+      "source": "Drive doc '00_START_HERE - Dan Dickensheet - Section 32-11N-25W Cursory'",
+      "projects": [
+        "PROJ_32_11N_25W_DIVERSIFIED"
+      ]
+    }
+  ]
+}

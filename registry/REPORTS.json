@@ -1,0 +1,33 @@
+{
+  "generated": "2026-07-11T07:09:29+00:00",
+  "reports": [
+    {
+      "id": "RPT_BEST_AVAILABLE_2026_07_10",
+      "title": "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_BEST_AVAILABLE_2026-07-10.xlsx",
+      "project": "PROJ_32_11N_25W_DIVERSIFIED",
+      "role": "CANONICAL current deliverable (source-limited cursory/gap report; NOT a title opinion)",
+      "sha256": "30894717755CC6A0354A46D26E5A130F728D08CE53DE4347A4B5001805A1913D",
+      "drive_file_id": "1ET_HxGA-87N-22lMFolD6ZlftfxYUW3m",
+      "qa": [
+        "32-11N-25W_Diversified_BEST_AVAILABLE_QA.json",
+        "32-11N-25W_Diversified_NATIVE_AND_VISUAL_QA_2026-07-10.json"
+      ],
+      "superseded_versions": [
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_MERGED_BEST_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_PERFECT_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_PERFECTED (1).xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_7-10-26 - NHE.xlsx"
+      ],
+      "source": "READ_ME_Diversified_Report_Audit_and_Completion_2026-07-10.md sections 1, 7, 8"
+    },
+    {
+      "id": "RPT_DIVERSIFIED_PDF_2026_07_09",
+      "title": "Diversified_Cursory_Title_Report_32-11N-25W_2026-07-09.pdf",
+      "project": "PROJ_32_11N_25W_DIVERSIFIED",
+      "role": "earlier narrative report (predates BEST_AVAILABLE rebuild)",
+      "drive_file_id": "1tbv4_VW0i9pORbtuPC8g3iGREEDMZdm5",
+      "source": "Drive workspace listing 2026-07-11"
+    }
+  ]
+}

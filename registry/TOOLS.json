@@ -1,0 +1,799 @@
+{
+  "generated": "2026-07-11T07:09:29+00:00",
+  "tools": [
+    {
+      "asset": "backend_test.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 11510,
+      "sha256": "4778a99adad309ce9f4b803f7724cacab17589da59e6a68a444a356190d27559",
+      "capabilities": [
+        "UNCLASSIFIED"
+      ]
+    },
+    {
+      "asset": "grocery_report_pipeline.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 77728,
+      "sha256": "0f535a4e47cd050b6a79ca96dbd904b3028a481afca807894ce53ae03b6ece75",
+      "capabilities": [
+        "CAP_OCR",
+        "CAP_INDEX_EXTRACTION",
+        "CAP_INSTRUMENT_EXTRACTION",
+        "CAP_REPORT",
+        "CAP_QA",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "make_sample_data.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1190,
+      "sha256": "ac2f1e1db7da827e9a5956e2db636af649a9a9dbe74897d765e82d9e93b8b389",
+      "capabilities": [
+        "UNCLASSIFIED"
+      ]
+    },
+    {
+      "asset": "automation/parsing.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1413,
+      "sha256": "66e2af19522559f2a9c1555367c59b3364a2539f586065df3de1c542f7e4b1fb",
+      "capabilities": [
+        "CAP_INSTRUMENT_EXTRACTION"
+      ]
+    },
+    {
+      "asset": "automation/playwright_bot.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 4493,
+      "sha256": "99af2bad068a8e5857551a60cd2f7db1e07728b65aeaaef69529cdc94aacab44",
+      "capabilities": [
+        "CAP_RESEARCH",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "automation/roger_mills_title_report_builder.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 42234,
+      "sha256": "c8a699c8dd01432d991c8208d7f430ff9578160933e74e1170e96afffc266b7f",
+      "capabilities": [
+        "CAP_WORKBOOK",
+        "CAP_REPORT"
+      ]
+    },
+    {
+      "asset": "automation/status_logic.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1548,
+      "sha256": "a51d88536bf05f678b612bc96c48d26b38ce62f095c7c8249bb45b1c29c35c67",
+      "capabilities": [
+        "CAP_OGL"
+      ]
+    },
+    {
+      "asset": "automation/writer.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1134,
+      "sha256": "6e7e418a9c5bc46fcdf2099e751ef20201737db9c8fa19ed09fc897e8d48782d",
+      "capabilities": [
+        "CAP_REPORT"
+      ]
+    },
+    {
+      "asset": "backend/server.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 18573,
+      "sha256": "0cfd57d524496cfb4425ba52bc0c031e59ec7df068af9a49af558fe3dfa36654",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "backend/external_integrations/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "databossx/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 346,
+      "sha256": "c7e45fda431bf4b4cbb708eb6af524c80178a1701ee93a6921f531288a5e7d06",
+      "capabilities": [
+        "CAP_SELF_BUILDER",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "databossx/build_registry.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 12699,
+      "sha256": "5479ddf08d1188b49b23fbd95700d478e82f03f3869123c1f4317379f18d407a",
+      "capabilities": [
+        "CAP_SELF_BUILDER",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/app.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 2443,
+      "sha256": "15941f4aaaa385560654b747a264150710a116441344a4931e72f98a8d75051c",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/api/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/api/okcounty.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 7410,
+      "sha256": "8a524703377848ce2c1b6a2422b22e9457d1d7e18e284e3138f414e5413f8fbd",
+      "capabilities": [
+        "CAP_RESEARCH",
+        "CAP_INDEX_EXTRACTION",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/api/openai_client.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 5024,
+      "sha256": "86709fd9429bd39204014e94db4816faf0aabdd346492d4b063fc7372431d086",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/core/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/core/audit.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1033,
+      "sha256": "250d72f8e9891ad85cfc9b3f890943679ad8f8751cb81d125b8eef3c6a152df1",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/core/config.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 3149,
+      "sha256": "b85dc5f2554ef87c6f0edd86f0cda4d3439435911f4442d24ba7e21688025a64",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/core/database.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 7877,
+      "sha256": "019e22556d383b873e18639ec14f37a2fc968aecce5d575ec4f50b7d5d8a5750",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/core/security.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1257,
+      "sha256": "815f64b642dff7d004965d1bfa2916c52d44c8bab48cb22e3a8d8e412cb07a20",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/pages/1_Import.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 3854,
+      "sha256": "5eddbd250efdce80e82c86c2356a487e67df47ee0ed6f7fd817e0d7eaaf17718",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/pages/2_Queue.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 6952,
+      "sha256": "8a7d1d3bfd2ca0b9ff12981f91fc292c03220a316f012cb9de0c421b328627bd",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/pages/3_Download.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 4560,
+      "sha256": "5ccd8cc86790b065ede08599470881a051fa71259646c97e151a3332a6288b7e",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/pages/4_Analysis.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 6907,
+      "sha256": "c2a51f05f88979b05557083f6f8bf33aa4d57cd07599c4b8c58e43ca04815ea1",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/pages/5_Reports.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 5828,
+      "sha256": "c0a55eca1460378b8a665a53cb61165ffb1fd4ef5e93c09371365ac1456fc4ab",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/pages/6_Settings.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 7973,
+      "sha256": "ad810ddb8201662875126086e15ed926da5f7e48ecedebbb06f206eda8333435",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/processors/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/processors/image_index.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 3181,
+      "sha256": "dc1d05b29d042f3c82aa773d00e5d8fa10ab9778f338eee6edc3bcbea544fcae",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/processors/ocr_analyzer.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 4471,
+      "sha256": "f3019ef83740c50bab2bd467702a20e51e9a40bef8f0e417f6ba4fb3040e6562",
+      "capabilities": [
+        "CAP_OCR",
+        "CAP_VISION",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/processors/pdf_processor.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 5538,
+      "sha256": "75a65adb7bdbad8ef867a5955bb32b3154c97cbf710a678ab2e03c0e38a16914",
+      "capabilities": [
+        "CAP_OCR",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/processors/pull_list.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 6630,
+      "sha256": "437534e444920f08eedd61134320671387c914e97fb1a980b0755fd61353f8ee",
+      "capabilities": [
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/reports/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capabilities": [
+        "CAP_REPORT",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "doto_image_commander/reports/generator.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 12225,
+      "sha256": "99ef0e375e0489d340e4f96ba8db253bb2dc724cd03c000817250a5eb2b4fd6f",
+      "capabilities": [
+        "CAP_REPORT",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "frontend/postcss.config.js",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 82,
+      "sha256": "251ecddd4672c9cf467547e3dc535de00ad2129df26e7e7ae728fa4e5ac45fc5",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "frontend/tailwind.config.js",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 190,
+      "sha256": "dd7269478abf0a486f1d383bdb49717aa93ae7456a5192ea46669c07be3ad8cd",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "frontend/src/App.js",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 18339,
+      "sha256": "38a0db103fb782cb186a744716e6830c93d05ea85fb159d731b0fb093f9cc60b",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "frontend/src/index.js",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 255,
+      "sha256": "290c458b79a28d09f081292928bac37ebe8211ac7e3b42ed64d6d922fd304803",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 687,
+      "sha256": "73ed1efcf12eb92f6d177541b0011c8bbc43d36611095848e3f6d4e173a59809",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/__main__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 117,
+      "sha256": "4ebf2a0932dfac34d3a3f2ccf878f4420eadd3455fc8c3aeeeb500432c1db570",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/artifacts.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 3375,
+      "sha256": "1ac79b3ad1f860d38ffa8b4ca151643ae509baf87fd9dc49f1fbf285e801c8dc",
+      "capabilities": [
+        "CAP_REPORT",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/audit.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 2756,
+      "sha256": "6d278dd0ad7d37d4d502f0eae7d949e31a94afb62656830c3e2e412043962f89",
+      "capabilities": [
+        "CAP_QA",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/chaining.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 11175,
+      "sha256": "3f260e1d0707294b88a37158bc939f35f32d1f95e9aa17df156e1c07c0b79c4e",
+      "capabilities": [
+        "CAP_TITLE_CHAIN",
+        "CAP_MINERAL_CHAIN",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/config.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 3148,
+      "sha256": "c38787e5287d8c8d4024747ad169f92666016e63d6abefb9339f4d4ecb6762c5",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/foundation.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 9742,
+      "sha256": "c29e17e29ac6e53c780f9c1168c59cf2e801bd5325ddad95801d665576c5f67b",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/interest.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 9177,
+      "sha256": "85c3444ec4e7795785e438ca779027a399a66436aec1e79dfab6f0cb33ba5925",
+      "capabilities": [
+        "CAP_WI",
+        "CAP_TITLE_CHAIN",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/main.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 10433,
+      "sha256": "bb407f217c7bee0f115fe7127a75cfec75218634f4ae1860f59174803c23064d",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/models.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 2624,
+      "sha256": "62768339c925d72bb71b3856517e6187c24750028ad038f34e62b1881c426180",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/orchestrator.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 8137,
+      "sha256": "37127fb1e862053d229d4f9312ae30ccbf8793c3d80c4474a6737e0816c3a62c",
+      "capabilities": [
+        "CAP_COMMAND_CENTER",
+        "CAP_AUTOMATION"
+      ]
+    },
+    {
+      "asset": "horizon/pipeline.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 18893,
+      "sha256": "d8ec85cc2c2f9d2220979b5038c02719d90e8795523c6ff0a66a0e2292e4247b",
+      "capabilities": [
+        "CAP_REPORT",
+        "CAP_WORKBOOK",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/repair.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 4370,
+      "sha256": "9f27b12b290eaa166cd290294752793945a9b5b858efa5ec641d534a809d0451",
+      "capabilities": [
+        "CAP_QA",
+        "CAP_AUTOMATION",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/report_io.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 5848,
+      "sha256": "c22d5f35ba3ee92615fbfb35c850f21c311a17377e4ae76d60bd0089d8702cf9",
+      "capabilities": [
+        "CAP_REPORT",
+        "CAP_WORKBOOK",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/validation.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 10944,
+      "sha256": "9b63d16c2a553c0ecb1cb5a89648787f8f8b580091121c4ff0bec3376bb1621a",
+      "capabilities": [
+        "CAP_QA",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "horizon/versioning.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1989,
+      "sha256": "31497c0ff80f1077fc395d6ea89a21d15bdd84a4b8570c85a1fa2c666d56d3f3",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/postcss.config.js",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 80,
+      "sha256": "190c877db466995bf1482f4a16abd06e04a89ede3119341e2a86ff96e1737b27",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/tailwind.config.js",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 383,
+      "sha256": "c45e24d375a6e9ac341c7c7d1b4367cebfa87704e2ee54f55c1929114a837161",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/vite.config.ts",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 182,
+      "sha256": "e875bd87f86aa1755d553e72dd0835892f3c3a8ad91dc48d9f0721401e7b2b48",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/App.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 963,
+      "sha256": "d9d17fdac5b3de1f79e359424b4f9464ce8742b2673b4ae2bcf75e26fde6d25c",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/main.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 324,
+      "sha256": "e664850672adad34ab029e8c7533bc5696cd47408f9cc68bc4c27ff7389ee01d",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/components/ScoreBadge.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 362,
+      "sha256": "f03323cd0bc7b198e117155eb553f236bb709eb5521560895df1d4630fa11421",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/components/Sidebar.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 2166,
+      "sha256": "d40548cbf0c62e9c4fedaedc3404d8f893b44a63dcf6fb50a5a5028c9035b3ff",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/components/StatCard.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 687,
+      "sha256": "0af3288f1e96d96df4737681aedb2c99114d8fff1977f5f458f5584e6e693b14",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/components/StatusBadge.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 1094,
+      "sha256": "1950f03a07761549d6f047de22659dbe7d94c07e911788bd42975231ce6b08f1",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/data/sampleData.ts",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 16012,
+      "sha256": "59bf9bb0c3e597ae09262b549c9f99827bbebd17cd6a869c50df33b9968aa55c",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/pages/AuditTrail.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 6351,
+      "sha256": "e7d6d210c7d50fc39e0dd6a844afa282e9dbf5cdd17a2fbc11aa5caae5d2be47",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/pages/Dashboard.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 7409,
+      "sha256": "6a3ca4c093dbb52e81ec08184a2496278d2db5f5ad9ccb6a8001efe12cc25ff9",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/pages/DealScoring.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 8738,
+      "sha256": "12f89fd191dc9b36abe70469d41ab6f4175c53fbcd493943526baf0506f6acc5",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/pages/FieldEvidence.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 13644,
+      "sha256": "2ca59ce1f7d74832ac2cae834266b207ce584870a4d693db85e93a0ad4d87438",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/pages/ReviewQueue.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 9335,
+      "sha256": "0d4228c50348c2b71bb643afcca04b7d8501431a762b33fcaf2dac1b89c93264",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/pages/TargetFactory.tsx",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 10712,
+      "sha256": "79c627111c3125bcc422d664ab60651dd343b69e15a2c36c50b1c6c444a41012",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room/src/types/index.ts",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 2431,
+      "sha256": "84456969a2be379447709f74f5b1f3d0b4717cf4a1b7fc2a8581316280e1983a",
+      "capabilities": [
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "tests/__init__.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "capabilities": [
+        "CAP_QA"
+      ]
+    },
+    {
+      "asset": "build_merged_report.py",
+      "store": "drive",
+      "kind": "tool",
+      "drive_file_id": "1sD4qvw0Zoap79mrqBzUaSPrO3PMezJZa",
+      "status": "intermediate; superseded by BEST_AVAILABLE rebuild",
+      "capabilities": [
+        "CAP_WORKBOOK",
+        "CAP_QA"
+      ]
+    },
+    {
+      "asset": "compare_deep.py",
+      "store": "drive",
+      "kind": "tool",
+      "drive_file_id": "1pxR2duaB1AEN5t9NgH4kdwtwD9i1Osp6",
+      "status": "intermediate",
+      "capabilities": [
+        "CAP_WORKBOOK",
+        "CAP_QA"
+      ]
+    },
+    {
+      "asset": "compare_reports.py",
+      "store": "drive",
+      "kind": "tool",
+      "drive_file_id": "1u3bRewk86zUCWLUQ9G92Zjfbb1alfNZ4",
+      "status": "intermediate",
+      "capabilities": [
+        "CAP_WORKBOOK",
+        "CAP_QA"
+      ]
+    },
+    {
+      "asset": "populate_perfect_report.py",
+      "store": "drive",
+      "kind": "tool",
+      "drive_file_id": "1_o82DAho3ULX9a9G0B_VyxXxdw2nFY2B",
+      "status": "intermediate",
+      "capabilities": [
+        "CAP_WORKBOOK",
+        "CAP_QA"
+      ]
+    }
+  ]
+}

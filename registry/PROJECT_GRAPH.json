@@ -1,0 +1,77 @@
+{
+  "generated": "2026-07-11T07:09:29+00:00",
+  "clients": [
+    {
+      "id": "CLIENT_DAN_DICKENSHEET",
+      "name": "Dan Dickensheet / Horizon",
+      "source": "Drive doc '00_START_HERE - Dan Dickensheet - Section 32-11N-25W Cursory'",
+      "projects": [
+        "PROJ_32_11N_25W_DIVERSIFIED"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "PROJ_32_11N_25W_DIVERSIFIED",
+      "name": "Diversified Cursory Title Report - Section 32-11N-25W",
+      "client": "CLIENT_DAN_DICKENSHEET",
+      "state": "Oklahoma",
+      "county": "Beckham",
+      "section": "32",
+      "township": "11N",
+      "range": "25W",
+      "target_delivery": "2026-07-17",
+      "final_qa_checkpoint": "2026-07-16",
+      "status": "SOURCE-LIMITED CURSORY GAP REPORT COMPLETE; PRESENT OWNERSHIP NOT ESTABLISHED",
+      "workspace_drive_folder": "1fhOPwB58SU7npZ6AmQzwFROUwDeEMK08",
+      "evidence_vault": "Dropbox shared folder (read-only; not reachable from cloud sessions as of 2026-07-11); 4,898 supplied files preserved in Drive 00_SOURCE_READ_ONLY per START_HERE",
+      "source": "Drive docs START_HERE and READ_ME_Diversified_Report_Audit_and_Completion_2026-07-10.md"
+    },
+    {
+      "id": "PROJ_ROGER_MILLS",
+      "name": "Roger Mills title report (prior project)",
+      "client": null,
+      "state": "Oklahoma",
+      "county": "Roger Mills",
+      "status": "prior project; builder recovered in repo",
+      "source": "automation/roger_mills_title_report_builder.py"
+    },
+    {
+      "id": "PROJ_GROCERY_REPORT",
+      "name": "Grocery Report (prior project)",
+      "client": null,
+      "status": "pipeline machinery complete; ran against operator-local documents",
+      "source": "PROJECT_STATUS.md, grocery_report_pipeline.py"
+    }
+  ],
+  "reports": [
+    {
+      "id": "RPT_BEST_AVAILABLE_2026_07_10",
+      "title": "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_BEST_AVAILABLE_2026-07-10.xlsx",
+      "project": "PROJ_32_11N_25W_DIVERSIFIED",
+      "role": "CANONICAL current deliverable (source-limited cursory/gap report; NOT a title opinion)",
+      "sha256": "30894717755CC6A0354A46D26E5A130F728D08CE53DE4347A4B5001805A1913D",
+      "drive_file_id": "1ET_HxGA-87N-22lMFolD6ZlftfxYUW3m",
+      "qa": [
+        "32-11N-25W_Diversified_BEST_AVAILABLE_QA.json",
+        "32-11N-25W_Diversified_NATIVE_AND_VISUAL_QA_2026-07-10.json"
+      ],
+      "superseded_versions": [
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_MERGED_BEST_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_PERFECT_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_PERFECTED (1).xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_7-10-26 - NHE.xlsx"
+      ],
+      "source": "READ_ME_Diversified_Report_Audit_and_Completion_2026-07-10.md sections 1, 7, 8"
+    },
+    {
+      "id": "RPT_DIVERSIFIED_PDF_2026_07_09",
+      "title": "Diversified_Cursory_Title_Report_32-11N-25W_2026-07-09.pdf",
+      "project": "PROJ_32_11N_25W_DIVERSIFIED",
+      "role": "earlier narrative report (predates BEST_AVAILABLE rebuild)",
+      "drive_file_id": "1tbv4_VW0i9pORbtuPC8g3iGREEDMZdm5",
+      "source": "Drive workspace listing 2026-07-11"
+    }
+  ]
+}

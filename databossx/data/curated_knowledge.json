@@ -1,0 +1,136 @@
+{
+  "_comment": "Curated DataBossX knowledge recovered on 2026-07-11 from the repo and the Google Drive workspace '32-11N-25W Diversified Cursory - Beckham County - 2026-07' (folder 1fhOPwB58SU7npZ6AmQzwFROUwDeEMK08). Facts here are traceable to the recovered documents named in each 'source' field. Nothing here is invented; unknowns are recorded as open items.",
+
+  "clients": [
+    {
+      "id": "CLIENT_DAN_DICKENSHEET",
+      "name": "Dan Dickensheet / Horizon",
+      "source": "Drive doc '00_START_HERE - Dan Dickensheet - Section 32-11N-25W Cursory'",
+      "projects": ["PROJ_32_11N_25W_DIVERSIFIED"]
+    }
+  ],
+
+  "projects": [
+    {
+      "id": "PROJ_32_11N_25W_DIVERSIFIED",
+      "name": "Diversified Cursory Title Report - Section 32-11N-25W",
+      "client": "CLIENT_DAN_DICKENSHEET",
+      "state": "Oklahoma",
+      "county": "Beckham",
+      "section": "32",
+      "township": "11N",
+      "range": "25W",
+      "target_delivery": "2026-07-17",
+      "final_qa_checkpoint": "2026-07-16",
+      "status": "SOURCE-LIMITED CURSORY GAP REPORT COMPLETE; PRESENT OWNERSHIP NOT ESTABLISHED",
+      "workspace_drive_folder": "1fhOPwB58SU7npZ6AmQzwFROUwDeEMK08",
+      "evidence_vault": "Dropbox shared folder (read-only; not reachable from cloud sessions as of 2026-07-11); 4,898 supplied files preserved in Drive 00_SOURCE_READ_ONLY per START_HERE",
+      "source": "Drive docs START_HERE and READ_ME_Diversified_Report_Audit_and_Completion_2026-07-10.md"
+    },
+    {
+      "id": "PROJ_ROGER_MILLS",
+      "name": "Roger Mills title report (prior project)",
+      "client": null,
+      "state": "Oklahoma",
+      "county": "Roger Mills",
+      "status": "prior project; builder recovered in repo",
+      "source": "automation/roger_mills_title_report_builder.py"
+    },
+    {
+      "id": "PROJ_GROCERY_REPORT",
+      "name": "Grocery Report (prior project)",
+      "client": null,
+      "status": "pipeline machinery complete; ran against operator-local documents",
+      "source": "PROJECT_STATUS.md, grocery_report_pipeline.py"
+    }
+  ],
+
+  "reports": [
+    {
+      "id": "RPT_BEST_AVAILABLE_2026_07_10",
+      "title": "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_BEST_AVAILABLE_2026-07-10.xlsx",
+      "project": "PROJ_32_11N_25W_DIVERSIFIED",
+      "role": "CANONICAL current deliverable (source-limited cursory/gap report; NOT a title opinion)",
+      "sha256": "30894717755CC6A0354A46D26E5A130F728D08CE53DE4347A4B5001805A1913D",
+      "drive_file_id": "1ET_HxGA-87N-22lMFolD6ZlftfxYUW3m",
+      "qa": ["32-11N-25W_Diversified_BEST_AVAILABLE_QA.json", "32-11N-25W_Diversified_NATIVE_AND_VISUAL_QA_2026-07-10.json"],
+      "superseded_versions": [
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_MERGED_BEST_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_PERFECT_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_PERFECTED (1).xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_2026-07-10.xlsx",
+        "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_7-10-26 - NHE.xlsx"
+      ],
+      "source": "READ_ME_Diversified_Report_Audit_and_Completion_2026-07-10.md sections 1, 7, 8"
+    },
+    {
+      "id": "RPT_DIVERSIFIED_PDF_2026_07_09",
+      "title": "Diversified_Cursory_Title_Report_32-11N-25W_2026-07-09.pdf",
+      "project": "PROJ_32_11N_25W_DIVERSIFIED",
+      "role": "earlier narrative report (predates BEST_AVAILABLE rebuild)",
+      "drive_file_id": "1tbv4_VW0i9pORbtuPC8g3iGREEDMZdm5",
+      "source": "Drive workspace listing 2026-07-11"
+    }
+  ],
+
+  "knowledge_graph_extra_nodes": [
+    {"type": "Lease", "id": "LEASE_66032_21_1", "label": "Lease 66032-21-1 (1977 Minton-Hartman)", "project": "PROJ_32_11N_25W_DIVERSIFIED", "notes": "Traced through Hunt/Great American branches; unresolved ORRIs and historic mortgage family carried as requirements.", "source": "START_HERE"},
+    {"type": "Well", "id": "WELL_CROOK_1_32", "label": "Crook #1-32", "project": "PROJ_32_11N_25W_DIVERSIFIED", "notes": "OCC shows wellbore transferred Latigo -> Complete Oil & Gas Services, Dec 2025; not proof of production or HBP.", "source": "START_HERE"},
+    {"type": "Well", "id": "WELL_CARLSON_12H", "label": "Carlson 12H", "project": "PROJ_32_11N_25W_DIVERSIFIED", "notes": "Operator history Linn -> EnerVest -> BP -> Latigo per OCC; API conflict open.", "source": "START_HERE"},
+    {"type": "Well", "id": "WELL_CARLSON_7H", "label": "Carlson 7H", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "START_HERE"},
+    {"type": "Well", "id": "WELL_CARLSON_10H", "label": "Carlson 10H", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "START_HERE"},
+    {"type": "Well", "id": "WELL_RIVIERA_9H", "label": "Riviera 9H (permit-only)", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "START_HERE"},
+    {"type": "Tract", "id": "TRACT_NE4", "label": "NE/4 (160 nominal acres, geographic organization only)", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "READ_ME audit section 6"},
+    {"type": "Tract", "id": "TRACT_E2SE4", "label": "E/2 SE/4 (80 nominal acres, geographic organization only)", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "READ_ME audit section 6"},
+    {"type": "Tract", "id": "TRACT_N2", "label": "N/2 (320 nominal acres, geographic organization only)", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "READ_ME audit section 6"},
+    {"type": "DocumentSet", "id": "DOCS_TITLE_IMAGES", "label": "4,893 sequential title images (0001-4893), 1906 deed/1907 patent through Bk 1014/P75 rec. 1988-04-26", "project": "PROJ_32_11N_25W_DIVERSIFIED", "notes": "4,174 images still marked as requiring visual review; 6 OCR errors identified.", "source": "START_HERE; READ_ME audit section 4"},
+    {"type": "DocumentSet", "id": "DOCS_SECTION_INDEX", "label": "Certified section index through 2026-07-01, ends Bk 2490/P471", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "READ_ME audit section 4"},
+    {"type": "DocumentSet", "id": "DOCS_OKCR_CONTINUATION", "label": "OKCountyRecords continuation closed through 2026-07-09 (145 exact-tract records; 2 post-index-cutoff filings)", "project": "PROJ_32_11N_25W_DIVERSIFIED", "source": "START_HERE"}
+  ],
+
+  "open_items": [
+    {"id": "OI-01", "priority": 1, "item": "Obtain authorized OKCountyRecords API/image access; Tier 1 queue is 22 watermarked instruments (~$8.80 est.). Includes BP/Ellipse records needed to prevent an unsupported Latigo title bridge. NO CHARGE WITHOUT CLIENT APPROVAL.", "source": "START_HERE critical gates"},
+    {"id": "OI-02", "priority": 1, "item": "Pull and read every page/exhibit/schedule for the 1988-2020 bridge and all 2020-2026 Diversified/predecessor instruments; no WI/NRI/net-acre/ownership decimal may be stated until then.", "source": "READ_ME audit section 5.1"},
+    {"id": "OI-03", "priority": 2, "item": "Complete residual 2011-2012 missing-index-page review; seven exact-legal records itemized, Long Description records still open.", "source": "START_HERE critical gates"},
+    {"id": "OI-04", "priority": 2, "item": "Trace or carry: Hartman ORRI, GAEC formula ORRI, Great American bank liens, Teocalli carveout, MNR/UMB liens, DP Ponies/UMB liens, Latigo lien family.", "source": "START_HERE critical gates"},
+    {"id": "OI-05", "priority": 2, "item": "Reconcile Carlson 12H API conflict; obtain Order 156126 / Cause CD 59995 owner-election/payment evidence plus JOA No. 1580; tie each lease/PUN to the verified formation-specific order stack.", "source": "START_HERE critical gates"},
+    {"id": "OI-06", "priority": 3, "item": "Review Bk 2393/P1-698 (Burlington/ConocoPhillips/Louisiana Land -> DP Legacy Central), Canvas/DP Ponies package Bk 2475/P943-959 + Bk 2476/P1-130, and countywide screens 2434/751-760, 2464/200-217, 2480/824-883, 2480/903-909.", "source": "READ_ME audit section 5"},
+    {"id": "OI-07", "priority": 3, "item": "Pull and examine all eleven underlying OGLs with amendments/assignments/extensions/pooling orders/releases and production/HBP evidence.", "source": "READ_ME audit section 5.6"},
+    {"id": "OI-08", "priority": 3, "item": "Complete sovereign-to-present fee/mineral/royalty/NPRI/ORRI/surface chains including missing patents; continue courthouse/UCC/probate/judgment/tax/bankruptcy searches from 2026-07-01 to effective date.", "source": "READ_ME audit section 5.7-5.9"},
+    {"id": "OI-09", "priority": 3, "item": "Rerun OKCountyRecords final-date search at the 2026-07-16 QA checkpoint before assembling the immutable client package.", "source": "START_HERE delivery control"},
+    {"id": "OI-10", "priority": 4, "item": "Dropbox evidence vault (shared link) is not reachable from cloud agent sessions (HTTP 403, no Dropbox connector). Hash-manifest verification of the vault against the Drive 00_SOURCE_READ_ONLY copy must be run from a machine with Dropbox access.", "source": "This session, 2026-07-11"}
+  ],
+
+  "drive_workspace": {
+    "folder_id": "1fhOPwB58SU7npZ6AmQzwFROUwDeEMK08",
+    "title": "32-11N-25W Diversified Cursory - Beckham County - 2026-07",
+    "owner": "ryangille02@aol.com",
+    "structure": [
+      "00_SOURCE_READ_ONLY", "01_SOURCE_INVENTORY", "02_OCR_AND_EXTRACTION", "03_DOCUMENT_LOG",
+      "04_TITLE_CHAINS", "05_OKCOUNTYRECORDS_CONTINUATION", "06_DIVERSIFIED_INTEREST",
+      "07_REPORT_WORKING", "08_QA_AND_OPEN_ITEMS", "09_FINAL_DELIVERY",
+      "_DATABOSS_BACKUPS", "_work_diversified_audit"
+    ],
+    "prompts": [
+      {"title": "Best_AI_Staged_Prompt_for_Final_Diversified_Cleanup_2026-07-10.md", "drive_file_id": "1h0j2pwKx10Vlj2yfhv6pvDp-BFi4ExAM", "status": "current"},
+      {"title": "AI_CLEANUP_PROMPT.md", "drive_file_id": "1pWSh-7_2LinxQgloKe6BiXjFL_zxiPd-", "status": "superseded"}
+    ],
+    "tools": [
+      {"title": "build_merged_report.py", "drive_file_id": "1sD4qvw0Zoap79mrqBzUaSPrO3PMezJZa", "status": "intermediate; superseded by BEST_AVAILABLE rebuild"},
+      {"title": "compare_deep.py", "drive_file_id": "1pxR2duaB1AEN5t9NgH4kdwtwD9i1Osp6", "status": "intermediate"},
+      {"title": "compare_reports.py", "drive_file_id": "1u3bRewk86zUCWLUQ9G92Zjfbb1alfNZ4", "status": "intermediate"},
+      {"title": "populate_perfect_report.py", "drive_file_id": "1_o82DAho3ULX9a9G0B_VyxXxdw2nFY2B", "status": "intermediate"}
+    ]
+  },
+
+  "build_queue": [
+    {"rank": 1, "id": "BQ-01", "title": "Evidence-gate closure for 32-11N-25W (OI-01, OI-02)", "impact": "unblocks the only remaining path to a final report", "reuse": "copy-pull workflow reusable on every OK county project", "bottleneck": "largest: no ownership decimal can be stated without it", "cost": "low ($8.80 + review time) but requires human approval", "type": "evidence"},
+    {"rank": 2, "id": "BQ-02", "title": "Generalize roger_mills_title_report_builder.py into a county-agnostic CAP_WORKBOOK builder driven by config", "impact": "every future OK/WY/Federal workbook", "reuse": "high", "bottleneck": "manual workbook assembly", "cost": "medium", "type": "tool"},
+    {"rank": 3, "id": "BQ-03", "title": "Runsheet builder: one-instrument-per-row generator with metadata hyperlinks (extract from BEST_AVAILABLE rebuild scripts)", "impact": "high", "reuse": "high", "bottleneck": "manual runsheet editing", "cost": "medium", "type": "tool"},
+    {"rank": 4, "id": "BQ-04", "title": "Workbook QA engine: port the BEST_AVAILABLE internal QA (sheet order, contamination scan, formula-error scan, print areas, overflow) into horizon/validation as reusable checks", "impact": "high", "reuse": "high", "bottleneck": "manual QA passes", "cost": "medium", "type": "tool"},
+    {"rank": 5, "id": "BQ-05", "title": "Dropbox evidence-vault hash manifest tool (run locally where Dropbox is mounted): SHA-256 inventory, read-only, compared against Drive 00_SOURCE_READ_ONLY", "impact": "evidence integrity", "reuse": "every project", "bottleneck": "vault verification", "cost": "low", "type": "tool"},
+    {"rank": 6, "id": "BQ-06", "title": "Difference engine: promote compare_deep.py/compare_reports.py from Drive into the repo with tests (tournament scoring input)", "impact": "medium", "reuse": "high", "bottleneck": "version comparison", "cost": "low", "type": "tool"},
+    {"rank": 7, "id": "BQ-07", "title": "Certification letter + checklist generators fed by PROJECT_GRAPH.json", "impact": "medium", "reuse": "high", "cost": "low", "type": "tool"},
+    {"rank": 8, "id": "BQ-08", "title": "Tournament engine: formal scoring harness (evidence support, accuracy, completeness, runtime, cost, consistency) over archived workbook versions", "impact": "medium", "reuse": "high", "cost": "medium", "type": "infrastructure"}
+  ]
+}

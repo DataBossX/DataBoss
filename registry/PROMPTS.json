@@ -1,0 +1,25 @@
+{
+  "generated": "2026-07-11T07:09:29+00:00",
+  "prompts": [
+    {
+      "asset": "Best_AI_Staged_Prompt_for_Final_Diversified_Cleanup_2026-07-10.md",
+      "store": "drive",
+      "kind": "prompt",
+      "drive_file_id": "1h0j2pwKx10Vlj2yfhv6pvDp-BFi4ExAM",
+      "status": "current",
+      "capabilities": [
+        "CAP_PLAYBOOK"
+      ]
+    },
+    {
+      "asset": "AI_CLEANUP_PROMPT.md",
+      "store": "drive",
+      "kind": "prompt",
+      "drive_file_id": "1pWSh-7_2LinxQgloKe6BiXjFL_zxiPd-",
+      "status": "superseded",
+      "capabilities": [
+        "CAP_PLAYBOOK"
+      ]
+    }
+  ]
+}

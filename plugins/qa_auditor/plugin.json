@@ -1,0 +1,14 @@
+{
+  "name": "qa_auditor",
+  "version": "1.0.0",
+  "description": "QA auditor: runs the existing Horizon validation gate (interest reconciliation, schema checks, Golden Source instrument gates) over report rows. Wraps horizon.validation without rewriting it.",
+  "entrypoints": {
+    "smoke": "entry:smoke",
+    "audit_report": "entry:audit_report"
+  },
+  "permissions": ["filesystem:read"],
+  "requires": {
+    "tools": [],
+    "python": ["pydantic>=2.0", "openpyxl>=3.1"]
+  }
+}

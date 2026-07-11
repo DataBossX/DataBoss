@@ -1,0 +1,16 @@
+{
+  "name": "safety_kernel",
+  "version": "1.0.0",
+  "description": "Zero-Destruction safety kernel: versioned writes and an append-only audit trail. Wraps the existing horizon.versioning and horizon.audit modules without rewriting them.",
+  "entrypoints": {
+    "smoke": "entry:smoke",
+    "versioned_write": "entry:versioned_write",
+    "latest": "entry:latest",
+    "audit": "entry:audit_event"
+  },
+  "permissions": ["filesystem:read", "filesystem:write"],
+  "requires": {
+    "tools": [],
+    "python": []
+  }
+}

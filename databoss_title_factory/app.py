@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,6 +22,11 @@ from databoss_title_factory.core import (
     run_ocr,
     run_summary,
     start_run,
+)
+from databoss_title_factory.project_db import (
+    is_pause_requested,
+    request_pause,
+    stage_statuses,
 )
 
 st.set_page_config(
@@ -187,6 +193,65 @@ for column, (label, key) in zip(
 ):
     column.metric(label, summary[key])
 st.caption(f"RUN ID / {summary['run_id']}")
+
+with st.expander("Project state and safe controls", expanded=False):
+    control_columns = st.columns(5)
+    with control_columns[0]:
+        if st.button("Run Full Pipeline", use_container_width=True):
+            def full_pipeline():
+                active = start_run(project_root)
+                build_inventory(active)
+                if is_pause_requested(active.output_dir, active.run_id):
+                    return {"paused_after": "INVENTORY"}
+                run_ocr(active, weak_threshold=weak_threshold)
+                if is_pause_requested(active.output_dir, active.run_id):
+                    return {"paused_after": "OCR"}
+                extract_and_reconcile(
+                    active,
+                    weak_threshold=weak_threshold,
+                    cursor_json=cursor_json or None,
+                    codex_json=codex_json or None,
+                )
+                if is_pause_requested(active.output_dir, active.run_id):
+                    return {"paused_after": "RECONCILE"}
+                return build_runsheet(active)
+
+            if not root_valid:
+                st.error("Enter an existing source folder.")
+            else:
+                _run_action("Running resumable pipeline through draft schedules", full_pipeline)
+                st.rerun()
+    with control_columns[1]:
+        if st.button("Pause Safely", use_container_width=True, disabled=ctx is None):
+            request_pause(ctx.output_dir, ctx.run_id, True)
+            st.info("Pause recorded. The next stage will not be started automatically.")
+    with control_columns[2]:
+        if st.button("Resume Project", use_container_width=True, disabled=ctx is None):
+            request_pause(ctx.output_dir, ctx.run_id, False)
+            st.success("Project resumed. Completed artifacts remain in place.")
+    with control_columns[3]:
+        if st.button("Open Review Queue", use_container_width=True, disabled=ctx is None):
+            st.session_state["show_review"] = True
+    with control_columns[4]:
+        if st.button("Open Output Folder", use_container_width=True, disabled=ctx is None):
+            try:
+                if os.name == "nt":
+                    os.startfile(str(ctx.output_dir))  # type: ignore[attr-defined]
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", str(ctx.output_dir)])
+                else:
+                    subprocess.Popen(["xdg-open", str(ctx.output_dir)])
+            except OSError as exc:
+                st.error(f"Could not open the folder: {exc}")
+    if ctx:
+        statuses = stage_statuses(ctx.output_dir, ctx.run_id)
+        if statuses:
+            st.dataframe(statuses, use_container_width=True, hide_index=True)
+    st.button(
+        "Export Final Candidate",
+        disabled=True,
+        help="Blocked until approved workbook mapping and all human-review gates pass.",
+    )
 
 st.markdown("### Production line")
 buttons = st.columns(5)

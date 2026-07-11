@@ -73,3 +73,10 @@ android-sdk/
 /output/
 _synthetic_corpus/
 .pytest_cache/
+
+# DataBoss Title Factory local/private runtime state
+/databoss_title_factory/logs/
+/databoss_title_factory/workspaces/
+DataBoss_Title_Factory_Output/
+FINAL_DATABOSS_OUTPUT_*/
+_DATABOSS_BACKUPS/

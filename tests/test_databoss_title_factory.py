@@ -4,16 +4,24 @@ from pathlib import Path
 import openpyxl
 from PIL import Image, ImageDraw
 
+import databoss_title_factory.core as factory_core
 from databoss_title_factory.core import (
     OUTPUT_DIR_NAME,
     build_inventory,
     build_runsheet,
     export_safe_xlsx,
     extract_and_reconcile,
+    latest_run,
     preprocess_images,
     run_ocr,
     start_run,
     tournament_reconcile,
+)
+from databoss_title_factory.workbook_audit import audit_workbook, compare_workbooks
+from databoss_title_factory.project_db import (
+    is_pause_requested,
+    request_pause,
+    stage_statuses,
 )
 
 
@@ -49,17 +57,33 @@ def test_inventory_ocr_extract_and_runsheet_are_cited_and_versioned(tmp_path: Pa
     instruments = extract_and_reconcile(ctx, weak_threshold=0.60)
     assert instruments[0]["instrument_number"] == "2026-001234"
     assert "deed.txt#file" in instruments[0]["citation"]
-    assert instruments[0]["status"] == "ACCEPTED"
+    assert instruments[0]["status"] == "PROVISIONAL - SAMPLE QA"
+    assert instruments[0]["field_provenance"]["instrument_number"]["source_file_hash"]
 
     bundle = build_runsheet(ctx)
     assert len(bundle["runsheet"]) == 1
     assert (ctx.run_dir / "instruments.json").exists()
     assert (ctx.run_dir / "instruments.csv").exists()
+    archive = [
+        json.loads(line)
+        for line in (ctx.run_dir / "candidates" / "candidate_archive.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert len(archive) == 2
+    assert all(row["status"] == "CANDIDATE - RETAINED" and row["sha256"] for row in archive)
     assert (project / OUTPUT_DIR_NAME / "latest_run.txt").read_text().strip() == ctx.run_id
 
     second = start_run(project)
     assert second.run_id != ctx.run_id
     assert ctx.run_dir.exists()
+    assert latest_run(project).run_id == second.run_id
+    request_pause(second.output_dir, second.run_id)
+    assert is_pause_requested(second.output_dir, second.run_id) is True
+    request_pause(second.output_dir, second.run_id, False)
+    assert is_pause_requested(second.output_dir, second.run_id) is False
+    statuses = stage_statuses(ctx.output_dir, ctx.run_id)
+    assert {row["stage"] for row in statuses} >= {"INVENTORY", "OCR", "RECONCILE", "RUNSHEET"}
 
 
 def test_preprocess_images_creates_copy_and_keeps_original(tmp_path: Path):
@@ -77,6 +101,10 @@ def test_preprocess_images_creates_copy_and_keeps_original(tmp_path: Path):
 
     assert len(pages) == 1
     assert (ctx.run_dir / pages[0]["preprocessed_path"]).exists()
+    assert {
+        "orientation_corrected", "grayscale", "deskewed",
+        "contrast_enhanced", "thresholded", "sharpened",
+    }.issubset({variant["recipe"] for variant in pages[0]["variants"]})
     assert source.read_bytes() == original
 
 
@@ -113,6 +141,63 @@ def test_tournament_reconciles_instrument_number_disagreement_by_citation():
 
     assert len(reconciled) == 1
     assert "instrument_number" in reconciled[0]["reconciliation_notes"]
+    assert reconciled[0]["instrument_number"] == ""
+    assert reconciled[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
+
+
+def test_image_ocr_retains_blocks_and_field_bounding_boxes(tmp_path: Path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    image = Image.new("RGB", (800, 400), "white")
+    image.save(project / "instrument.png")
+    words = [
+        ("Instrument", 10, 10, 90, 30),
+        ("Number:", 95, 10, 150, 30),
+        ("2026-55", 155, 10, 220, 30),
+        ("Warranty", 10, 40, 80, 60),
+        ("Deed", 85, 40, 125, 60),
+    ]
+
+    def fake_ocr(_path, config="--oem 3 --psm 6"):
+        return {
+            "text": "Instrument Number: 2026-55\nWarranty Deed",
+            "confidence": 0.98,
+            "blocks": [
+                {
+                    "text": text,
+                    "normalized_text": text,
+                    "confidence": 0.98,
+                    "bounding_box": {
+                        "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                        "coordinate_space": "pixels",
+                    },
+                    "block_number": 1,
+                    "paragraph_number": 1,
+                    "line_number": 1,
+                    "word_number": index,
+                }
+                for index, (text, x1, y1, x2, y2) in enumerate(words, start=1)
+            ],
+            "ocr_config": config,
+            "engine_version": "test-engine",
+        }
+
+    monkeypatch.setattr(factory_core, "_ocr_image", fake_ocr)
+    ctx = start_run(project)
+    build_inventory(ctx)
+    ocr = run_ocr(ctx)
+    rows = extract_and_reconcile(ctx, weak_threshold=0.4)
+
+    assert ocr[0]["blocks"][0]["bounding_box"]["x1"] == 10
+    provenance = rows[0]["field_provenance"]["instrument_number"]
+    assert provenance["source_bounding_box"] == {
+        "x1": 155,
+        "y1": 10,
+        "x2": 220,
+        "y2": 30,
+        "coordinate_space": "pixels",
+    }
+    assert provenance["review_status"] == "DIRECT_SOURCE_SUPPORT"
 
 
 def test_runsheet_sorts_dates_chronologically(tmp_path: Path):
@@ -189,7 +274,7 @@ def test_missing_documents_includes_unrepresented_source_and_clears_stale_failur
     assert all(row["citation"] != "old.pdf" for row in bundle["missing_documents"])
 
 
-def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
+def test_export_preserves_template_and_uses_separate_control_workbook(tmp_path: Path):
     project = tmp_path / "project"
     project.mkdir()
     (project / "source.txt").write_text("Source evidence", encoding="utf-8")
@@ -235,22 +320,62 @@ def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
     )
     assert "'=HYPERLINK" in candidate_csv
     build_runsheet(ctx)
-    exported = export_safe_xlsx(ctx, template, section="31-12N-24W")
+    exported = export_safe_xlsx(ctx, template, section="32-11N-25W")
 
     assert exported != template
     assert template.read_bytes() == original_template
+    assert exported.read_bytes() == original_template
     result = openpyxl.load_workbook(exported, data_only=False)
     assert result["Original Template"]["A1"].value == "DO NOT CHANGE"
     assert result["Original Template"]["B2"].value == "=SUM(1,2)"
     assert result["DBTF Runsheet"]["A1"].value == "TEMPLATE CONTENT"
-    assert {
-        "DBTF Runsheet (2)",
-        "DBTF Missing Docs",
-        "DBTF OGL Draft",
-        "DBTF Tract Drafts",
-        "DBTF Run Manifest",
-    }.issubset(result.sheetnames)
-    headers = [cell.value for cell in result["DBTF Runsheet (2)"][1]]
-    grantor_column = headers.index("Grantor") + 1
-    assert result["DBTF Runsheet (2)"].cell(2, grantor_column).value.startswith("'=")
+    assert result.sheetnames == ["Original Template", "DBTF Runsheet"]
     result.close()
+    manifest = json.loads(
+        (ctx.run_dir / "export_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["client_worksheets_added"] == []
+    assert manifest["preservation_audit_passed"] is True
+    control = Path(manifest["control_workbook_path"])
+    assert control.is_file()
+    control_book = openpyxl.load_workbook(control, read_only=True)
+    assert {
+        "Run Control", "File Manifest", "OCR Provenance", "Candidate Archive",
+        "Reconciled Instruments", "Field Conflicts", "Review Queue",
+        "Missing Documents", "Workbook Audit",
+    }.issubset(control_book.sheetnames)
+    control_book.close()
+    backup = Path(manifest["backup_record"]["backup_path"])
+    assert backup.read_bytes() == original_template
+    readiness = json.loads(
+        (exported.parent / "FINAL_READINESS_STATEMENT.json").read_text(encoding="utf-8")
+    )
+    assert readiness["ready_to_submit"] is False
+    assert readiness["conclusion"] == "NOT READY TO SUBMIT"
+
+
+def test_workbook_audit_detects_formula_mutation(tmp_path: Path):
+    before_path = tmp_path / "before.xlsx"
+    after_path = tmp_path / "after.xlsx"
+    workbook = openpyxl.Workbook()
+    workbook.active["A1"] = "=SUM(1,2)"
+    workbook.active.merge_cells("B2:C2")
+    hidden = workbook.create_sheet("Hidden")
+    hidden.sheet_state = "hidden"
+    workbook.save(before_path)
+    workbook.save(after_path)
+    workbook.close()
+
+    exact = compare_workbooks(audit_workbook(before_path), audit_workbook(after_path))
+    assert exact["preservation_passed"] is True
+
+    changed = openpyxl.load_workbook(after_path)
+    changed.active["A1"] = "=SUM(1,3)"
+    changed.save(after_path)
+    changed.close()
+    comparison = compare_workbooks(
+        audit_workbook(before_path),
+        audit_workbook(after_path),
+    )
+    assert comparison["preservation_passed"] is False
+    assert any(item["feature"].endswith(".formulas") for item in comparison["differences"])

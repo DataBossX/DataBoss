@@ -97,6 +97,39 @@ def test_tournament_quarantines_unsupported_candidate():
     assert "missing source citation" in reconciled[0]["reconciliation_notes"]
 
 
+def test_tournament_reconciles_instrument_number_disagreement_by_citation():
+    common = {
+        "grantor": "Ada Owner",
+        "grantee": "Beacon LLC",
+        "confidence": 0.95,
+        "citation": "deed.pdf#page=1",
+        "source_path": "deed.pdf",
+        "source_locator": "page=1",
+    }
+    cursor = [{**common, "instrument_number": "2026-100"}]
+    codex = [{**common, "instrument_number": "2026-101"}]
+
+    reconciled = tournament_reconcile(cursor, codex, weak_threshold=0.40)
+
+    assert len(reconciled) == 1
+    assert "instrument_number" in reconciled[0]["reconciliation_notes"]
+
+
+def test_runsheet_sorts_dates_chronologically(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    ctx = start_run(project)
+    records = [
+        {"instrument_number": "2", "recorded_date": "12/01/2025", "status": "ACCEPTED"},
+        {"instrument_number": "1", "recorded_date": "02/01/2025", "status": "ACCEPTED"},
+    ]
+    (ctx.run_dir / "instruments.json").write_text(json.dumps(records), encoding="utf-8")
+
+    bundle = build_runsheet(ctx)
+
+    assert [row["instrument_number"] for row in bundle["runsheet"]] == ["1", "2"]
+
+
 def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
     project = tmp_path / "project"
     project.mkdir()
@@ -107,6 +140,8 @@ def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
     sheet.title = "Original Template"
     sheet["A1"] = "DO NOT CHANGE"
     sheet["B2"] = "=SUM(1,2)"
+    collision = workbook.create_sheet("DBTF Runsheet")
+    collision["A1"] = "TEMPLATE CONTENT"
     workbook.save(template)
     original_template = template.read_bytes()
 
@@ -136,6 +171,10 @@ def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
     build_inventory(ctx)
     run_ocr(ctx)
     extract_and_reconcile(ctx, cursor_json=cursor_json, codex_json=codex_json)
+    candidate_csv = (ctx.run_dir / "candidates" / "cursor_output.csv").read_text(
+        encoding="utf-8-sig"
+    )
+    assert "'=HYPERLINK" in candidate_csv
     build_runsheet(ctx)
     exported = export_safe_xlsx(ctx, template, section="31-12N-24W")
 
@@ -144,14 +183,15 @@ def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
     result = openpyxl.load_workbook(exported, data_only=False)
     assert result["Original Template"]["A1"].value == "DO NOT CHANGE"
     assert result["Original Template"]["B2"].value == "=SUM(1,2)"
+    assert result["DBTF Runsheet"]["A1"].value == "TEMPLATE CONTENT"
     assert {
-        "DBTF Runsheet",
+        "DBTF Runsheet (2)",
         "DBTF Missing Docs",
         "DBTF OGL Draft",
         "DBTF Tract Drafts",
         "DBTF Run Manifest",
     }.issubset(result.sheetnames)
-    headers = [cell.value for cell in result["DBTF Runsheet"][1]]
+    headers = [cell.value for cell in result["DBTF Runsheet (2)"][1]]
     grantor_column = headers.index("Grantor") + 1
-    assert result["DBTF Runsheet"].cell(2, grantor_column).value.startswith("'=")
+    assert result["DBTF Runsheet (2)"].cell(2, grantor_column).value.startswith("'=")
     result.close()

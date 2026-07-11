@@ -1,0 +1,37 @@
+{
+  "project_name": "Diversified Section 32-11N-25W Beckham County",
+  "work_type": "Horizon Oklahoma Title Report",
+  "source_root": "D:\\Desktop\\Horizon\\32-11N-25W, Beckham County",
+  "expected_output_root": "D:\\Desktop\\Horizon\\32-11N-25W, Beckham County\\FINAL",
+  "section": "32",
+  "township": "11N",
+  "range": "25W",
+  "county": "Beckham",
+  "state": "Oklahoma",
+  "external_model_upload_enabled": false,
+  "extraction_passes": [
+    {
+      "name": "PASS_A",
+      "provider": "local",
+      "model": "deterministic_ocr_parser",
+      "prompt_version": "strict_extraction_v1",
+      "enabled": true
+    },
+    {
+      "name": "PASS_B",
+      "provider": null,
+      "model": null,
+      "prompt_version": "strict_extraction_v1",
+      "enabled": false
+    },
+    {
+      "name": "PASS_C",
+      "provider": null,
+      "model": null,
+      "prompt_version": "strict_extraction_v1",
+      "enabled": false
+    }
+  ],
+  "approved_workbook_mapping": null,
+  "readiness_default": "NOT READY TO SUBMIT"
+}

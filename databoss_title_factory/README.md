@@ -1,15 +1,20 @@
 # DataBoss Title Factory
 
-A local Streamlit production line for cited title-document extraction. It scans
-project folders, pre-processes images, runs OCR, extracts instrument candidates,
-reconciles Cursor and Codex candidate output, quarantines weak results, builds
-draft schedules, and exports a template-preserving Excel workbook.
+A focused local evidence engine for the Section 32-11N-25W, Beckham County
+workflow. It inventories a project without reorganizing it, creates multiple
+derived image variants, retains OCR geometry, archives every extraction pass,
+reconciles fields against source support, and creates a preservation-audited
+review package.
+
+The current code can prepare the workflow, but this repository does not contain
+the private Section 32 courthouse images, client template, or report candidates.
+It therefore cannot produce or claim a completed client report in the cloud.
 
 ## Windows quick start
 
-1. Double-click `Setup_DataBoss_Title_Factory.bat`.
+1. Double-click `SETUP_DATABOSS_TITLE_FACTORY.bat`.
 2. Install the Tesseract OCR desktop program if setup reports that it is absent.
-3. Double-click `Run_DataBoss_Title_Factory.bat`.
+3. Double-click `RUN_DATABOSS_TITLE_FACTORY.bat`.
 4. Enter the source project folder and Excel template in the left control desk.
 5. Run the five buttons from left to right.
 
@@ -25,11 +30,20 @@ dependencies. The run launcher activates the same environment every time.
 - Weak OCR and instrument results are copied into the run's `quarantine` folder.
   They are retained for examiner review and are also represented in the missing
   document schedule.
-- Every fact retains `source_path`, `source_locator`, and a human-readable
-  `citation`.
-- Excel export first copies the selected `.xlsx` or `.xlsm` template to a
-  versioned destination. Existing template sheets are preserved. Generated
-  sheets are added only to the copy.
+- OCR blocks retain source hash, page, derived image, preprocessing recipe,
+  engine/configuration, confidence, and bounding coordinates where available.
+- Extracted fields carry field-level source provenance. External candidates
+  lacking current-run source hashes and provenance cannot be accepted.
+- Every independent candidate and losing interpretation is retained in an
+  immutable archive with a SHA-256 hash.
+- Excel export copies the selected `.xlsx` or `.xlsm` without adding worksheets.
+  Runsheet, conflict, confidence, model, and audit data go into a separate
+  `DATABOSS_CONTROL_WORKBOOK.xlsx`.
+- A before/after workbook audit checks OOXML parts, worksheets, formulas,
+  drawings, images, charts, defined names, merged cells, validation,
+  conditional formatting, dimensions, print settings, and protection.
+- OpenPyXL is not represented as a perfect preservation engine. High-risk
+  features are reported, and preservation is claimed only when the audit passes.
 - Values beginning with Excel formula-control characters are escaped before
   export.
 
@@ -53,20 +67,24 @@ Useful fields are:
 `interest_conveyed`, `lease_royalty_terms`, `confidence`, `citation`,
 `source_path`, and `source_locator`.
 
-Conflicts are resolved field-by-field using normalized agreement and candidate
-confidence. Disagreements are recorded; unsupported values remain blank.
+The source controls. Agreement is not proof. Material disagreement in parties,
+identifiers, dates, legal, interest, or lease terms remains unresolved and goes
+to human review. Every candidate remains in `candidate_archive.jsonl`.
 
 ## Excel output
 
-The exported workbook preserves the template and adds:
+Export creates a timestamped `FINAL_DATABOSS_OUTPUT_*` review package with:
 
-- `DBTF Runsheet`
-- `DBTF Missing Docs`
-- `DBTF OGL Draft`
-- `DBTF Tract Drafts`
-- `DBTF Run Manifest`
+- an exact `UNTOUCHED_TEMPLATE_COPY`
+- an exact, unpopulated `CLIENT_REPORT_CANDIDATE`
+- a separate `DATABOSS_CONTROL_WORKBOOK.xlsx`
+- before/after workbook inventories and preservation audit
+- copied control data and candidate archive
+- package manifest and readiness statement
 
-These are drafts. Quarantined or incomplete facts require title-examiner review.
+The candidate is deliberately not populated until an approved writable-range
+mapping and the real Section 32 evidence are available. The readiness statement
+therefore says `NOT READY TO SUBMIT`.
 
 ## Development
 

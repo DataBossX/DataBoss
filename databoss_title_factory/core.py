@@ -85,6 +85,9 @@ def start_run(root: str | Path) -> RunContext:
             "source_policy": "read-only; generated results are versioned; nothing is deleted",
         },
     )
+    from .project_db import register_run
+
+    register_run(output, run_id, str(root_path))
     return RunContext(root_path, output, run_dir, run_id)
 
 
@@ -139,6 +142,9 @@ def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
 
 def build_inventory(ctx: RunContext) -> list[dict[str, Any]]:
     """Inventory every source file without modifying the source tree."""
+    from .project_db import update_stage
+
+    update_stage(ctx.output_dir, ctx.run_id, "INVENTORY", "IN PROGRESS")
     records: list[dict[str, Any]] = []
     for dirpath, dirnames, filenames in os.walk(ctx.root):
         dirnames[:] = sorted(
@@ -226,6 +232,13 @@ def build_inventory(ctx: RunContext) -> list[dict[str, Any]]:
     _write_csv(ctx.run_dir / "project_manifest.csv", records, fields)
     _write_csv(ctx.run_dir / "duplicate_map.csv", duplicate_rows, fields)
     _build_report_candidate_scorecard(ctx, records)
+    update_stage(
+        ctx.output_dir,
+        ctx.run_id,
+        "INVENTORY",
+        "PASSED",
+        {"file_count": len(records), "duplicate_file_count": len(duplicate_rows)},
+    )
     return records
 
 
@@ -497,6 +510,9 @@ def _prepare_image_variants(source: Path, destination_stem: Path) -> list[dict[s
 
 def preprocess_images(ctx: RunContext, dpi: int = 240) -> list[dict[str, Any]]:
     """Create OCR-ready image copies; originals remain untouched."""
+    from .project_db import update_stage
+
+    update_stage(ctx.output_dir, ctx.run_id, "PREPROCESS", "IN PROGRESS")
     inventory = load_inventory(ctx)
     ctx.preprocessed_dir.mkdir(parents=True, exist_ok=True)
     pages: list[dict[str, Any]] = []
@@ -538,6 +554,13 @@ def preprocess_images(ctx: RunContext, dpi: int = 240) -> list[dict[str, Any]]:
         ctx.quarantine_dir / "preprocess_failures.csv",
         errors,
         ("source_path", "error"),
+    )
+    update_stage(
+        ctx.output_dir,
+        ctx.run_id,
+        "PREPROCESS",
+        "PASSED" if not errors else "READY FOR REVIEW",
+        {"page_count": len(pages), "failure_count": len(errors)},
     )
     return pages
 
@@ -761,6 +784,9 @@ def _best_page_ocr(
 
 def run_ocr(ctx: RunContext, weak_threshold: float = 0.55) -> list[dict[str, Any]]:
     """Extract text from native documents and OCR page images with citations."""
+    from .project_db import update_stage
+
+    update_stage(ctx.output_dir, ctx.run_id, "OCR", "IN PROGRESS")
     inventory = load_inventory(ctx)
     pages = preprocess_images(ctx)
     page_index = {(p["source_path"], p["page"]): p for p in pages}
@@ -818,6 +844,17 @@ def run_ocr(ctx: RunContext, weak_threshold: float = 0.55) -> list[dict[str, Any
     _write_csv(ctx.quarantine_dir / "weak_ocr_results.csv", weak, fields)
     _write_json(ctx.quarantine_dir / "ocr_failures.json", failures)
     _write_csv(ctx.quarantine_dir / "ocr_failures.csv", failures, ("source_path", "error"))
+    update_stage(
+        ctx.output_dir,
+        ctx.run_id,
+        "OCR",
+        "PASSED" if not failures else "READY FOR REVIEW",
+        {
+            "citation_count": len(records),
+            "weak_count": len(weak),
+            "failure_count": len(failures),
+        },
+    )
     return records
 
 
@@ -1171,6 +1208,9 @@ def extract_and_reconcile(
     codex_json: Optional[str | Path] = None,
 ) -> list[dict[str, Any]]:
     """Create/load Cursor and Codex candidates, then run a field-level tournament."""
+    from .project_db import update_stage
+
+    update_stage(ctx.output_dir, ctx.run_id, "RECONCILE", "IN PROGRESS")
     ocr = load_ocr(ctx)
     evidence_by_citation = {
         str(item.get("citation", "")).strip(): item
@@ -1236,6 +1276,18 @@ def extract_and_reconcile(
             "policy": "Review copies only. No source file was moved, overwritten, or deleted.",
             "weak_threshold": weak_threshold,
             "weak_instrument_count": len(weak),
+        },
+    )
+    update_stage(
+        ctx.output_dir,
+        ctx.run_id,
+        "RECONCILE",
+        "READY FOR REVIEW" if weak or conflicts else "PASSED",
+        {
+            "candidate_count": len(archive),
+            "instrument_count": len(reconciled),
+            "conflict_count": len(conflicts),
+            "quarantine_count": len(weak),
         },
     )
     return reconciled
@@ -1487,6 +1539,9 @@ def _tournament_with_audit(
 
 
 def build_runsheet(ctx: RunContext) -> dict[str, list[dict[str, Any]]]:
+    from .project_db import update_stage
+
+    update_stage(ctx.output_dir, ctx.run_id, "RUNSHEET", "IN PROGRESS")
     instruments = _read_json(ctx.run_dir / "instruments.json")
     if instruments is None:
         raise FileNotFoundError("Instrument output is missing. Run Extract first.")
@@ -1589,6 +1644,16 @@ def build_runsheet(ctx: RunContext) -> dict[str, list[dict[str, Any]]]:
     )
     _write_csv(ctx.run_dir / "ogl_draft.csv", ogl, EXPORT_FIELDS)
     _write_csv(ctx.run_dir / "tract_drafts.csv", tracts, ("tract_id", *EXPORT_FIELDS))
+    update_stage(
+        ctx.output_dir,
+        ctx.run_id,
+        "RUNSHEET",
+        "READY FOR REVIEW",
+        {
+            "runsheet_count": len(runsheet),
+            "missing_document_count": len(missing),
+        },
+    )
     return result
 
 
@@ -1648,7 +1713,10 @@ def export_safe_xlsx(
     written to a separate control workbook.
     """
     from .control_workbook import create_control_workbook
+    from .project_db import update_stage
     from .workbook_audit import audit_workbook, compare_workbooks
+
+    update_stage(ctx.output_dir, ctx.run_id, "EXPORT_REVIEW_PACKAGE", "IN PROGRESS")
 
     template_path = Path(template).expanduser().resolve()
     if not template_path.is_file() or template_path.suffix.lower() not in {".xlsx", ".xlsm"}:
@@ -1776,6 +1844,17 @@ def export_safe_xlsx(
     }
     _write_json(ctx.run_dir / "export_manifest.json", export_manifest)
     _write_json(package / "package_manifest.json", export_manifest)
+    update_stage(
+        ctx.output_dir,
+        ctx.run_id,
+        "EXPORT_REVIEW_PACKAGE",
+        "READY FOR REVIEW",
+        {
+            "package_path": str(package),
+            "preservation_audit_passed": preservation["preservation_passed"],
+            "ready_to_submit": False,
+        },
+    )
     return destination
 
 

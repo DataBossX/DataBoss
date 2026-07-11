@@ -11,6 +11,7 @@ from .core import (
     start_run,
     tournament_reconcile,
 )
+from .workbook_audit import audit_workbook, compare_workbooks
 
 __all__ = [
     "build_inventory",
@@ -22,4 +23,6 @@ __all__ = [
     "run_ocr",
     "start_run",
     "tournament_reconcile",
+    "audit_workbook",
+    "compare_workbooks",
 ]

@@ -295,6 +295,40 @@ def test_external_candidate_cannot_forge_source_support(tmp_path: Path):
     )
 
 
+def test_ocr_label_words_cannot_be_used_as_field_values(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "source.txt").write_text(_source_text(), encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    evidence = run_ocr(ctx)[0]
+    forged = {
+        "instrument_number": "Instrument",
+        "grantor": "Grantor",
+        "confidence": 1.0,
+        "citation": evidence["citation"],
+        "source_path": evidence["source_path"],
+        "source_file_hash": evidence["source_file_hash"],
+        "field_provenance": {
+            "instrument_number": {"source_support_score": 1.0},
+            "grantor": {"source_support_score": 1.0},
+        },
+    }
+    path = project / "labels.json"
+    path.write_text(json.dumps([forged]), encoding="utf-8")
+
+    rows = extract_and_reconcile(
+        ctx,
+        weak_threshold=0.4,
+        cursor_json=path,
+        codex_json=path,
+    )
+
+    assert rows[0]["instrument_number"] == ""
+    assert rows[0]["grantor"] == ""
+    assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
+
+
 def test_source_hash_change_after_inventory_blocks_ocr(tmp_path: Path):
     project = tmp_path / "project"
     project.mkdir()
@@ -361,6 +395,29 @@ def test_resume_continues_same_run_after_ocr(tmp_path: Path):
     assert result["skipped"] == ["INVENTORY", "OCR"]
     assert latest_run(project).run_id == ctx.run_id
     assert (ctx.run_dir / "runsheet_bundle.json").is_file()
+
+
+def test_resume_reruns_all_downstream_stages_after_corrupt_ocr(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "deed.txt").write_text(_source_text(), encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    run_ocr(ctx)
+    extract_and_reconcile(ctx, weak_threshold=0.6)
+    build_runsheet(ctx)
+    (ctx.run_dir / "ocr_citations.jsonl").write_text(
+        '{"corrupted": true}\n',
+        encoding="utf-8",
+    )
+
+    result = resume_pipeline(ctx, weak_threshold=0.6)
+
+    assert result["run_id"] == ctx.run_id
+    assert result["skipped"] == ["INVENTORY"]
+    assert result["completed"] == ["OCR", "RECONCILE", "RUNSHEET"]
+    archived = list((ctx.run_dir / "retry_archive").rglob("ocr_citations.jsonl"))
+    assert archived
 
 
 def test_multiframe_tiff_accounts_for_every_frame(tmp_path: Path, monkeypatch):

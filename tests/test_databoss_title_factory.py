@@ -130,6 +130,65 @@ def test_runsheet_sorts_dates_chronologically(tmp_path: Path):
     assert [row["instrument_number"] for row in bundle["runsheet"]] == ["1", "2"]
 
 
+def test_external_candidate_without_current_run_citation_is_quarantined(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "source.txt").write_text(_source_text(), encoding="utf-8")
+    candidate = {
+        "instrument_number": "2026-001234",
+        "instrument_type": "Warranty Deed",
+        "grantor": "Ada Owner",
+        "grantee": "Beacon Minerals LLC",
+        "legal_description": "NE/4 Section 31",
+        "confidence": 0.99,
+        "citation": "different-file.pdf#page=99",
+    }
+    candidate_path = project / "external.json"
+    candidate_path.write_text(json.dumps([candidate]), encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    run_ocr(ctx)
+
+    rows = extract_and_reconcile(
+        ctx,
+        weak_threshold=0.4,
+        cursor_json=candidate_path,
+        codex_json=candidate_path,
+    )
+
+    assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
+    assert "current OCR evidence ledger" in rows[0]["reconciliation_notes"]
+
+
+def test_missing_documents_includes_unrepresented_source_and_clears_stale_failures(
+    tmp_path: Path,
+):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "deed.txt").write_text(_source_text(), encoding="utf-8")
+    (project / "unclassified.txt").write_text("No instrument facts here.", encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    (ctx.quarantine_dir / "ocr_failures.json").write_text(
+        json.dumps([{"source_path": "old.pdf", "error": "stale"}]),
+        encoding="utf-8",
+    )
+
+    run_ocr(ctx)
+    assert json.loads(
+        (ctx.quarantine_dir / "ocr_failures.json").read_text(encoding="utf-8")
+    ) == []
+    extract_and_reconcile(ctx, weak_threshold=0.6)
+    bundle = build_runsheet(ctx)
+
+    assert any(
+        row["citation"] == "unclassified.txt"
+        and "No instrument candidate" in row["missing_or_issue"]
+        for row in bundle["missing_documents"]
+    )
+    assert all(row["citation"] != "old.pdf" for row in bundle["missing_documents"])
+
+
 def test_export_preserves_template_and_escapes_formula_values(tmp_path: Path):
     project = tmp_path / "project"
     project.mkdir()

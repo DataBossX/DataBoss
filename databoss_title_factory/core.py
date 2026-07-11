@@ -257,12 +257,11 @@ def preprocess_images(ctx: RunContext, dpi: int = 240) -> list[dict[str, Any]]:
                 errors.append({"source_path": rel, "error": str(exc)})
     _write_json(ctx.run_dir / "preprocessed_pages.json", pages)
     _write_json(ctx.run_dir / "preprocess_errors.json", errors)
-    if errors:
-        _write_csv(
-            ctx.quarantine_dir / "preprocess_failures.csv",
-            errors,
-            ("source_path", "error"),
-        )
+    _write_csv(
+        ctx.quarantine_dir / "preprocess_failures.csv",
+        errors,
+        ("source_path", "error"),
+    )
     return pages
 
 
@@ -397,12 +396,10 @@ def run_ocr(ctx: RunContext, weak_threshold: float = 0.55) -> list[dict[str, Any
     _write_jsonl(ctx.run_dir / "ocr_citations.jsonl", records)
     _write_csv(ctx.run_dir / "ocr_citations.csv", records, fields)
     weak = [record for record in records if record["status"] == "weak"]
-    if weak:
-        _write_json(ctx.quarantine_dir / "weak_ocr_results.json", weak)
-        _write_csv(ctx.quarantine_dir / "weak_ocr_results.csv", weak, fields)
-    if failures:
-        _write_json(ctx.quarantine_dir / "ocr_failures.json", failures)
-        _write_csv(ctx.quarantine_dir / "ocr_failures.csv", failures, ("source_path", "error"))
+    _write_json(ctx.quarantine_dir / "weak_ocr_results.json", weak)
+    _write_csv(ctx.quarantine_dir / "weak_ocr_results.csv", weak, fields)
+    _write_json(ctx.quarantine_dir / "ocr_failures.json", failures)
+    _write_csv(ctx.quarantine_dir / "ocr_failures.csv", failures, ("source_path", "error"))
     return records
 
 
@@ -573,6 +570,16 @@ def _load_external_candidates(path: Optional[str | Path], engine: str) -> Option
     return normalized
 
 
+def _validate_candidate_evidence(
+    candidates: list[dict[str, Any]],
+    valid_citations: set[str],
+) -> list[dict[str, Any]]:
+    for candidate in candidates:
+        citation = str(candidate.get("citation", "")).strip()
+        candidate["evidence_valid"] = bool(citation and citation in valid_citations)
+    return candidates
+
+
 def extract_and_reconcile(
     ctx: RunContext,
     weak_threshold: float = 0.65,
@@ -581,6 +588,11 @@ def extract_and_reconcile(
 ) -> list[dict[str, Any]]:
     """Create/load Cursor and Codex candidates, then run a field-level tournament."""
     ocr = load_ocr(ctx)
+    valid_citations = {
+        str(item.get("citation", "")).strip()
+        for item in ocr
+        if str(item.get("citation", "")).strip()
+    }
     cursor = _load_external_candidates(cursor_json, "cursor")
     codex = _load_external_candidates(codex_json, "codex")
     if cursor is None:
@@ -593,8 +605,13 @@ def extract_and_reconcile(
             candidate for item in ocr
             if (candidate := _extract_codex_candidate(item)) is not None
         ]
+    cursor = _validate_candidate_evidence(cursor, valid_citations)
+    codex = _validate_candidate_evidence(codex, valid_citations)
     candidates_dir = ctx.run_dir / "candidates"
-    fields = (*INSTRUMENT_FIELDS, "engine", "confidence", "citation", "source_path", "source_locator")
+    fields = (
+        *INSTRUMENT_FIELDS, "engine", "confidence", "citation", "source_path",
+        "source_locator", "evidence_valid",
+    )
     for engine, rows in (("cursor", cursor), ("codex", codex)):
         _write_json(candidates_dir / f"{engine}_output.json", rows)
         _write_csv(candidates_dir / f"{engine}_output.csv", rows, fields)
@@ -716,6 +733,13 @@ def tournament_reconcile(
             - min(0.25, len(conflicts) * 0.04)
         )
         citations = sorted({str(row.get("citation", "")) for row in candidates if row.get("citation")})
+        verified_citations = sorted(
+            {
+                str(row.get("citation", ""))
+                for row in candidates
+                if row.get("citation") and row.get("evidence_valid") is not False
+            }
+        )
         source_paths = sorted(
             {str(row.get("source_path", "")) for row in candidates if row.get("source_path")}
         )
@@ -729,8 +753,14 @@ def tournament_reconcile(
             reasons.append("missing instrument number")
         if not citations:
             reasons.append("missing source citation")
+        elif not verified_citations:
+            reasons.append("citation not found in current OCR evidence ledger")
         status = "ACCEPTED"
-        if score < weak_threshold or not winner["instrument_number"] or not citations:
+        if (
+            score < weak_threshold
+            or not winner["instrument_number"]
+            or not verified_citations
+        ):
             status = "QUARANTINED - REVIEW REQUIRED"
         output.append(
             {
@@ -784,6 +814,41 @@ def build_runsheet(ctx: RunContext) -> dict[str, list[dict[str, Any]]]:
                 "recommended_action": "Inspect the source manually and rerun OCR.",
             }
         )
+    preprocess_failures = _read_json(ctx.run_dir / "preprocess_errors.json", []) or []
+    for failure in preprocess_failures:
+        missing.append(
+            {
+                "instrument_number": "",
+                "missing_or_issue": f"Image preprocessing failed: {failure.get('error', '')}",
+                "citation": failure.get("source_path", ""),
+                "recommended_action": "Inspect image/PDF integrity and retry preprocessing.",
+            }
+        )
+    represented_sources: set[str] = set()
+    for row in runsheet:
+        represented_sources.update(
+            source.strip()
+            for source in str(row.get("source_path", "")).split(" | ")
+            if source.strip()
+        )
+    inventory = load_inventory(ctx)
+    already_missing = {str(row.get("citation", "")) for row in missing}
+    for item in inventory:
+        source_path = str(item.get("source_path", ""))
+        if (
+            item.get("supported")
+            and source_path
+            and source_path not in represented_sources
+            and source_path not in already_missing
+        ):
+            missing.append(
+                {
+                    "instrument_number": "",
+                    "missing_or_issue": "No instrument candidate extracted from inventoried source.",
+                    "citation": source_path,
+                    "recommended_action": "Confirm this source contains no title instrument or review it manually.",
+                }
+            )
     ogl = [
         row for row in runsheet
         if any(term in str(row.get("instrument_type", "")).lower() for term in ("lease", "memorandum"))

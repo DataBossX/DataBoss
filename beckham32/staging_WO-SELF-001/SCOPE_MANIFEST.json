@@ -1,0 +1,46 @@
+{
+ "schema_id": "dbx.scope_manifest",
+ "schema_version": "1.0",
+ "record_id": "SCOPE-0001",
+ "project_id": "DBX-OK-BECKHAM-32-11N-25W",
+ "created_at_utc": "2026-07-11T06:20:00Z",
+ "created_by": "claude-cloud-databoss",
+ "run_id": "claude-cloud-databoss-20260711T0620Z-s32wo1",
+ "security_classification": "CLIENT_CONFIDENTIAL",
+ "client": "Horizon / Dan Dickensheet",
+ "diversified_entities_in_evidence": [
+  "Diversified Production LLC",
+  "DP Legacy Tapstone LLC",
+  "Diversified ABS VI Upstream LLC",
+  "DP Sooner Holdco LLC",
+  "DP Ponies LLC (+ DP Secretariat/American Pharoah/Seabiscuit/Sovereignty)",
+  "Diversified Energy Company PLC",
+  "Diversified Gas & Oil Corp."
+ ],
+ "exact_client_entity_requested": null,
+ "unknown_reason": "not stated in controlling sources reviewed - BLOCKING_SCOPE_ITEM",
+ "subject_legal": "Section 32, Township 11 North, Range 25 West, Beckham County, Oklahoma (as stated by supplied index/report sources)",
+ "county_verified_from": "supplied index PDFs, OKCR results, recorded instruments in register",
+ "acreage_note": "640 acres is nominal geometry only; not a title decimal (per register + candidate workbook Overview)",
+ "direct_image_cutoff": "Bk 1014/75 recorded 1988-04-26; images 0001-4893 continuous",
+ "index_certification_date": "2026-07-01",
+ "continuation_closed_through": "2026-07-09",
+ "last_index_entry": "Bk 2490/471-473 (WD) recorded 2026-07-07",
+ "template": {
+  "file": "Template.xlsx",
+  "sha256": "fe2fc01613b3bfe627fee0c4b27c2423884bb6f0a3ba7a3e658efab728b87bb9",
+  "status": "prior-project shell (Roger Mills 27-15N-24W residue proven cell-level); presentation authority only"
+ },
+ "candidate_base": {
+  "file": "NHE 7-10-26 report",
+  "sha256": "3aae381a2297eb4b307d025bd37e69c8e819dd9487e06183e3a8647e2b253b13",
+  "selection_basis": "forensic scan: zero prior-project residue/negatives/formula errors vs contaminated 2026-07-10 hybrid"
+ },
+ "blocking_scope_items": [
+  "exact Diversified client entity not stated",
+  "post-1988 operative schedules unreviewed",
+  "executed lease 341/538 absent",
+  "true tax roll absent"
+ ],
+ "product": "evidence-indexed cursory landman report - NOT a title opinion"
+}

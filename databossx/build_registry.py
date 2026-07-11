@@ -64,6 +64,9 @@ CAPABILITY_RULES: List[tuple] = [
     ("doto_image_commander/reports",        ["CAP_REPORT"]),
     ("doto_image_commander/",   ["CAP_AUTOMATION"]),
     ("mineral_deal_room/",      ["CAP_COMMAND_CENTER"]),
+    ("databossx/okcounty",      ["CAP_RESEARCH", "CAP_INDEX_EXTRACTION", "CAP_AUTOMATION"]),
+    ("databossx/workbook_qa",   ["CAP_QA", "CAP_WORKBOOK"]),
+    ("databossx/data/evidence_pull_queue", ["CAP_RESEARCH"]),
     ("databossx/",              ["CAP_SELF_BUILDER", "CAP_COMMAND_CENTER"]),
     ("tests/",                  ["CAP_QA"]),
     ("backend/",                ["CAP_AUTOMATION"]),
@@ -246,6 +249,11 @@ def build_all(repo_root: Path = REPO_ROOT, out_dir: Optional[Path] = None,
     emit("QA_REPORT.json", {"generated": stamp,
                             "test_suite": qa_summary or "not run at build time",
                             "canonical_report_qa": [r.get("qa") for r in curated["reports"] if r.get("qa")]})
+
+    queue_file = data_file.parent / "evidence_pull_queue.json"
+    if queue_file.exists():
+        with open(queue_file, "r", encoding="utf-8") as fh:
+            emit("EVIDENCE_PULL_QUEUE.json", json.load(fh))
 
     changelog = out / "CHANGELOG.md"
     header = "" if changelog.exists() else "# DataBossX Registry Changelog\n\n"

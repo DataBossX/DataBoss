@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-11T07:09:29+00:00",
+  "generated": "2026-07-11T17:41:28+00:00",
   "tools": [
     {
       "asset": "backend_test.py",
@@ -123,9 +123,36 @@
       "asset": "databossx/build_registry.py",
       "store": "repo",
       "kind": "tool",
-      "size_bytes": 12699,
-      "sha256": "5479ddf08d1188b49b23fbd95700d478e82f03f3869123c1f4317379f18d407a",
+      "size_bytes": 13127,
+      "sha256": "8dfcca1d4282065238f85b50371ab94800e8543b9167e7079faee56fb4ee7aeb",
       "capabilities": [
+        "CAP_SELF_BUILDER",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "databossx/okcounty.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 9174,
+      "sha256": "c61045a0ff61d29a6958cde172f0adb32962aaa35243df061b5dec41b84858d7",
+      "capabilities": [
+        "CAP_RESEARCH",
+        "CAP_INDEX_EXTRACTION",
+        "CAP_AUTOMATION",
+        "CAP_SELF_BUILDER",
+        "CAP_COMMAND_CENTER"
+      ]
+    },
+    {
+      "asset": "databossx/workbook_qa.py",
+      "store": "repo",
+      "kind": "tool",
+      "size_bytes": 7710,
+      "sha256": "6deb6cd27772e85ccbed5e927db0b2be51e6e419cb40803d2f07248c6ef75440",
+      "capabilities": [
+        "CAP_QA",
+        "CAP_WORKBOOK",
         "CAP_SELF_BUILDER",
         "CAP_COMMAND_CENTER"
       ]

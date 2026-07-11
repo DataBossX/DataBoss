@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-11T07:09:29+00:00",
+  "generated": "2026-07-11T17:41:28+00:00",
   "capabilities": {
     "CAP_AUTOMATION": [
       "automation/playwright_bot.py",
@@ -13,6 +13,7 @@
       "backend/external_integrations/__init__.py",
       "backend/requirements.txt",
       "backend/server.py",
+      "databossx/okcounty.py",
       "doto_image_commander/api/__init__.py",
       "doto_image_commander/api/okcounty.py",
       "doto_image_commander/api/openai_client.py",
@@ -42,9 +43,13 @@
       "horizon/repair.py"
     ],
     "CAP_COMMAND_CENTER": [
+      "databossx/README.md",
       "databossx/__init__.py",
       "databossx/build_registry.py",
       "databossx/data/curated_knowledge.json",
+      "databossx/data/evidence_pull_queue.json",
+      "databossx/okcounty.py",
+      "databossx/workbook_qa.py",
       "frontend/README.md",
       "frontend/package.json",
       "frontend/postcss.config.js",
@@ -97,6 +102,7 @@
       "mineral_deal_room/vite.config.ts"
     ],
     "CAP_INDEX_EXTRACTION": [
+      "databossx/okcounty.py",
       "doto_image_commander/api/okcounty.py",
       "grocery_report_pipeline.py"
     ],
@@ -135,13 +141,16 @@
       "build_merged_report.py",
       "compare_deep.py",
       "compare_reports.py",
+      "databossx/workbook_qa.py",
       "grocery_report_pipeline.py",
       "horizon/audit.py",
       "horizon/repair.py",
       "horizon/validation.py",
       "populate_perfect_report.py",
       "tests/__init__.py",
+      "tests/test_databossx_okcounty.py",
       "tests/test_databossx_registry.py",
+      "tests/test_databossx_workbook_qa.py",
       "tests/test_grocery_pipeline.py",
       "tests/test_horizon_artifacts.py",
       "tests/test_horizon_audit_fixes.py",
@@ -172,12 +181,18 @@
     ],
     "CAP_RESEARCH": [
       "automation/playwright_bot.py",
+      "databossx/data/evidence_pull_queue.json",
+      "databossx/okcounty.py",
       "doto_image_commander/api/okcounty.py"
     ],
     "CAP_SELF_BUILDER": [
+      "databossx/README.md",
       "databossx/__init__.py",
       "databossx/build_registry.py",
-      "databossx/data/curated_knowledge.json"
+      "databossx/data/curated_knowledge.json",
+      "databossx/data/evidence_pull_queue.json",
+      "databossx/okcounty.py",
+      "databossx/workbook_qa.py"
     ],
     "CAP_TITLE_CHAIN": [
       "horizon/chaining.py",
@@ -194,6 +209,7 @@
       "build_merged_report.py",
       "compare_deep.py",
       "compare_reports.py",
+      "databossx/workbook_qa.py",
       "horizon/pipeline.py",
       "horizon/report_io.py",
       "populate_perfect_report.py"

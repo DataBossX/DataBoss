@@ -1,0 +1,58 @@
+{
+  "workbook": "/tmp/claude-0/-home-user-DataBoss/a7465220-17c7-5839-b6ad-c92caf281e32/scratchpad/BEST_AVAILABLE.xlsx",
+  "spec": "32-11N-25W Beckham Co Diversified Cursory",
+  "checks": [
+    {
+      "id": "sheet_names_order",
+      "status": "PASS",
+      "detail": "13 sheets in template order"
+    },
+    {
+      "id": "defined_names",
+      "status": "PASS",
+      "detail": "0 defined names (max 0)"
+    },
+    {
+      "id": "external_links",
+      "status": "PASS",
+      "detail": "0 external links"
+    },
+    {
+      "id": "formula_error_cells",
+      "status": "PASS",
+      "detail": "0 error cells"
+    },
+    {
+      "id": "formula_cell_count",
+      "status": "PASS",
+      "detail": "12 formula cells (expected 12)"
+    },
+    {
+      "id": "runsheet_hyperlinks",
+      "status": "PASS",
+      "detail": "34 hyperlinks on Runsheet (min 34)"
+    },
+    {
+      "id": "contamination_scan",
+      "status": "PASS",
+      "detail": "no stale-project tokens"
+    },
+    {
+      "id": "required_tokens",
+      "status": "PASS",
+      "detail": "all required instrument/citation tokens present"
+    },
+    {
+      "id": "fabricated_decimal_guard",
+      "status": "PASS",
+      "detail": "no interest-like decimals on evidence-only sheets"
+    },
+    {
+      "id": "date_text_density",
+      "status": "INFO",
+      "detail": "24 ISO-date strings in text cells"
+    }
+  ],
+  "verdict": "PASS",
+  "failed_checks": []
+}

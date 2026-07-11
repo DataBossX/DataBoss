@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-11T07:09:29+00:00",
+  "generated": "2026-07-11T17:41:28+00:00",
   "nodes": [
     {
       "type": "Client",
@@ -130,9 +130,9 @@
     {
       "type": "OpenItem",
       "id": "OI-01",
-      "label": "Obtain authorized OKCountyRecords API/image access; Tier 1 queue is 22 watermarked instruments (~$8.80 est.). Includes BP/Ellipse records needed to prevent an unsupported Latigo title bridge. NO CHARGE WITHOUT CLIENT APPROVAL.",
+      "label": "OKCountyRecords Tier 1 pull: 22 watermarked instruments (~$8.80 est.). STATUS 2026-07-11: operator supplied OKCOUNTY_API_KEY and directed evidence closure (approval granted); machine-readable queue built (databossx/data/evidence_pull_queue.json, 22 Tier 1 + 4 Tier 2 + 18 Tier 3); runner ready (python -m databossx.okcounty). REMAINING BLOCKER: okcountyrecords.com is denied by the cloud session's egress policy (HTTP 403 CONNECT) — run the runner from a machine with normal network access, or allowlist the domain in the Claude Code environment's network policy.",
       "priority": 1,
-      "source": "START_HERE critical gates"
+      "source": "START_HERE critical gates; operator message 2026-07-11; proxy status 2026-07-11"
     },
     {
       "type": "OpenItem",
@@ -196,6 +196,13 @@
       "label": "Dropbox evidence vault (shared link) is not reachable from cloud agent sessions (HTTP 403, no Dropbox connector). Hash-manifest verification of the vault against the Drive 00_SOURCE_READ_ONLY copy must be run from a machine with Dropbox access.",
       "priority": 4,
       "source": "This session, 2026-07-11"
+    },
+    {
+      "type": "OpenItem",
+      "id": "OI-11",
+      "label": "Examiner review of EXAMINER_VALIDATION_2026-07-11: canonical workbook PASSED all 10 mechanical checks (sheet order, defined names, external links, formula errors, formula count, runsheet hyperlinks, contamination, required instrument tokens, fabricated-decimal guard) and its SHA-256 matched the recorded canonical hash. Mechanical QA is not a substitute for an Oklahoma-qualified examiner's substantive review of record conclusions and assumptions before issuance.",
+      "priority": 2,
+      "source": "databossx/workbook_qa.py run 2026-07-11"
     }
   ],
   "edges": [
@@ -337,6 +344,11 @@
     {
       "from": "PROJ_32_11N_25W_DIVERSIFIED",
       "to": "OI-10",
+      "rel": "blocked_by"
+    },
+    {
+      "from": "PROJ_32_11N_25W_DIVERSIFIED",
+      "to": "OI-11",
       "rel": "blocked_by"
     }
   ]

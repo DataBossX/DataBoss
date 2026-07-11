@@ -14,7 +14,7 @@ IGNORED_SUFFIXES = {
 IGNORED_NAMES = {".env.example"}
 ASSIGNMENT = re.compile(
     r"(?im)^\s*(?:export\s+)?[A-Z0-9_]*(?:API_KEY|TOKEN|PASSWORD|SECRET|PRIVATE_KEY)"
-    r"\s*[:=]\s*['\"]?([^'\"\s#]+)"
+    r"[ \t]*[:=][ \t]*['\"]?([^'\"\s#]+)"
 )
 TOKEN_PATTERNS = (
     re.compile("sk-" + r"[A-Za-z0-9_-]{20,}"),
@@ -40,7 +40,10 @@ def scan() -> list[str]:
             continue
         for match in ASSIGNMENT.finditer(text):
             value = match.group(1).strip().lower()
-            if value not in PLACEHOLDERS and not value.startswith("${"):
+            if (
+                value not in PLACEHOLDERS
+                and not value.startswith(("${", "os.getenv(", "os.environ"))
+            ):
                 findings.append(f"{path}:{text.count(chr(10), 0, match.start()) + 1}: credential assignment")
         for pattern in TOKEN_PATTERNS:
             for match in pattern.finditer(text):

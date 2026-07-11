@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import mimetypes
-import shutil
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -85,10 +84,16 @@ class ControlPlane:
                 destination
                 / f"{self.database.stem}-{datetime.now():%Y%m%d-%H%M%S%f}.sqlite3"
             )
-            shutil.copy2(self.database, backup)
-            if _file_digest(backup) != _file_digest(self.database):
+            try:
+                with sqlite3.connect(self.database) as source, sqlite3.connect(backup) as target:
+                    source.backup(target)
+                    integrity = target.execute("PRAGMA integrity_check").fetchone()[0]
+            except sqlite3.Error:
                 backup.unlink(missing_ok=True)
-                raise OSError("database backup verification failed")
+                raise
+            if integrity != "ok":
+                backup.unlink(missing_ok=True)
+                raise OSError(f"database backup integrity check failed: {integrity}")
 
         self.database.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as connection:
@@ -353,17 +358,35 @@ class ControlPlane:
         qa_id = f"qa:{uuid.uuid4()}"
         with self.connect() as connection:
             run = connection.execute(
-                "SELECT 1 FROM runs WHERE id = ? AND project_id = ?", (run_id, project_id)
+                """SELECT manifest_revision_id FROM runs
+                   WHERE id = ? AND project_id = ? AND status = 'SUCCEEDED'""",
+                (run_id, project_id),
             ).fetchone()
             if run is None:
-                raise ValueError("run does not belong to project")
+                raise ValueError("QA requires a successful project run")
+            output = connection.execute(
+                """SELECT 1 FROM run_assets
+                   WHERE run_id = ? AND asset_id = ? AND role = 'output'""",
+                (run_id, subject_id),
+            ).fetchone()
+            if output is None:
+                raise ValueError("QA subject must be an output of the run")
+            manifest_payload = connection.execute(
+                "SELECT payload_json FROM manifest_revisions WHERE id = ?",
+                (run["manifest_revision_id"],),
+            ).fetchone()[0]
+            manifest_asset_ids = set(json.loads(manifest_payload).get("asset_ids", ()))
+            if not evidence_ids:
+                raise ValueError("QA results require evidence")
             for evidence_id in evidence_ids:
                 row = connection.execute(
-                    "SELECT 1 FROM evidence WHERE id = ? AND project_id = ?",
+                    "SELECT asset_id FROM evidence WHERE id = ? AND project_id = ?",
                     (evidence_id, project_id),
                 ).fetchone()
                 if row is None:
                     raise ValueError(f"unknown project evidence: {evidence_id}")
+                if row["asset_id"] not in manifest_asset_ids:
+                    raise ValueError(f"evidence is outside the run manifest: {evidence_id}")
             connection.execute(
                 """INSERT INTO qa_results(
                        id, project_id, run_id, subject_id, check_name, policy_version,
@@ -471,33 +494,39 @@ class ControlPlane:
     def _require_qa_clearance(
         connection: sqlite3.Connection, project_id: str, asset_id: str
     ) -> None:
-        evidence_count = connection.execute(
-            "SELECT COUNT(*) FROM evidence WHERE project_id = ? AND asset_id = ?",
+        run = connection.execute(
+            """SELECT runs.id, manifests.payload_json
+               FROM runs
+               JOIN run_assets ON run_assets.run_id = runs.id
+               JOIN manifest_revisions manifests ON manifests.id = runs.manifest_revision_id
+               WHERE runs.project_id = ? AND runs.status = 'SUCCEEDED'
+                 AND run_assets.asset_id = ? AND run_assets.role = 'output'
+               ORDER BY runs.completed_at DESC, runs.id DESC LIMIT 1""",
             (project_id, asset_id),
-        ).fetchone()[0]
-        qa_count = connection.execute(
-            "SELECT COUNT(*) FROM qa_results WHERE project_id = ? AND subject_id = ?",
-            (project_id, asset_id),
-        ).fetchone()[0]
-        if not evidence_count or not qa_count:
-            raise PromotionError("QA promotion requires linked evidence and QA results")
-
-        blocking = connection.execute(
-            """SELECT COUNT(*) FROM qa_results failed
-               WHERE failed.project_id = ? AND failed.subject_id = ?
-                 AND failed.passed = 0 AND failed.severity IN ('critical', 'error')
-                 AND NOT EXISTS (
-                     SELECT 1 FROM qa_results resolved
-                     WHERE resolved.project_id = failed.project_id
-                       AND resolved.subject_id = failed.subject_id
-                       AND resolved.check_name = failed.check_name
-                       AND resolved.passed = 1
-                       AND resolved.created_at > failed.created_at
-                 )""",
-            (project_id, asset_id),
-        ).fetchone()[0]
-        if blocking:
-            raise PromotionError(f"{blocking} blocking QA failure(s) remain")
+        ).fetchone()
+        if run is None:
+            raise PromotionError("QA promotion requires a successful producing run")
+        required_checks = set(json.loads(run["payload_json"]).get("required_checks", ()))
+        if not required_checks:
+            raise PromotionError("run manifest must define required_checks")
+        results = connection.execute(
+            """SELECT check_name, severity, passed FROM qa_results
+               WHERE project_id = ? AND subject_id = ? AND run_id = ?
+               ORDER BY created_at, id""",
+            (project_id, asset_id, run["id"]),
+        ).fetchall()
+        latest = {row["check_name"]: row for row in results}
+        missing_or_failed = sorted(
+            check for check in required_checks if check not in latest or not latest[check]["passed"]
+        )
+        blocking = sorted(
+            name
+            for name, row in latest.items()
+            if not row["passed"] and row["severity"] in {"critical", "error"}
+        )
+        failures = sorted(set(missing_or_failed + blocking))
+        if failures:
+            raise PromotionError(f"required QA checks are missing or failing: {', '.join(failures)}")
 
     @staticmethod
     def _require_asset(
@@ -633,6 +662,10 @@ CREATE TRIGGER IF NOT EXISTS immutable_evidence_update
 BEFORE UPDATE ON evidence BEGIN SELECT RAISE(ABORT, 'evidence records are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_evidence_delete
 BEFORE DELETE ON evidence BEGIN SELECT RAISE(ABORT, 'evidence records are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_qa_update
+BEFORE UPDATE ON qa_results BEGIN SELECT RAISE(ABORT, 'QA results are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_qa_delete
+BEFORE DELETE ON qa_results BEGIN SELECT RAISE(ABORT, 'QA results are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_promotion_update
 BEFORE UPDATE ON promotions BEGIN SELECT RAISE(ABORT, 'promotion receipts are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_promotion_delete

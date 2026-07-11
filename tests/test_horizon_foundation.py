@@ -122,5 +122,5 @@ def test_backup_failure_aborts_before_quarantine(workspace, monkeypatch):
 
     assert original.exists()
     assert duplicate.exists()
-    assert not cfg.trash.exists()
+    assert list(cfg.trash.iterdir()) == []
     assert list(cfg.backups.iterdir()) == []

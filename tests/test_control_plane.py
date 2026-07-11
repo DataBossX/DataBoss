@@ -82,7 +82,9 @@ def test_promotion_is_sequential_qa_gated_and_human_gated(control, tmp_path):
     output.write_bytes(b"workbook")
     project_id = "OK-BECKHAM-32-11N-25W"
     asset_id = control.ingest_asset(project_id, output, source_authority=5, role="deliverable")
-    manifest_id = control.create_manifest_revision(project_id, {}, [asset_id])
+    manifest_id = control.create_manifest_revision(
+        project_id, {"required_checks": ["ownership_totals"]}, [asset_id]
+    )
     evidence_id = control.record_evidence(
         project_id=project_id,
         asset_id=asset_id,
@@ -118,7 +120,7 @@ def test_promotion_is_sequential_qa_gated_and_human_gated(control, tmp_path):
             reason=f"completed {state.lower()} controls",
         )
 
-    control.record_qa(
+    failed_qa_id = control.record_qa(
         project_id=project_id,
         run_id=run_id,
         subject_id=asset_id,
@@ -128,7 +130,12 @@ def test_promotion_is_sequential_qa_gated_and_human_gated(control, tmp_path):
         detail="totals do not reconcile",
         evidence_ids=[evidence_id],
     )
-    with pytest.raises(PromotionError, match="blocking QA"):
+    with control.connect() as connection:
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            connection.execute(
+                "UPDATE qa_results SET passed = 1 WHERE id = ?", (failed_qa_id,)
+            )
+    with pytest.raises(PromotionError, match="required QA checks"):
         control.promote(
             project_id=project_id,
             asset_id=asset_id,
@@ -184,7 +191,29 @@ def test_initialize_creates_verified_backup(tmp_path):
     database = tmp_path / "control.sqlite3"
     control = ControlPlane(database)
     assert control.initialize() is None
+    control.create_project(
+        {
+            "project_id": "TEST-1",
+            "jurisdiction": "Oklahoma",
+            "county": "Beckham",
+            "section": "32",
+        }
+    )
+    writer = sqlite3.connect(database)
+    writer.execute("PRAGMA journal_mode = WAL")
+    writer.execute("PRAGMA wal_autocheckpoint = 0")
+    writer.execute(
+        """INSERT INTO projects(
+               id, jurisdiction, county, section, status,
+               security_classification, created_at
+           ) VALUES ('TEST-WAL', 'Oklahoma', 'Beckham', '31', 'active',
+                     'CONFIDENTIAL', '2026-07-11T00:00:00+00:00')"""
+    )
+    writer.commit()
     backup = control.initialize()
+    writer.close()
     assert backup is not None
     assert backup.exists()
-    assert backup.read_bytes() == database.read_bytes()
+    with sqlite3.connect(backup) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert connection.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 2

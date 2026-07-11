@@ -1,6 +1,8 @@
 import os
 import shutil
 import tempfile
+import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -30,9 +32,37 @@ def create_staging_copy(path: str | Path, staging_dir: str | Path = "data/stagin
     return destination
 
 
+@contextmanager
+def _workbook_lock(path: Path, timeout: float = 30.0):
+    """Serialize cross-process workbook writes with an exclusive sidecar file."""
+    lock_path = path.with_name(f".{path.name}.lock")
+    deadline = time.monotonic() + timeout
+    descriptor = None
+    while descriptor is None:
+        try:
+            descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"timed out waiting for workbook lock: {lock_path}")
+            time.sleep(0.1)
+    try:
+        os.write(descriptor, f"pid={os.getpid()}\n".encode())
+        yield
+    finally:
+        os.close(descriptor)
+        lock_path.unlink(missing_ok=True)
+
+
 def update_workbook(path: str | Path, sheet: str, owner: str, row_data: dict) -> bool:
-    """Update a complete workbook atomically without dropping unrelated sheets."""
+    """Update a complete workbook atomically without dropping concurrent edits."""
     path = Path(path)
+    with _workbook_lock(path):
+        return _update_workbook_unlocked(path, sheet, owner, row_data)
+
+
+def _update_workbook_unlocked(
+    path: Path, sheet: str, owner: str, row_data: dict
+) -> bool:
     keep_vba = path.suffix.lower() == ".xlsm"
     workbook = load_workbook(path, keep_vba=keep_vba)
     temporary = None

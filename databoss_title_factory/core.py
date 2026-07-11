@@ -156,11 +156,19 @@ def resume_pipeline(
     )
     completed: list[str] = []
     skipped: list[str] = []
-    for stage, required_artifact, action, artifacts in stages:
+    rerun_downstream = False
+    for stage, _required_artifact, action, artifacts in stages:
         if (
-            statuses.get(stage) in {"PASSED", "READY FOR REVIEW"}
-            and artifact_checkpoint_valid(
-                ctx.output_dir, ctx.run_id, stage, required_artifact
+            not rerun_downstream
+            and statuses.get(stage) in {"PASSED", "READY FOR REVIEW"}
+            and all(
+                artifact_checkpoint_valid(
+                    ctx.output_dir,
+                    ctx.run_id,
+                    stage,
+                    ctx.run_dir / relative_path,
+                )
+                for relative_path in artifacts
             )
         ):
             skipped.append(stage)
@@ -175,6 +183,7 @@ def resume_pipeline(
         _archive_retry_artifacts(ctx, stage, artifacts)
         action()
         completed.append(stage)
+        rerun_downstream = True
     return {
         "run_id": ctx.run_id,
         "status": "READY FOR REVIEW",
@@ -1255,12 +1264,21 @@ def _field_provenance(
     ]
     block_tokens = [_norm(block.get("text", "")) for block in blocks]
     matched: list[dict[str, Any]] = []
+    match_start: Optional[int] = None
     if value_tokens:
         for start in range(max(0, len(block_tokens) - len(value_tokens) + 1)):
             segment = block_tokens[start:start + len(value_tokens)]
             if segment == value_tokens:
                 matched = blocks[start:start + len(value_tokens)]
+                match_start = start
                 break
+    semantic_support = _field_span_is_semantic(
+        field,
+        value,
+        value_tokens,
+        block_tokens,
+        match_start,
+    )
     boxes = [block["bounding_box"] for block in matched if block.get("bounding_box")]
     bounding_box = None
     if boxes:
@@ -1271,12 +1289,15 @@ def _field_provenance(
             "y2": max(box["y2"] for box in boxes),
             "coordinate_space": boxes[0].get("coordinate_space", "pixels"),
         }
-    direct_text = _norm(value) in _norm(citation.get("text", ""))
+    direct_text = (
+        _norm(value) in _norm(citation.get("text", ""))
+        and semantic_support
+    )
     confidence = (
         sum(float(block.get("confidence", 0.0)) for block in matched) / len(matched)
         if matched else float(citation.get("confidence", 0.0))
     )
-    if bounding_box:
+    if bounding_box and semantic_support:
         status = "DIRECT_SOURCE_SUPPORT"
         support = min(1.0, 0.65 + 0.35 * confidence)
     elif direct_text:
@@ -1303,6 +1324,63 @@ def _field_provenance(
         "source_support_score": round(support, 4),
         "review_status": status,
     }
+
+
+_FIELD_LABEL_SEQUENCES: dict[str, tuple[tuple[str, ...], ...]] = {
+    "instrument_number": (
+        ("INSTRUMENT", "NUMBER"), ("INSTRUMENT", "NO"), ("DOCUMENT", "NUMBER"),
+        ("DOC", "NO"), ("RECEPTION", "NUMBER"),
+    ),
+    "instrument_date": (("INSTRUMENT", "DATE"), ("EXECUTION", "DATE"), ("DATED",)),
+    "recorded_date": (("RECORDED", "DATE"), ("RECORDING", "DATE"), ("FILED",)),
+    "book": (("BOOK",), ("BK",)),
+    "page": (("PAGE",), ("PG",)),
+    "grantor": (("GRANTOR",), ("LESSOR",), ("ASSIGNOR",), ("FROM",)),
+    "grantee": (("GRANTEE",), ("LESSEE",), ("ASSIGNEE",), ("TO",)),
+    "legal_description": (
+        ("LEGAL", "DESCRIPTION"), ("LAND",), ("LANDS",), ("TRACT",),
+    ),
+    "interest_conveyed": (
+        ("INTEREST", "CONVEYED"), ("CONVEYED", "INTEREST"), ("INTEREST",),
+    ),
+    "lease_royalty_terms": (
+        ("LEASE", "ROYALTY"), ("ROYALTY", "TERMS"), ("ROYALTY",),
+    ),
+}
+
+
+def _field_span_is_semantic(
+    field: str,
+    value: str,
+    value_tokens: list[str],
+    block_tokens: list[str],
+    match_start: Optional[int],
+) -> bool:
+    if not value_tokens or match_start is None:
+        return False
+    label_words = {
+        token
+        for sequences in _FIELD_LABEL_SEQUENCES.values()
+        for sequence in sequences
+        for token in sequence
+    }
+    if len(value_tokens) == 1 and value_tokens[0] in label_words:
+        return False
+    if field == "instrument_type":
+        return bool(_TYPE_RX.fullmatch(value.strip()))
+    if field == "legal_description" and len(value_tokens) >= 3:
+        legal_markers = {"SECTION", "SEC", "TOWNSHIP", "RANGE", "NE4", "NW4", "SE4", "SW4"}
+        if any(token in legal_markers for token in value_tokens):
+            return True
+    sequences = _FIELD_LABEL_SEQUENCES.get(field, ())
+    for sequence in sequences:
+        length = len(sequence)
+        for label_start in range(max(0, match_start - length - 5), match_start):
+            if tuple(block_tokens[label_start:label_start + length]) == sequence:
+                label_end = label_start + length
+                if label_end <= match_start and match_start - label_end <= 4:
+                    return True
+    return False
 
 
 def _load_external_candidates(path: Optional[str | Path], engine: str) -> Optional[list[dict[str, Any]]]:

@@ -104,6 +104,114 @@ def latest_run(root: str | Path) -> RunContext:
     return RunContext(root_path, output, run_dir, run_id)
 
 
+def resume_pipeline(
+    ctx: RunContext,
+    weak_threshold: float = 0.65,
+    cursor_json: Optional[str | Path] = None,
+    codex_json: Optional[str | Path] = None,
+) -> dict[str, Any]:
+    """Continue the same run from its last validated artifact checkpoint."""
+    from .project_db import (
+        artifact_checkpoint_valid,
+        is_pause_requested,
+        request_pause,
+        stage_statuses,
+    )
+
+    request_pause(ctx.output_dir, ctx.run_id, False)
+    statuses = {row["stage"]: row["status"] for row in stage_statuses(ctx.output_dir, ctx.run_id)}
+    stages = (
+        (
+            "INVENTORY",
+            ctx.run_dir / "file_inventory.json",
+            lambda: build_inventory(ctx),
+            ("file_inventory.json", "project_manifest.csv", "duplicate_map.csv"),
+        ),
+        (
+            "OCR",
+            ctx.run_dir / "ocr_citations.jsonl",
+            lambda: run_ocr(ctx, weak_threshold=weak_threshold),
+            ("ocr_citations.jsonl", "ocr_attempts.jsonl"),
+        ),
+        (
+            "RECONCILE",
+            ctx.run_dir / "instruments.json",
+            lambda: extract_and_reconcile(
+                ctx,
+                weak_threshold=weak_threshold,
+                cursor_json=cursor_json,
+                codex_json=codex_json,
+            ),
+            (
+                "instruments.json", "field_conflicts.json",
+                "reconciliation_audit.jsonl",
+            ),
+        ),
+        (
+            "RUNSHEET",
+            ctx.run_dir / "runsheet_bundle.json",
+            lambda: build_runsheet(ctx),
+            ("runsheet_bundle.json", "runsheet.csv", "missing_documents.csv"),
+        ),
+    )
+    completed: list[str] = []
+    skipped: list[str] = []
+    for stage, required_artifact, action, artifacts in stages:
+        if (
+            statuses.get(stage) in {"PASSED", "READY FOR REVIEW"}
+            and artifact_checkpoint_valid(
+                ctx.output_dir, ctx.run_id, stage, required_artifact
+            )
+        ):
+            skipped.append(stage)
+            continue
+        if is_pause_requested(ctx.output_dir, ctx.run_id):
+            return {
+                "run_id": ctx.run_id,
+                "status": "PAUSED",
+                "completed": completed,
+                "skipped": skipped,
+            }
+        _archive_retry_artifacts(ctx, stage, artifacts)
+        action()
+        completed.append(stage)
+    return {
+        "run_id": ctx.run_id,
+        "status": "READY FOR REVIEW",
+        "completed": completed,
+        "skipped": skipped,
+    }
+
+
+def _archive_retry_artifacts(
+    ctx: RunContext,
+    stage: str,
+    relative_paths: Sequence[str],
+) -> None:
+    existing = [ctx.run_dir / relative for relative in relative_paths if (ctx.run_dir / relative).exists()]
+    if not existing:
+        return
+    archive = ctx.run_dir / "retry_archive" / f"{_now_id()}_{stage.lower()}"
+    archive.mkdir(parents=True, exist_ok=False)
+    for source in existing:
+        destination = archive / source.relative_to(ctx.run_dir)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_file():
+            shutil.copy2(source, destination)
+
+
+def _record_stage_artifacts(
+    ctx: RunContext,
+    stage: str,
+    paths: Sequence[Path],
+) -> None:
+    from .project_db import record_artifact
+
+    for path in paths:
+        if path.is_file():
+            record_artifact(ctx.output_dir, ctx.run_id, stage, path)
+
+
 def _atomic_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(f".{path.name}.{_now_id()}.tmp")
@@ -138,6 +246,15 @@ def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
         for block in iter(lambda: handle.read(chunk_size), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _assert_inventory_hash(path: Path, expected_hash: str) -> None:
+    current_hash = _sha256(path)
+    if not expected_hash or current_hash != expected_hash:
+        raise RuntimeError(
+            "SOURCE HASH MISMATCH: file changed after inventory; processing blocked "
+            f"(expected={expected_hash or 'missing'}, current={current_hash})"
+        )
 
 
 def build_inventory(ctx: RunContext) -> list[dict[str, Any]]:
@@ -232,6 +349,15 @@ def build_inventory(ctx: RunContext) -> list[dict[str, Any]]:
     _write_csv(ctx.run_dir / "project_manifest.csv", records, fields)
     _write_csv(ctx.run_dir / "duplicate_map.csv", duplicate_rows, fields)
     _build_report_candidate_scorecard(ctx, records)
+    _record_stage_artifacts(
+        ctx,
+        "INVENTORY",
+        (
+            ctx.run_dir / "file_inventory.json",
+            ctx.run_dir / "project_manifest.csv",
+            ctx.run_dir / "duplicate_map.csv",
+        ),
+    )
     update_stage(
         ctx.output_dir,
         ctx.run_id,
@@ -450,11 +576,16 @@ def _safe_rel_name(rel: str) -> str:
     return f"{clean[:100]}_{suffix}" if clean else suffix
 
 
-def _prepare_image_variants(source: Path, destination_stem: Path) -> list[dict[str, str]]:
+def _prepare_image_variants(
+    source: Path,
+    destination_stem: Path,
+    frame_index: int = 0,
+) -> list[dict[str, str]]:
     from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
     destination_stem.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(source) as opened:
+        opened.seek(frame_index)
         oriented = ImageOps.exif_transpose(opened)
         if oriented.width < 1800:
             scale = min(3.0, 1800 / max(oriented.width, 1))
@@ -523,14 +654,36 @@ def preprocess_images(ctx: RunContext, dpi: int = 240) -> list[dict[str, Any]]:
         source = ctx.root / rel
         stem = _safe_rel_name(rel)
         if ext in IMAGE_EXTENSIONS:
-            destination_stem = ctx.preprocessed_dir / f"{stem}_page_0001"
             try:
-                variants = _prepare_image_variants(source, destination_stem)
-                pages.append(_page_map(rel, record["sha256"], 1, variants, ctx))
+                _assert_inventory_hash(source, str(record.get("sha256", "")))
+                from PIL import Image
+
+                with Image.open(source) as image:
+                    frame_count = int(getattr(image, "n_frames", 1))
+                for frame_index in range(frame_count):
+                    page_number = frame_index + 1
+                    destination_stem = (
+                        ctx.preprocessed_dir / f"{stem}_page_{page_number:04d}"
+                    )
+                    variants = _prepare_image_variants(
+                        source,
+                        destination_stem,
+                        frame_index=frame_index,
+                    )
+                    pages.append(
+                        _page_map(
+                            rel,
+                            record["sha256"],
+                            page_number,
+                            variants,
+                            ctx,
+                        )
+                    )
             except Exception as exc:
                 errors.append({"source_path": rel, "error": str(exc)})
         elif ext in PDF_EXTENSIONS:
             try:
+                _assert_inventory_hash(source, str(record.get("sha256", "")))
                 import fitz
 
                 with fitz.open(source) as document:
@@ -554,6 +707,14 @@ def preprocess_images(ctx: RunContext, dpi: int = 240) -> list[dict[str, Any]]:
         ctx.quarantine_dir / "preprocess_failures.csv",
         errors,
         ("source_path", "error"),
+    )
+    _record_stage_artifacts(
+        ctx,
+        "PREPROCESS",
+        (
+            ctx.run_dir / "preprocessed_pages.json",
+            ctx.run_dir / "preprocess_errors.json",
+        ),
     )
     update_stage(
         ctx.output_dir,
@@ -797,26 +958,36 @@ def run_ocr(ctx: RunContext, weak_threshold: float = 0.55) -> list[dict[str, Any
         rel = str(item.get("source_path", ""))
         ext = str(item.get("extension", "")).lower()
         try:
+            if ext in SUPPORTED_EXTENSIONS:
+                _assert_inventory_hash(ctx.root / rel, str(item.get("sha256", "")))
             if ext in TEXT_EXTENSIONS | TABLE_EXTENSIONS:
                 records.extend(_text_records(ctx, item))
             elif ext in PDF_EXTENSIONS:
                 records.extend(_ocr_pdf(ctx, rel, page_index, attempts))
             elif ext in IMAGE_EXTENSIONS:
-                mapped = page_index.get((rel, 1))
-                if mapped:
+                source_pages = sorted(
+                    (
+                        mapped for (source_path, _page), mapped in page_index.items()
+                        if source_path == rel
+                    ),
+                    key=lambda mapped: int(mapped["page"]),
+                )
+                for mapped in source_pages:
+                    page_number = int(mapped["page"])
                     best, page_attempts = _best_page_ocr(ctx, mapped)
                     attempts.extend(
                         {
                             **attempt,
                             "source_path": rel,
                             "source_file_hash": mapped["source_file_hash"],
-                            "page": 1,
+                            "page": page_number,
                         }
                         for attempt in page_attempts
                     )
                     records.append(
                         _citation(
-                            rel, "page=1", best["text"], best["confidence"], "tesseract",
+                            rel, f"page={page_number}", best["text"],
+                            best["confidence"], "tesseract",
                             source_file_hash=mapped["source_file_hash"],
                             derived_image_path=best["derived_image_path"],
                             preprocessing_recipe=best["preprocessing_recipe"],
@@ -844,6 +1015,14 @@ def run_ocr(ctx: RunContext, weak_threshold: float = 0.55) -> list[dict[str, Any
     _write_csv(ctx.quarantine_dir / "weak_ocr_results.csv", weak, fields)
     _write_json(ctx.quarantine_dir / "ocr_failures.json", failures)
     _write_csv(ctx.quarantine_dir / "ocr_failures.csv", failures, ("source_path", "error"))
+    _record_stage_artifacts(
+        ctx,
+        "OCR",
+        (
+            ctx.run_dir / "ocr_citations.jsonl",
+            ctx.run_dir / "ocr_attempts.jsonl",
+        ),
+    )
     update_stage(
         ctx.output_dir,
         ctx.run_id,
@@ -1138,8 +1317,25 @@ def _load_external_candidates(path: Optional[str | Path], engine: str) -> Option
     if not isinstance(data, list):
         raise ValueError(f"{engine.title()} output must be a JSON object or array.")
     normalized: list[dict[str, Any]] = []
-    for row in data:
+    for index, row in enumerate(data):
         if not isinstance(row, dict):
+            normalized.append(
+                {
+                    **{field: "" for field in INSTRUMENT_FIELDS},
+                    "engine": engine,
+                    "confidence": 0.0,
+                    "citation": "",
+                    "source_path": "",
+                    "source_locator": "",
+                    "source_file_hash": "",
+                    "derived_image_path": "",
+                    "extraction_method": engine,
+                    "field_provenance": {},
+                    "raw_candidate": row,
+                    "raw_candidate_index": index,
+                    "validation_errors": ["Candidate entry is not a JSON object."],
+                }
+            )
             continue
         normalized.append(
             {
@@ -1156,6 +1352,12 @@ def _load_external_candidates(path: Optional[str | Path], engine: str) -> Option
                     row.get("field_provenance")
                     if isinstance(row.get("field_provenance"), dict)
                     else {}
+                ),
+                "raw_candidate": row,
+                "raw_candidate_index": index,
+                "validation_errors": (
+                    [] if isinstance(row.get("field_provenance", {}), dict)
+                    else ["field_provenance must be an object."]
                 ),
             }
         )
@@ -1180,7 +1382,14 @@ def _validate_candidate_evidence(
             and candidate.get("source_file_hash")
             and candidate.get("source_file_hash") == evidence.get("source_file_hash")
         )
-        provenance = candidate.get("field_provenance", {})
+        # Never trust model-supplied support scores or geometry. Rebuild support
+        # exclusively from the current run's source evidence ledger.
+        provenance = {
+            field: _field_provenance(evidence, field, str(candidate.get(field, "")))
+            for field in INSTRUMENT_FIELDS
+            if evidence and str(candidate.get(field, "")).strip()
+        }
+        candidate["field_provenance"] = provenance
         populated = [
             field for field in INSTRUMENT_FIELDS if str(candidate.get(field, "")).strip()
         ]
@@ -1201,6 +1410,34 @@ def _validate_candidate_evidence(
     return candidates
 
 
+def _archive_external_candidate_file(
+    ctx: RunContext,
+    path: Optional[str | Path],
+    engine: str,
+) -> Optional[dict[str, Any]]:
+    if not path:
+        return None
+    source = Path(path).expanduser().resolve()
+    if not source.is_file():
+        raise FileNotFoundError(f"{engine.title()} output does not exist: {source}")
+    destination = ctx.run_dir / "candidates" / f"{engine}_raw_input{source.suffix.lower()}"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+    manifest = {
+        "engine": engine,
+        "original_path": str(source),
+        "archived_path": str(destination),
+        "sha256": _sha256(destination),
+        "size_bytes": destination.stat().st_size,
+        "status": "RAW INPUT - RETAINED BEFORE PARSING",
+    }
+    _write_json(
+        ctx.run_dir / "candidates" / f"{engine}_raw_input_manifest.json",
+        manifest,
+    )
+    return manifest
+
+
 def extract_and_reconcile(
     ctx: RunContext,
     weak_threshold: float = 0.65,
@@ -1216,6 +1453,8 @@ def extract_and_reconcile(
         str(item.get("citation", "")).strip(): item
         for item in ocr if str(item.get("citation", "")).strip()
     }
+    _archive_external_candidate_file(ctx, cursor_json, "cursor")
+    _archive_external_candidate_file(ctx, codex_json, "codex")
     cursor = _load_external_candidates(cursor_json, "cursor")
     codex = _load_external_candidates(codex_json, "codex")
     if cursor is None:
@@ -1267,6 +1506,7 @@ def extract_and_reconcile(
     _write_json(ctx.run_dir / "instruments.json", reconciled)
     _write_csv(ctx.run_dir / "instruments.csv", reconciled, EXPORT_FIELDS)
     weak = [row for row in reconciled if row["status"] == "QUARANTINED - REVIEW REQUIRED"]
+    review_rows = [row for row in reconciled if row["status"] != "ACCEPTED"]
     if weak:
         _write_json(ctx.quarantine_dir / "weak_instruments.json", weak)
         _write_csv(ctx.quarantine_dir / "weak_instruments.csv", weak, EXPORT_FIELDS)
@@ -1278,16 +1518,27 @@ def extract_and_reconcile(
             "weak_instrument_count": len(weak),
         },
     )
+    _record_stage_artifacts(
+        ctx,
+        "RECONCILE",
+        (
+            ctx.run_dir / "instruments.json",
+            ctx.run_dir / "field_conflicts.json",
+            ctx.run_dir / "reconciliation_audit.jsonl",
+            ctx.run_dir / "candidates" / "candidate_archive.jsonl",
+        ),
+    )
     update_stage(
         ctx.output_dir,
         ctx.run_id,
         "RECONCILE",
-        "READY FOR REVIEW" if weak or conflicts else "PASSED",
+        "READY FOR REVIEW" if review_rows or conflicts else "PASSED",
         {
             "candidate_count": len(archive),
             "instrument_count": len(reconciled),
             "conflict_count": len(conflicts),
             "quarantine_count": len(weak),
+            "review_count": len(review_rows),
         },
     )
     return reconciled
@@ -1644,6 +1895,15 @@ def build_runsheet(ctx: RunContext) -> dict[str, list[dict[str, Any]]]:
     )
     _write_csv(ctx.run_dir / "ogl_draft.csv", ogl, EXPORT_FIELDS)
     _write_csv(ctx.run_dir / "tract_drafts.csv", tracts, ("tract_id", *EXPORT_FIELDS))
+    _record_stage_artifacts(
+        ctx,
+        "RUNSHEET",
+        (
+            ctx.run_dir / "runsheet_bundle.json",
+            ctx.run_dir / "runsheet.csv",
+            ctx.run_dir / "missing_documents.csv",
+        ),
+    )
     update_stage(
         ctx.output_dir,
         ctx.run_id,
@@ -1844,6 +2104,16 @@ def export_safe_xlsx(
     }
     _write_json(ctx.run_dir / "export_manifest.json", export_manifest)
     _write_json(package / "package_manifest.json", export_manifest)
+    _record_stage_artifacts(
+        ctx,
+        "EXPORT_REVIEW_PACKAGE",
+        (
+            destination,
+            control_workbook,
+            package / "workbook_preservation_audit.json",
+            package / "package_manifest.json",
+        ),
+    )
     update_stage(
         ctx.output_dir,
         ctx.run_id,

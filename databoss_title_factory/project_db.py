@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
@@ -125,3 +126,59 @@ def stage_statuses(output_dir: str | Path, run_id: str) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def record_artifact(
+    output_dir: str | Path,
+    run_id: str,
+    stage: str,
+    path: str | Path,
+    status: str = "ACTIVE",
+) -> None:
+    artifact = Path(path)
+    digest = _sha256(artifact) if artifact.is_file() else ""
+    with _connect(output_dir) as connection:
+        connection.execute(
+            """
+            INSERT INTO artifacts(run_id, stage, path, sha256, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id, path) DO UPDATE SET
+                stage=excluded.stage,
+                sha256=excluded.sha256,
+                status=excluded.status,
+                created_at=excluded.created_at
+            """,
+            (
+                run_id,
+                stage,
+                str(artifact),
+                digest,
+                status,
+                dt.datetime.now(dt.timezone.utc).isoformat(),
+            ),
+        )
+
+
+def artifact_checkpoint_valid(
+    output_dir: str | Path,
+    run_id: str,
+    stage: str,
+    path: str | Path,
+) -> bool:
+    artifact = Path(path)
+    if not artifact.is_file():
+        return False
+    with _connect(output_dir) as connection:
+        row = connection.execute(
+            "SELECT sha256, status FROM artifacts WHERE run_id=? AND stage=? AND path=?",
+            (run_id, stage, str(artifact)),
+        ).fetchone()
+    return bool(row and row["status"] == "ACTIVE" and row["sha256"] == _sha256(artifact))

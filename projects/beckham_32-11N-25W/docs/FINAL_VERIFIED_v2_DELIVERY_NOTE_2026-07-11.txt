@@ -1,0 +1,54 @@
+SECTION 32-11N-25W, BECKHAM COUNTY - FINAL VERIFIED BUILD v2 (supersedes v1)
+Build: 2026-07-11 | SHA-256: 1d8b4a67c540ba41a6340530d9b17bae4e4c4c840de0e552daa2268ef3265b02
+Size: 660,580 bytes | 13 template sheets, exact order, PLAT hidden, plat/parcel images intact
+Location: GitHub DataBossX/DataBoss, branch claude/kimi-section31-qa-audit-5lccqy,
+  beckham32/final_delivery/32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_FINAL_VERIFIED_2026-07-11.xlsx
+  (download, verify SHA-256, place in this folder)
+
+WHAT v2 ADDS OVER v1
+1. RUNSHEET NOW COMPLETE AGAINST EVERY PROJECT REGISTER - 102 chronological
+   rows. A programmatic completeness proof cross-references every Book/Page
+   (books 300-2600) appearing anywhere in the 19-sheet working register
+   against the workbook: 0 missing. New in v2: 2022 JPMorgan/Unbridled lien
+   origins (2378/143, 2380/403); index-gap boundary records I-2011-001515
+   (2042/9) and I-2012-001013 (2080/798-799); related Unbridled/MNR filings
+   (2415/237, 2417/1); Fortune companion 2168/35 with page-discrepancy note;
+   referenced collateral instruments 2341/127, 2389/590, 2389/630; and the
+   Presidio WAB and BCE-Mach parallel chains, each flagged SEPARATE - never
+   blended into any Diversified branch. Duplicate scan: 0 (the 440/269
+   re-record is flagged, not double-counted).
+2. WI 1 (principal branch): direct-branch lien/release cycle (BofA 2371/439,
+   KeyBank 2395/370/967/973) + the full Canvas / DP Ponies branch
+   (2475/943 - 2487/28) added to the evidence grid.
+3. WI 2 (parallel branch): Fortune/FourPoint inputs, Teocalli carveout
+   (CRITICAL), MNR/UMB mortgage family, 2025 merger, JPM release family.
+4. TRACT 1 chained out: verified pooling Order 156126, Hunt Petroleum ->
+   Petro-Hunt/Rosewood split with schedule-stated decimals (flagged for
+   second visual check), ENI/Quinoco branch (name-collision warning), and the
+   Mesa -> ... -> Complete operator chain (regulatory only).
+5. TRACT 4 chained out: the complete lease 66032-21-1 needle chain from the
+   1977 Minton-Hartman root through every burden, with the FNB Dallas lien
+   family carried.
+6. WELL 1: every well row now carries the full dated OCC order stack with
+   depth intervals (67733/612937/145162/147147/295220 + well-specific
+   orders); Order 129891 explicitly rejected for JGL (covers T10N).
+7. Instrument dates and recording timestamps patched from OKCR detail rows
+   (e.g. 2371/470 instrument 2021-12-02, recorded 2022-01-12 12:16 PM).
+
+EVIDENCE-TIER HONESTY
+Historic rows: DIRECT IMAGE with image ranges (visually verified in the local
+review; evidence-pack captions independently re-checked this session - the
+packs embed scans as images, so caption-level corroboration, not fresh OCR).
+OCC Order 156126: full text independently read from the official PDF this
+session. Modern rows: INDEX ONLY / PUBLIC METADATA on their face. Referenced
+collateral: REFERENCED BY RELEASE/TERMINATION - not independently reviewed.
+
+QA v2 (all gates PASS)
+residue 0 | negatives 0 | formula errors 0 | external links 0 |
+duplicate instruments 0 | register completeness 0 missing | media parts 7/7
+
+UNCHANGED FINAL ANSWERS (correctly gated)
+Diversified decimal: NO | Vested entity: NO | Image cutoff Bk 1014/75
+(4/26/1988) | Index certified 7/1/2026, continuation closed 7/9/2026, last
+entry 2490/471-473 | Next action: approve the $8.80 Tier 1 pull queue, then
+decimals become possible; rerun continuation 7/17/2026.

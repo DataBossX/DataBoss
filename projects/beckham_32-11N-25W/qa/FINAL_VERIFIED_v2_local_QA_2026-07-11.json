@@ -1,0 +1,83 @@
+{
+  "workbook": "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_FINAL_VERIFIED_2026-07-11.xlsx",
+  "run_date": "2026-07-11",
+  "sheet_names": [
+    "Overview",
+    "Title ",
+    "OGL",
+    "PLAT",
+    "Runsheet",
+    "Tract 1",
+    "Tract 2",
+    "Tract 3",
+    "Tract 4",
+    "Tract 5",
+    "WI 2",
+    "WI 1",
+    "Well 1"
+  ],
+  "sheet_order_ok": true,
+  "sheet_states": {
+    "Overview": "visible",
+    "Title ": "visible",
+    "OGL": "visible",
+    "PLAT": "hidden",
+    "Runsheet": "visible",
+    "Tract 1": "visible",
+    "Tract 2": "visible",
+    "Tract 3": "visible",
+    "Tract 4": "visible",
+    "Tract 5": "visible",
+    "WI 2": "visible",
+    "WI 1": "visible",
+    "Well 1": "visible"
+  },
+  "stale_term_hits": [
+    "Runsheet!C98:Presidio WAB",
+    "Runsheet!G98:Presidio WAB",
+    "Runsheet!H98:Presidio WAB",
+    "Runsheet!J98:Presidio WAB"
+  ],
+  "negative_constants": [],
+  "formula_cells": 0,
+  "formula_error_tokens": [],
+  "defined_names_total": 22,
+  "defined_names_broken": [
+    "_Fill",
+    "_Key1",
+    "_Sort",
+    "Check1_1",
+    "Check2_1",
+    "Check3_1",
+    "Check4_1",
+    "check5",
+    "Check5_1",
+    "Check6_1",
+    "Check7_1",
+    "oijjjojoijpojpoi",
+    "Plat_LastSaved",
+    "SORT",
+    "Test",
+    "Test1",
+    "Test2",
+    "Test3",
+    "Test4",
+    "Tract",
+    "XXXXXX"
+  ],
+  "external_link_parts": [],
+  "runsheet_hyperlinks": 0,
+  "runsheet_dimensions": "A1:K145",
+  "runsheet_bookpage_rows": 0,
+  "runsheet_duplicate_bookpage": {},
+  "runsheet_tier_keyword_row_counts": {
+    "DIRECT": 30,
+    "INDEX": 68,
+    "PUBLIC METADATA": 38,
+    "OPEN": 61
+  },
+  "verdict_notes": [
+    "This scan measures workbook mechanics only. It does not and cannot",
+    "validate title conclusions; ownership remains OPEN per the readiness statement."
+  ]
+}

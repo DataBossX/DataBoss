@@ -79,7 +79,11 @@ st.markdown(
 
 
 def _default_root() -> str:
-    return os.environ.get("DATABOSS_PROJECT_ROOT", str(Path.cwd()))
+    return os.environ.get(
+        "DATABOSS_PROJECT_ROOT",
+        r"D:\Desktop\Horizon\32-11N-25W, Beckham County"
+        if os.name == "nt" else str(Path.cwd()),
+    )
 
 
 def _context(root: str):
@@ -104,18 +108,38 @@ def _run_action(label: str, action):
 
 with st.sidebar:
     st.markdown("## CONTROL DESK")
+    work_type = st.selectbox(
+        "Work type",
+        (
+            "Horizon Oklahoma Title Report",
+            "Penterra Wyoming County Abstract",
+            "Penterra Federal Lease Abstract",
+            "Certification Letter",
+            "Abstract Checklist",
+        ),
+    )
     project_root = st.text_input(
-        "Project folder",
+        "Source folder (validated local path)",
         value=st.session_state.get("project_root", _default_root()),
         help="The folder is scanned read-only. Outputs go into a dedicated versioned subfolder.",
     )
     st.session_state["project_root"] = project_root
+    root_valid = Path(project_root).expanduser().is_dir()
+    if root_valid:
+        st.success("Local source folder found.")
+    else:
+        st.error("Folder not found on this computer.")
     template_path = st.text_input(
         "Excel template (.xlsx / .xlsm)",
         value=st.session_state.get("template_path", ""),
     )
     st.session_state["template_path"] = template_path
-    section = st.text_input("Section / project label", value="31-12N-24W")
+    selected_master = st.text_input(
+        "Best existing report (optional; preserved untouched)",
+        value=st.session_state.get("selected_master", ""),
+    )
+    st.session_state["selected_master"] = selected_master
+    section = st.text_input("Section / project label", value="32-11N-25W")
     weak_threshold = st.slider(
         "Quarantine below confidence",
         min_value=0.40,
@@ -124,19 +148,24 @@ with st.sidebar:
         step=0.01,
     )
     with st.expander("Tournament inputs (optional)"):
-        st.caption("Leave blank to use the two local deterministic candidate extractors.")
+        st.caption(
+            "Independent passes are archived. Agreement never establishes truth; "
+            "the current-run source image/text evidence controls."
+        )
         cursor_json = st.text_input("Cursor output JSON", value="")
         codex_json = st.text_input("Codex output JSON", value="")
     st.markdown("---")
     st.caption("SOURCE POLICY")
     st.markdown("Read-only inputs  \nVersioned outputs  \nNo deletion")
+    st.caption(f"ACTIVE WORK TYPE / {work_type}")
 
 st.markdown('<div class="factory-kicker">Evidence in. Auditable title work out.</div>', unsafe_allow_html=True)
 st.title("DataBoss Title Factory")
 st.markdown(
     '<div class="safety-strip">ZERO-DESTRUCTION LINE — originals are never moved, '
     "overwritten, or deleted. Every extracted fact carries a source citation. "
-    "Weak results remain visible in quarantine.</div>",
+    "Weak and losing results remain archived. Client workbook audit data stays "
+    "in a separate control workbook.</div>",
     unsafe_allow_html=True,
 )
 
@@ -152,7 +181,7 @@ for column, (label, key) in zip(
         ("Files", "files"),
         ("Citations", "ocr_citations"),
         ("Instruments", "instruments"),
-        ("Quarantined", "quarantined"),
+        ("Needs Review", "quarantined"),
         ("Runsheet", "runsheet_rows"),
     ),
 ):
@@ -166,6 +195,8 @@ with buttons[0]:
     st.markdown('<span class="stage-label">01</span>DISCOVER', unsafe_allow_html=True)
     if st.button("Run Inventory", type="primary", use_container_width=True):
         def inventory_action():
+            if not root_valid:
+                raise ValueError("Enter an existing local source folder.")
             new_ctx = start_run(project_root)
             return build_inventory(new_ctx)
 
@@ -195,7 +226,7 @@ with buttons[2]:
             st.error("Run Inventory and OCR first.")
         else:
             rows = _run_action(
-                "Running Cursor–Codex tournament reconciler",
+                "Running source-controlled reconciliation",
                 lambda: extract_and_reconcile(
                     ctx,
                     weak_threshold=weak_threshold,
@@ -220,19 +251,26 @@ with buttons[3]:
 
 with buttons[4]:
     st.markdown('<span class="stage-label">05</span>DELIVER', unsafe_allow_html=True)
-    if st.button("Export", use_container_width=True):
+    if st.button("Export Review Package", use_container_width=True):
         if not ctx:
             st.error("Build a run first.")
         elif not template_path:
             st.error("Choose an Excel template in the control desk.")
         else:
             output = _run_action(
-                "Copying template and creating safe draft sheets",
-                lambda: export_safe_xlsx(ctx, template_path, section),
+                "Auditing template and creating separate control package",
+                lambda: export_safe_xlsx(
+                    ctx,
+                    template_path,
+                    section,
+                    selected_master=selected_master or None,
+                ),
             )
             if output:
                 st.session_state["export_path"] = str(output)
-                st.success(f"Export created: {output}")
+                st.success(
+                    f"Review package created: {output}. This is not marked client-ready."
+                )
 
 st.markdown("---")
 left, right = st.columns([1.45, 1])

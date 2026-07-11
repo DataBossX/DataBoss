@@ -18,7 +18,15 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
 SCHEMA_VERSION = 1
-LIFECYCLE = ("SOURCE", "STAGING", "EXTRACTED", "RECONCILED", "QA", "APPROVED", "DELIVERED")
+LIFECYCLE = (
+    "SOURCE",
+    "STAGING",
+    "EXTRACTED",
+    "RECONCILED",
+    "QA",
+    "APPROVED",
+    "DELIVERED",
+)
 
 
 class PromotionError(ValueError):
@@ -69,9 +77,14 @@ class ControlPlane:
         """Initialize the schema, backing up an existing database first."""
         backup = None
         if self.database.exists() and self.database.stat().st_size:
-            destination = Path(backup_dir) if backup_dir else self.database.parent / "backups"
+            destination = (
+                Path(backup_dir) if backup_dir else self.database.parent / "backups"
+            )
             destination.mkdir(parents=True, exist_ok=True)
-            backup = destination / f"{self.database.stem}-{datetime.now():%Y%m%d-%H%M%S%f}.sqlite3"
+            backup = (
+                destination
+                / f"{self.database.stem}-{datetime.now():%Y%m%d-%H%M%S%f}.sqlite3"
+            )
             shutil.copy2(self.database, backup)
             if _file_digest(backup) != _file_digest(self.database):
                 backup.unlink(missing_ok=True)
@@ -207,7 +220,9 @@ class ControlPlane:
     ) -> str:
         if not locator.strip() or not extracted_text.strip() or not conclusion.strip():
             raise ValueError("locator, extracted_text, and conclusion are required")
-        invalid = {name: score for name, score in confidence.items() if not 0 <= score <= 1}
+        invalid = {
+            name: score for name, score in confidence.items() if not 0 <= score <= 1
+        }
         if invalid:
             raise ValueError(f"confidence scores must be between 0 and 1: {invalid}")
         payload = {
@@ -300,7 +315,9 @@ class ControlPlane:
         if status not in {"SUCCEEDED", "FAILED", "CANCELLED"}:
             raise ValueError("invalid terminal run status")
         with self.connect() as connection:
-            run = connection.execute("SELECT project_id FROM runs WHERE id = ?", (run_id,)).fetchone()
+            run = connection.execute(
+                "SELECT project_id FROM runs WHERE id = ?", (run_id,)
+            ).fetchone()
             if run is None:
                 raise ValueError(f"unknown run: {run_id}")
             for asset_id in output_asset_ids:
@@ -392,38 +409,19 @@ class ControlPlane:
             if row is None:
                 raise PromotionError("asset has no lifecycle state")
             from_state = row["state"]
-            expected = LIFECYCLE[LIFECYCLE.index(from_state) + 1] if from_state != LIFECYCLE[-1] else None
+            expected = (
+                LIFECYCLE[LIFECYCLE.index(from_state) + 1]
+                if from_state != LIFECYCLE[-1]
+                else None
+            )
             if to_state != expected:
-                raise PromotionError(f"invalid transition {from_state} -> {to_state}; expected {expected}")
+                raise PromotionError(
+                    f"invalid transition {from_state} -> {to_state}; expected {expected}"
+                )
             if to_state in {"APPROVED", "DELIVERED"} and not human_approved:
                 raise PromotionError(f"{to_state} requires explicit human approval")
             if to_state in {"QA", "APPROVED", "DELIVERED"}:
-                evidence_count = connection.execute(
-                    "SELECT COUNT(*) FROM evidence WHERE project_id = ? AND asset_id = ?",
-                    (project_id, asset_id),
-                ).fetchone()[0]
-                qa_count = connection.execute(
-                    "SELECT COUNT(*) FROM qa_results WHERE project_id = ? AND subject_id = ?",
-                    (project_id, asset_id),
-                ).fetchone()[0]
-                if not evidence_count or not qa_count:
-                    raise PromotionError("QA promotion requires linked evidence and QA results")
-                blocking = connection.execute(
-                    """SELECT COUNT(*) FROM qa_results failed
-                       WHERE failed.project_id = ? AND failed.subject_id = ?
-                         AND failed.passed = 0 AND failed.severity IN ('critical', 'error')
-                         AND NOT EXISTS (
-                             SELECT 1 FROM qa_results resolved
-                             WHERE resolved.project_id = failed.project_id
-                               AND resolved.subject_id = failed.subject_id
-                               AND resolved.check_name = failed.check_name
-                               AND resolved.passed = 1
-                               AND resolved.created_at > failed.created_at
-                         )""",
-                    (project_id, asset_id),
-                ).fetchone()[0]
-                if blocking:
-                    raise PromotionError(f"{blocking} blocking QA failure(s) remain")
+                self._require_qa_clearance(connection, project_id, asset_id)
 
             previous = connection.execute(
                 """SELECT receipt_hash FROM promotions
@@ -468,6 +466,38 @@ class ControlPlane:
                 (to_state, payload["created_at"], project_id, asset_id),
             )
         return promotion_id
+
+    @staticmethod
+    def _require_qa_clearance(
+        connection: sqlite3.Connection, project_id: str, asset_id: str
+    ) -> None:
+        evidence_count = connection.execute(
+            "SELECT COUNT(*) FROM evidence WHERE project_id = ? AND asset_id = ?",
+            (project_id, asset_id),
+        ).fetchone()[0]
+        qa_count = connection.execute(
+            "SELECT COUNT(*) FROM qa_results WHERE project_id = ? AND subject_id = ?",
+            (project_id, asset_id),
+        ).fetchone()[0]
+        if not evidence_count or not qa_count:
+            raise PromotionError("QA promotion requires linked evidence and QA results")
+
+        blocking = connection.execute(
+            """SELECT COUNT(*) FROM qa_results failed
+               WHERE failed.project_id = ? AND failed.subject_id = ?
+                 AND failed.passed = 0 AND failed.severity IN ('critical', 'error')
+                 AND NOT EXISTS (
+                     SELECT 1 FROM qa_results resolved
+                     WHERE resolved.project_id = failed.project_id
+                       AND resolved.subject_id = failed.subject_id
+                       AND resolved.check_name = failed.check_name
+                       AND resolved.passed = 1
+                       AND resolved.created_at > failed.created_at
+                 )""",
+            (project_id, asset_id),
+        ).fetchone()[0]
+        if blocking:
+            raise PromotionError(f"{blocking} blocking QA failure(s) remain")
 
     @staticmethod
     def _require_asset(

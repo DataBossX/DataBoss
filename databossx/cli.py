@@ -11,13 +11,17 @@ from .control_plane import ControlPlane
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="databossx", description="Controlled DataBossX project intake")
+    parser = argparse.ArgumentParser(
+        prog="databossx", description="Controlled DataBossX project intake"
+    )
     parser.add_argument("--database", default="databossx-control.sqlite3")
     commands = parser.add_subparsers(dest="command", required=True)
 
     commands.add_parser("init", help="initialize or verify the control database")
 
-    project = commands.add_parser("create-project", help="create a project from a JSON manifest")
+    project = commands.add_parser(
+        "create-project", help="create a project from a JSON manifest"
+    )
     project.add_argument("manifest")
 
     intake = commands.add_parser("intake", help="inventory a file or directory read-only")
@@ -36,7 +40,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     backup = control.initialize()
 
     if args.command == "init":
-        print(json.dumps({"database": str(control.database), "backup": str(backup) if backup else None}))
+        print(
+            json.dumps(
+                {
+                    "database": str(control.database),
+                    "backup": str(backup) if backup else None,
+                }
+            )
+        )
         return 0
 
     if args.command == "create-project":
@@ -46,28 +57,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     root = Path(args.path).expanduser().resolve(strict=True)
-    paths = [root] if root.is_file() else sorted(path for path in root.rglob("*") if path.is_file())
-    assets = [
-        control.ingest_asset(
-            args.project_id,
-            path,
-            source_authority=args.source_authority,
-            role=args.role,
-            security_classification=args.security_classification,
+    paths = (
+        [root]
+        if root.is_file()
+        else sorted(path for path in root.rglob("*") if path.is_file())
+    )
+    asset_ids = []
+    for path in paths:
+        asset_ids.append(
+            control.ingest_asset(
+                args.project_id,
+                path,
+                source_authority=args.source_authority,
+                role=args.role,
+                security_classification=args.security_classification,
+            )
         )
-        for path in paths
-    ]
+
     revision = control.create_manifest_revision(
         args.project_id,
         {"project_id": args.project_id, "source_locations": [str(root)]},
-        assets,
+        asset_ids,
     )
     print(
         json.dumps(
             {
                 "project_id": args.project_id,
                 "files_scanned": len(paths),
-                "unique_assets": len(set(assets)),
+                "unique_assets": len(set(asset_ids)),
                 "manifest_revision_id": revision,
             }
         )

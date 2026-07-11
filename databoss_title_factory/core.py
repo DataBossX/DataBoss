@@ -1389,10 +1389,21 @@ def _field_span_is_semantic(
             key = _ocr_line_key(block)
             if key not in ordered_lines:
                 ordered_lines.append(key)
+        recognized_type_lines: list[tuple[Any, Any, Any]] = []
+        for candidate_line in ordered_lines:
+            candidate_text = " ".join(
+                str(block.get("text", "")).strip()
+                for block in blocks
+                if _ocr_line_key(block) == candidate_line
+            ).strip(" \t:;-")
+            if _TYPE_RX.fullmatch(candidate_text):
+                recognized_type_lines.append(candidate_line)
         if (
             match_start == line_start
             and match_end == line_end
-            and ordered_lines.index(line_key) < 3
+            and recognized_type_lines
+            and line_key == recognized_type_lines[0]
+            and ordered_lines.index(line_key) < 5
         ):
             return True
     sequences = _FIELD_LABEL_SEQUENCES.get(field, ())

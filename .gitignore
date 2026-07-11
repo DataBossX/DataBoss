@@ -28,9 +28,16 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-# .env*.local
+# local env files and credentials
+.env
+.env.*
+!.env.example
+!**/.env.example
 *token.json*
+*.db
+*.sqlite
+*.sqlite3
+logs/
 # vercel
 .vercel
 
@@ -38,7 +45,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 *pyc*
-#*.env
 .ac
 agenthub/agents/youtube/db
 *credentials.json*
@@ -73,3 +79,4 @@ android-sdk/
 /output/
 _synthetic_corpus/
 .pytest_cache/
+/runtime/

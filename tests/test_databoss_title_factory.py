@@ -363,6 +363,49 @@ def test_party_provenance_requires_complete_correct_label_region(tmp_path: Path)
         assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
 
 
+def test_cross_references_cannot_control_instrument_type_or_legal(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    text = """Instrument Number: 2026-001234
+Warranty Deed
+Grantor: Ada Owner
+Grantee: Beacon Minerals LLC
+Notes: Subject to prior instruments.
+Assignment
+NE/4 Section 32, Township 11 North, Range 25 West
+"""
+    (project / "source.txt").write_text(text, encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    evidence = run_ocr(ctx)[0]
+    forged = {
+        "instrument_number": "2026-001234",
+        "instrument_type": "Assignment",
+        "legal_description": "NE/4 Section 32, Township 11 North, Range 25 West",
+        "confidence": 1.0,
+        "citation": evidence["citation"],
+        "source_path": evidence["source_path"],
+        "source_file_hash": evidence["source_file_hash"],
+        "field_provenance": {
+            "instrument_type": {"source_support_score": 1.0},
+            "legal_description": {"source_support_score": 1.0},
+        },
+    }
+    path = project / "cross_reference.json"
+    path.write_text(json.dumps([forged]), encoding="utf-8")
+
+    rows = extract_and_reconcile(
+        ctx,
+        weak_threshold=0.4,
+        cursor_json=path,
+        codex_json=path,
+    )
+
+    assert rows[0]["instrument_type"] == ""
+    assert rows[0]["legal_description"] == ""
+    assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
+
+
 def test_source_hash_change_after_inventory_blocks_ocr(tmp_path: Path):
     project = tmp_path / "project"
     project.mkdir()

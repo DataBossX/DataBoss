@@ -3,15 +3,25 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from .project_manifest import ControlFileError, sha256_file
 
 
-BROKEN_FORMULA_TOKENS = ("#REF!", "#NAME?", "#VALUE!", "#DIV/0!", "#NULL!")
+EXCEL_ERROR_VALUES = {
+    "#NULL!",
+    "#DIV/0!",
+    "#VALUE!",
+    "#REF!",
+    "#NAME?",
+    "#NUM!",
+    "#N/A",
+    "#GETTING_DATA",
+}
 MATH_CHECKS = {
     "negative_current_ownership",
     "ownership_totals",
@@ -104,12 +114,12 @@ def load_workbook_profile(path: Optional[Path]) -> Dict[str, Any]:
     return profile
 
 
-def _open_workbook(path: Path):
+def _open_workbook(path: Path, *, data_only: bool = False):
     import openpyxl
 
     return openpyxl.load_workbook(
         path,
-        data_only=False,
+        data_only=data_only,
         read_only=False,
         keep_links=True,
         keep_vba=path.suffix.lower() == ".xlsm",
@@ -128,7 +138,11 @@ def _formula_cells(workbook) -> Iterable[Tuple[str, str, str]]:
 
 def _is_broken_formula(formula: str) -> bool:
     upper = formula.upper()
-    return upper.startswith("=#") or any(token in upper for token in BROKEN_FORMULA_TOKENS)
+    return upper.startswith("=#") or any(token in upper for token in EXCEL_ERROR_VALUES)
+
+
+def _is_excel_error(value: Any) -> bool:
+    return isinstance(value, str) and value.upper() in EXCEL_ERROR_VALUES
 
 
 def _workbook_inventory(workbook) -> Dict[str, Any]:
@@ -188,34 +202,78 @@ def _check_result(
     )
 
 
-def _check_formulas(workbook, template) -> CheckResult:
+def _check_formulas(workbook, values_workbook, template) -> CheckResult:
     findings: List[QAFinding] = []
+    workbook_formulas = {
+        (sheet, cell): formula for sheet, cell, formula in _formula_cells(workbook)
+    }
     template_formulas = (
         {(sheet, cell): formula for sheet, cell, formula in _formula_cells(template)}
         if template
         else {}
     )
-    count = 0
-    for sheet, cell, formula in _formula_cells(workbook):
-        count += 1
-        if not _is_broken_formula(formula):
+    formula_coordinates = sorted(set(workbook_formulas) | set(template_formulas))
+    for sheet, cell in formula_coordinates:
+        formula = workbook_formulas.get((sheet, cell), "")
+        authoritative_formula = template_formulas.get((sheet, cell), "")
+        if authoritative_formula and formula != authoritative_formula:
+            findings.append(
+                QAFinding(
+                    check_id="no_broken_formulas",
+                    severity="blocking",
+                    code="authoritative_formula_mismatch",
+                    message=(
+                        f"Formula {formula!r} differs from template authority "
+                        f"{authoritative_formula!r}"
+                    ),
+                    sheet=sheet,
+                    cell=cell,
+                    repairable=True,
+                )
+            )
+            continue
+        cached = values_workbook[sheet][cell].value
+        formula_broken = _is_broken_formula(formula)
+        cached_error = _is_excel_error(cached)
+        cached_missing = cached is None
+        if not formula_broken and not cached_error and not cached_missing:
             continue
         replacement = template_formulas.get((sheet, cell), "")
+        repairable = bool(
+            replacement
+            and not _is_broken_formula(replacement)
+            and (formula_broken or cached_error)
+        )
+        if formula_broken or cached_error:
+            code = "broken_formula"
+            message = (
+                f"Formula {formula!r} has an invalid expression or cached "
+                f"error value {cached!r}"
+            )
+        else:
+            code = "formula_not_calculated"
+            message = (
+                f"Formula {formula!r} has no cached result; approved "
+                "recalculation is required"
+            )
         findings.append(
             QAFinding(
                 check_id="no_broken_formulas",
                 severity="blocking",
-                code="broken_formula",
-                message=f"Broken formula {formula!r}",
+                code=code,
+                message=message,
                 sheet=sheet,
                 cell=cell,
-                repairable=bool(replacement and not _is_broken_formula(replacement)),
+                repairable=repairable,
             )
         )
     return _check_result(
         "no_broken_formulas",
         findings,
-        {"formula_cells_checked": count},
+        {
+            "formula_cells_checked": len(formula_coordinates),
+            "validation_mode": "formula_text_and_cached_results",
+        },
     )
 
 
@@ -320,12 +378,23 @@ def _check_total_assertions(workbook, profile: Dict[str, Any], check_id: str) ->
             continue
         value = workbook[sheet][cell].value
         expected = rule.get("expected")
-        tolerance = float(rule.get("tolerance", 0))
         try:
-            difference = abs(float(value) - float(expected))
+            actual_number = float(value)
+            expected_number = float(expected)
+            tolerance = float(rule.get("tolerance", 0))
+            difference = abs(actual_number - expected_number)
+            valid = (
+                math.isfinite(actual_number)
+                and math.isfinite(expected_number)
+                and math.isfinite(tolerance)
+                and tolerance >= 0
+                and math.isfinite(difference)
+            )
         except (TypeError, ValueError):
             difference = float("inf")
-        if difference > tolerance:
+            tolerance = float("nan")
+            valid = False
+        if not valid or difference > tolerance:
             findings.append(
                 QAFinding(
                     check_id,
@@ -370,13 +439,13 @@ def _check_negative_ownership(workbook, profile: Dict[str, Any]) -> CheckResult:
             for cell in row:
                 if isinstance(cell.value, (int, float)):
                     checked += 1
-                    if cell.value < 0:
+                    if not math.isfinite(float(cell.value)) or cell.value < 0:
                         findings.append(
                             QAFinding(
                                 "negative_current_ownership",
                                 "blocking",
                                 "negative_interest",
-                                f"Negative current ownership value {cell.value}",
+                                f"Invalid current ownership value {cell.value}",
                                 sheet_name,
                                 cell.coordinate,
                             )
@@ -444,9 +513,10 @@ def _check_duplicate_owners(workbook, profile: Dict[str, Any]) -> CheckResult:
     )
 
 
-def _check_evidence_links(workbook) -> CheckResult:
+def _check_evidence_links(workbook, evidence_root: Path) -> CheckResult:
     findings: List[QAFinding] = []
     checked = 0
+    resolved_root = evidence_root.resolve()
     for sheet in workbook.worksheets:
         for row in sheet.iter_rows():
             for cell in row:
@@ -454,16 +524,50 @@ def _check_evidence_links(workbook) -> CheckResult:
                     continue
                 checked += 1
                 target = str(cell.hyperlink.target or "")
+                if not target:
+                    findings.append(
+                        QAFinding(
+                            "evidence_links_resolve",
+                            "blocking",
+                            "empty_or_internal_evidence_link",
+                            "Evidence hyperlink has no external target",
+                            sheet.title,
+                            cell.coordinate,
+                        )
+                    )
+                    continue
                 parsed = urlparse(target)
                 if parsed.scheme in ("http", "https") and parsed.netloc:
+                    findings.append(
+                        QAFinding(
+                            "evidence_links_resolve",
+                            "blocking",
+                            "remote_link_unverified",
+                            f"Remote evidence link requires an acquisition receipt: {target!r}",
+                            sheet.title,
+                            cell.coordinate,
+                        )
+                    )
                     continue
                 if parsed.scheme == "file":
-                    local = Path(parsed.path)
+                    local = Path(unquote(parsed.path))
                 elif not parsed.scheme:
-                    local = Path(target)
+                    local = resolved_root / unquote(target)
                 else:
                     local = None
-                if local is None or not local.exists():
+                contained = False
+                if local is not None:
+                    resolved_local = local.resolve()
+                    try:
+                        resolved_local.relative_to(resolved_root)
+                        contained = True
+                    except ValueError:
+                        contained = False
+                if (
+                    local is None
+                    or not contained
+                    or not resolved_local.is_file()
+                ):
                     findings.append(
                         QAFinding(
                             "evidence_links_resolve",
@@ -513,6 +617,7 @@ def inspect_workbook(
     workbook_path = Path(workbook_path)
     profile = profile or {}
     workbook = _open_workbook(workbook_path)
+    values_workbook = _open_workbook(workbook_path, data_only=True)
     template = _open_workbook(template_path) if template_path else None
     inventory = _workbook_inventory(workbook)
     results: List[CheckResult] = []
@@ -520,17 +625,22 @@ def inspect_workbook(
     try:
         for check_id in acceptance_tests:
             if check_id == "no_broken_formulas":
-                result = _check_formulas(workbook, template)
+                result = _check_formulas(workbook, values_workbook, template)
             elif check_id == "template_compliance":
                 result = _check_template(workbook, template, profile)
             elif check_id == "negative_current_ownership":
-                result = _check_negative_ownership(workbook, profile)
+                result = _check_negative_ownership(values_workbook, profile)
             elif check_id == "no_duplicate_owners":
                 result = _check_duplicate_owners(workbook, profile)
             elif check_id in TOTAL_CHECKS:
-                result = _check_total_assertions(workbook, profile, check_id)
+                result = _check_total_assertions(
+                    values_workbook, profile, check_id
+                )
             elif check_id == "evidence_links_resolve":
-                result = _check_evidence_links(workbook)
+                evidence_root = Path(
+                    profile.get("evidence_root") or workbook_path.parent
+                )
+                result = _check_evidence_links(workbook, evidence_root)
             elif check_id == "human_landman_release":
                 result = _failed(
                     check_id,
@@ -543,6 +653,7 @@ def inspect_workbook(
             results.append(result)
     finally:
         workbook.close()
+        values_workbook.close()
         if template is not None:
             template.close()
 

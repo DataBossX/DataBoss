@@ -144,7 +144,9 @@ class WorkOrder:
     candidate_path: Path
     expected_sha256: str
     template_path: Optional[Path]
+    template_expected_sha256: Optional[str]
     profile_path: Optional[Path]
+    profile_expected_sha256: Optional[str]
     staging_root: Path
     acceptance_tests: List[str]
     allowed_repairs: List[str]
@@ -181,9 +183,15 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
         )
 
     acceptance = list(data.get("acceptance_tests") or manifest.required_checks)
+    if len(acceptance) != len(set(acceptance)):
+        raise ControlFileError(f"{path}: acceptance_tests contains duplicates")
+    missing = sorted(set(manifest.required_checks) - set(acceptance))
     unknown = sorted(set(acceptance) - set(manifest.required_checks))
-    if unknown:
-        raise ControlFileError(f"{path}: checks absent from manifest: {unknown}")
+    if missing or unknown:
+        raise ControlFileError(
+            f"{path}: acceptance_tests must exactly match manifest checks "
+            f"(missing={missing}, unknown={unknown})"
+        )
 
     retry = data.get("retry_policy") or {}
     attempts = int(retry.get("max_attempts_per_defect", 3))
@@ -205,6 +213,18 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
         data.get("staging_root") or "runs", base
     )
     assert candidate_path is not None and staging_root is not None
+    template_path = _resolve_control_path(data.get("template_path"), base)
+    profile_path = _resolve_control_path(data.get("profile_path"), base)
+    template_hash = data.get("template_expected_sha256")
+    profile_hash = data.get("profile_expected_sha256")
+    if template_path and not _is_sha256(str(template_hash or "").lower()):
+        raise ControlFileError(
+            f"{path}: template_expected_sha256 is required with template_path"
+        )
+    if profile_path and not _is_sha256(str(profile_hash or "").lower()):
+        raise ControlFileError(
+            f"{path}: profile_expected_sha256 is required with profile_path"
+        )
 
     return WorkOrder(
         path=path,
@@ -213,8 +233,14 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
         objective=str(_required(data, "objective", path)),
         candidate_path=candidate_path,
         expected_sha256=expected_hash,
-        template_path=_resolve_control_path(data.get("template_path"), base),
-        profile_path=_resolve_control_path(data.get("profile_path"), base),
+        template_path=template_path,
+        template_expected_sha256=(
+            str(template_hash).lower() if template_hash is not None else None
+        ),
+        profile_path=profile_path,
+        profile_expected_sha256=(
+            str(profile_hash).lower() if profile_hash is not None else None
+        ),
         staging_root=staging_root,
         acceptance_tests=acceptance,
         allowed_repairs=list(data.get("allowed_repairs") or []),

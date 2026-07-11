@@ -24,6 +24,7 @@ from .project_manifest import (
     load_work_order,
     sha256_file,
 )
+from .repair import restore_formula_from_template
 from .workbook_qa import QAFinding, QAReport, inspect_workbook, load_workbook_profile
 
 
@@ -63,12 +64,32 @@ def _is_relative_to(path: Path, parent: Path) -> bool:
 def _assert_safe_paths(work_order: WorkOrder) -> None:
     if work_order.candidate_path.resolve() == work_order.staging_root.resolve():
         raise ControlFileError("Candidate path cannot be the staging root")
+    if _is_relative_to(work_order.candidate_path, work_order.staging_root):
+        raise ControlFileError("Candidate workbook cannot be inside the staging root")
     for prohibited in work_order.prohibited_paths:
         if _is_relative_to(work_order.staging_root, prohibited):
             raise ControlFileError(
                 f"Staging root {work_order.staging_root} is inside prohibited "
                 f"path {prohibited}"
             )
+
+
+def _snapshot_authority(
+    source: Path,
+    expected_sha256: Optional[str],
+    destination: Path,
+    authority_name: str,
+) -> Path:
+    actual_sha256 = sha256_file(source)
+    if actual_sha256 != expected_sha256:
+        raise ControlFileError(
+            f"{authority_name} hash mismatch: expected {expected_sha256}, "
+            f"found {actual_sha256}"
+        )
+    shutil.copy2(source, destination)
+    if sha256_file(destination) != actual_sha256:
+        raise ControlFileError(f"{authority_name} snapshot hash verification failed")
+    return destination
 
 
 def _report_has_regression(before: QAReport, after: QAReport) -> bool:
@@ -82,10 +103,16 @@ def _report_has_regression(before: QAReport, after: QAReport) -> bool:
 
 
 def _blocking_count(report: QAReport) -> int:
+    weights = {
+        "broken_formula": 2,
+        "authoritative_formula_mismatch": 2,
+        "formula_not_calculated": 1,
+    }
     return sum(
-        finding.severity == "blocking"
+        weights.get(finding.code, 1)
         for finding in report.findings
-        if finding.check_id != "human_landman_release"
+        if finding.severity == "blocking"
+        and finding.check_id != "human_landman_release"
     )
 
 
@@ -104,52 +131,15 @@ def _next_formula_repair(
     for finding in report.findings:
         key = f"{finding.sheet}!{finding.cell}"
         if (
-            finding.code == "broken_formula"
+            finding.code in {
+                "broken_formula",
+                "authoritative_formula_mismatch",
+            }
             and finding.repairable
             and attempts.get(key, 0) < limit
         ):
             return finding, key
     return None
-
-
-def _restore_formula_from_template(
-    staged_path: Path,
-    template_path: Path,
-    sheet_name: str,
-    cell_reference: str,
-) -> Dict[str, str]:
-    import openpyxl
-
-    keep_vba = staged_path.suffix.lower() == ".xlsm"
-    staged = openpyxl.load_workbook(staged_path, data_only=False, keep_vba=keep_vba)
-    template = openpyxl.load_workbook(
-        template_path,
-        data_only=False,
-        keep_vba=template_path.suffix.lower() == ".xlsm",
-    )
-    try:
-        if sheet_name not in staged.sheetnames or sheet_name not in template.sheetnames:
-            raise ControlFileError(
-                f"Cannot restore formula: sheet {sheet_name!r} is not in both workbooks"
-            )
-        old_formula = staged[sheet_name][cell_reference].value
-        new_formula = template[sheet_name][cell_reference].value
-        if not isinstance(new_formula, str) or not new_formula.startswith("="):
-            raise ControlFileError(
-                f"Template {sheet_name}!{cell_reference} has no formula authority"
-            )
-        staged[sheet_name][cell_reference] = new_formula
-        staged.save(staged_path)
-        return {
-            "repair_type": "restore_formula_from_template",
-            "sheet": sheet_name,
-            "cell": cell_reference,
-            "before": str(old_formula),
-            "after": new_formula,
-        }
-    finally:
-        staged.close()
-        template.close()
 
 
 class ControlledWorkbookLoop:
@@ -171,6 +161,7 @@ class ControlledWorkbookLoop:
         run_id = f"{run_id}-{uuid4().hex[:8]}"
         run_directory = self.work_order.staging_root / run_id
         receipt_path = run_directory / "run_receipt.json"
+        _assert_safe_paths(self.work_order)
         run_directory.mkdir(parents=True, exist_ok=False)
         started_at = _utc_now()
         staged_path: Optional[Path] = None
@@ -179,7 +170,6 @@ class ControlledWorkbookLoop:
         status = "failed"
 
         try:
-            _assert_safe_paths(self.work_order)
             candidate = self.work_order.candidate_path
             if not candidate.is_file():
                 raise ControlFileError(f"Candidate workbook not found: {candidate}")
@@ -193,6 +183,10 @@ class ControlledWorkbookLoop:
                 raise ControlFileError(
                     f"Template workbook not found: {self.work_order.template_path}"
                 )
+            if self.work_order.profile_path and not self.work_order.profile_path.is_file():
+                raise ControlFileError(
+                    f"Workbook profile not found: {self.work_order.profile_path}"
+                )
 
             input_backup = run_directory / f"input{candidate.suffix.lower()}"
             staged_path = run_directory / f"staged{candidate.suffix.lower()}"
@@ -201,11 +195,30 @@ class ControlledWorkbookLoop:
             if sha256_file(input_backup) != actual_hash or sha256_file(staged_path) != actual_hash:
                 raise ControlFileError("Staging copy hash verification failed")
 
-            profile = load_workbook_profile(self.work_order.profile_path)
+            template_snapshot: Optional[Path] = None
+            if self.work_order.template_path:
+                template_snapshot = _snapshot_authority(
+                    self.work_order.template_path,
+                    self.work_order.template_expected_sha256,
+                    run_directory
+                    / f"authority_template{self.work_order.template_path.suffix.lower()}",
+                    "Template",
+                )
+
+            profile_snapshot: Optional[Path] = None
+            if self.work_order.profile_path:
+                profile_snapshot = _snapshot_authority(
+                    self.work_order.profile_path,
+                    self.work_order.profile_expected_sha256,
+                    run_directory / "authority_profile.json",
+                    "Profile",
+                )
+
+            profile = load_workbook_profile(profile_snapshot)
             report = inspect_workbook(
                 staged_path,
                 self.work_order.acceptance_tests,
-                template_path=self.work_order.template_path,
+                template_path=template_snapshot,
                 profile=profile,
             )
             _write_json(run_directory / "qa_before.json", report.to_dict())
@@ -223,7 +236,7 @@ class ControlledWorkbookLoop:
                 if (
                     not formula_repairs_allowed
                     or repair_target is None
-                    or self.work_order.template_path is None
+                    or template_snapshot is None
                 ):
                     status = "blocked"
                     break
@@ -236,16 +249,27 @@ class ControlledWorkbookLoop:
                     f"before_attempt_{len(iterations) + 1:03d}{staged_path.suffix}"
                 )
                 shutil.copy2(staged_path, snapshot)
-                repair = _restore_formula_from_template(
+                repair_result = restore_formula_from_template(
                     staged_path,
-                    self.work_order.template_path,
+                    template_snapshot,
                     finding.sheet,
                     finding.cell,
                 )
+                if repair_result.error or not repair_result.repaired:
+                    raise ControlFileError(
+                        repair_result.error or "Formula repair made no change"
+                    )
+                repair = {
+                    "repair_type": "restore_formula_from_template",
+                    "sheet": finding.sheet,
+                    "cell": finding.cell,
+                    "fixes": repair_result.fixes,
+                    "changed_parts": repair_result.changed_parts,
+                }
                 after = inspect_workbook(
                     staged_path,
                     self.work_order.acceptance_tests,
-                    template_path=self.work_order.template_path,
+                    template_path=template_snapshot,
                     profile=profile,
                 )
                 regression = _report_has_regression(report, after)
@@ -309,6 +333,24 @@ class ControlledWorkbookLoop:
                     "expected_sha256": self.work_order.expected_sha256,
                     "actual_sha256": actual_hash,
                     "backup": str(input_backup),
+                },
+                "authorities": {
+                    "template": (
+                        {
+                            "path": str(template_snapshot),
+                            "sha256": sha256_file(template_snapshot),
+                        }
+                        if template_snapshot
+                        else None
+                    ),
+                    "profile": (
+                        {
+                            "path": str(profile_snapshot),
+                            "sha256": sha256_file(profile_snapshot),
+                        }
+                        if profile_snapshot
+                        else None
+                    ),
                 },
                 "output": {
                     "path": str(staged_path),

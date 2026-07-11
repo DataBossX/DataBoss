@@ -2,11 +2,13 @@
 
 import hashlib
 import json
+import zipfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import openpyxl
 import pytest
+from lxml import etree
 
 from horizon.controlled_loop import ControlledWorkbookLoop
 from horizon.project_manifest import (
@@ -21,7 +23,32 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _make_workbook(path: Path, formula: str = "=SUM(B2:B3)") -> None:
+def _set_cached_value(path: Path, cell_reference: str, value: float) -> None:
+    namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    temporary = path.with_suffix(".cached.xlsx")
+    with zipfile.ZipFile(path, "r") as source, zipfile.ZipFile(
+        temporary, "w", zipfile.ZIP_DEFLATED
+    ) as output:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                root = etree.fromstring(data)
+                cell = root.find(f".//{{{namespace}}}c[@r={cell_reference!r}]")
+                cached = cell.find(f"{{{namespace}}}v")
+                cached.text = str(value)
+                data = etree.tostring(
+                    root,
+                    xml_declaration=True,
+                    encoding="UTF-8",
+                    standalone=True,
+                )
+            output.writestr(item, data)
+    temporary.replace(path)
+
+
+def _make_workbook(
+    path: Path, formula: str = "=SUM(B2:B3)", *, cache_formula: bool = True
+) -> None:
     workbook = openpyxl.Workbook()
     title = workbook.active
     title.title = "Title"
@@ -33,6 +60,8 @@ def _make_workbook(path: Path, formula: str = "=SUM(B2:B3)") -> None:
     workbook.create_sheet("Runsheet")
     workbook.save(path)
     workbook.close()
+    if cache_formula:
+        _set_cached_value(path, "B4", 40)
 
 
 def _write_controls(
@@ -121,7 +150,9 @@ def _write_controls(
                 "candidate_path": "candidate.xlsx",
                 "candidate_local_path": str(candidate),
                 "template_path": str(template),
+                "template_expected_sha256": _sha256(template),
                 "profile_path": str(profile),
+                "profile_expected_sha256": _sha256(profile),
                 "staging_root": str(root / "runs"),
                 "acceptance_tests": [
                     "negative_current_ownership",
@@ -181,6 +212,23 @@ def test_work_order_cannot_disable_human_approval(tmp_path):
         load_work_order(work_order_path, manifest)
 
 
+def test_work_order_cannot_omit_manifest_checks(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path, candidate, template
+    )
+    data = json.loads(work_order_path.read_text(encoding="utf-8"))
+    data["acceptance_tests"].remove("ownership_totals")
+    work_order_path.write_text(json.dumps(data), encoding="utf-8")
+
+    manifest = load_project_manifest(manifest_path)
+    with pytest.raises(ControlFileError, match="must exactly match"):
+        load_work_order(work_order_path, manifest)
+
+
 def test_deterministic_qa_reports_rule_based_failures(tmp_path):
     candidate = tmp_path / "candidate.xlsx"
     template = tmp_path / "template.xlsx"
@@ -211,7 +259,95 @@ def test_deterministic_qa_reports_rule_based_failures(tmp_path):
     assert not report.score.promotion_ready
 
 
-def test_loop_repairs_staging_only_and_stops_at_human_gate(tmp_path):
+def test_uncalculated_formula_is_blocking(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate, cache_formula=False)
+    _make_workbook(template)
+    manifest_path, work_order_path, profile_path = _write_controls(
+        tmp_path, candidate, template
+    )
+    manifest = load_project_manifest(manifest_path)
+    order = load_work_order(work_order_path, manifest)
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+
+    report = inspect_workbook(
+        candidate,
+        order.acceptance_tests,
+        template_path=template,
+        profile=profile,
+    )
+
+    formula_check = next(
+        check for check in report.checks if check.check_id == "no_broken_formulas"
+    )
+    assert formula_check.status == "failed"
+    assert formula_check.findings[0].code == "formula_not_calculated"
+    assert not report.score.technical_pass
+
+
+def test_template_formula_replaced_by_constant_is_blocking(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    workbook = openpyxl.load_workbook(candidate)
+    workbook["Title"]["B4"] = 40
+    workbook.save(candidate)
+    workbook.close()
+    manifest_path, work_order_path, profile_path = _write_controls(
+        tmp_path, candidate, template
+    )
+    manifest = load_project_manifest(manifest_path)
+    order = load_work_order(work_order_path, manifest)
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+
+    report = inspect_workbook(
+        candidate,
+        order.acceptance_tests,
+        template_path=template,
+        profile=profile,
+    )
+
+    formula_check = next(
+        check for check in report.checks if check.check_id == "no_broken_formulas"
+    )
+    assert formula_check.findings[0].code == "authoritative_formula_mismatch"
+    assert not report.score.technical_pass
+
+
+def test_nan_total_cannot_pass_assertion(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    workbook = openpyxl.load_workbook(candidate)
+    workbook["Title"]["D2"] = "NaN"
+    workbook.save(candidate)
+    workbook.close()
+    _set_cached_value(candidate, "B4", 40)
+    manifest_path, work_order_path, profile_path = _write_controls(
+        tmp_path, candidate, template
+    )
+    manifest = load_project_manifest(manifest_path)
+    order = load_work_order(work_order_path, manifest)
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+
+    report = inspect_workbook(
+        candidate,
+        order.acceptance_tests,
+        template_path=template,
+        profile=profile,
+    )
+
+    totals = next(
+        check for check in report.checks if check.check_id == "ownership_totals"
+    )
+    assert totals.status == "failed"
+    assert totals.findings[0].code == "total_out_of_tolerance"
+
+
+def test_loop_repairs_staging_only_then_requires_recalculation(tmp_path):
     candidate = tmp_path / "candidate.xlsx"
     template = tmp_path / "template.xlsx"
     _make_workbook(candidate, formula="=#REF!")
@@ -228,7 +364,7 @@ def test_loop_repairs_staging_only_and_stops_at_human_gate(tmp_path):
         manifest_path, work_order_path
     ).run()
 
-    assert result.status == "technically_verified_pending_approval"
+    assert result.status == "blocked"
     assert result.attempts == 1
     assert candidate.read_bytes() == original_bytes
     assert result.staged_workbook is not None
@@ -241,11 +377,33 @@ def test_loop_repairs_staging_only_and_stops_at_human_gate(tmp_path):
     assert receipt["output"]["sha256"] == _sha256(result.staged_workbook)
     assert receipt["human_approval_required"] is True
     assert receipt["promotion_executed"] is False
+    assert result.promotion_package is None
+    assert receipt["authorities"]["template"]["sha256"] == _sha256(template)
+    assert receipt["authorities"]["profile"]["sha256"] == _sha256(
+        tmp_path / "project" / "workbook_profile.json"
+    )
 
+
+def test_clean_loop_stops_at_hash_bound_human_gate(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path, candidate, template
+    )
+
+    result = ControlledWorkbookLoop.from_files(
+        manifest_path, work_order_path
+    ).run()
+
+    assert result.status == "technically_verified_pending_approval"
     assert result.promotion_package is not None
+    receipt = json.loads(result.receipt_path.read_text(encoding="utf-8"))
     package = json.loads(result.promotion_package.read_text(encoding="utf-8"))
     assert package["status"] == "PENDING_HUMAN_APPROVAL"
     assert package["approval_must_name_sha256"] == receipt["output"]["sha256"]
+    assert package["promotion_executed"] is False
 
 
 def test_hash_mismatch_fails_before_copy_and_writes_receipt(tmp_path):

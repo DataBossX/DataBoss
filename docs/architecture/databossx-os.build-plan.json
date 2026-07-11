@@ -1,0 +1,398 @@
+{
+  "document": {
+    "name": "DataBossX Operating System build plan",
+    "version": "1.0.0",
+    "status": "architecture_decision",
+    "created_at": "2026-07-11T00:00:00Z",
+    "source_of_truth": "docs/DATABOSSX_OS_BLUEPRINT.md"
+  },
+  "mission": {
+    "primary": "Produce evidence-grounded, reproducible title research and draft reports under qualified human review.",
+    "success_metric": "One released title work product with complete field-level provenance, exact calculations, resolved material conflicts, reviewer approval, and workbook-integrity proof.",
+    "operating_model": "local_first_modular_monolith"
+  },
+  "constraints": [
+    "source_controls",
+    "no_fabrication",
+    "immutable_originals",
+    "append_only_derivations",
+    "field_level_provenance",
+    "exact_rational_interest_math",
+    "material_conflicts_require_human_resolution",
+    "approval_binds_input_and_output_hashes",
+    "least_privilege_per_task",
+    "one_orchestrator_commits_state",
+    "external_writes_disabled_by_default",
+    "qualified_human_release_gate"
+  ],
+  "decisions": {
+    "control_api": "FastAPI",
+    "database": "SQLite WAL with FTS5 and numbered SQL migrations",
+    "vault": "content-addressed local filesystem using SHA-256",
+    "frontend": "Vite React TypeScript",
+    "orchestration": "durable database task graph with leases and outbox",
+    "search_v1": "structured filters plus FTS5",
+    "model_integration": "provider-neutral capability interfaces",
+    "deferred": [
+      "Redis",
+      "Celery",
+      "Kafka",
+      "Kubernetes",
+      "microservices",
+      "vector database",
+      "autonomous production writes"
+    ]
+  },
+  "reuse": [
+    {
+      "asset": "pull_request_26",
+      "url": "https://github.com/DataBossX/DataBoss/pull/26",
+      "decision": "review_then_merge",
+      "capabilities": [
+        "source_hash_validation",
+        "ocr_geometry",
+        "candidate_archives",
+        "resumable_checkpoints",
+        "control_workbook",
+        "workbook_integrity_audit"
+      ]
+    },
+    {
+      "asset": "horizon",
+      "decision": "port_canonical_domain_logic",
+      "capabilities": [
+        "exact_interest_math",
+        "instrument_chaining",
+        "validation",
+        "review_artifacts",
+        "versioning"
+      ]
+    },
+    {
+      "asset": "grocery_report_pipeline",
+      "decision": "split_into_typed_workers",
+      "capabilities": [
+        "inventory",
+        "classification",
+        "extraction",
+        "reconciliation",
+        "validation",
+        "report_assembly"
+      ]
+    },
+    {
+      "asset": "doto_image_commander",
+      "decision": "migrate_to_common_task_graph",
+      "capabilities": [
+        "county_acquisition",
+        "ocr_workflow",
+        "cost_tracking",
+        "audit"
+      ]
+    },
+    {
+      "asset": "mineral_deal_room",
+      "decision": "reuse_ui_patterns_and_remove_runtime_samples",
+      "capabilities": [
+        "review_queue",
+        "evidence_ui",
+        "audit_ui"
+      ]
+    }
+  ],
+  "retire": [
+    {
+      "asset": "pull_request_25_as_title_authority",
+      "url": "https://github.com/DataBossX/DataBoss/pull/25",
+      "reason": "duplicates canonical title logic with weaker evidence controls"
+    },
+    {
+      "asset": "backend_server_mock_ocr",
+      "reason": "fabricated demo output cannot enter production evidence"
+    },
+    {
+      "asset": "cra_frontend",
+      "reason": "one Vite frontend is the target"
+    },
+    {
+      "asset": "product_specific_queues",
+      "reason": "one task graph and audit stream are required"
+    },
+    {
+      "asset": "automatic_original_file_moves",
+      "reason": "originals must be immutable"
+    }
+  ],
+  "target_layout": [
+    "src/databossx/control",
+    "src/databossx/domain",
+    "src/databossx/vault",
+    "src/databossx/connectors",
+    "src/databossx/memory",
+    "src/databossx/routing",
+    "src/databossx/workers",
+    "src/databossx/products/title",
+    "src/databossx/products/doto",
+    "src/databossx/products/deals",
+    "src/databossx/api",
+    "ui",
+    "migrations",
+    "config/policies",
+    "tests/unit",
+    "tests/integration",
+    "tests/adversarial",
+    "tests/golden",
+    "runtime"
+  ],
+  "entities": {
+    "core": [
+      "Project",
+      "SourceConnection",
+      "SourceSnapshot",
+      "Asset",
+      "AssetVersion",
+      "DerivedArtifact",
+      "EvidenceSpan",
+      "Claim",
+      "ClaimSupport",
+      "Conflict",
+      "WorkflowDefinition",
+      "Run",
+      "Task",
+      "TaskDependency",
+      "TaskAttempt",
+      "TaskLease",
+      "WorkerCapability",
+      "ReviewGate",
+      "ReviewDecision",
+      "Approval",
+      "Artifact",
+      "ArtifactVersion",
+      "ModelRouteDecision",
+      "ToolDefinition",
+      "ToolRun",
+      "AuditEvent"
+    ],
+    "title": [
+      "TitleProject",
+      "Jurisdiction",
+      "SearchScope",
+      "Tract",
+      "LegalDescription",
+      "Instrument",
+      "InstrumentParty",
+      "RecordingReference",
+      "InstrumentClaim",
+      "ChainLink",
+      "InterestLedgerEntry",
+      "Lease",
+      "Assignment",
+      "Well",
+      "HBPFact",
+      "TitleException",
+      "CurativeItem",
+      "ExaminerIssue",
+      "MissingDocument",
+      "WorkbookCandidate",
+      "WritableRangeApproval",
+      "WorkbookIntegrityAudit"
+    ]
+  },
+  "state_machines": {
+    "task": {
+      "initial": "PLANNED",
+      "states": [
+        "PLANNED",
+        "BLOCKED",
+        "READY",
+        "LEASED",
+        "RUNNING",
+        "WAITING_HUMAN",
+        "SUCCEEDED",
+        "FAILED_RETRYABLE",
+        "FAILED_TERMINAL"
+      ],
+      "terminal": [
+        "SUCCEEDED",
+        "FAILED_TERMINAL"
+      ]
+    },
+    "title_project": {
+      "initial": "DRAFT",
+      "ordered_states": [
+        "DRAFT",
+        "INVENTORY_REVIEW",
+        "EVIDENCE_LOCKED",
+        "PROCESSING",
+        "EXAMINER_REVIEW",
+        "APPROVED_FOR_EXPORT",
+        "EXPORTED_CANDIDATE",
+        "RELEASED"
+      ]
+    },
+    "external_mutation": {
+      "initial": "DRAFT",
+      "ordered_states": [
+        "DRAFT",
+        "POLICY_CHECKED",
+        "AWAITING_APPROVAL",
+        "APPROVED",
+        "EXECUTING",
+        "SUCCEEDED"
+      ],
+      "failure_state": "FAILED"
+    }
+  },
+  "phases": [
+    {
+      "id": "P0",
+      "name": "credential_containment",
+      "depends_on": [],
+      "deliverables": [
+        "rotate_exposed_credentials",
+        "current_tree_secret_scan",
+        "local_pre_commit_guards",
+        "scoped_connector_identities",
+        "history_rewrite_decision"
+      ],
+      "gate": "All exposed credentials are revoked and the current tree scans clean."
+    },
+    {
+      "id": "P1",
+      "name": "real_title_vertical_slice",
+      "depends_on": [
+        "P0"
+      ],
+      "deliverables": [
+        "review_and_merge_pr_26",
+        "windows_section_32_inventory",
+        "source_manifest_review",
+        "field_level_evidence_run",
+        "horizon_exact_math_integration",
+        "workbook_integrity_proof",
+        "qualified_examiner_approval"
+      ],
+      "gate": "One real candidate is field-level traceable, mathematically exact, integrity-checked, and approved by hash."
+    },
+    {
+      "id": "P2",
+      "name": "trusted_kernel",
+      "depends_on": [
+        "P1"
+      ],
+      "deliverables": [
+        "canonical_package",
+        "numbered_migrations",
+        "append_only_vault",
+        "event_ledger",
+        "task_graph",
+        "policy_engine",
+        "local_connector",
+        "evidence_and_review_api"
+      ],
+      "gate": "Crash recovery is idempotent, originals cannot be mutated, and released artifacts are reconstructable."
+    },
+    {
+      "id": "P3",
+      "name": "recon_and_memory",
+      "depends_on": [
+        "P2"
+      ],
+      "deliverables": [
+        "github_connector",
+        "google_drive_connector",
+        "dropbox_connector",
+        "chat_export_connector",
+        "huggingface_metadata_connector",
+        "fts5_search",
+        "citation_renderer"
+      ],
+      "gate": "Incremental read-only scans produce versioned, cited results and pass least-privilege tests."
+    },
+    {
+      "id": "P4",
+      "name": "routing_and_workers",
+      "depends_on": [
+        "P2"
+      ],
+      "deliverables": [
+        "model_catalog",
+        "policy_router",
+        "ocr_capability",
+        "vision_capability",
+        "extraction_capability",
+        "research_capability",
+        "quality_capability",
+        "evaluation_sets",
+        "cost_and_privacy_budgets"
+      ],
+      "gate": "Provider changes do not alter workflows and local-only policy technically blocks remote routing."
+    },
+    {
+      "id": "P5",
+      "name": "product_migration",
+      "depends_on": [
+        "P3",
+        "P4"
+      ],
+      "deliverables": [
+        "doto_common_workflow",
+        "explicit_county_cost_approval",
+        "deal_room_live_api",
+        "legacy_mock_backend_retirement",
+        "shadow_queue_retirement"
+      ],
+      "gate": "All products use one orchestrator, evidence model, review system, and audit stream."
+    },
+    {
+      "id": "P6",
+      "name": "governed_tool_factory_and_portal",
+      "depends_on": [
+        "P5"
+      ],
+      "deliverables": [
+        "tool_proposals",
+        "sandboxed_builds",
+        "adversarial_tests",
+        "human_enablement",
+        "canary_runs",
+        "client_safe_views"
+      ],
+      "gate": "Tools cannot self-enable or expand permissions, and clients see only approved artifacts."
+    }
+  ],
+  "first_actions": [
+    {
+      "order": 1,
+      "action": "rotate_credentials",
+      "reference": "SECURITY.md",
+      "human_required": true
+    },
+    {
+      "order": 2,
+      "action": "review_pull_request_26",
+      "reference": "https://github.com/DataBossX/DataBoss/pull/26",
+      "human_required": true
+    },
+    {
+      "order": 3,
+      "action": "run_inventory_only_on_real_section_32_windows_corpus",
+      "human_required": true
+    },
+    {
+      "order": 4,
+      "action": "approve_source_manifest_before_ocr",
+      "human_required": true
+    },
+    {
+      "order": 5,
+      "action": "complete_evidence_to_candidate_flow",
+      "human_required": false
+    },
+    {
+      "order": 6,
+      "action": "qualified_examiner_review_and_hash_bound_release",
+      "human_required": true
+    }
+  ]
+}

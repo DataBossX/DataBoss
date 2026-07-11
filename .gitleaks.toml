@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known commit that deletes the previously exposed backend credentials"
+commits = ["ad02fdebbf88945feb3c215217c1ce16286e5b5d"]

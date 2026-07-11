@@ -13,6 +13,7 @@ from databoss_title_factory.core import (
     extract_and_reconcile,
     latest_run,
     preprocess_images,
+    resume_pipeline,
     run_ocr,
     start_run,
     tournament_reconcile,
@@ -245,6 +246,77 @@ def test_external_candidate_without_current_run_citation_is_quarantined(tmp_path
     assert "current OCR evidence ledger" in rows[0]["reconciliation_notes"]
 
 
+def test_external_candidate_cannot_forge_source_support(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    source = project / "source.txt"
+    source.write_text("Instrument Number: REAL-123\nWarranty Deed", encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    evidence = run_ocr(ctx)[0]
+    forged = {
+        "instrument_number": "FORGED-999",
+        "instrument_type": "Warranty Deed",
+        "confidence": 1.0,
+        "citation": evidence["citation"],
+        "source_path": evidence["source_path"],
+        "source_file_hash": evidence["source_file_hash"],
+        "unrecognized_but_must_be_archived": {"raw": "retain me"},
+        "field_provenance": {
+            "instrument_number": {
+                "source_support_score": 1.0,
+                "source_bounding_box": {
+                    "x1": 1, "y1": 1, "x2": 2, "y2": 2,
+                    "coordinate_space": "pixels",
+                },
+            }
+        },
+    }
+    candidate_path = project / "forged.json"
+    candidate_path.write_text(json.dumps([forged, "malformed candidate"]), encoding="utf-8")
+
+    rows = extract_and_reconcile(
+        ctx,
+        weak_threshold=0.4,
+        cursor_json=candidate_path,
+        codex_json=candidate_path,
+    )
+
+    assert rows[0]["instrument_number"] == ""
+    assert rows[0]["status"] == "QUARANTINED - REVIEW REQUIRED"
+    archive = (ctx.run_dir / "candidates" / "candidate_archive.jsonl").read_text(
+        encoding="utf-8"
+    )
+    assert '"FORGED-999"' in archive
+    assert '"retain me"' in archive
+    assert '"malformed candidate"' in archive
+    assert (ctx.run_dir / "candidates" / "cursor_raw_input.json").read_bytes() == (
+        candidate_path.read_bytes()
+    )
+
+
+def test_source_hash_change_after_inventory_blocks_ocr(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    source = project / "source.txt"
+    source.write_text("Original source", encoding="utf-8")
+    ctx = start_run(project)
+    inventory = build_inventory(ctx)
+    original_hash = inventory[0]["sha256"]
+    source.write_text("Changed after inventory", encoding="utf-8")
+
+    records = run_ocr(ctx)
+
+    assert records == []
+    failures = json.loads(
+        (ctx.quarantine_dir / "ocr_failures.json").read_text(encoding="utf-8")
+    )
+    assert "SOURCE HASH MISMATCH" in failures[0]["error"]
+    assert original_hash not in {
+        row.get("source_file_hash") for row in records
+    }
+
+
 def test_missing_documents_includes_unrepresented_source_and_clears_stale_failures(
     tmp_path: Path,
 ):
@@ -272,6 +344,53 @@ def test_missing_documents_includes_unrepresented_source_and_clears_stale_failur
         for row in bundle["missing_documents"]
     )
     assert all(row["citation"] != "old.pdf" for row in bundle["missing_documents"])
+
+
+def test_resume_continues_same_run_after_ocr(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "deed.txt").write_text(_source_text(), encoding="utf-8")
+    ctx = start_run(project)
+    build_inventory(ctx)
+    run_ocr(ctx)
+
+    result = resume_pipeline(ctx, weak_threshold=0.6)
+
+    assert result["run_id"] == ctx.run_id
+    assert result["completed"] == ["RECONCILE", "RUNSHEET"]
+    assert result["skipped"] == ["INVENTORY", "OCR"]
+    assert latest_run(project).run_id == ctx.run_id
+    assert (ctx.run_dir / "runsheet_bundle.json").is_file()
+
+
+def test_multiframe_tiff_accounts_for_every_frame(tmp_path: Path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    first = Image.new("L", (100, 60), "white")
+    second = Image.new("L", (100, 60), "black")
+    source = project / "index.tiff"
+    first.save(source, save_all=True, append_images=[second])
+
+    def fake_ocr(path, config="--oem 3 --psm 6"):
+        return {
+            "text": f"Page evidence {Path(path).name}",
+            "confidence": 0.9,
+            "blocks": [],
+            "ocr_config": config,
+            "engine_version": "test-engine",
+        }
+
+    monkeypatch.setattr(factory_core, "_ocr_image", fake_ocr)
+    ctx = start_run(project)
+    inventory = build_inventory(ctx)
+    assert inventory[0]["page_count"] == 2
+
+    records = run_ocr(ctx)
+
+    assert [record["citation"] for record in records] == [
+        "index.tiff#page=1",
+        "index.tiff#page=2",
+    ]
 
 
 def test_export_preserves_template_and_uses_separate_control_workbook(tmp_path: Path):
@@ -363,8 +482,8 @@ def test_workbook_audit_detects_formula_mutation(tmp_path: Path):
     hidden = workbook.create_sheet("Hidden")
     hidden.sheet_state = "hidden"
     workbook.save(before_path)
-    workbook.save(after_path)
     workbook.close()
+    after_path.write_bytes(before_path.read_bytes())
 
     exact = compare_workbooks(audit_workbook(before_path), audit_workbook(after_path))
     assert exact["preservation_passed"] is True
@@ -379,3 +498,30 @@ def test_workbook_audit_detects_formula_mutation(tmp_path: Path):
     )
     assert comparison["preservation_passed"] is False
     assert any(item["feature"].endswith(".formulas") for item in comparison["differences"])
+
+
+def test_workbook_audit_rejects_plain_cell_and_style_mutation(tmp_path: Path):
+    before_path = tmp_path / "before.xlsx"
+    after_path = tmp_path / "after.xlsx"
+    workbook = openpyxl.Workbook()
+    workbook.active["A1"] = "Original"
+    workbook.save(before_path)
+    workbook.save(after_path)
+    workbook.close()
+    changed = openpyxl.load_workbook(after_path)
+    changed.active["A1"] = "Altered"
+    changed.active["A1"].font = openpyxl.styles.Font(bold=True)
+    changed.save(after_path)
+    changed.close()
+
+    comparison = compare_workbooks(
+        audit_workbook(before_path),
+        audit_workbook(after_path),
+    )
+
+    assert comparison["binary_identical"] is False
+    assert comparison["preservation_passed"] is False
+    assert any(
+        item["feature"].endswith(".cells_or_styles")
+        for item in comparison["differences"]
+    )

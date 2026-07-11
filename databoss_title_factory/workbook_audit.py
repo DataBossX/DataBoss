@@ -89,8 +89,19 @@ def _dimension_inventory(dimensions: Iterable[tuple[Any, Any]]) -> dict[str, Any
 def _sheet_inventory(sheet: Any) -> dict[str, Any]:
     formulas: dict[str, str] = {}
     comments: list[str] = []
+    cells: dict[str, dict[str, Any]] = {}
     for row in sheet.iter_rows():
         for cell in row:
+            if cell.value is not None or cell.has_style or cell.hyperlink is not None:
+                cells[cell.coordinate] = {
+                    "value": cell.value,
+                    "data_type": cell.data_type,
+                    "style_id": cell.style_id,
+                    "number_format": cell.number_format,
+                    "hyperlink": (
+                        cell.hyperlink.target if cell.hyperlink is not None else None
+                    ),
+                }
             if isinstance(cell.value, str) and cell.value.startswith("="):
                 formulas[cell.coordinate] = cell.value
             if cell.comment is not None:
@@ -113,6 +124,8 @@ def _sheet_inventory(sheet: Any) -> dict[str, Any]:
         "formula_count": len(formulas),
         "formulas": formulas,
         "formula_digest": _json_digest(formulas),
+        "cell_inventory": cells,
+        "cell_digest": _json_digest(cells),
         "comments": sorted(comments),
         "image_count": len(getattr(sheet, "_images", [])),
         "chart_count": len(getattr(sheet, "_charts", [])),
@@ -199,6 +212,15 @@ def compare_workbooks(
     """Compare workbook inventories and identify preservation failures."""
     approved = approved_cell_changes or {}
     differences: list[dict[str, Any]] = []
+    if not approved and before.get("sha256") != after.get("sha256"):
+        differences.append(
+            {
+                "feature": "binary_identity",
+                "severity": "HIGH",
+                "before": before.get("sha256"),
+                "after": after.get("sha256"),
+            }
+        )
     checks = (
         "sheet_order",
         "defined_names",
@@ -253,6 +275,22 @@ def compare_workbooks(
         old_formulas = old["formulas"]
         new_formulas = new["formulas"]
         allowed = set(approved.get(title, []))
+        old_cells = old["cell_inventory"]
+        new_cells = new["cell_inventory"]
+        changed_cells = sorted(
+            coordinate
+            for coordinate in set(old_cells) | set(new_cells)
+            if old_cells.get(coordinate) != new_cells.get(coordinate)
+            and coordinate not in allowed
+        )
+        if changed_cells:
+            differences.append(
+                {
+                    "feature": f"{title}.cells_or_styles",
+                    "severity": "HIGH",
+                    "changed_cells": changed_cells,
+                }
+            )
         changed_formula_cells = sorted(
             coordinate
             for coordinate in set(old_formulas) | set(new_formulas)

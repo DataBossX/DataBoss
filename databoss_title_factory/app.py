@@ -19,6 +19,7 @@ from databoss_title_factory.core import (
     export_safe_xlsx,
     extract_and_reconcile,
     latest_run,
+    resume_pipeline,
     run_ocr,
     run_summary,
     start_run,
@@ -228,7 +229,18 @@ with st.expander("Project state and safe controls", expanded=False):
     with control_columns[2]:
         if st.button("Resume Project", use_container_width=True, disabled=ctx is None):
             request_pause(ctx.output_dir, ctx.run_id, False)
-            st.success("Project resumed. Completed artifacts remain in place.")
+            result = _run_action(
+                "Resuming the same run from validated checkpoints",
+                lambda: resume_pipeline(
+                    ctx,
+                    weak_threshold=weak_threshold,
+                    cursor_json=cursor_json or None,
+                    codex_json=codex_json or None,
+                ),
+            )
+            if result is not None:
+                st.success(f"Run {ctx.run_id} resumed without creating a replacement run.")
+                st.rerun()
     with control_columns[3]:
         if st.button("Open Review Queue", use_container_width=True, disabled=ctx is None):
             st.session_state["show_review"] = True

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import hashlib
+import json
 import os
 import shutil
 import zipfile
@@ -209,26 +210,47 @@ def _quarantine(rec: FileRecord, cfg: HorizonConfig, audit: AuditLog) -> bool:
 
 def snapshot_backup(cfg: HorizonConfig, audit: AuditLog) -> Path:
     """The Snapshot Rule: copy the whole root to a sibling ``*_Backups`` tree
-    *before* any cleanup mutates the workspace. Copy-only, source untouched."""
-    stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    *before* any cleanup mutates the workspace. Every copy is hash-verified;
+    cleanup is aborted and the incomplete snapshot removed on any failure."""
+    stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     dest = cfg.backups / stamp
     dest.mkdir(parents=True, exist_ok=True)
-    copied = 0
-    for dirpath, _dirs, files in os.walk(cfg.root):
-        d = Path(dirpath)
-        if cfg.is_managed(d):
-            continue
-        for fn in files:
-            src = d / fn
-            try:
+    manifest = []
+    try:
+        for dirpath, _dirs, files in os.walk(cfg.root):
+            d = Path(dirpath)
+            if cfg.is_managed(d):
+                continue
+            for fn in files:
+                src = d / fn
                 rel = src.relative_to(cfg.root)
                 target = dest / rel
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, target)
-                copied += 1
-            except OSError as exc:
-                audit.warn("backup_skip", f"{src}: {exc}")
-    audit.info("snapshot_backup", f"copied {copied} files -> {dest}")
+                source_hash = sha256_of(src)
+                backup_hash = sha256_of(target)
+                if backup_hash != source_hash:
+                    raise OSError(f"hash mismatch while backing up {src}")
+                manifest.append(
+                    {"path": str(rel), "sha256": source_hash, "size": target.stat().st_size}
+                )
+        manifest_path = dest / "snapshot_manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "created_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                    "source_root": str(cfg.root),
+                    "files": sorted(manifest, key=lambda item: item["path"]),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    except (OSError, ValueError) as exc:
+        shutil.rmtree(dest, ignore_errors=True)
+        audit.error("backup_failed", f"{exc}; cleanup aborted")
+        raise
+    audit.info("snapshot_backup", f"copied and verified {len(manifest)} files -> {dest}")
     return dest
 
 

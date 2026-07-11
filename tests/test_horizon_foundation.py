@@ -7,7 +7,14 @@ import pytest
 
 from horizon.audit import AuditLog
 from horizon.config import HorizonConfig
-from horizon.foundation import dedupe, run_cleanup, scan, sha256_of, unzip_archives
+from horizon.foundation import (
+    dedupe,
+    run_cleanup,
+    scan,
+    sha256_of,
+    snapshot_backup,
+    unzip_archives,
+)
 
 
 @pytest.fixture()
@@ -87,3 +94,33 @@ def test_run_cleanup_end_to_end(workspace):
     # snapshot backup created a sibling *_Backups tree
     assert cfg.backups.exists()
     assert audit.count("INFO") > 0
+
+
+def test_snapshot_is_hash_verified(workspace):
+    cfg, audit = workspace
+    (cfg.root / "source.txt").write_bytes(b"authoritative")
+    snapshot = snapshot_backup(cfg, audit)
+    manifest = snapshot / "snapshot_manifest.json"
+    assert manifest.exists()
+    assert (snapshot / "source.txt").read_bytes() == b"authoritative"
+    assert sha256_of(snapshot / "source.txt") == sha256_of(cfg.root / "source.txt")
+
+
+def test_backup_failure_aborts_before_quarantine(workspace, monkeypatch):
+    cfg, audit = workspace
+    original = cfg.root / "original.csv"
+    duplicate = cfg.root / "duplicate.csv"
+    original.write_bytes(b"same")
+    duplicate.write_bytes(b"same")
+
+    def fail_copy(*_args, **_kwargs):
+        raise OSError("simulated backup failure")
+
+    monkeypatch.setattr("horizon.foundation.shutil.copy2", fail_copy)
+    with pytest.raises(OSError, match="simulated backup failure"):
+        run_cleanup(cfg, audit, backup=True)
+
+    assert original.exists()
+    assert duplicate.exists()
+    assert not cfg.trash.exists()
+    assert list(cfg.backups.iterdir()) == []

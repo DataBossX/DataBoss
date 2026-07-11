@@ -4,10 +4,11 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from playwright.sync_api import sync_playwright
 from automation.parsing import extractor_llm
 from automation.status_logic import decide_status_rule_based
-from automation.writer import update_workbook
+from automation.writer import create_staging_copy, update_workbook
 
 BASE = "https://weldrecorder.weldgov.com/web/"
 WORKBOOK = "Black_Tip_Notice_List_verified_updated_20251028_v7.xlsx"
+WORKING_WORKBOOK = None
 SHEET_DSU = "DSU NOTICE LIST"
 SHEET_OFFSET = "OFFSET NOTICE LIST"
 DELAY = 3.5
@@ -76,12 +77,15 @@ def update_owner(owner:str, decision:dict, last_doc:dict):
         "confidence": decision.get("confidence", 0.7),
     }
     # Try DSU then OFFSET
-    ok = update_workbook(WORKBOOK, SHEET_DSU, owner, payload)
+    ok = update_workbook(WORKING_WORKBOOK, SHEET_DSU, owner, payload)
     if not ok:
-        update_workbook(WORKBOOK, SHEET_OFFSET, owner, payload)
+        update_workbook(WORKING_WORKBOOK, SHEET_OFFSET, owner, payload)
 
 def main():
+    global WORKING_WORKBOOK
     owners = load_owners()
+    WORKING_WORKBOOK = create_staging_copy(WORKBOOK)
+    print(f"Writing staged results to {WORKING_WORKBOOK}; source remains unchanged")
     pathlib.Path("data/json_traces").mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # Visible so you can click CAPTCHA

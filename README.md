@@ -1,11 +1,27 @@
 # DataBossX
 
-<<<<<<< HEAD
-DataBossX is a local-first title evidence and report-processing system. This
-repository is the canonical integration candidate for the existing Horizon,
-Grocery Report, DOTO Image Commander, and web prototypes.
+DataBossX is a local-first toolkit for evidence-grounded land and mineral title
+research, document extraction, exact interest calculation, human review, and
+versioned report production.
 
-## Controlled foundation
+The repository currently contains several proven but separate systems:
+
+- `horizon/` — exact interest math, instrument chaining, validation, repair,
+  versioning, and examiner worklists
+- `grocery_report_pipeline.py` — deterministic inventory-to-report stages A–I
+- `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs,
+  and audit
+- `mineral_deal_room/` — Vite/React operational UI prototype
+- `backend/` and `frontend/` — legacy document-processing demo
+
+The unification decision, safety rules, title workflow, migration sequence, and
+acceptance gates are in:
+
+- [DataBossX OS Blueprint](docs/DATABOSSX_OS_BLUEPRINT.md)
+- [Machine-readable build plan](docs/architecture/databossx-os.build-plan.json)
+- [Security and mandatory credential rotation](SECURITY.md)
+
+## Control plane
 
 The `databossx` package provides the shared operating ledger:
 
@@ -35,19 +51,13 @@ python -m databossx --database ./private/control.sqlite3 \
 Do not commit the control database or client documents. Keep them in an
 encrypted, access-controlled data location with independently tested backups.
 
-## Existing engines
+## Important status
 
-- `horizon/`: exact-fraction title chaining, validation, repair, and versioning.
-- `grocery_report_pipeline.py`: broad intake, extraction, reconciliation, and
-  draft report pipeline.
-- `doto_image_commander/`: county image acquisition and review workflow.
-- `automation/`: county research and workbook automation.
-- `backend/` and `frontend/`: prototype web application.
-
-These systems are not yet fully integrated. In particular, a real client report
-cannot be produced without the authoritative source set and approved workbook
-template. AI output must not be treated as examiner-approved merely because
-deterministic checks pass.
+This checkout contains code and synthetic fixtures, not the private title
+corpus. It cannot produce a defensible real title report until the relevant
+source documents are inventoried and processed on the authorized local machine.
+Unreviewed output is draft work product, not a certified abstract, title
+opinion, or substitute for a qualified title examiner or licensed attorney.
 
 ## Security
 
@@ -57,48 +67,12 @@ credential forms in tracked files. Any credential that has ever been committed
 must still be revoked and rotated; deleting it from the current tree does not
 remove it from Git history.
 
-## Verification
-
-```bash
-python scripts/scan_secrets.py
-pytest
-```
-=======
-DataBossX is a local-first toolkit for evidence-grounded land and mineral title
-research, document extraction, exact interest calculation, human review, and
-versioned report production.
-
-The repository currently contains several proven but separate systems:
-
-- `horizon/` — exact interest math, instrument chaining, validation, repair,
-  versioning, and examiner worklists
-- `grocery_report_pipeline.py` — deterministic inventory-to-report stages A–I
-- `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs,
-  and audit
-- `mineral_deal_room/` — Vite/React operational UI prototype
-- `backend/` and `frontend/` — legacy document-processing demo
-
-The unification decision, safety rules, title workflow, migration sequence, and
-acceptance gates are in:
-
-- [DataBossX OS Blueprint](docs/DATABOSSX_OS_BLUEPRINT.md)
-- [Machine-readable build plan](docs/architecture/databossx-os.build-plan.json)
-- [Security and mandatory credential rotation](SECURITY.md)
-
-## Important status
-
-This checkout contains code and synthetic fixtures, not the private title
-corpus. It cannot produce a defensible real title report until the relevant
-source documents are inventoried and processed on the authorized local machine.
-Unreviewed output is draft work product, not a certified abstract, title
-opinion, or substitute for a qualified title examiner or licensed attorney.
-
 ## Existing test suites
 
 ```bash
+python scripts/scan_secrets.py
 python -m pytest -q
 ```
 
 See `horizon/README.md`, `RUNBOOK.md`, and `REPORT_PIPELINE_PLAN.md` for the
 existing subsystem instructions.
->>>>>>> origin/main

@@ -28,12 +28,20 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+<<<<<<< HEAD
 # local env files (examples remain tracked)
+=======
+# local env files and credentials
+>>>>>>> origin/main
 .env
 .env.*
 !.env.example
 !**/.env.example
 *token.json*
+*.db
+*.sqlite
+*.sqlite3
+logs/
 # vercel
 .vercel
 
@@ -75,6 +83,7 @@ android-sdk/
 /output/
 _synthetic_corpus/
 .pytest_cache/
+<<<<<<< HEAD
 
 # DataBossX private control-plane state and client staging
 databossx-control.sqlite3
@@ -82,3 +91,6 @@ databossx-control.sqlite3
 *.sqlite3-shm
 /private/
 /data/staging/
+=======
+/runtime/
+>>>>>>> origin/main

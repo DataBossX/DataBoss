@@ -33,6 +33,14 @@ py horizon/main.py
 Useful flags: `--section 31-12N-24W`, `--base <report-stem>`, `--max-loops N`,
 `--no-backup`, `--dry-run` (scan + validate only).
 
+### Controlled client-workbook loop
+
+For manifest-bound QA, staged repairs, rule-derived scoring, run receipts, and a
+hard human release gate, use `python -m horizon.controlled_loop`. See
+[`CONTROLLED_LOOP.md`](CONTROLLED_LOOP.md) for the work-order and workbook-profile
+contracts. Checks that have no deterministic validator remain blocking; technical
+verification never means client release.
+
 ### Build a report from the reference workbook (Intelligence Layer)
 
 Point `--build-from` at a workbook that has an **OGL** sheet and a **Runsheet**
@@ -84,6 +92,6 @@ from the runsheet):
 pytest tests/test_horizon_*.py -q
 ```
 
-66 unit tests cover exact-fraction interest math, chaining/chain-breaks,
-SHA256 dedup, versioning, validation gates, lxml repair (media preservation),
-the reference-workbook pipeline, and the bounded improvement loop.
+Unit tests cover exact-fraction interest math, chaining/chain-breaks, SHA256
+dedup, versioning, validation gates, lxml repair (media preservation), the
+reference-workbook pipeline, and both bounded improvement loops.

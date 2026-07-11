@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databossx-foundry"
+version = "0.1.0"
+description = "DataBossX Foundry: the thin, verifiable bootstrap layer (doctor, env, scaffold, discover, runner, plugin loader)."
+readme = "README.md"
+requires-python = ">=3.10"
+# The Foundry core is deliberately stdlib-only. Domain dependencies belong to
+# plugins, declared in each plugin.json under requires.python.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "coverage>=7.0",
+    "pydantic>=2.0",  # needed only to smoke-test the absorbed qa_auditor plugin
+]
+
+[project.scripts]
+databossx = "databossx.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["databossx"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+precision = 1

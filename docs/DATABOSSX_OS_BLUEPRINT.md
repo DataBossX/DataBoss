@@ -1,8 +1,8 @@
 # DataBossX Operating System
 
-Status: architecture decision and execution contract  
-Date: 2026-07-11  
-Primary outcome: evidence-grounded title research and report production
+- Status: architecture decision and execution contract
+- Date: 2026-07-11
+- Primary outcome: evidence-grounded title research and report production
 
 ## Executive decision
 
@@ -16,7 +16,7 @@ Operator intent
   → specialized, least-privilege workers
   → immutable evidence and derived artifacts
   → deterministic title calculations and validation
-  → licensed human review
+  → qualified examiner review and any legally required attorney review
   → versioned report release
 ```
 
@@ -451,7 +451,8 @@ Do these in order:
 3. On the Windows machine that contains the real Section 32 files, run PR #26's
    setup, tests, and inventory only.
 4. Review the source manifest before allowing OCR or extraction.
-5. Complete the real evidence-to-candidate flow and licensed examiner review.
+5. Complete the real evidence-to-candidate flow, qualified examiner review, and
+   any legally required attorney review.
 6. Use the resulting failures and corrections as the golden acceptance corpus
    for the trusted kernel—not synthetic assumptions.
 

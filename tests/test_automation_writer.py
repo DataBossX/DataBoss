@@ -64,3 +64,21 @@ def test_writer_does_not_save_when_owner_is_missing(tmp_path):
     before = workbook_path.read_bytes()
     assert update_workbook(workbook_path, "DSU NOTICE LIST", "Unknown Owner", {}) is False
     assert workbook_path.read_bytes() == before
+
+
+def test_stale_lock_file_does_not_block_recovery(tmp_path):
+    workbook_path = tmp_path / "staging.xlsx"
+    make_workbook(workbook_path)
+    lock_path = tmp_path / ".staging.xlsx.lock"
+    lock_path.write_text("left by terminated process", encoding="utf-8")
+
+    assert update_workbook(
+        workbook_path,
+        "DSU NOTICE LIST",
+        "Ella Pearl Kirk",
+        {"status": "Recovered", "confidence": 1},
+    )
+
+    workbook = load_workbook(workbook_path)
+    assert workbook["DSU NOTICE LIST"]["C2"].value == "Recovered"
+    workbook.close()

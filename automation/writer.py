@@ -34,23 +34,42 @@ def create_staging_copy(path: str | Path, staging_dir: str | Path = "data/stagin
 
 @contextmanager
 def _workbook_lock(path: Path, timeout: float = 30.0):
-    """Serialize cross-process workbook writes with an exclusive sidecar file."""
+    """Serialize writes with an OS lock that is released if the process dies."""
     lock_path = path.with_name(f".{path.name}.lock")
     deadline = time.monotonic() + timeout
-    descriptor = None
-    while descriptor is None:
+    lock_file = lock_path.open("a+b")
+    if os.name == "nt":
+        lock_file.seek(0, os.SEEK_END)
+        if lock_file.tell() == 0:
+            lock_file.write(b"\0")
+            lock_file.flush()
+    acquired = False
+    while not acquired:
         try:
-            descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
+            if os.name == "nt":
+                import msvcrt
+
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+        except OSError:
             if time.monotonic() >= deadline:
+                lock_file.close()
                 raise TimeoutError(f"timed out waiting for workbook lock: {lock_path}")
             time.sleep(0.1)
     try:
-        os.write(descriptor, f"pid={os.getpid()}\n".encode())
         yield
     finally:
-        os.close(descriptor)
-        lock_path.unlink(missing_ok=True)
+        if os.name == "nt":
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
 
 
 def update_workbook(path: str | Path, sheet: str, owner: str, row_data: dict) -> bool:

@@ -1,0 +1,47 @@
+{
+  "phase": "7 - QA AND DELIVERY",
+  "status": "PASS (delivery staged; image-purchase-gated items remain OPEN by design)",
+  "run": "2026-07-11 cloud session (Claude, DataBoss repo)",
+  "files_examined_sha256": {
+    "Template.xlsx": "fe2fc01613b3bfe627fee0c4b27c2423884bb6f0a3ba7a3e658efab728b87bb9",
+    "NHE 7-10-26 report": "3aae381a2297eb4b307d025bd37e69c8e819dd9487e06183e3a8647e2b253b13",
+    "Original 2026-07-10 report": "e102112f09ff61d230bb9892d3dec600c331c63406bb0a0673cd9c77e76f7467",
+    "Working Report Workbook (export)": "0f2fb39f0310ab62a5ab7b3f799e878aab6d4a9fb04b62902780862b35d6f699",
+    "FINAL_VERIFIED_2026-07-11.xlsx": "253137847290aef5148aadd6da2d1ff665153fd288736fcfe07e7503471b7053"
+  },
+  "phase1_forensics": {
+    "Template.xlsx": "CONFIRMED prior-project shell: Roger Mills x10, Cherokee x7, Presidio WAB x9, 27-15N-24W refs, 2237/381 + 2572/490 + 2610/574, 448.333333 x21, 377.53845154, 93 negative grid values",
+    "NHE": "CONFIRMED clean principal source: zero residue/negatives/formula errors/external links",
+    "2026-07-10 hybrid": "CONFIRMED clue-only: carries prior-project instruments, 448.333333 x9, 377.53845154, 15 negatives"
+  },
+  "evidence_added": [
+    "47 verified instrument rows merged chronologically into Runsheet (93 data rows total): full historic Crook/Hunt lease-66032-21-1 branch (376/287 Hartman ORRI; 407/676; 430/416 + dup 440/269; 431/674; 423/238-335 lien family + amendments 470/29, 518/5, 568/121-191; 546/68; 568/26; 678/777; ENI/Quinoco 792/51 + 792/72; OCC Order 156126), modern branch fill (Fortune/FourPoint 2167/241, 2168/44; BP/Ellipse 2327/1 + /108; Latigo lien family 2328/269, /379, 2365/743, 2377/635, 2415/1, 2470/153, 2474/292; Teocalli 2401/214; MNR/UMB 2415/410, /515, /617; JPM releases 2453/389, 2455/705; Canvas 2475/943, 2476/67-130; 2480/903; 2487/28; post-cutoff 2490/469 + /471), 2011-2012 index-gap-fill records",
+    "Root lease 66032-21-1 (341/538) added to OGL sheet as OGL #12 (RECITED tier; executed lease absent)",
+    "C9 (verified OCC formation-specific order stack + Order 156126 executed 8/6/1979) and C10 (historic branch abstracted; burdens carried) added to Conclusion Matrix",
+    "Requirement 11 updated: continuation closed through 07/09/2026",
+    "Well 1: verified OTC production (JGL 4/2026 = 2,367 MCF; Carlson 12H 5/2026 = 2,113 MCF), Crook 12/3/2025 Latigo-to-Complete transfer, verified MU orders, Carlson 12H/7H/10H rows (regulatory only)",
+    "Overview SCOPE extended: continuation, index defect (logical p.48 missing / p.54 triplicated), tax-roll duplicate (identical SHA-256), verified order stack"
+  ],
+  "vision_verification": "OCC Order 156126 read in full from official PDF this session: Cause CD 59995, Leede Exploration, hearing 5/22/1979, formation list, 1,440-ac Hunton unit, $7MM/$9MM costs, $400/ac + 1/16-of-8/8 elections, 20/27/35-day mechanics, 180-day commencement - all match the register. Historic instrument rows carry 'visually verified' status with image ranges from the prior local review.",
+  "conflicts_carried": [
+    "1014/76 party styling (Union Oil & Chemical et al.) - complete copy required",
+    "407/676 schedule prints 1/14/1978 lease date vs 11/29/1977 recited elsewhere",
+    "Order 156126 executed 8/6/1979 vs 8/8/1979 recited in later schedules",
+    "OTC displays API 009-21903 (permit-only Riviera 9H) on the drilled Carlson 12H PUN",
+    "ENI release schedule heading XIII vs body XII",
+    "Plat Map.pdf and Tax Roll.pdf identical SHA-256 - real tax roll missing"
+  ],
+  "unresolved_critical": [
+    "22-instrument Tier 1 image queue (est. $8.80) blocked on authorized OKCountyRecords API key and express cost approval",
+    "Post-1988 operative schedules/exhibits unreviewed - no Diversified WI/NRI/net-acre decimal possible",
+    "Executed lease 341/538, JOA No. 1580, Order 156126 elections, Bk 425M amendments",
+    "Long Description records in 2/12/2011-2/8/2012 index gap",
+    "Hartman ORRI, GAEC formula ORRI, FNB Dallas lien family, MNR/UMB and DP Ponies/UMB liens, Latigo Lone Star/Prosperity family - releases not found",
+    "Final-date continuation rerun scheduled 7/17/2026"
+  ],
+  "exact_diversified_decimal_established": "NO - correctly withheld; controlling schedules unreviewed",
+  "current_vested_entity_established": "NO - three separate Diversified-related portfolios carried; schedules control",
+  "direct_image_cutoff": "Bk 1014/75 recorded 04/26/1988 (4,893 continuous images 0001-4893)",
+  "index_certification_date": "2026-07-01; continuation closed through 2026-07-09; last entry Bk 2490/471-473 (WD, recorded 2026-07-07)",
+  "next_exact_action": "Approve the $8.80 Tier 1 queue and pull the 22 watermarked instruments with every exhibit/schedule; then populate tract/WI decimals from the reviewed schedules and rerun the continuation on 7/17/2026."
+}

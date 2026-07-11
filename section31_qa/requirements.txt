@@ -1,0 +1,3 @@
+# Section 31 QA Auditor - the only third-party dependency.
+# openpyxl reads/writes .xlsx/.xlsm without touching Excel itself.
+openpyxl>=3.1,<4

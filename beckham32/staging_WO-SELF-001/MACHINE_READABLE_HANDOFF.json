@@ -1,0 +1,92 @@
+{
+ "agent_id": "claude-cloud-databoss",
+ "role": "WORKER",
+ "run_id": "claude-cloud-databoss-20260711T0620Z-s32wo1",
+ "work_order_id": "WO-SELF-001",
+ "mode": "EXECUTION",
+ "status": "SUBMITTED",
+ "scope_completed": [
+  "Directive-schema conversion of session-verified Section 32 evidence: INSTRUMENTS.jsonl (from 102-row candidate runsheet), OPEN_ITEMS.jsonl (20 items), SCOPE_MANIFEST.json, ACCESS_AND_CAPABILITY_REPORT.json",
+  "Honest re-characterization of prior 'FINAL_VERIFIED' workbook as RELEASE CANDIDATE r2: gates G0-G4 satisfied by this session's checks; G5 PARTIAL (FORMULA_RECALCULATION_UNVERIFIED); G6 independent verifier OPEN; G7 human release OPEN"
+ ],
+ "outputs": [],
+ "tests": [
+  {
+   "test": "contamination scan (Section 27/15N-24W/Roger Mills/stale values)",
+   "result": "PASS",
+   "evidence": "0 hits across all 13 sheets, candidate r2"
+  },
+  {
+   "test": "negative-value scan",
+   "result": "PASS",
+   "evidence": "0"
+  },
+  {
+   "test": "formula-error scan (cached)",
+   "result": "PASS",
+   "evidence": "0"
+  },
+  {
+   "test": "duplicate-instrument scan",
+   "result": "PASS",
+   "evidence": "0 (440/269 re-record flagged, not double-posted)"
+  },
+  {
+   "test": "register completeness cross-check",
+   "result": "PASS",
+   "evidence": "0 register instruments (books 300-2600) absent from candidate"
+  },
+  {
+   "test": "formula recalculation in Excel engine",
+   "result": "NOT_RUN",
+   "evidence": "no Excel/COM in cloud container - blocker B-020"
+  },
+  {
+   "test": "independent verification (G6)",
+   "result": "NOT_RUN",
+   "evidence": "requires verifier other than builder"
+  }
+ ],
+ "conflicts": [
+  "1014/76 party styling",
+  "407/676 schedule lease date 1/14/1978 vs 11/29/1977",
+  "Order 156126 8/6 vs 8/8/1979",
+  "OTC API 009-21903 on 12H PUN",
+  "ENI XII vs XIII",
+  "Plat/Tax Roll identical SHA-256"
+ ],
+ "open_items": [
+  "B-001",
+  "B-002",
+  "B-003",
+  "B-004",
+  "B-005",
+  "B-006",
+  "B-007",
+  "B-008",
+  "B-009",
+  "B-010",
+  "B-011",
+  "B-012",
+  "B-013",
+  "B-014",
+  "B-015",
+  "B-016",
+  "B-017",
+  "B-018",
+  "B-019",
+  "B-020"
+ ],
+ "security_or_quality_warnings": [
+  "Dropbox ACCESS_BLOCKED at network policy - all evidence accessed via Drive mirror only"
+ ],
+ "blocked_dependencies": [
+  "OKCR authorized API key + USD 8.80 approval (B-015)",
+  "Excel recalculation engine (B-020)",
+  "Dropbox network access (informational; Drive mirror complete per manifests)"
+ ],
+ "not_performed": [
+  "No canonical write; no Dropbox access; no image-level OCR of evidence-pack scans; no paid pulls; no release declaration"
+ ],
+ "recommended_next_work_order": "WO-NEXT: COORDINATOR assigns an independent VERIFIER (not this agent) to run G6 against candidate r2 (sha256 1d8b4a67...) + Rodney approves the USD 8.80 Tier 1 pull queue so decimals become computable"
+}

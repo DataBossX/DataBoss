@@ -1,0 +1,74 @@
+{
+ "schema_id": "dbx.access_capability_report",
+ "schema_version": "1.0",
+ "record_id": "ACR-0001",
+ "project_id": "DBX-OK-BECKHAM-32-11N-25W",
+ "created_at_utc": "2026-07-11T06:20:00Z",
+ "created_by": "claude-cloud-databoss",
+ "run_id": "claude-cloud-databoss-20260711T0620Z-s32wo1",
+ "security_classification": "CLIENT_CONFIDENTIAL",
+ "agent_id": "claude-cloud-databoss",
+ "role": "WORKER",
+ "work_order_id": "WO-SELF-001",
+ "canonical_write_authorized": false,
+ "release_authorized": false,
+ "mode": "EXECUTION",
+ "capabilities": {
+  "google_drive_metadata_listing": {
+   "status": "PROVEN",
+   "proof": "listed project root 1fhOPwB58SU7npZ6AmQzwFROUwDeEMK08 and 8 subfolders this session"
+  },
+  "google_drive_content_read": {
+   "status": "PROVEN",
+   "proof": "read Working Findings doc, Working Report Workbook (19 sheets exported), OCC Order 156126 PDF full text"
+  },
+  "google_drive_staging_write": {
+   "status": "PROVEN",
+   "proof": "created checkpoint_phase7_2026-07-11.json id 1GEx7amlb28C-cRoLZ1fHsti8T8FyElRj and 2 delivery notes"
+  },
+  "google_drive_large_binary_write": {
+   "status": "UNAVAILABLE",
+   "proof": "connector requires content inline in tool call; 650KB xlsx base64 (872K chars) exceeds message limit"
+  },
+  "dropbox_any": {
+   "status": "UNAVAILABLE",
+   "proof": "proxy CONNECT to www.dropbox.com answered 403 (policy denial) - ACCESS_BLOCKED"
+  },
+  "local_dpaths_D_drive": {
+   "status": "UNAVAILABLE",
+   "proof": "cloud container; D:\\Desktop\\* not mounted - ACCESS_BLOCKED"
+  },
+  "spreadsheet_read_write": {
+   "status": "PROVEN",
+   "proof": "openpyxl 3.1.5; candidate workbook built + QA-scanned"
+  },
+  "formula_recalculation_excel_com": {
+   "status": "UNAVAILABLE",
+   "proof": "no Excel/COM in Linux container - FORMULA_RECALCULATION_UNVERIFIED blocker stands"
+  },
+  "pdf_image_vision": {
+   "status": "PARTIAL",
+   "proof": "Drive PDF text extraction PROVEN (OCC order); evidence packs return caption text only - embedded scans not OCR-able via connector"
+  },
+  "code_execution": {
+   "status": "PROVEN",
+   "proof": "python3.11 runs this session"
+  },
+  "git_repo_access": {
+   "status": "PROVEN",
+   "proof": "pushed commits fc09901..adac769 to DataBossX/DataBoss branch claude/kimi-section31-qa-audit-5lccqy"
+  },
+  "sha256": {
+   "status": "PROVEN",
+   "proof": "hashes recorded for all 5 workbooks"
+  },
+  "internet_research": {
+   "status": "PARTIAL",
+   "proof": "proxy-gated; dropbox/drive-direct blocked; general fetch untested this run"
+  },
+  "paid_actions": {
+   "status": "UNAVAILABLE",
+   "proof": "budget USD 0; no OKCR API key present"
+  }
+ }
+}

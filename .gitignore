@@ -28,9 +28,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-# .env*.local
+# local env files — never commit real environment files or secrets.
+# .env.example files (placeholders only) ARE allowed.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 *token.json*
+*.key
+service-account*.json
 # vercel
 .vercel
 

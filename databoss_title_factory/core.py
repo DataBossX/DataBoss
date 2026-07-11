@@ -1276,6 +1276,7 @@ def _field_provenance(
         field,
         value,
         value_tokens,
+        blocks,
         block_tokens,
         match_start,
     )
@@ -1353,6 +1354,7 @@ def _field_span_is_semantic(
     field: str,
     value: str,
     value_tokens: list[str],
+    blocks: list[dict[str, Any]],
     block_tokens: list[str],
     match_start: Optional[int],
 ) -> bool:
@@ -1368,19 +1370,59 @@ def _field_span_is_semantic(
         return False
     if field == "instrument_type":
         return bool(_TYPE_RX.fullmatch(value.strip()))
+    match_end = match_start + len(value_tokens)
+    line_key = _ocr_line_key(blocks[match_start])
+    if any(_ocr_line_key(block) != line_key for block in blocks[match_start:match_end]):
+        return False
+    line_indices = [
+        index for index, block in enumerate(blocks)
+        if _ocr_line_key(block) == line_key
+    ]
+    if not line_indices:
+        return False
+    line_start = min(line_indices)
+    line_end = max(line_indices) + 1
     if field == "legal_description" and len(value_tokens) >= 3:
-        legal_markers = {"SECTION", "SEC", "TOWNSHIP", "RANGE", "NE4", "NW4", "SE4", "SW4"}
-        if any(token in legal_markers for token in value_tokens):
+        legal_markers = {
+            "SECTION", "SEC", "TOWNSHIP", "RANGE", "NE4", "NW4", "SE4", "SW4"
+        }
+        if (
+            any(token in legal_markers for token in value_tokens)
+            and match_start == line_start
+            and match_end == line_end
+        ):
             return True
     sequences = _FIELD_LABEL_SEQUENCES.get(field, ())
+    all_labels: list[tuple[int, int, str]] = []
+    for label_field, field_sequences in _FIELD_LABEL_SEQUENCES.items():
+        for sequence in field_sequences:
+            length = len(sequence)
+            for start in range(line_start, max(line_start, line_end - length + 1)):
+                if tuple(block_tokens[start:start + length]) == sequence:
+                    all_labels.append((start, start + length, label_field))
     for sequence in sequences:
         length = len(sequence)
-        for label_start in range(max(0, match_start - length - 5), match_start):
+        for label_start in range(line_start, match_start):
             if tuple(block_tokens[label_start:label_start + length]) == sequence:
                 label_end = label_start + length
-                if label_end <= match_start and match_start - label_end <= 4:
+                next_label_start = min(
+                    (
+                        start for start, _end, _field in all_labels
+                        if start >= label_end and start != label_start
+                    ),
+                    default=line_end,
+                )
+                if label_end == match_start and match_end == next_label_start:
                     return True
     return False
+
+
+def _ocr_line_key(block: dict[str, Any]) -> tuple[Any, Any, Any]:
+    return (
+        block.get("block_number"),
+        block.get("paragraph_number"),
+        block.get("line_number"),
+    )
 
 
 def _load_external_candidates(path: Optional[str | Path], engine: str) -> Optional[list[dict[str, Any]]]:
@@ -1498,19 +1540,23 @@ def _archive_external_candidate_file(
     source = Path(path).expanduser().resolve()
     if not source.is_file():
         raise FileNotFoundError(f"{engine.title()} output does not exist: {source}")
-    destination = ctx.run_dir / "candidates" / f"{engine}_raw_input{source.suffix.lower()}"
+    digest = _sha256(source)
+    destination = (
+        ctx.run_dir / "candidates"
+        / f"{engine}_raw_input_{digest[:16]}_{_now_id()}{source.suffix.lower()}"
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
     manifest = {
         "engine": engine,
         "original_path": str(source),
         "archived_path": str(destination),
-        "sha256": _sha256(destination),
+        "sha256": digest,
         "size_bytes": destination.stat().st_size,
         "status": "RAW INPUT - RETAINED BEFORE PARSING",
     }
     _write_json(
-        ctx.run_dir / "candidates" / f"{engine}_raw_input_manifest.json",
+        destination.with_suffix(destination.suffix + ".manifest.json"),
         manifest,
     )
     return manifest
@@ -1526,6 +1572,7 @@ def extract_and_reconcile(
     from .project_db import update_stage
 
     update_stage(ctx.output_dir, ctx.run_id, "RECONCILE", "IN PROGRESS")
+    _archive_current_reconciliation(ctx)
     ocr = load_ocr(ctx)
     evidence_by_citation = {
         str(item.get("citation", "")).strip(): item
@@ -1620,6 +1667,30 @@ def extract_and_reconcile(
         },
     )
     return reconciled
+
+
+def _archive_current_reconciliation(ctx: RunContext) -> None:
+    sources = [
+        ctx.run_dir / "instruments.json",
+        ctx.run_dir / "instruments.csv",
+        ctx.run_dir / "field_conflicts.json",
+        ctx.run_dir / "field_conflicts.csv",
+        ctx.run_dir / "reconciliation_audit.jsonl",
+        ctx.run_dir / "candidates" / "candidate_archive.jsonl",
+        ctx.run_dir / "candidates" / "cursor_output.json",
+        ctx.run_dir / "candidates" / "cursor_output.csv",
+        ctx.run_dir / "candidates" / "codex_output.json",
+        ctx.run_dir / "candidates" / "codex_output.csv",
+    ]
+    existing = [path for path in sources if path.is_file()]
+    if not existing:
+        return
+    archive = ctx.run_dir / "reconciliation_versions" / _now_id()
+    archive.mkdir(parents=True, exist_ok=False)
+    for source in existing:
+        destination = archive / source.relative_to(ctx.run_dir)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
 
 
 def _norm(value: Any) -> str:

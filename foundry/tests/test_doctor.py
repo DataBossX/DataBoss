@@ -42,6 +42,21 @@ def test_check_tool_reads_stderr_versions():
     assert report.found and report.version.startswith("17.0")
 
 
+def test_version_prefers_number_after_the_word_version():
+    java = next(t for t in doctor.TOOLS if t.key == "java")
+    noisy = (
+        "Picked up JAVA_TOOL_OPTIONS: -Dhttps.proxyHost=127.0.0.1 "
+        "-Dhttps.proxyPort=44407\n"
+        'openjdk version "21.0.10" 2026-01-20\n'
+    )
+    report = doctor.check_tool(
+        java, "linux",
+        which=lambda name: "/usr/bin/java",
+        run=fake_run_factory(noisy, to_stderr=True),
+    )
+    assert report.version == "21.0.10"
+
+
 def test_check_tool_missing_carries_install_hint():
     tess = next(t for t in doctor.TOOLS if t.key == "tesseract")
     for platform_key, fragment in (

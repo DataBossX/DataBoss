@@ -73,3 +73,12 @@ android-sdk/
 /output/
 _synthetic_corpus/
 .pytest_cache/
+
+# Foundry-generated artifacts (machine-local work products, never committed)
+/projects/
+/foundry_state/
+/registry.json
+/doctor_report.json
+/Horizon/
+/Penterra/
+*.egg-info/

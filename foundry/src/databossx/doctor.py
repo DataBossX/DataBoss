@@ -26,6 +26,11 @@ from .logs import utc_now_iso
 log = logging.getLogger("databossx.doctor")
 
 _VERSION_PATTERN = re.compile(r"(\d+\.\d+(?:\.\d+)?[\w.\-]*)")
+# Prefer the number that follows the word "version" — tool banners (and env
+# noise like proxy settings) can contain unrelated dotted numbers first.
+_LABELED_VERSION_PATTERN = re.compile(
+    r"version\s+\"?(\d+\.\d+(?:\.\d+)?[\w.\-]*)\"?", re.IGNORECASE
+)
 
 
 @dataclass(frozen=True)
@@ -217,7 +222,7 @@ def _probe_version(
         return None
     # java and some tools print the version to stderr.
     text = (proc.stdout or "") + (proc.stderr or "")
-    m = _VERSION_PATTERN.search(text)
+    m = _LABELED_VERSION_PATTERN.search(text) or _VERSION_PATTERN.search(text)
     return m.group(1) if m else None
 
 

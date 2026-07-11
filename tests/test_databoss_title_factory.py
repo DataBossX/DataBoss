@@ -174,7 +174,7 @@ def test_image_ocr_retains_blocks_and_field_bounding_boxes(tmp_path: Path, monke
                     },
                     "block_number": 1,
                     "paragraph_number": 1,
-                    "line_number": 1,
+                    "line_number": 1 if index <= 3 else 2,
                     "word_number": index,
                 }
                 for index, (text, x1, y1, x2, y2) in enumerate(words, start=1)

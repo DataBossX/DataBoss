@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -239,6 +240,13 @@ class CommandCenter:
         )
 
     def _read_claimed_job(self, path: Path) -> tuple[Dict[str, Any], str]:
+        try:
+            path_before = os.lstat(path)
+        except OSError as exc:
+            raise SecurityViolation("claimed job cannot be inspected safely") from exc
+        file_attributes = getattr(path_before, "st_file_attributes", 0)
+        if stat.S_ISLNK(path_before.st_mode) or file_attributes & 0x400:
+            raise SecurityViolation("symlink and reparse-point jobs are prohibited")
         flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
         try:
             descriptor = os.open(path, flags)
@@ -258,12 +266,31 @@ class CommandCenter:
             after = os.fstat(descriptor)
         finally:
             os.close(descriptor)
+        try:
+            path_after = os.lstat(path)
+        except OSError as exc:
+            raise SecurityViolation("claimed job path changed during validation") from exc
         if len(raw) > self.MAX_JOB_BYTES:
             raise JobValidationError("job exceeds maximum size")
         if (before.st_ino, before.st_size, before.st_mtime_ns) != (
             after.st_ino, after.st_size, after.st_mtime_ns
         ):
             raise SecurityViolation("claimed job changed during validation")
+        if (
+            path_before.st_dev,
+            path_before.st_ino,
+            path_before.st_size,
+            path_before.st_mtime_ns,
+        ) != (
+            path_after.st_dev,
+            path_after.st_ino,
+            path_after.st_size,
+            path_after.st_mtime_ns,
+        ) or (path_before.st_dev, path_before.st_ino) != (
+            before.st_dev,
+            before.st_ino,
+        ):
+            raise SecurityViolation("claimed job path was replaced during validation")
         try:
             payload = validate_job(json.loads(raw.decode("utf-8")))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -327,6 +354,8 @@ class CommandCenter:
         )
 
         try:
+            if running.is_symlink() or sha256_file(running) != claimed_sha256:
+                raise SecurityViolation("claimed job changed before execution")
             result = self._execute(payload)
             if running.is_symlink() or sha256_file(running) != claimed_sha256:
                 raise SecurityViolation("claimed job changed after validation")

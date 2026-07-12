@@ -233,6 +233,7 @@ def test_startup_requires_successful_self_test(tmp_path: Path, monkeypatch: pyte
         encoding="utf-8",
     )
     monkeypatch.setenv("APPDATA", str(tmp_path / "AppData"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     with pytest.raises(RuntimeError, match="self-test"):
         install_startup(config, "SELFTEST-001")
@@ -257,6 +258,7 @@ def test_startup_uses_user_startup_folder_after_pass(
     assert make_watcher(root).run(once=True) == 0
     appdata = tmp_path / "AppData"
     monkeypatch.setenv("APPDATA", str(appdata))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     startup = install_startup(config, "SELFTEST-001")
 

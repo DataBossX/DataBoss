@@ -196,6 +196,18 @@ class WatcherConfig:
                 pass
             else:
                 raise ValueError("local_state_dir must be outside the synchronized root")
+            if os.name == "nt":
+                local_appdata = os.environ.get("LOCALAPPDATA")
+                if not local_appdata:
+                    raise ValueError("LOCALAPPDATA is unavailable")
+                try:
+                    self.local_state_dir.relative_to(
+                        Path(local_appdata).expanduser().resolve()
+                    )
+                except ValueError as error:
+                    raise ValueError(
+                        "local_state_dir must be beneath LOCALAPPDATA"
+                    ) from error
 
 
 @dataclass

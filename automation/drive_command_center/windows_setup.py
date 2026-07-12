@@ -185,12 +185,16 @@ def install_startup(config_path: Path, self_test_job_id: str) -> Path:
     if not state_text:
         raise RuntimeError("startup denied: local_state_dir is not configured")
     local_state_dir = Path(state_text).expanduser().resolve()
+    local_appdata_text = os.environ.get("LOCALAPPDATA")
+    if not local_appdata_text:
+        raise RuntimeError("startup denied: LOCALAPPDATA is unavailable")
+    local_appdata = Path(local_appdata_text).expanduser().resolve()
     try:
-        local_state_dir.relative_to(root)
-    except ValueError:
-        pass
-    else:
-        raise RuntimeError("startup denied: local_state_dir must not be synchronized")
+        local_state_dir.relative_to(local_appdata)
+    except ValueError as error:
+        raise RuntimeError(
+            "startup denied: local_state_dir must be beneath LOCALAPPDATA"
+        ) from error
     if not successful_self_test(
         root, self_test_job_id, canonical_folder_id, local_state_dir
     ):

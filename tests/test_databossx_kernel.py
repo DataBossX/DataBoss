@@ -242,16 +242,18 @@ def test_command_center_recovers_interrupted_running_job(tmp_path):
 def test_second_watcher_cannot_recover_active_job(tmp_path):
     owner = CommandCenter(tmp_path)
     payload = job()
-    owner.store.submit(payload)
-    owner.store.transition(
-        "job-1", "inbox", "claimed", claimed_at=datetime.now(timezone.utc).isoformat()
-    )
-    owner.store.transition(
-        "job-1", "claimed", "running", heartbeat_at=datetime.now(timezone.utc).isoformat()
-    )
-    (owner.folders["running"] / "job-1.json").write_text(json.dumps(payload))
     try:
         with owner.single_instance():
+            owner.store.submit(payload)
+            owner.store.transition(
+                "job-1", "inbox", "claimed",
+                claimed_at=datetime.now(timezone.utc).isoformat(),
+            )
+            owner.store.transition(
+                "job-1", "claimed", "running",
+                heartbeat_at=datetime.now(timezone.utc).isoformat(),
+            )
+            (owner.folders["running"] / "job-1.json").write_text(json.dumps(payload))
             contender = CommandCenter(tmp_path)
             try:
                 with pytest.raises(RuntimeError, match="another"):

@@ -73,7 +73,8 @@ def test_inventory_ocr_extract_and_runsheet_are_cited_and_versioned(tmp_path: Pa
     ]
     assert len(archive) == 2
     assert all(row["status"] == "CANDIDATE - RETAINED" and row["sha256"] for row in archive)
-    assert (project / OUTPUT_DIR_NAME / "latest_run.txt").read_text().strip() == ctx.run_id
+    assert (ctx.output_dir / "latest_run.txt").read_text().strip() == ctx.run_id
+    assert not (project / OUTPUT_DIR_NAME).exists()
 
     second = start_run(project)
     assert second.run_id != ctx.run_id

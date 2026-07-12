@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+_SAFE_JOB_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _is_within(path: Path, roots: list[Path]) -> bool:
+    return any(path == root or root in path.parents for root in roots)
 
 
 class JobState(StrEnum):
@@ -34,19 +42,33 @@ class AgentJob(BaseModel):
     agent: str
     task_type: str
     prompt_file: str
-    allowed_roots: list[str] = Field(default_factory=list)
+    allowed_roots: list[str] = Field(min_length=1)
     output_root: str
     risk_level: RiskLevel = RiskLevel.LOW
     approval_required: bool = False
-    approval_token: str | None = None
+    approval_token: str | None = Field(default=None, exclude=True, repr=False)
     timeout_seconds: int = Field(default=3600, ge=1, le=86400)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("job_id")
+    @classmethod
+    def validate_job_id(cls, value: str) -> str:
+        if value in {".", ".."} or not _SAFE_JOB_ID_PATTERN.fullmatch(value):
+            raise ValueError("job_id must be a safe opaque identifier")
+        return value
 
     def validate_paths(self) -> None:
         output = Path(self.output_root).resolve()
         allowed = [Path(root).resolve() for root in self.allowed_roots]
-        if allowed and not any(output == root or root in output.parents for root in allowed):
+        prompt = Path(self.prompt_file)
+        resolved_prompt = prompt.resolve()
+
+        if not _is_within(output, allowed):
             raise ValueError(f"output_root is outside allowed_roots: {output}")
+        if not _is_within(resolved_prompt, allowed):
+            raise ValueError(f"prompt_file is outside allowed_roots: {resolved_prompt}")
+        if prompt.is_symlink():
+            raise ValueError("prompt_file must not be a symlink")
         if self.approval_required and not self.approval_token:
             raise ValueError("approval_token is required for this job")
 

@@ -2,21 +2,26 @@
 
 A local-first control plane for supervising Cursor, ChatGPT, Claude, Gemini, Codex, Grok, and future agents through one standardized queue and evidence model.
 
+> **Status: PHASE 0 FOUNDATION.** This package currently validates and atomically
+> places a single job package into a local agent inbox. It is not yet a live
+> watcher or a bidirectional agent bus. See
+> [`DIRECTIVE_GAP_REPORT.md`](DIRECTIVE_GAP_REPORT.md).
+
 ## Safety model
 
 - No arbitrary shell execution.
-- No secret values in jobs, logs, or receipts.
+- Approval tokens are validated in memory and excluded from stored jobs.
 - Original evidence is read-only.
-- Every state transition produces a timestamped receipt.
-- High-impact actions require an approval token issued by Rodney.
-- Outputs are hashed before promotion.
-- Client deliverables remain HOLD_NO_RELEASE until release gates pass.
+- Handled submissions publish at most one claim, rejection, or failure receipt per job ID.
+- Approval-required jobs fail closed when no token is provided.
+- Copied claim inputs are hashed.
+- This foundation does not promote or release client deliverables.
 
 ## Standard lifecycle
 
 `inbox -> claimed -> running -> completed | failed | rejected | quarantine`
 
-Every agent job uses the same artifacts:
+The target lifecycle will use these artifacts:
 
 - `CLAIM.json`
 - `HEARTBEAT.json`
@@ -35,7 +40,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .[dev]
 python -m databoss_orchestrator.cli init --root D:\DataBoss\control_plane
-python -m databoss_orchestrator.cli watch --root D:\DataBoss\control_plane
+python -m databoss_orchestrator.cli health --root D:\DataBoss\control_plane
 ```
 
-The initial implementation supports safe file-drop adapters. Browser/API-specific adapters can be added behind the same interface without changing the queue contract.
+The initial implementation supports validated file-drop claims only. A copied
+job is `claimed`, never `completed`; terminal result collection remains open.

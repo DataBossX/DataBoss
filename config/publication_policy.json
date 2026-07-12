@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "max_text_file_bytes": 2000000,
+  "content_exempt_paths": [],
+  "forbidden_path_rules": [
+    {
+      "id": "private_project_root",
+      "pattern": "(^|/)(private_projects|client_work|evidence)(/|$)",
+      "message": "Private project and evidence roots are not publishable."
+    },
+    {
+      "id": "oklahoma_project_control",
+      "pattern": "(^|/)projects/OK-[^/]+(/|$)",
+      "message": "Real Oklahoma project controls must remain private."
+    },
+    {
+      "id": "release_artifact",
+      "pattern": "(^|/)final_delivery(/|$)|(^|/)[^/]*(FINAL|CLIENT)[^/]*\\.(xlsx|xlsm|docx|pdf)$",
+      "message": "Candidate, client, and final release artifacts must remain private."
+    },
+    {
+      "id": "credential_file",
+      "pattern": "(^|/)(\\.env(/|$|\\.(?!example(/|$))[^/]*(/|$))|[^/]*(credentials|token)\\.json$)",
+      "message": "Credential-bearing files are forbidden."
+    },
+    {
+      "id": "runtime_database",
+      "pattern": "(^|/)(runtime(/|$)|[^/]+\\.(db|sqlite|sqlite3)$)",
+      "message": "Runtime state and databases must remain outside the public repository."
+    },
+    {
+      "id": "private_archive",
+      "pattern": "\\.(zip|tar|tar\\.gz|tgz)$",
+      "message": "Archives require explicit human publication review."
+    }
+  ],
+  "forbidden_content_rules": [
+    {
+      "id": "private_key",
+      "pattern": "-----BEGIN ([A-Z0-9]+ )?PRIVATE KEY-----",
+      "message": "Private-key material is forbidden."
+    },
+    {
+      "id": "drive_object_link",
+      "pattern": "https://drive\\.google\\.com/(drive/(u/[0-9]+/)?folders|file/d)/[A-Za-z0-9_-]{10,}",
+      "message": "Google Drive object links and identifiers must remain private."
+    },
+    {
+      "id": "cursor_run_link",
+      "pattern": "https://cursor\\.com/agents/bc-[A-Za-z0-9-]+",
+      "message": "Cursor run identifiers are internal operational metadata."
+    },
+    {
+      "id": "private_windows_path",
+      "pattern": "[A-Za-z]:\\\\(Users\\\\[^\\\\\\s]+|DataBoss(X)?\\\\)",
+      "message": "Private absolute workstation paths must not be published."
+    }
+  ]
+}

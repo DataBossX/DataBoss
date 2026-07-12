@@ -106,7 +106,14 @@ class StateStore:
 
     def submit(self, payload: Dict[str, Any]) -> str:
         job_id = str(payload["job_id"])
-        content_hash = canonical_hash(payload)
+        content_hash = canonical_hash(
+            {
+                "operation": payload["operation"],
+                "project_id": payload.get("project_id"),
+                "parameters": payload.get("parameters", {}),
+                "input_artifacts": payload.get("input_artifacts", []),
+            }
+        )
         payload_json = json.dumps(redact(payload), sort_keys=True)
         try:
             with self.transaction():

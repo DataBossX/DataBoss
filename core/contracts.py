@@ -77,6 +77,15 @@ class AgentResult:
     cost_usd: str = "0"
     retry_count: int = 0
 
+    def _hash_payload(self) -> Dict[str, Any]:
+        value = asdict(self)
+        value.pop("response_hash", None)
+        return value
+
+    @property
+    def computed_hash(self) -> str:
+        return canonical_hash(self._hash_payload())
+
     def validate(self) -> None:
         if self.status not in {
             "SUCCEEDED",
@@ -89,26 +98,13 @@ class AgentResult:
             raise ValueError("task_id, provider, and model are required")
         if self.claims and not self.citations:
             raise ValueError("claims require citations")
-        expected = canonical_hash(
-            {
-                "task_id": self.task_id,
-                "summary": self.summary,
-                "claims": self.claims,
-                "citations": self.citations,
-            }
-        )
-        if self.response_hash and self.response_hash != expected:
+        if not self.response_hash:
+            raise ValueError("response_hash is required")
+        if self.response_hash != self.computed_hash:
             raise ValueError("response_hash does not match canonical result content")
 
     def to_dict(self) -> Dict[str, Any]:
         value = asdict(self)
         if not value["response_hash"]:
-            value["response_hash"] = canonical_hash(
-                {
-                    "task_id": self.task_id,
-                    "summary": self.summary,
-                    "claims": self.claims,
-                    "citations": self.citations,
-                }
-            )
+            value["response_hash"] = self.computed_hash
         return value

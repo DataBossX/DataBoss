@@ -290,10 +290,14 @@ def execute_source_limited_run(output_root: Path) -> Path:
         [
             [
                 gate,
-                "PASS" if gate == "security tests passed" else "FAIL",
+                "FAIL",
                 "YES",
-                "Deterministic package generation" if gate == "security tests passed" else "",
-                "" if gate == "security tests passed" else "SOURCE EVIDENCE OR HUMAN GATE MISSING",
+                "",
+                (
+                    "CURRENT-RUN SECURITY TEST RECEIPT MISSING"
+                    if gate == "security tests passed"
+                    else "SOURCE EVIDENCE OR HUMAN GATE MISSING"
+                ),
             ]
             for gate in RELEASE_GATES
         ],
@@ -332,6 +336,37 @@ def execute_source_limited_run(output_root: Path) -> Path:
     for filename, content in documents.items():
         (run_dir / filename).write_text(content, encoding="utf-8")
 
+    receipt = {
+        "schema_id": "dbx.completion_receipt",
+        "run_id": run_id,
+        "project_id": PROJECT_ID,
+        "completed_at": utc_now(),
+        "overall_status": "PARTIAL",
+        "release_state": "HOLD_NO_RELEASE",
+        "source_count": 0,
+        "claims_asserted": 0,
+        "release_candidate_created": False,
+        "human_approval_received": False,
+        "blockers": BLOCKERS,
+    }
+    _write_json(run_dir / "COMPLETION_RECEIPT.json", receipt)
+    _write_json(
+        run_dir / "RELEASE_CANDIDATE_NOT_CREATED.json",
+        {
+            "schema_id": "dbx.release_candidate_blocker",
+            "run_id": run_id,
+            "status": "NOT_CREATED",
+            "release_state": "HOLD_NO_RELEASE",
+            "reason": "The controlling template and source-supported facts are unavailable.",
+            "required_before_creation": [
+                "Hash-verified controlling Template.xlsx",
+                "Approved writable-range mapping",
+                "Source-supported title facts",
+                "Deterministic workbook QA and render comparison",
+            ],
+        },
+    )
+
     artifacts = []
     for path in sorted(run_dir.iterdir()):
         if path.is_file():
@@ -354,24 +389,18 @@ def execute_source_limited_run(output_root: Path) -> Path:
                 {
                     "artifact": "final isolated release-candidate XLSX",
                     "reason": "Creating one without the controlling template would be misleading.",
+                },
+                {
+                    "artifact": "CANONICAL_ARTIFACT_INDEX.json",
+                    "reason": "A file cannot contain its own stable byte hash.",
+                },
+                {
+                    "artifact": "FINAL_HASH_LEDGER.sha256",
+                    "reason": "The final ledger is generated after the index and hashes the index.",
                 }
             ],
         },
     )
-    receipt = {
-        "schema_id": "dbx.completion_receipt",
-        "run_id": run_id,
-        "project_id": PROJECT_ID,
-        "completed_at": utc_now(),
-        "overall_status": "PARTIAL",
-        "release_state": "HOLD_NO_RELEASE",
-        "source_count": 0,
-        "claims_asserted": 0,
-        "release_candidate_created": False,
-        "human_approval_received": False,
-        "blockers": BLOCKERS,
-    }
-    _write_json(run_dir / "COMPLETION_RECEIPT.json", receipt)
 
     ledger_paths = [
         path for path in sorted(run_dir.iterdir())

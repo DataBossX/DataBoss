@@ -7,6 +7,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -71,6 +72,31 @@ PROVIDERS = {
         "mock", None, None, None, frozenset({"test", "structured"}), True
     ),
 }
+
+
+def _validate_provider_policy() -> None:
+    path = Path(__file__).resolve().parents[1] / "config" / "providers.yaml"
+    configured: set[str] = set()
+    in_providers = False
+    try:
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            if raw_line == "providers:":
+                in_providers = True
+                continue
+            if in_providers and raw_line and not raw_line.startswith(" "):
+                break
+            if in_providers and raw_line.startswith("  ") and not raw_line.startswith("    "):
+                configured.add(raw_line.strip().removesuffix(":"))
+    except OSError as exc:
+        raise RuntimeError(f"cannot load provider policy: {path}") from exc
+    if configured != set(PROVIDERS):
+        raise RuntimeError(
+            f"provider policy and registry differ: policy={sorted(configured)}, "
+            f"registry={sorted(PROVIDERS)}"
+        )
+
+
+_validate_provider_policy()
 
 
 class MockProvider:

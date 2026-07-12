@@ -12,37 +12,31 @@ class SecurityViolation(ValueError):
     """Raised when untrusted work exceeds an administrator-owned policy."""
 
 
-FORBIDDEN_OPERATIONS = frozenset(
-    {
-        "arbitrary_shell",
-        "arbitrary_python",
-        "unrestricted_file_write",
-        "unrestricted_delete",
-        "credential_entry",
-        "external_publish",
-        "permission_change",
-        "purchase_records",
-        "git_merge",
-        "remote_code_execution",
-    }
-)
+def _operation_policy() -> tuple[frozenset[str], frozenset[str]]:
+    path = Path(__file__).resolve().parents[1] / "config" / "approved_operations.yaml"
+    sections = {"operations": set(), "explicitly_prohibited": set()}
+    section = ""
+    try:
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if line.endswith(":") and line[:-1] in sections:
+                section = line[:-1]
+            elif line.startswith("- ") and section:
+                sections[section].add(line[2:].strip())
+    except OSError as exc:
+        raise RuntimeError(f"cannot load operation policy: {path}") from exc
+    if not sections["operations"] or not sections["explicitly_prohibited"]:
+        raise RuntimeError("operation policy is empty or malformed")
+    overlap = sections["operations"] & sections["explicitly_prohibited"]
+    if overlap:
+        raise RuntimeError(f"operation policy contradicts itself: {sorted(overlap)}")
+    return (
+        frozenset(sections["operations"]),
+        frozenset(sections["explicitly_prohibited"]),
+    )
 
-APPROVED_OPERATIONS = frozenset(
-    {
-        "communication_loop_self_test",
-        "inventory_artifacts_read_only",
-        "verify_hashes_read_only",
-        "reconcile_source_manifests",
-        "run_section32_evidence_audit",
-        "build_missing_evidence_manifest",
-        "run_isolated_workbook_qa",
-        "repair_isolated_workbook",
-        "compare_workbook_to_template",
-        "run_multi_agent_analysis",
-        "build_release_gate_matrix",
-        "package_section32_candidate",
-    }
-)
+
+APPROVED_OPERATIONS, FORBIDDEN_OPERATIONS = _operation_policy()
 
 _SECRET_KEY_RE = re.compile(
     r"(?i)(api[_-]?key|token|password|secret|authorization|connection[_-]?string)"

@@ -70,9 +70,13 @@ def start_run(root: str | Path) -> RunContext:
     if not root_path.is_dir():
         raise ValueError(f"Project folder does not exist: {root_path}")
     output = root_path / OUTPUT_DIR_NAME
+    if output.is_symlink() or (output / "runs").is_symlink():
+        raise ValueError("Title Factory output paths cannot be symlinks.")
     run_id = _now_id()
     run_dir = output / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
+    if run_dir.resolve().parent != (output / "runs").resolve():
+        raise ValueError("Run directory escaped the Title Factory output root.")
     (run_dir / "quarantine").mkdir()
     output.mkdir(parents=True, exist_ok=True)
     _atomic_text(output / "latest_run.txt", run_id)
@@ -95,12 +99,18 @@ def latest_run(root: str | Path) -> RunContext:
     root_path = Path(root).expanduser().resolve()
     output = root_path / OUTPUT_DIR_NAME
     pointer = output / "latest_run.txt"
+    if output.is_symlink() or pointer.is_symlink() or (output / "runs").is_symlink():
+        raise ValueError("Title Factory run pointers cannot use symlinks.")
     if not pointer.exists():
         raise FileNotFoundError("No run exists. Run Inventory first.")
     run_id = pointer.read_text(encoding="utf-8").strip()
+    if not re.fullmatch(r"\d{8}_\d{6}_\d{6}", run_id):
+        raise ValueError("Latest-run pointer contains an invalid run identifier.")
     run_dir = output / "runs" / run_id
-    if not run_dir.is_dir():
+    if run_dir.is_symlink() or not run_dir.is_dir():
         raise FileNotFoundError(f"Latest run folder is missing: {run_dir}")
+    if run_dir.resolve().parent != (output / "runs").resolve():
+        raise ValueError("Latest-run pointer escaped the output root.")
     return RunContext(root_path, output, run_dir, run_id)
 
 
@@ -144,7 +154,7 @@ def resume_pipeline(
             ),
             (
                 "instruments.json", "field_conflicts.json",
-                "reconciliation_audit.jsonl",
+                "reconciliation_audit.jsonl", "candidates/candidate_archive.jsonl",
             ),
         ),
         (
@@ -1761,14 +1771,33 @@ def _candidate_pairs(
     return groups
 
 
+def _strip_unverified_provenance(
+    rows: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            **row,
+            "field_provenance": {},
+            "evidence_valid": False,
+            "evidence_validation": {
+                "valid": False,
+                "reason": "No current-run evidence ledger was supplied.",
+            },
+        }
+        for row in rows
+    ]
+
+
 def tournament_reconcile(
     cursor_rows: Sequence[dict[str, Any]],
     codex_rows: Sequence[dict[str, Any]],
     weak_threshold: float = 0.65,
 ) -> list[dict[str, Any]]:
-    """Compatibility wrapper for the source-controlled tournament."""
+    """Compatibility wrapper that never trusts caller-asserted provenance."""
+    untrusted_cursor_rows = _strip_unverified_provenance(cursor_rows)
+    untrusted_codex_rows = _strip_unverified_provenance(codex_rows)
     output, _audit, _conflicts = _tournament_with_audit(
-        cursor_rows, codex_rows, weak_threshold
+        untrusted_cursor_rows, untrusted_codex_rows, weak_threshold
     )
     return output
 
@@ -1889,7 +1918,7 @@ def _tournament_with_audit(
             {
                 str(row.get("citation", ""))
                 for row in candidates
-                if row.get("citation") and row.get("evidence_valid") is not False
+                if row.get("citation") and row.get("evidence_valid") is True
             }
         )
         source_paths = sorted(
@@ -2152,13 +2181,21 @@ def export_safe_xlsx(
     suffix = template_path.suffix.lower()
     package = ctx.root / f"FINAL_DATABOSS_OUTPUT_{_now_id()}"
     package.mkdir(parents=True, exist_ok=False)
+    if package.resolve().parent != ctx.root.resolve():
+        raise ValueError("Review package escaped the project root.")
     backup_record = _backup_for_operation(
         ctx,
         template_path,
         action="read-only template copy for preservation-audited review package",
     )
     untouched_template = package / f"UNTOUCHED_TEMPLATE_COPY{suffix}"
-    destination = package / f"CLIENT_REPORT_CANDIDATE_{section.replace(' ', '_')}{suffix}"
+    safe_section = re.sub(r"[^A-Za-z0-9_-]+", "_", section.strip()).strip("_")
+    if not safe_section or safe_section != section.replace(" ", "_"):
+        raise ValueError(
+            "Section must contain only letters, numbers, spaces, hyphens, "
+            "and underscores."
+        )
+    destination = package / f"CLIENT_REPORT_CANDIDATE_{safe_section}{suffix}"
     shutil.copy2(template_path, untouched_template)
     shutil.copy2(template_path, destination)
     selected_master_copy = ""

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dbx.agent_result.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id", "provider", "model", "started_at", "completed_at", "status",
+    "summary", "claims", "citations", "assumptions", "unresolved_items",
+    "contradictions", "confidence_by_claim", "recommended_next_action",
+    "output_artifact_paths", "response_hash"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "provider": {"type": "string", "minLength": 1},
+    "model": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string"},
+    "completed_at": {"type": "string"},
+    "status": {
+      "enum": ["SUCCEEDED", "BLOCKED", "FAILED_RETRYABLE", "FAILED_TERMINAL"]
+    },
+    "summary": {"type": "string"},
+    "claims": {"type": "array", "items": {"type": "object"}},
+    "citations": {"type": "array", "items": {"type": "object"}},
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "unresolved_items": {"type": "array", "items": {"type": "string"}},
+    "contradictions": {"type": "array", "items": {"type": "string"}},
+    "confidence_by_claim": {"type": "object"},
+    "recommended_next_action": {"type": "string"},
+    "output_artifact_paths": {"type": "array", "items": {"type": "string"}},
+    "response_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "token_usage": {"type": "object"},
+    "cost_usd": {"type": "string"},
+    "retry_count": {"type": "integer", "minimum": 0}
+  }
+}

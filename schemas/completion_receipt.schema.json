@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dbx.completion_receipt.v1",
+  "type": "object",
+  "required": [
+    "schema_id", "run_id", "project_id", "completed_at", "overall_status",
+    "release_state", "source_count", "claims_asserted",
+    "release_candidate_created", "human_approval_received", "blockers"
+  ],
+  "properties": {
+    "schema_id": {"const": "dbx.completion_receipt"},
+    "run_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "overall_status": {"enum": ["PASS", "PARTIAL", "BLOCKED", "FAIL"]},
+    "release_state": {
+      "enum": ["RELEASE_CANDIDATE", "HOLD_NO_RELEASE", "RELEASE_APPROVED"]
+    },
+    "source_count": {"type": "integer", "minimum": 0},
+    "claims_asserted": {"type": "integer", "minimum": 0},
+    "release_candidate_created": {"type": "boolean"},
+    "human_approval_received": {"type": "boolean"},
+    "blockers": {"type": "array", "items": {"type": "object"}}
+  }
+}

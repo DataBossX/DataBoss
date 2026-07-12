@@ -1,0 +1,24 @@
+schema_version: "1.0"
+policy:
+  discover_models_when_supported: true
+  hard_coded_model_required: false
+  daily_cost_ceiling_usd: "0"
+  per_run_cost_ceiling_usd: "0"
+  approval_required_to_raise_cost: true
+providers:
+  openai:
+    credential_env: OPENAI_API_KEY
+  anthropic:
+    credential_env: ANTHROPIC_API_KEY
+  google:
+    credential_env: GOOGLE_API_KEY
+  xai:
+    credential_env: XAI_API_KEY
+  ollama:
+    endpoint_env: OLLAMA_BASE_URL
+    local_only: true
+  lmstudio:
+    endpoint_env: LMSTUDIO_BASE_URL
+    local_only: true
+  mock:
+    test_only: true

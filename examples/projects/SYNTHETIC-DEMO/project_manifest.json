@@ -1,0 +1,16 @@
+{
+  "schema_id": "dbx.synthetic_project_manifest",
+  "schema_version": "1.0",
+  "project_id": "SYNTHETIC-DEMO-001",
+  "client": "FICTIONAL CLIENT",
+  "legal_description": "SYNTHETIC LAND ONLY",
+  "source_policy": "IMMUTABLE_READ_ONLY",
+  "source_locations": [
+    {"system": "fixture", "path": "examples/fixtures", "status": "SYNTHETIC"}
+  ],
+  "release_policy": {
+    "technical_verification_is_not_release": true,
+    "human_approval_required": true
+  },
+  "status": "SYNTHETIC_EXAMPLE"
+}

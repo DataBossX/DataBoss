@@ -53,30 +53,26 @@ venv/
 .venv/
 __pycache__/
 
-# ===================
-# ADDITIONAL RULES TO PREVENT FILE SIZE VIOLATIONS
-# ===================
-# Archive files (anywhere in the project)
+# Archives and generated artifacts
 **/*.zip
 **/*.tar.gz
 **/*.tar
 **/*.tgz
-
-# Build caches and artifacts
 .cache/
 *.pack
-
-# System packages
 *.deb
-
-# Python native libraries
 *.dylib
-
-# Android SDK
 android-sdk/
-
-# Grocery Report pipeline generated artifacts (regenerable; may contain client data)
 /output/
 _synthetic_corpus/
 .pytest_cache/
-/runtime/
+runtime/
+
+# Client-specific operations data must stay in approved private systems
+projects/OK-*/
+private_projects/
+client_work/
+evidence/
+**/final_delivery/
+**/*FINAL*.xlsx
+**/*CLIENT*.xlsx

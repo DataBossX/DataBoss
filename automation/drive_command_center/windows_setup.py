@@ -1,0 +1,187 @@
+"""Windows detection and least-privileged startup setup for the watcher.
+
+The detector only reads command-center control artifacts. It does not inspect
+project evidence or Dropbox and will not guess when the Drive path is ambiguous.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import sys
+from pathlib import Path
+
+from automation.drive_command_center.watcher import EXPECTED_FOLDERS
+
+CONTROL_FILES = ("watcher_config.json", "WATCHER_ONLINE.json")
+SKIP_NAMES = {
+    "$recycle.bin",
+    "appdata",
+    "dropbox",
+    "node_modules",
+    ".git",
+    "windows",
+    "program files",
+    "program files (x86)",
+}
+
+
+def artifact_folder_id(path: Path) -> str | None:
+    for name in CONTROL_FILES:
+        artifact = path / name
+        try:
+            with artifact.open(encoding="utf-8") as source:
+                value = json.load(source)
+        except (OSError, ValueError, TypeError):
+            continue
+        if isinstance(value, dict):
+            folder_id = value.get("canonical_folder_id")
+            if isinstance(folder_id, str) and folder_id:
+                return folder_id
+    return None
+
+
+def valid_command_center(path: Path, folder_id: str) -> bool:
+    return (
+        path.is_dir()
+        and all((path / name).is_dir() for name in EXPECTED_FOLDERS)
+        and artifact_folder_id(path) == folder_id
+    )
+
+
+def search_roots() -> list[Path]:
+    roots: list[Path] = []
+    explicit = os.environ.get("DATABOSSX_COMMAND_CENTER")
+    if explicit:
+        roots.append(Path(explicit).expanduser())
+    for drive_letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
+        drive = Path(f"{drive_letter}:\\")
+        if drive.exists():
+            roots.append(drive)
+    for raw in (
+        r"D:\Desktop\DataBossX",
+        r"D:\DataBoss\DataBossX_Final_Modular",
+        os.environ.get("USERPROFILE", ""),
+    ):
+        if raw:
+            candidate = Path(raw)
+            if candidate.exists() and candidate not in roots:
+                roots.append(candidate)
+    return roots
+
+
+def detect(folder_id: str, max_directories: int = 200_000) -> list[Path]:
+    matches: set[Path] = set()
+    inspected = 0
+    for root in search_roots():
+        if valid_command_center(root, folder_id):
+            matches.add(root.resolve())
+            continue
+        for current, directories, files in os.walk(root, topdown=True):
+            directories[:] = [
+                name
+                for name in directories
+                if name.lower() not in SKIP_NAMES and not name.startswith(".")
+            ]
+            inspected += 1
+            if inspected > max_directories:
+                raise RuntimeError("detection limit reached; set DATABOSSX_COMMAND_CENTER explicitly")
+            if set(CONTROL_FILES).intersection(files):
+                candidate = Path(current)
+                if valid_command_center(candidate, folder_id):
+                    matches.add(candidate.resolve())
+                    directories[:] = []
+    return sorted(matches)
+
+
+def backup_file(path: Path, backup_directory: Path) -> Path | None:
+    if not path.exists():
+        return None
+    backup_directory.mkdir(parents=True, exist_ok=True)
+    destination = backup_directory / path.name
+    counter = 1
+    while destination.exists():
+        destination = backup_directory / f"{path.stem}.{counter}{path.suffix}"
+        counter += 1
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    shutil.copy2(path, temporary)
+    os.replace(temporary, destination)
+    return destination
+
+
+def successful_self_test(root: Path, job_id: str) -> bool:
+    receipt = root / "completed" / f"RESULT_{job_id}.json"
+    try:
+        with receipt.open(encoding="utf-8") as source:
+            value = json.load(source)
+    except (OSError, ValueError):
+        return False
+    return (
+        value.get("job_id") == job_id
+        and value.get("status") == "completed"
+        and value.get("source_files_modified") is False
+        and value.get("safety_statement")
+        == "Original project evidence and Dropbox were not modified."
+    )
+
+
+def install_startup(config_path: Path, self_test_job_id: str) -> Path:
+    with config_path.open(encoding="utf-8") as source:
+        config = json.load(source)
+    root = Path(os.path.expandvars(config["root"])).expanduser().resolve()
+    if not successful_self_test(root, self_test_job_id):
+        raise RuntimeError("startup denied: successful self-test receipt not found")
+    appdata = os.environ.get("APPDATA")
+    if not appdata:
+        raise RuntimeError("APPDATA is unavailable; this command must run as a Windows user")
+    startup = (
+        Path(appdata)
+        / "Microsoft"
+        / "Windows"
+        / "Start Menu"
+        / "Programs"
+        / "Startup"
+    )
+    startup.mkdir(parents=True, exist_ok=True)
+    command_path = startup / "DataBossXDriveWatcher.cmd"
+    watcher_module = "automation.drive_command_center.watcher"
+    python = Path(sys.executable).resolve()
+    command = (
+        "@echo off\r\n"
+        f'start "DataBossX Drive Watcher" /min "{python}" -m {watcher_module} '
+        f'--config "{config_path.resolve()}"\r\n'
+    )
+    temporary = command_path.with_suffix(".cmd.tmp")
+    temporary.write_text(command, encoding="utf-8", newline="")
+    os.replace(temporary, command_path)
+    return command_path
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    detect_parser = subparsers.add_parser("detect")
+    detect_parser.add_argument("--folder-id", required=True)
+    startup_parser = subparsers.add_parser("install-startup")
+    startup_parser.add_argument("--config", type=Path, required=True)
+    startup_parser.add_argument("--self-test-job-id", required=True)
+    arguments = parser.parse_args(argv)
+
+    if arguments.command == "detect":
+        matches = detect(arguments.folder_id)
+        print(json.dumps({"matches": [str(path) for path in matches]}, indent=2))
+        return 0 if len(matches) == 1 else 2
+    try:
+        path = install_startup(arguments.config, arguments.self_test_job_id)
+    except Exception as error:
+        print(f"setup failed closed: {type(error).__name__}: {error}", file=sys.stderr)
+        return 1
+    print(f"startup installed: {path}")
+    print(f"disable by moving this file out of Startup: {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

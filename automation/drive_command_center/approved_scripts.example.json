@@ -1,0 +1,5 @@
+{
+  "approved_scripts": [],
+  "note": "Version 1 supports only the internal no-op operation and executes no scripts.",
+  "schema_version": "1.0"
+}

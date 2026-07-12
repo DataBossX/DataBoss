@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_utc": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 500,
+      "type": "string"
+    },
+    "job_id": {
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "type": "string"
+    },
+    "operation": {
+      "const": "noop"
+    },
+    "schema_version": {
+      "const": "1.0"
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "operation"
+  ],
+  "title": "DataBossX Drive Command Center Job",
+  "type": "object"
+}

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -146,10 +147,11 @@ def test_approval_token_is_not_persisted(tmp_path: Path) -> None:
     )
 
     assert orchestrator.submit(job).state == JobState.CLAIMED
-    stored_job = (
+    stored_job_text = (
         root / "agents" / "cursor" / "inbox" / job.job_id / "JOB.json"
     ).read_text(encoding="utf-8")
-    assert "do-not-persist" not in stored_job
+    stored_job = json.loads(stored_job_text)
+    assert "do-not-persist" not in stored_job_text
     assert "approval_token" not in stored_job
 
 
@@ -182,7 +184,7 @@ def test_existing_empty_package_directory_is_not_overwritten(tmp_path: Path) -> 
     orchestrator = make_orchestrator(root)
     job = make_job(root, prompt, job_id="reserved-job-id")
     package = root / "agents" / "cursor" / "inbox" / job.job_id
-    package.mkdir()
+    package.mkdir(parents=True)
 
     receipt = orchestrator.submit(job)
 

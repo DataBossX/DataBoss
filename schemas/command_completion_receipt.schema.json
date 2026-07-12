@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dbx.command_completion_receipt.v1",
+  "type": "object",
+  "required": ["schema_id", "job_id", "status", "at"],
+  "properties": {
+    "schema_id": {"const": "dbx.command_completion_receipt.v1"},
+    "job_id": {"type": "string"},
+    "operation": {"type": "string"},
+    "status": {"enum": ["completed", "failed"]},
+    "result": {"type": "object"},
+    "terminal_job_path": {"type": "string"},
+    "error_type": {"type": "string"},
+    "error": {"type": "string"},
+    "at": {"type": "string", "format": "date-time"}
+  }
+}

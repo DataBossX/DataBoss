@@ -1,7 +1,12 @@
 """SQLite control plane for auditable DataBossX work.
 
 The database stores metadata and receipts, not document bytes. Source files stay
-read-only at their recorded locations and are identified by their SHA-256 hash.
+read-only at their recorded locations and are identified by their SHA-256 hash,
+computed through a TOCTOU-hardened stable handle. Classification is stored at
+project-asset scope on a validated lattice, secrets are redacted before
+persistence, and canonical promotions to APPROVED/DELIVERED require an
+authenticated, single-use, expiring, exact-hash/exact-state approval record
+verified with a trusted public key held outside the database.
 """
 
 from __future__ import annotations
@@ -16,7 +21,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
-SCHEMA_VERSION = 1
+from . import classification as cls
+from . import redaction
+from .approval import ApprovalError, ApprovalVerifier, VerifierNotConfigured, load_verifier
+from .paths import hash_file_stable, safe_resolve_file
+
+SCHEMA_VERSION = 2
 LIFECYCLE = (
     "SOURCE",
     "STAGING",
@@ -26,10 +36,20 @@ LIFECYCLE = (
     "APPROVED",
     "DELIVERED",
 )
+APPROVAL_REQUIRED_STATES = frozenset({"APPROVED", "DELIVERED"})
+
+# Content the control plane always treats as at least confidential.
+_CONFIDENTIAL_CONTENT_FLOOR = cls.CONFIDENTIAL
+
+_LOAD_VERIFIER_FROM_ENV = object()
 
 
 class PromotionError(ValueError):
     """Raised when a canonical-file promotion violates a control."""
+
+
+class LedgerError(RuntimeError):
+    """Raised when the promotion ledger fails integrity verification."""
 
 
 def _now() -> str:
@@ -44,19 +64,26 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
 
 
-def _file_digest(path: Path, chunk_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(chunk_size), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 class ControlPlane:
     """Persistent project, asset, evidence, QA, and promotion ledger."""
 
-    def __init__(self, database: str | Path) -> None:
+    def __init__(
+        self,
+        database: str | Path,
+        *,
+        intake_roots: Sequence[str | Path] | None = None,
+        approval_verifier: Any = _LOAD_VERIFIER_FROM_ENV,
+    ) -> None:
         self.database = Path(database)
+        self.intake_roots = [str(Path(root)) for root in (intake_roots or ())]
+        self._verifier_setting = approval_verifier
+
+    # -- approval verifier -------------------------------------------------
+    def _get_verifier(self) -> ApprovalVerifier | None:
+        setting = self._verifier_setting
+        if setting is _LOAD_VERIFIER_FROM_ENV:
+            return load_verifier()
+        return setting
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -82,7 +109,7 @@ class ControlPlane:
             destination.mkdir(parents=True, exist_ok=True)
             backup = (
                 destination
-                / f"{self.database.stem}-{datetime.now():%Y%m%d-%H%M%S%f}.sqlite3"
+                / f"{self.database.stem}-{datetime.now():%Y%m%d-%H%M%S%f}.sqlite3-backup"
             )
             try:
                 with sqlite3.connect(self.database) as source, sqlite3.connect(backup) as target:
@@ -108,6 +135,7 @@ class ControlPlane:
                 raise RuntimeError(f"unsupported schema version {current}")
         return backup
 
+    # -- projects ----------------------------------------------------------
     def create_project(self, manifest: Mapping[str, Any]) -> str:
         project_id = str(manifest["project_id"]).strip()
         if not project_id:
@@ -116,6 +144,7 @@ class ControlPlane:
         missing = [field for field in required if not str(manifest.get(field, "")).strip()]
         if missing:
             raise ValueError(f"missing project fields: {', '.join(missing)}")
+        security = cls.normalize(manifest.get("security_classification", cls.CONFIDENTIAL))
         created_at = _now()
         with self.connect() as connection:
             connection.execute(
@@ -132,82 +161,202 @@ class ControlPlane:
                     manifest.get("township"),
                     manifest.get("range"),
                     manifest.get("status", "active"),
-                    manifest.get("security_classification", "CONFIDENTIAL"),
+                    security,
                     created_at,
                 ),
             )
-        self.create_manifest_revision(project_id, manifest)
+            self._create_manifest_revision_locked(
+                connection, project_id, manifest, (), inherit=False
+            )
         return project_id
 
+    # -- intake ------------------------------------------------------------
     def ingest_asset(
         self,
         project_id: str,
         path: str | Path,
         *,
         source_authority: int,
-        security_classification: str = "CONFIDENTIAL",
+        security_classification: str = cls.CONFIDENTIAL,
         role: str = "source",
     ) -> str:
-        """Inventory one file without modifying it."""
-        source = Path(path).expanduser().resolve(strict=True)
-        if not source.is_file():
-            raise ValueError(f"asset is not a file: {source}")
+        with self.connect() as connection:
+            return self._ingest_asset_locked(
+                connection,
+                project_id,
+                path,
+                source_authority=source_authority,
+                security_classification=security_classification,
+                role=role,
+            )
+
+    def intake_assets(
+        self,
+        project_id: str,
+        paths: Sequence[str | Path],
+        *,
+        source_authority: int,
+        security_classification: str = cls.CONFIDENTIAL,
+        role: str = "source",
+        source_locations: Sequence[str] = (),
+    ) -> tuple[list[str], str]:
+        """Ingest assets and carry the authoritative manifest policy forward.
+
+        The new manifest revision inherits the latest revision's policy
+        (``required_checks``, ``release_policy``, jurisdiction, ...) and
+        atomically adds the ingested asset IDs, all in one transaction.
+        """
+        with self.connect() as connection:
+            asset_ids = [
+                self._ingest_asset_locked(
+                    connection,
+                    project_id,
+                    path,
+                    source_authority=source_authority,
+                    security_classification=security_classification,
+                    role=role,
+                )
+                for path in paths
+            ]
+            revision_id = self._create_manifest_revision_locked(
+                connection,
+                project_id,
+                {"source_locations": list(source_locations)},
+                asset_ids,
+                inherit=True,
+            )
+        return asset_ids, revision_id
+
+    def _ingest_asset_locked(
+        self,
+        connection: sqlite3.Connection,
+        project_id: str,
+        path: str | Path,
+        *,
+        source_authority: int,
+        security_classification: str,
+        role: str,
+    ) -> str:
         if not 1 <= source_authority <= 8:
             raise ValueError("source_authority must be ranked from 1 (highest) to 8")
-        sha256 = _file_digest(source)
+        project = connection.execute(
+            "SELECT 1 FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if project is None:
+            raise ValueError(f"unknown project: {project_id}")
+
+        # Confidential floor for content plus a validated project-asset scope.
+        requested = cls.normalize(security_classification)
+        scope_classification = cls.strictest(requested, _CONFIDENTIAL_CONTENT_FLOOR)
+
+        source = safe_resolve_file(path, authorized_roots=self.intake_roots or None)
+        sha256, size_bytes = hash_file_stable(
+            source, authorized_roots=self.intake_roots or None
+        )
         asset_id = f"asset:{sha256}"
-        stat = source.stat()
         created_at = _now()
-        with self.connect() as connection:
-            connection.execute(
-                """INSERT OR IGNORE INTO assets(
-                       id, sha256, size_bytes, media_type, security_classification, created_at
-                   ) VALUES (?, ?, ?, ?, ?, ?)""",
-                (
-                    asset_id,
-                    sha256,
-                    stat.st_size,
-                    mimetypes.guess_type(source.name)[0] or "application/octet-stream",
-                    security_classification,
-                    created_at,
-                ),
-            )
-            connection.execute(
-                """INSERT OR IGNORE INTO asset_locations(
-                       asset_id, project_id, location, role, source_authority, verified_at
-                   ) VALUES (?, ?, ?, ?, ?, ?)""",
-                (asset_id, project_id, str(source), role, source_authority, created_at),
-            )
-            connection.execute(
-                """INSERT OR IGNORE INTO asset_states(
-                       project_id, asset_id, state, updated_at
-                   ) VALUES (?, ?, 'SOURCE', ?)""",
-                (project_id, asset_id, created_at),
-            )
+
+        existing = connection.execute(
+            "SELECT security_classification FROM assets WHERE id = ?", (asset_id,)
+        ).fetchone()
+        effective = cls.ensure_not_downgraded(
+            existing["security_classification"] if existing else None,
+            scope_classification,
+        )
+        connection.execute(
+            """INSERT INTO assets(
+                   id, sha256, size_bytes, media_type, security_classification, created_at
+               ) VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET security_classification = excluded.security_classification
+               WHERE excluded.security_classification IS NOT NULL""",
+            (
+                asset_id,
+                sha256,
+                size_bytes,
+                mimetypes.guess_type(source.name)[0] or "application/octet-stream",
+                effective,
+                created_at,
+            ),
+        )
+        # Enforce "never downgrade" explicitly regardless of insert path.
+        connection.execute(
+            "UPDATE assets SET security_classification = ? WHERE id = ?",
+            (effective, asset_id),
+        )
+        connection.execute(
+            """INSERT INTO asset_locations(
+                   asset_id, project_id, location, role, source_authority, verified_at
+               ) VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(asset_id, project_id, location) DO NOTHING""",
+            (asset_id, project_id, str(source), role, source_authority, created_at),
+        )
+        connection.execute(
+            """INSERT INTO asset_classifications(
+                   project_id, asset_id, classification, updated_at
+               ) VALUES (?, ?, ?, ?)
+               ON CONFLICT(project_id, asset_id) DO UPDATE SET
+                   classification = excluded.classification, updated_at = excluded.updated_at""",
+            (project_id, asset_id, scope_classification, created_at),
+        )
+        connection.execute(
+            """INSERT INTO asset_states(
+                   project_id, asset_id, state, updated_at
+               ) VALUES (?, ?, 'SOURCE', ?)
+               ON CONFLICT(project_id, asset_id) DO NOTHING""",
+            (project_id, asset_id, created_at),
+        )
         return asset_id
 
+    # -- manifests ---------------------------------------------------------
     def create_manifest_revision(
         self, project_id: str, manifest: Mapping[str, Any], asset_ids: Sequence[str] = ()
     ) -> str:
-        payload = dict(manifest)
-        payload["project_id"] = project_id
-        payload["asset_ids"] = sorted(set(asset_ids or payload.get("asset_ids", ())))
-        revision_id = f"manifest:{_digest(payload)}"
         with self.connect() as connection:
-            for asset_id in payload["asset_ids"]:
-                self._require_asset(connection, project_id, asset_id)
-            version = connection.execute(
-                "SELECT COALESCE(MAX(version), 0) + 1 FROM manifest_revisions WHERE project_id = ?",
-                (project_id,),
-            ).fetchone()[0]
-            connection.execute(
-                """INSERT OR IGNORE INTO manifest_revisions(
-                       id, project_id, version, payload_json, created_at
-                   ) VALUES (?, ?, ?, ?, ?)""",
-                (revision_id, project_id, version, _json(payload), _now()),
+            return self._create_manifest_revision_locked(
+                connection, project_id, manifest, asset_ids, inherit=True
             )
+
+    def _create_manifest_revision_locked(
+        self,
+        connection: sqlite3.Connection,
+        project_id: str,
+        manifest: Mapping[str, Any],
+        asset_ids: Sequence[str],
+        *,
+        inherit: bool,
+    ) -> str:
+        payload: dict[str, Any] = {}
+        prior_asset_ids: set[str] = set()
+        if inherit:
+            prior = connection.execute(
+                """SELECT payload_json FROM manifest_revisions
+                   WHERE project_id = ? ORDER BY version DESC LIMIT 1""",
+                (project_id,),
+            ).fetchone()
+            if prior is not None:
+                payload = json.loads(prior["payload_json"])
+                prior_asset_ids = set(payload.get("asset_ids", ()))
+        payload.update(dict(manifest))
+        payload["project_id"] = project_id
+        combined = set(asset_ids) | prior_asset_ids | set(payload.get("asset_ids", ()) or ())
+        payload["asset_ids"] = sorted(combined)
+
+        revision_id = f"manifest:{_digest(payload)}"
+        for asset_id in payload["asset_ids"]:
+            self._require_asset(connection, project_id, asset_id)
+        version = connection.execute(
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM manifest_revisions WHERE project_id = ?",
+            (project_id,),
+        ).fetchone()[0]
+        connection.execute(
+            """INSERT OR IGNORE INTO manifest_revisions(
+                   id, project_id, version, payload_json, created_at
+               ) VALUES (?, ?, ?, ?, ?)""",
+            (revision_id, project_id, version, _json(payload), _now()),
+        )
         return revision_id
 
+    # -- evidence ----------------------------------------------------------
     def record_evidence(
         self,
         *,
@@ -222,6 +371,7 @@ class ControlPlane:
         effective_date: str | None = None,
         citation: str | None = None,
         explanation: str | None = None,
+        security_classification: str = cls.CONFIDENTIAL,
     ) -> str:
         if not locator.strip() or not extracted_text.strip() or not conclusion.strip():
             raise ValueError("locator, extracted_text, and conclusion are required")
@@ -230,6 +380,10 @@ class ControlPlane:
         }
         if invalid:
             raise ValueError(f"confidence scores must be between 0 and 1: {invalid}")
+        # Extracted text, conclusions, and legal descriptions are confidential.
+        evidence_classification = cls.strictest(
+            security_classification, _CONFIDENTIAL_CONTENT_FLOOR
+        )
         payload = {
             "project_id": project_id,
             "asset_id": asset_id,
@@ -242,6 +396,7 @@ class ControlPlane:
             "effective_date": effective_date,
             "citation": citation,
             "explanation": explanation,
+            "security_classification": evidence_classification,
         }
         evidence_id = f"evidence:{_digest(payload)}"
         with self.connect() as connection:
@@ -250,8 +405,8 @@ class ControlPlane:
                 """INSERT OR IGNORE INTO evidence(
                        id, project_id, asset_id, locator, citation, extracted_text,
                        legal_description, effective_date, conclusion, confidence_json,
-                       verification_status, explanation, created_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       verification_status, explanation, security_classification, created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     evidence_id,
                     project_id,
@@ -265,11 +420,13 @@ class ControlPlane:
                     _json(confidence),
                     verification_status,
                     explanation,
+                    evidence_classification,
                     _now(),
                 ),
             )
         return evidence_id
 
+    # -- runs --------------------------------------------------------------
     def start_run(
         self,
         *,
@@ -282,6 +439,7 @@ class ControlPlane:
         code_revision: str | None = None,
     ) -> str:
         run_id = f"run:{uuid.uuid4()}"
+        safe_parameters = redaction.redact(dict(parameters or {}))
         with self.connect() as connection:
             manifest = connection.execute(
                 "SELECT 1 FROM manifest_revisions WHERE id = ? AND project_id = ?",
@@ -301,7 +459,7 @@ class ControlPlane:
                     agent,
                     model,
                     prompt_version,
-                    _json(parameters or {}),
+                    _json(safe_parameters),
                     code_revision,
                     _now(),
                 ),
@@ -319,6 +477,7 @@ class ControlPlane:
     ) -> None:
         if status not in {"SUCCEEDED", "FAILED", "CANCELLED"}:
             raise ValueError("invalid terminal run status")
+        safe_errors = [redaction.redact_message(error) for error in errors]
         with self.connect() as connection:
             run = connection.execute(
                 "SELECT project_id FROM runs WHERE id = ?", (run_id,)
@@ -334,11 +493,12 @@ class ControlPlane:
             cursor = connection.execute(
                 """UPDATE runs SET status = ?, completed_at = ?, errors_json = ?, cost = ?
                    WHERE id = ? AND status = 'RUNNING'""",
-                (status, _now(), _json(list(errors)), cost, run_id),
+                (status, _now(), _json(safe_errors), cost, run_id),
             )
             if cursor.rowcount != 1:
                 raise ValueError("run is already terminal")
 
+    # -- QA ----------------------------------------------------------------
     def record_qa(
         self,
         *,
@@ -408,6 +568,7 @@ class ControlPlane:
             )
         return qa_id
 
+    # -- promotion ---------------------------------------------------------
     def promote(
         self,
         *,
@@ -416,7 +577,7 @@ class ControlPlane:
         to_state: str,
         actor: str,
         reason: str,
-        human_approved: bool = False,
+        approval: Mapping[str, Any] | None = None,
     ) -> str:
         """Promote exactly one lifecycle step and emit a hash-chained receipt."""
         if to_state not in LIFECYCLE:
@@ -424,7 +585,7 @@ class ControlPlane:
         if not actor.strip() or not reason.strip():
             raise PromotionError("actor and reason are required")
         with self.connect() as connection:
-            self._require_asset(connection, project_id, asset_id)
+            asset = self._require_asset(connection, project_id, asset_id)
             row = connection.execute(
                 "SELECT state FROM asset_states WHERE project_id = ? AND asset_id = ?",
                 (project_id, asset_id),
@@ -441,10 +602,23 @@ class ControlPlane:
                 raise PromotionError(
                     f"invalid transition {from_state} -> {to_state}; expected {expected}"
                 )
-            if to_state in {"APPROVED", "DELIVERED"} and not human_approved:
-                raise PromotionError(f"{to_state} requires explicit human approval")
             if to_state in {"QA", "APPROVED", "DELIVERED"}:
                 self._require_qa_clearance(connection, project_id, asset_id)
+
+            approval_id: str | None = None
+            if to_state in APPROVAL_REQUIRED_STATES:
+                approval_id = self._consume_approval(
+                    connection,
+                    approval,
+                    project_id=project_id,
+                    asset_id=asset_id,
+                    asset_sha256=asset["sha256"],
+                    from_state=from_state,
+                    to_state=to_state,
+                    actor=actor,
+                )
+            elif approval is not None:
+                raise PromotionError(f"{to_state} does not accept an approval record")
 
             previous = connection.execute(
                 """SELECT receipt_hash FROM promotions
@@ -458,7 +632,7 @@ class ControlPlane:
                 "to_state": to_state,
                 "actor": actor,
                 "reason": reason,
-                "human_approved": human_approved,
+                "approval_id": approval_id,
                 "previous_hash": previous["receipt_hash"] if previous else None,
                 "created_at": _now(),
             }
@@ -467,7 +641,7 @@ class ControlPlane:
             connection.execute(
                 """INSERT INTO promotions(
                        id, project_id, asset_id, from_state, to_state, actor, reason,
-                       human_approved, previous_hash, receipt_hash, created_at
+                       approval_id, previous_hash, receipt_hash, created_at
                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     promotion_id,
@@ -477,7 +651,7 @@ class ControlPlane:
                     to_state,
                     actor,
                     reason,
-                    int(human_approved),
+                    approval_id,
                     payload["previous_hash"],
                     receipt_hash,
                     payload["created_at"],
@@ -490,6 +664,182 @@ class ControlPlane:
             )
         return promotion_id
 
+    def _consume_approval(
+        self,
+        connection: sqlite3.Connection,
+        approval: Mapping[str, Any] | None,
+        *,
+        project_id: str,
+        asset_id: str,
+        asset_sha256: str,
+        from_state: str,
+        to_state: str,
+        actor: str,
+    ) -> str:
+        if approval is None:
+            raise PromotionError(f"{to_state} requires a signed approval record")
+        verifier = self._get_verifier()
+        if verifier is None:
+            raise PromotionError(
+                f"{to_state} is blocked: no trusted approval verifier is configured "
+                "(fail closed)"
+            )
+        try:
+            record = verifier.verify(
+                approval,
+                project_id=project_id,
+                asset_id=asset_id,
+                asset_sha256=asset_sha256,
+                from_state=from_state,
+                to_state=to_state,
+            )
+        except (ApprovalError, VerifierNotConfigured) as exc:
+            raise PromotionError(f"{to_state} approval rejected: {exc}") from exc
+
+        # Single-use: a re-used nonce is a replay and is rejected.
+        replayed = connection.execute(
+            "SELECT 1 FROM approvals WHERE nonce = ?", (record.nonce,)
+        ).fetchone()
+        if replayed is not None:
+            raise PromotionError(f"{to_state} approval replay rejected: nonce already used")
+
+        approval_id = f"approval:{_digest(json.loads(record.token_json))}"
+        connection.execute(
+            """INSERT INTO approvals(
+                   id, project_id, asset_id, nonce, key_id, subject, from_state, to_state,
+                   asset_sha256, scope, issued_at, expires_at, token_json, used_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                approval_id,
+                project_id,
+                asset_id,
+                record.nonce,
+                record.key_id,
+                record.subject,
+                from_state,
+                to_state,
+                record.asset_sha256,
+                record.scope,
+                record.issued_at,
+                record.expires_at,
+                record.token_json,
+                _now(),
+            ),
+        )
+        return approval_id
+
+    # -- ledger verification ----------------------------------------------
+    def verify_ledger(self, project_id: str) -> dict[str, Any]:
+        """Recompute the hash chain and detect tampering.
+
+        Detects: broken/edited receipts, broken previous-hash linkage, asset
+        states that disagree with the ledger (direct state edits), and forged or
+        invalid approval records on APPROVED/DELIVERED promotions.
+        """
+        issues: list[str] = []
+        verifier = self._get_verifier()
+        with self.connect() as connection:
+            promotions = connection.execute(
+                """SELECT id, asset_id, from_state, to_state, actor, reason, approval_id,
+                          previous_hash, receipt_hash, created_at
+                   FROM promotions WHERE project_id = ?
+                   ORDER BY created_at, id""",
+                (project_id,),
+            ).fetchall()
+
+            previous_hash: str | None = None
+            final_state: dict[str, str] = {}
+            for promotion in promotions:
+                payload = {
+                    "project_id": project_id,
+                    "asset_id": promotion["asset_id"],
+                    "from_state": promotion["from_state"],
+                    "to_state": promotion["to_state"],
+                    "actor": promotion["actor"],
+                    "reason": promotion["reason"],
+                    "approval_id": promotion["approval_id"],
+                    "previous_hash": promotion["previous_hash"],
+                    "created_at": promotion["created_at"],
+                }
+                recomputed = _digest(payload)
+                if recomputed != promotion["receipt_hash"]:
+                    issues.append(
+                        f"receipt {promotion['id']} hash mismatch (tampered fields)"
+                    )
+                if promotion["previous_hash"] != previous_hash:
+                    issues.append(
+                        f"receipt {promotion['id']} breaks the hash chain linkage"
+                    )
+                previous_hash = promotion["receipt_hash"]
+                final_state[promotion["asset_id"]] = promotion["to_state"]
+
+                if promotion["to_state"] in APPROVAL_REQUIRED_STATES:
+                    self._verify_approval_receipt(
+                        connection, project_id, promotion, verifier, issues
+                    )
+
+            # Direct state edits: asset_states must agree with the ledger.
+            states = connection.execute(
+                "SELECT asset_id, state FROM asset_states WHERE project_id = ?",
+                (project_id,),
+            ).fetchall()
+            for state in states:
+                expected = final_state.get(state["asset_id"], "SOURCE")
+                if state["state"] != expected:
+                    issues.append(
+                        f"asset {state['asset_id']} state {state['state']!r} disagrees "
+                        f"with ledger {expected!r} (direct state edit)"
+                    )
+
+        return {"project_id": project_id, "ok": not issues, "issues": issues,
+                "promotions": len(promotions)}
+
+    def _verify_approval_receipt(
+        self,
+        connection: sqlite3.Connection,
+        project_id: str,
+        promotion: sqlite3.Row,
+        verifier: ApprovalVerifier | None,
+        issues: list[str],
+    ) -> None:
+        approval_id = promotion["approval_id"]
+        if not approval_id:
+            issues.append(
+                f"receipt {promotion['id']} promoted to {promotion['to_state']} "
+                "without an approval record"
+            )
+            return
+        row = connection.execute(
+            "SELECT token_json, asset_id, from_state, to_state, asset_sha256 FROM approvals WHERE id = ?",
+            (approval_id,),
+        ).fetchone()
+        if row is None:
+            issues.append(f"receipt {promotion['id']} references a missing approval")
+            return
+        if verifier is None:
+            issues.append(
+                f"approval for {promotion['id']} cannot be verified: no trusted "
+                "verifier configured (fail closed)"
+            )
+            return
+        try:
+            verifier.verify(
+                json.loads(row["token_json"]),
+                project_id=project_id,
+                asset_id=row["asset_id"],
+                asset_sha256=row["asset_sha256"],
+                from_state=row["from_state"],
+                to_state=row["to_state"],
+                now=None,
+            )
+        except (ApprovalError, VerifierNotConfigured) as exc:
+            # Expiry at verification time is expected for historical approvals; a
+            # signature/binding failure indicates forgery.
+            message = str(exc)
+            if "expired" not in message:
+                issues.append(f"approval for {promotion['id']} is invalid: {message}")
+
+    # -- helpers -----------------------------------------------------------
     @staticmethod
     def _require_qa_clearance(
         connection: sqlite3.Connection, project_id: str, asset_id: str
@@ -577,6 +927,13 @@ CREATE TABLE IF NOT EXISTS asset_locations (
     verified_at TEXT NOT NULL,
     PRIMARY KEY(asset_id, project_id, location)
 );
+CREATE TABLE IF NOT EXISTS asset_classifications (
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    asset_id TEXT NOT NULL REFERENCES assets(id),
+    classification TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(project_id, asset_id)
+);
 CREATE TABLE IF NOT EXISTS asset_states (
     project_id TEXT NOT NULL REFERENCES projects(id),
     asset_id TEXT NOT NULL REFERENCES assets(id),
@@ -605,6 +962,7 @@ CREATE TABLE IF NOT EXISTS evidence (
     confidence_json TEXT NOT NULL,
     verification_status TEXT NOT NULL,
     explanation TEXT,
+    security_classification TEXT NOT NULL DEFAULT 'CONFIDENTIAL',
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS runs (
@@ -641,6 +999,22 @@ CREATE TABLE IF NOT EXISTS qa_results (
     evidence_ids_json TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS approvals (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    asset_id TEXT NOT NULL REFERENCES assets(id),
+    nonce TEXT NOT NULL UNIQUE,
+    key_id TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    from_state TEXT NOT NULL,
+    to_state TEXT NOT NULL,
+    asset_sha256 TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    issued_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    token_json TEXT NOT NULL,
+    used_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS promotions (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id),
@@ -649,7 +1023,7 @@ CREATE TABLE IF NOT EXISTS promotions (
     to_state TEXT NOT NULL,
     actor TEXT NOT NULL,
     reason TEXT NOT NULL,
-    human_approved INTEGER NOT NULL CHECK(human_approved IN (0, 1)),
+    approval_id TEXT REFERENCES approvals(id),
     previous_hash TEXT,
     receipt_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL
@@ -666,6 +1040,10 @@ CREATE TRIGGER IF NOT EXISTS immutable_qa_update
 BEFORE UPDATE ON qa_results BEGIN SELECT RAISE(ABORT, 'QA results are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_qa_delete
 BEFORE DELETE ON qa_results BEGIN SELECT RAISE(ABORT, 'QA results are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_approval_update
+BEFORE UPDATE ON approvals BEGIN SELECT RAISE(ABORT, 'approval records are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_approval_delete
+BEFORE DELETE ON approvals BEGIN SELECT RAISE(ABORT, 'approval records are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_promotion_update
 BEFORE UPDATE ON promotions BEGIN SELECT RAISE(ABORT, 'promotion receipts are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_promotion_delete

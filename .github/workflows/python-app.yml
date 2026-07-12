@@ -1,6 +1,5 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
+# Lint, compile, dependency, CLI, and full test matrix (Linux + Windows).
+# All third-party actions are pinned to verified immutable commit SHAs.
 name: Python application
 
 on:
@@ -16,31 +15,50 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Reject secrets in tracked files
-      run: python scripts/scan_secrets.py
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.11"
+      - name: Reject credential patterns in tracked files
+        run: python scripts/scan_secrets.py
 
-  build:
-
+  publication-policy:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.10"
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        pytest
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.11"
+      - name: Reject client/private data in the public tree
+        run: python scripts/check_publication_policy.py
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+      - name: Dependency consistency check
+        run: pip check
+      - name: Lint (syntax and undefined names)
+        run: |
+          flake8 databossx automation scripts tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Compile checks
+        run: python -m compileall -q databossx automation scripts tests
+      - name: CLI smoke test
+        run: |
+          python -m databossx --database ci-control.sqlite3 init
+          python -m databossx --database ci-control.sqlite3 create-project examples/projects/SYNTHETIC-DEMO/project_manifest.json
+          python -m databossx --database ci-control.sqlite3 verify-ledger SYNTHETIC-DEMO-001
+      - name: Run full test suite
+        run: python -m pytest -q

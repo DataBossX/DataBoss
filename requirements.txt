@@ -27,7 +27,6 @@ psycopg2-binary>=2.9.10
 pydantic>=2.9.2
 pytest-mock>=3.14.0
 typer>=0.14.0
-requests>=2.31.0
 gitpython>=3.1.44
 setuptools>=45
 wheel
@@ -38,6 +37,9 @@ pandas==2.2.2
 openpyxl==3.1.5
 lxml>=4.9
 requests==2.32.3
+# Pin the charset detector requests depends on to a compatible range so pip and
+# requests do not emit a chardet/charset-normalizer version-mismatch warning.
+charset-normalizer>=3.3.2,<4
 tenacity==9.0.0
 fastapi==0.114.2
 uvicorn==0.30.6

@@ -2,53 +2,49 @@
 
 ## Immediate incident: rotate exposed credentials
 
-`backend/.env` was committed to Git history. Removing it from the current tree
-does not revoke or erase those values. Treat every credential previously stored
-there as compromised and rotate it now:
+`backend/.env` was committed to Git history. Removing it from the current tree does not revoke or erase those values. Treat every credential previously stored there as compromised and rotate it now.
 
-| Credential | Rotation page |
-| --- | --- |
-| OpenAI | https://platform.openai.com/api-keys |
-| Anthropic / Claude | https://console.anthropic.com/settings/keys |
-| Gemini | https://aistudio.google.com/app/apikey |
-| Google Cloud / Drive | https://console.cloud.google.com/apis/credentials |
-| xAI / Grok | https://console.x.ai/ |
-| Qwen / DashScope | https://dashscope.console.aliyun.com/ |
-| MongoDB | Rotate the database user password and connection string |
+Do not paste replacement values into issues, chats, logs, source files, or screenshots. Store them in a local ignored `.env` file or an approved secrets manager. History rewriting is optional defense in depth and does not replace key rotation.
 
-Do not paste replacement values into issues, chats, logs, source files, or
-screenshots. Store them in a local ignored `.env` file or a secrets manager.
+Track rotation names-and-status only in
+[docs/credential-rotation-evidence.md](docs/credential-rotation-evidence.md).
+Provider rotation stays `BLOCKED_EXTERNAL` until an authorized human verifies it
+at each provider; code changes never constitute rotation.
 
-History rewriting is optional defense in depth and requires a coordinated
-force-push. It does **not** replace key rotation. Do not rewrite shared history
-without notifying every collaborator and preserving a recovery mirror.
+## Client-data incident containment
+
+Client/project metadata was also present in the public repository. Public-record origin does not automatically make compiled client work product safe to publish.
+
+Containment order:
+
+1. Stop continuing exposure in the current tree.
+2. Rotate any credentials or share links exposed with the metadata.
+3. Move real project controls to an approved private repository/storage root.
+4. Preserve an incident record and determine whether forks, caches, or Git history require coordinated cleanup.
+5. Add policy tests so client paths, exact legal descriptions, cloud IDs, hashes, reports, and release artifacts cannot be reintroduced.
 
 ## Required controls
 
-- Commit only `.env.example` templates with blank or unmistakably fake values.
-- Treat every `REACT_APP_*` value as public because it is shipped to browsers.
+- Commit only `.env.example` templates with fake values.
+- Treat every `REACT_APP_*` value as public.
 - Give connectors read-only, folder/repository-scoped credentials by default.
-- Never place secrets in model prompts, model memory, audit events, or artifacts.
-- Require an exact, expiring human approval for any external write.
+- Never place secrets or client evidence in prompts, model memory, audit events, public artifacts, or screenshots.
+- Require exact, expiring human approval for external writes.
 - Bind workers to the minimum files, tools, and network destinations needed.
-- Redact secret values in diagnostics; report only type and location.
 - Preserve immutable audit records for credential use and policy decisions.
+- Keep public code/synthetic fixtures separate from private client operations.
+- Run secret and publication-policy checks before every merge.
 
-## Local checks
+## Human-approval verifier
 
-Install the hooks once:
-
-```bash
-python -m pip install pre-commit
-pre-commit install
-pre-commit run --all-files
-```
-
-CI scans the current repository tree with Gitleaks. Historical exposure is
-tracked separately because scanning all history would intentionally continue to
-find the already-known incident until a coordinated history rewrite occurs.
+Promotions to `APPROVED` and `DELIVERED` require an authenticated, single-use,
+expiring approval record bound to the exact asset content hash and exact target
+state, signed with an Ed25519 key. Configure the trusted **public** verifier
+keys via `DATABOSSX_APPROVAL_PUBKEYS` (see
+[config/approval_authorities.example.json](config/approval_authorities.example.json)).
+The private signing key never lives in the repository or the control database.
+If no trusted verifier is configured, those promotions fail closed.
 
 ## Reporting
 
-Report security problems privately to the repository owner. Never open a public
-issue containing a key, token, client document, title evidence, or private path.
+Report security problems privately to the repository owner. Never open a public issue containing a key, token, client document, title evidence, cloud identifier, or private path.

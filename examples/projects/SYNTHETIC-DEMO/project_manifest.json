@@ -1,0 +1,40 @@
+{
+  "schema_id": "dbx.project_manifest",
+  "schema_version": "1.0",
+  "project_id": "SYNTHETIC-DEMO-001",
+  "client": "Example Client Co. (SYNTHETIC)",
+  "jurisdiction": "State of Example",
+  "county": "Fictional County",
+  "section": "00",
+  "township": "00N",
+  "range": "00W",
+  "legal_description": "SYNTHETIC LAND ONLY — Section 00, Township 00N, Range 00W, Fictional County",
+  "assignment": "Synthetic demonstration manifest — contains no real client data",
+  "source_policy": "IMMUTABLE_READ_ONLY",
+  "security_classification": "CONFIDENTIAL",
+  "source_locations": [
+    {"system": "fixture", "path": "examples/fixtures", "status": "SYNTHETIC_SOURCE_ROOT"}
+  ],
+  "candidate_deliverables": [
+    {
+      "path": "synthetic/demo/example_workbook.xlsx",
+      "status": "SYNTHETIC_TECHNICALLY_VERIFIED_CANDIDATE",
+      "reported_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "reported_size_bytes": 12345
+    }
+  ],
+  "required_checks": [
+    "evidence_coverage",
+    "ownership_totals",
+    "acreage_reconciliation",
+    "chain_continuity",
+    "template_conformance"
+  ],
+  "release_policy": {
+    "technical_verification_is_not_release": true,
+    "approved_hash_required": true,
+    "human_approval_required": true,
+    "human_gate": "G7"
+  },
+  "status": "active"
+}

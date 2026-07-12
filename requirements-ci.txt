@@ -1,0 +1,17 @@
+# Lean, deterministic dependency set for CI: everything needed to lint, compile,
+# run the full pytest suite, exercise the databossx CLI, and satisfy `pip check`.
+# The heavy optional runtime stack (paddleocr, playwright, fastapi, ...) is not
+# installed in CI to keep the matrix fast and reproducible.
+pytest==8.0.0
+flake8==7.0.0
+openpyxl==3.1.5
+lxml>=4.9
+pydantic>=2.0
+Pillow>=10.0.0
+cryptography>=42.0.8
+# Exercise the requests/charset-normalizer resolution and keep `pip check` clean.
+requests==2.32.3
+charset-normalizer>=3.3.2,<4
+urllib3>=1.26,<3
+certifi>=2024.2.2
+idna>=3.7,<4

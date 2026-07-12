@@ -15,6 +15,12 @@ def build_parser() -> argparse.ArgumentParser:
         prog="databossx", description="Controlled DataBossX project intake"
     )
     parser.add_argument("--database", default="databossx-control.sqlite3")
+    parser.add_argument(
+        "--intake-root",
+        action="append",
+        default=[],
+        help="authorized intake/backup root; resolved paths outside are rejected",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     commands.add_parser("init", help="initialize or verify the control database")
@@ -31,12 +37,17 @@ def build_parser() -> argparse.ArgumentParser:
     intake.add_argument("--role", default="source")
     intake.add_argument("--security-classification", default="CONFIDENTIAL")
 
+    ledger = commands.add_parser(
+        "verify-ledger", help="verify the promotion hash chain and approvals"
+    )
+    ledger.add_argument("project_id")
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    control = ControlPlane(args.database)
+    control = ControlPlane(args.database, intake_roots=args.intake_root or None)
     backup = control.initialize()
 
     if args.command == "init":
@@ -56,28 +67,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps({"project_id": project_id}))
         return 0
 
+    if args.command == "verify-ledger":
+        report = control.verify_ledger(args.project_id)
+        print(json.dumps(report, indent=2))
+        return 0 if report["ok"] else 2
+
     root = Path(args.path).expanduser().resolve(strict=True)
     paths = (
         [root]
         if root.is_file()
         else sorted(path for path in root.rglob("*") if path.is_file())
     )
-    asset_ids = []
-    for path in paths:
-        asset_ids.append(
-            control.ingest_asset(
-                args.project_id,
-                path,
-                source_authority=args.source_authority,
-                role=args.role,
-                security_classification=args.security_classification,
-            )
-        )
-
-    revision = control.create_manifest_revision(
+    asset_ids, revision = control.intake_assets(
         args.project_id,
-        {"project_id": args.project_id, "source_locations": [str(root)]},
-        asset_ids,
+        paths,
+        source_authority=args.source_authority,
+        role=args.role,
+        security_classification=args.security_classification,
+        source_locations=[str(root)],
     )
     print(
         json.dumps(

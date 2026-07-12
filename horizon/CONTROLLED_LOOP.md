@@ -5,6 +5,11 @@ work. It does not replace the legacy report builder. It adds the controls needed
 to run a bounded **Inspect → Plan → Execute → Verify → Score → Repair → Promote
 → Learn** cycle without allowing an agent to write to an authoritative file.
 
+All examples below use the synthetic, non-client demonstration project
+`SYNTHETIC-DEMO-001` (`examples/projects/SYNTHETIC-DEMO/project_manifest.json`).
+Never place real client identifiers, legal descriptions, cloud IDs, evidence
+hashes, or final work-product filenames in this public repository.
+
 ## Safety contract
 
 - The project manifest is the authority for required checks and candidate hashes.
@@ -30,13 +35,13 @@ Create a `dbx.work_order` JSON object next to the project controls:
 {
   "schema_id": "dbx.work_order",
   "schema_version": "1.0",
-  "work_order_id": "WO-SECTION32-QA-001",
-  "project_id": "DBX-OK-BECKHAM-32-11N-25W",
-  "objective": "Verify and repair the Section 32 workbook in staging",
-  "candidate_path": "beckham32/final_delivery/example.xlsx",
-  "candidate_local_path": "D:/DataBossX/beckham32/final_delivery/example.xlsx",
+  "work_order_id": "WO-DEMO-QA-001",
+  "project_id": "SYNTHETIC-DEMO-001",
+  "objective": "Verify and repair the synthetic demo workbook in staging",
+  "candidate_path": "synthetic/demo/example_workbook.xlsx",
+  "candidate_local_path": "/approved/private/root/synthetic/demo/example_workbook.xlsx",
   "expected_sha256": "<same hash declared by the project manifest>",
-  "template_path": "D:/DataBossX/templates/section32-template.xlsx",
+  "template_path": "/approved/private/root/templates/demo-template.xlsx",
   "template_expected_sha256": "<verified template hash>",
   "profile_path": "workbook_profile.json",
   "profile_expected_sha256": "<verified profile hash>",
@@ -45,7 +50,7 @@ Create a `dbx.work_order` JSON object next to the project controls:
     "<every required_checks value from the project manifest>"
   ],
   "allowed_repairs": ["restore_formula_from_template"],
-  "prohibited_paths": ["D:/DataBossX/authoritative"],
+  "prohibited_paths": ["/approved/private/root/authoritative"],
   "constraints": {"edit_originals": false},
   "retry_policy": {
     "max_attempts_per_defect": 3,
@@ -82,7 +87,7 @@ The deterministic profile identifies the workbook locations to check:
       "tolerance": 0.01
     }
   ],
-  "evidence_root": "D:/DataBossX/authoritative"
+  "evidence_root": "/approved/private/root/authoritative"
 }
 ```
 
@@ -95,8 +100,8 @@ that an uncalculated formula is valid.
 
 ```bash
 python -m horizon.controlled_loop \
-  --manifest projects/OK-BECKHAM-32-11N-25W/project_manifest.json \
-  --work-order projects/OK-BECKHAM-32-11N-25W/work_orders/WO-SECTION32-QA-001.json
+  --manifest examples/projects/SYNTHETIC-DEMO/project_manifest.json \
+  --work-order examples/projects/SYNTHETIC-DEMO/work_orders/WO-DEMO-QA-001.json
 ```
 
 Each run directory contains:
@@ -109,6 +114,6 @@ Each run directory contains:
 - `promotion_package.json` only when every technical gate passes.
 
 Checks without a deterministic validator return `not_evaluated` and block
-technical verification. In particular, the current Section 32 manifest will
-remain blocked until its source manifest, evidence crosswalk, and print-rendering
-receipts are available. That is intentional: absence of evidence is not a pass.
+technical verification. A manifest remains blocked until its source manifest,
+evidence crosswalk, and print-rendering receipts are available. That is
+intentional: absence of evidence is not a pass.

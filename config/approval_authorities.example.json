@@ -1,0 +1,10 @@
+{
+  "_comment": "Trusted approval verifier registry. PUBLIC keys only. Copy to an approved location, populate real Ed25519 public keys, and point DATABOSSX_APPROVAL_PUBKEYS at it. The matching PRIVATE keys stay with the human approver and are NEVER committed or stored in the database. If this is not configured, promotions to APPROVED/DELIVERED fail closed.",
+  "authorities": {
+    "example-authority-1": {
+      "algorithm": "ed25519",
+      "subject": "landman@example.test",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nREPLACE_WITH_A_REAL_ED25519_PUBLIC_KEY\n-----END PUBLIC KEY-----\n"
+    }
+  }
+}

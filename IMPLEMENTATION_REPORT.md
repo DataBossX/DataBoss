@@ -19,7 +19,7 @@ The inventory/OCR/reconciliation/runsheet framework, exact rational interest cal
 - Exact leasehold math is implemented and synthetically tested, but Section 32 inputs and results are unavailable.
 - Report export creates an exact template copy and separate control workbook; approved client writable-range population is not implemented.
 - No output is a certified abstract, title opinion, or substitute for a qualified examiner or attorney.
-- `completion.json` intentionally records `PENDING_COMMIT`; a later integration step may replace it with the final commit identifier.
+- `completion.json` identifies the verified implementation-and-operations commit.
 
 ## Repository state and architecture
 
@@ -48,7 +48,9 @@ Commands used included branch/tag creation, integration of the existing hardened
 Title Factory commit series, Python dependency installation, `compileall`, CLI
 health checks, focused pytest runs, the full pytest suite, `pip check`, and
 `git diff --check`. The latest full-suite result before final handoff was
-201 passed and 7 skipped; final verification is recorded in `completion.json`.
+201 passed and 7 skipped. The authenticated application also started on loopback
+and returned `ok` from its health endpoint; final verification is recorded in
+`completion.json`.
 
 Security checks cover source hash mutation, path traversal, symlink escape,
 ZIP-slip, encrypted archives, decompression limits, file signatures, malicious

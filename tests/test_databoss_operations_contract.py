@@ -110,7 +110,8 @@ def test_requested_docs_and_truthful_completion_schema_exist():
     assert completion["schema_version"] == "1.0"
     assert completion["final_status"] == "PASS_WITH_DISCLOSED_LIMITATIONS"
     assert completion["source_inventory_status"] == "BLOCKED_SOURCE_NOT_MOUNTED"
-    assert completion["commit"] == "PENDING_COMMIT"
+    assert len(completion["commit"]) == 40
+    assert all(character in "0123456789abcdef" for character in completion["commit"])
     assert "SYNTHETIC_TESTED" in completion["ocr_status"]
     assert "UNPROCESSED" in completion["tract_chain_status"]
     assert "UNCALCULATED" in completion["wi_nri_status"]

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "project_name": "DataBoss Title Intelligence",
+  "branch": "cursor/databoss-title-intelligence-ed81",
+  "commit": "PENDING_COMMIT",
+  "build_status": "PASS",
+  "test_status": "201_PASSED_7_SKIPPED_REVERIFY_PENDING",
+  "security_status": "PASS_WITH_LOCAL_DEPLOYMENT_LIMITATIONS",
+  "app_url": null,
+  "local_url": "http://127.0.0.1:8501",
+  "database_status": "SQLITE_AUTH_AUDIT_AND_JOB_CHECKPOINTS_IMPLEMENTED",
+  "source_inventory_status": "BLOCKED_SOURCE_NOT_MOUNTED",
+  "ocr_status": "FRAMEWORK_IMPLEMENTED_SYNTHETIC_TESTED_REAL_SECTION32_UNPROCESSED",
+  "instrument_register_status": "FRAMEWORK_IMPLEMENTED_SYNTHETIC_TESTED",
+  "runsheet_status": "FRAMEWORK_IMPLEMENTED_SYNTHETIC_TESTED",
+  "tract_chain_status": "FRAMEWORK_IMPLEMENTED_SYNTHETIC_TESTED_REAL_SECTION32_UNPROCESSED",
+  "lease_schedule_status": "DRAFT_SCHEDULE_FRAMEWORK_IMPLEMENTED_REAL_SECTION32_UNVERIFIED",
+  "wi_nri_status": "EXACT_MATH_IMPLEMENTED_SYNTHETIC_TESTED_REAL_SECTION32_UNCALCULATED",
+  "model_tournament_status": "OFFLINE_POLICY_AND_BLIND_SCORING_IMPLEMENTED",
+  "report_generator_status": "REVIEW_PACKAGE_FRAMEWORK_TESTED_REAL_SECTION32_REPORT_NOT_PRODUCED",
+  "template_qa_status": "STRUCTURAL_AUDIT_AND_PRESERVATION_COMPARISON_TESTED",
+  "final_status": "PASS_WITH_DISCLOSED_LIMITATIONS",
+  "section32_status": "BLOCKED_SOURCE_NOT_MOUNTED",
+  "release_status": "BLOCKED",
+  "known_blockers": [
+    "The authorized Section 32 source corpus is not mounted in this environment.",
+    "No real Section 32 OCR, title chain, leasehold calculation, or client report was completed.",
+    "Client workbook writable-range population is not implemented or approved.",
+    "Examiner and attorney review remain mandatory."
+  ]
+}

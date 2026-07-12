@@ -78,6 +78,7 @@ evidence/
 **/*CLIENT*.xlsx
 
 # DataBoss Title Factory local/private runtime state
+/.runtime/
 /databoss_title_factory/logs/
 /databoss_title_factory/workspaces/
 DataBoss_Title_Factory_Output/

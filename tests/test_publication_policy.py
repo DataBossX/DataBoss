@@ -3,7 +3,13 @@
 import json
 from pathlib import Path
 
-from scripts.check_publication_policy import load_config, main, scan_paths
+from scripts.check_publication_policy import (
+    Finding,
+    filter_hash_bound_baseline,
+    load_config,
+    main,
+    scan_paths,
+)
 
 
 CONFIG_PATH = Path(__file__).parents[1] / "config" / "publication_policy.json"
@@ -199,3 +205,49 @@ def test_invalid_configuration_fails_closed(tmp_path, capsys):
         ]
     ) == 2
     assert "failed safely" in capsys.readouterr().err
+
+
+def test_hash_bound_baseline_suppresses_only_exact_legacy_file(tmp_path):
+    legacy = tmp_path / "legacy.md"
+    legacy.write_text("known legacy content", encoding="utf-8")
+    config = {
+        "hash_bound_baseline": [
+            {
+                "path": "legacy.md",
+                "sha256": (
+                    "dacd495c02c11c92bf04cc263b6c7bbbc0dbb88f1f77fae"
+                    "bde65d418f7c850c0"
+                ),
+                "rule_ids": ["legacy_rule"],
+            }
+        ]
+    }
+    finding = Finding("legacy.md", "legacy_rule", "Known legacy finding.")
+
+    assert filter_hash_bound_baseline(tmp_path, [finding], config) == []
+
+    legacy.write_text("changed legacy content", encoding="utf-8")
+    assert filter_hash_bound_baseline(tmp_path, [finding], config) == [finding]
+
+
+def test_hash_bound_baseline_does_not_hide_new_rule(tmp_path):
+    legacy = tmp_path / "legacy.md"
+    legacy.write_text("known legacy content", encoding="utf-8")
+    config = {
+        "hash_bound_baseline": [
+            {
+                "path": "legacy.md",
+                "sha256": (
+                    "dacd495c02c11c92bf04cc263b6c7bbbc0dbb88f1f77fae"
+                    "bde65d418f7c850c0"
+                ),
+                "rule_ids": ["legacy_rule"],
+            }
+        ]
+    }
+    findings = [
+        Finding("legacy.md", "legacy_rule", "Known legacy finding."),
+        Finding("legacy.md", "new_rule", "New finding."),
+    ]
+
+    assert filter_hash_bound_baseline(tmp_path, findings, config) == findings

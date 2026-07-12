@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -191,6 +192,61 @@ def load_config(path: Path) -> dict[str, object]:
     return config
 
 
+def filter_hash_bound_baseline(
+    root: Path,
+    findings: Sequence[Finding],
+    config: Mapping[str, object],
+) -> list[Finding]:
+    """Suppress only legacy findings bound to exact file bytes and rule sets."""
+    raw_baseline = config.get("hash_bound_baseline", [])
+    if not isinstance(raw_baseline, list):
+        raise ValueError("configuration field 'hash_bound_baseline' must be a list")
+
+    baseline: dict[str, tuple[str, set[str]]] = {}
+    for index, entry in enumerate(raw_baseline):
+        description = f"hash_bound_baseline[{index}]"
+        if not isinstance(entry, dict):
+            raise ValueError(f"{description} must be an object")
+        path = entry.get("path")
+        sha256 = entry.get("sha256")
+        rule_ids = entry.get("rule_ids")
+        if not isinstance(path, str) or _normalize_path(path) != path:
+            raise ValueError(f"{description}.path must be a normalized relative path")
+        if (
+            not isinstance(sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", sha256) is None
+        ):
+            raise ValueError(f"{description}.sha256 must be a lowercase SHA-256 digest")
+        if (
+            not isinstance(rule_ids, list)
+            or not rule_ids
+            or any(not isinstance(rule_id, str) or not rule_id for rule_id in rule_ids)
+        ):
+            raise ValueError(f"{description}.rule_ids must be a non-empty string list")
+        if path in baseline:
+            raise ValueError(f"duplicate baseline path {path!r}")
+        baseline[path] = (sha256, set(rule_ids))
+
+    findings_by_path: dict[str, list[Finding]] = {}
+    for finding in findings:
+        findings_by_path.setdefault(finding.path, []).append(finding)
+
+    suppressed_paths: set[str] = set()
+    for path, (expected_hash, expected_rules) in baseline.items():
+        path_findings = findings_by_path.get(path, [])
+        actual_rules = {finding.rule_id for finding in path_findings}
+        if actual_rules != expected_rules:
+            continue
+        absolute = root / path
+        if not absolute.is_file() or absolute.is_symlink():
+            continue
+        actual_hash = hashlib.sha256(absolute.read_bytes()).hexdigest()
+        if actual_hash == expected_hash:
+            suppressed_paths.add(path)
+
+    return [finding for finding in findings if finding.path not in suppressed_paths]
+
+
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -214,6 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         config = load_config(config_path)
         paths = args.paths or _tracked_files(root)
         findings = scan_paths(root, paths, config)
+        findings = filter_hash_bound_baseline(root, findings, config)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"publication-policy check failed safely: {error}", file=sys.stderr)
         return 2

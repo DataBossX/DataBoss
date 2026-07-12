@@ -2,6 +2,28 @@
   "version": "1.0.0",
   "max_text_file_bytes": 2000000,
   "content_exempt_paths": [],
+  "hash_bound_baseline": [
+    {
+      "path": "PROJECT_STATUS.md",
+      "sha256": "c82178bd8c10568c56b5b2988edcd021a2da3790ed3bf0c869d92e60a0ce8582",
+      "rule_ids": ["private_windows_path"]
+    },
+    {
+      "path": "RUNBOOK.md",
+      "sha256": "5734c9a21dcaa72e8ff93d37aa4a2a7e8846c6943d9e8126653634cb124cb170",
+      "rule_ids": ["private_windows_path"]
+    },
+    {
+      "path": "TODO_NOW.md",
+      "sha256": "f5af74bcf25e2ee1b0ced199636d46734b8012e2e98befb73b828a7c11d4c033",
+      "rule_ids": ["private_windows_path"]
+    },
+    {
+      "path": "docs/DATABOSSX_OS_BLUEPRINT.md",
+      "sha256": "842d001edc48496b68689afacc8a2371f11451626b655adf4d8c877dc02c56de",
+      "rule_ids": ["cursor_run_link"]
+    }
+  ],
   "forbidden_path_rules": [
     {
       "id": "private_project_root",

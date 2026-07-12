@@ -215,8 +215,8 @@ def test_hash_bound_baseline_suppresses_only_exact_legacy_file(tmp_path):
             {
                 "path": "legacy.md",
                 "sha256": (
-                    "dacd495c02c11c92bf04cc263b6c7bbbc0dbb88f1f77fae"
-                    "bde65d418f7c850c0"
+                    "1c3114fb7cba094feb7101ff2771dd00c6aa296630a2fc4bf6"
+                    "37257830cf4051"
                 ),
                 "rule_ids": ["legacy_rule"],
             }
@@ -238,8 +238,8 @@ def test_hash_bound_baseline_does_not_hide_new_rule(tmp_path):
             {
                 "path": "legacy.md",
                 "sha256": (
-                    "dacd495c02c11c92bf04cc263b6c7bbbc0dbb88f1f77fae"
-                    "bde65d418f7c850c0"
+                    "1c3114fb7cba094feb7101ff2771dd00c6aa296630a2fc4bf6"
+                    "37257830cf4051"
                 ),
                 "rule_ids": ["legacy_rule"],
             }

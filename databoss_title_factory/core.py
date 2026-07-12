@@ -1,8 +1,8 @@
 """Local, non-destructive processing pipeline for DataBoss Title Factory.
 
-Every source is read-only. Generated files are written to a timestamped run
-folder under ``DataBoss_Title_Factory_Output`` and weak results are copied into
-that run's quarantine area for examiner review.
+Every source is read-only. Generated files are written to a separate,
+configurable workspace and weak results are copied into that run's quarantine
+area for examiner review.
 """
 
 from __future__ import annotations
@@ -64,12 +64,28 @@ def _now_id() -> str:
     return dt.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
 
-def start_run(root: str | Path) -> RunContext:
+def _output_dir(root_path: Path, output_root: str | Path | None = None) -> Path:
+    """Return a stable generated workspace that is never inside the source."""
+    configured = output_root or os.environ.get("DATABOSS_OUTPUT_ROOT")
+    workspace = (
+        Path(configured).expanduser().resolve()
+        if configured
+        else Path(__file__).resolve().parent.parent / "runtime" / "title-intelligence"
+    )
+    source_key = hashlib.sha256(str(root_path).encode("utf-8")).hexdigest()[:12]
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", root_path.name).strip("._") or "project"
+    output = workspace / f"{safe_name}-{source_key}" / OUTPUT_DIR_NAME
+    if output == root_path or output.is_relative_to(root_path):
+        raise ValueError("Generated output workspace must be outside the source folder")
+    return output
+
+
+def start_run(root: str | Path, output_root: str | Path | None = None) -> RunContext:
     """Create a new immutable run folder and mark it as the latest run."""
     root_path = Path(root).expanduser().resolve()
     if not root_path.is_dir():
         raise ValueError(f"Project folder does not exist: {root_path}")
-    output = root_path / OUTPUT_DIR_NAME
+    output = _output_dir(root_path, output_root)
     run_id = _now_id()
     run_dir = output / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -91,9 +107,9 @@ def start_run(root: str | Path) -> RunContext:
     return RunContext(root_path, output, run_dir, run_id)
 
 
-def latest_run(root: str | Path) -> RunContext:
+def latest_run(root: str | Path, output_root: str | Path | None = None) -> RunContext:
     root_path = Path(root).expanduser().resolve()
-    output = root_path / OUTPUT_DIR_NAME
+    output = _output_dir(root_path, output_root)
     pointer = output / "latest_run.txt"
     if not pointer.exists():
         raise FileNotFoundError("No run exists. Run Inventory first.")

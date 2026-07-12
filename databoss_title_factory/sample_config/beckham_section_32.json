@@ -1,14 +1,203 @@
 {
+  "schema_version": 1,
   "project_name": "Diversified Section 32-11N-25W Beckham County",
   "work_type": "Horizon Oklahoma Title Report",
-  "source_root": "D:\\Desktop\\Horizon\\32-11N-25W, Beckham County",
-  "expected_output_root": "D:\\Desktop\\Horizon\\32-11N-25W, Beckham County\\FINAL",
-  "section": "32",
-  "township": "11N",
-  "range": "25W",
-  "county": "Beckham",
-  "state": "Oklahoma",
+  "source_root": "${DATABOSS_SECTION32_SOURCE_ROOT}",
+  "output_workspace": "runtime/title-intelligence",
+  "control_facts": [
+    {
+      "name": "section",
+      "value": "32",
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "name": "township",
+      "value": "11N",
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "name": "range",
+      "value": "25W",
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "name": "county",
+      "value": "Beckham",
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "name": "state",
+      "value": "Oklahoma",
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    }
+  ],
+  "portfolios": [
+    {
+      "portfolio": "A",
+      "chain": "Direct KL CHK / Tapstone / Diversified / DP Legacy / DP Sooner",
+      "recording_references": ["2371/470-494", "2389/500-580", "2395/415-464", "2400/551-567"],
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "portfolio": "B",
+      "chain": "FourPoint / Unbridled / Maverick / MNR",
+      "recording_references": ["2340/218", "2401/214", "2415/328"],
+      "note": "Related mortgages, financing statements, releases, and merger records do not prove an asset conveyance.",
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "portfolio": "C",
+      "chain": "Canvas / Canvas II / DP Ponies / Diversified",
+      "recording_references": ["2475/943-959", "2476/1-66", "2476/67-108", "2476/109-120", "2476/121-130"],
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    }
+  ],
+  "historical_lease_references": [
+    {
+      "reference": "OGL 1",
+      "book_page": "63/33",
+      "date": "1947-11-13",
+      "lessor": "Cora B. Garrett and related Garrett parties",
+      "original_lessee": "C. E. McKinley",
+      "legal": "E/2 SE/4",
+      "nominal_gross_acres": 80,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "reference": "OGL 2",
+      "book_page": "264/345",
+      "date": "1972-02-05",
+      "lessor": "Charlie B. Crook and Ina Pearl Crook",
+      "original_lessee": "Union",
+      "legal": "NE/4",
+      "nominal_gross_acres": 160,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "reference": "OGL 3",
+      "book_page": "307/31",
+      "date": "1976-04-29",
+      "lessor": "Cora B. LeGrand",
+      "original_lessee": "Union",
+      "legal": "W/2 SE/4 and S/2 SW/4",
+      "nominal_gross_acres": 160,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    },
+    {
+      "reference": "Historic lease 66032-21-1",
+      "book_page_reference": "341/538",
+      "date": "1977-11-29",
+      "lessor": "R. L. Minton and Ella Minton",
+      "original_lessee": "John E. Hartman",
+      "legal": "N/2 SW/4 and N/2 NW/4",
+      "nominal_gross_acres": 160,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false
+    }
+  ],
+  "expected_counts": [
+    {
+      "name": "supplied_source_files",
+      "value": 4898,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED"
+    },
+    {
+      "name": "title_images",
+      "value": 4893,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED"
+    },
+    {
+      "name": "additional_source_items",
+      "value": ["Blank Index.pdf", "Protocoled Index.pdf", "Section Notes.xlsx", "Plat Map.pdf", "Tax Roll.pdf"],
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED"
+    },
+    {
+      "name": "portfolio_count",
+      "value": 3,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED"
+    },
+    {
+      "name": "historical_lease_reference_count",
+      "value": 12,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED"
+    },
+    {
+      "name": "open_items_working_count",
+      "value": 21,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "release_effect": "BLOCKING_UNTIL_RECONCILED"
+    }
+  ],
+  "working_facts": [
+    {
+      "name": "unique_nominal_referenced_geography_acres",
+      "value": 560,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "ESTIMATED",
+      "ownership_claim": false,
+      "note": "Referenced geography only; it is not Diversified-owned acreage."
+    },
+    {
+      "name": "current_diversified_interests",
+      "value": null,
+      "classification": "MISSING",
+      "evidence_status": "MISSING",
+      "ownership_claim": false,
+      "note": "Exact current WI, NRI, ORRI, mineral, royalty, and leasehold net acres are not proven."
+    },
+    {
+      "name": "open_items",
+      "value": 21,
+      "classification": "REFERENCE_ONLY",
+      "evidence_status": "EXTRACTED_UNVERIFIED",
+      "ownership_claim": false,
+      "note": "Working control count only; not a verified production fact."
+    }
+  ],
   "external_model_upload_enabled": false,
+  "providers": [
+    {
+      "provider": "local",
+      "enabled": true,
+      "allowed_modalities": ["text", "image", "pdf"],
+      "manual_approval_required": false
+    },
+    {
+      "provider": "external_provider_placeholder",
+      "enabled": false,
+      "allowed_modalities": [],
+      "manual_approval_required": true
+    }
+  ],
   "extraction_passes": [
     {
       "name": "PASS_A",
@@ -33,5 +222,7 @@
     }
   ],
   "approved_workbook_mapping": null,
-  "readiness_default": "NOT READY TO SUBMIT"
+  "production_release_enabled": false,
+  "readiness_default": "BLOCKED",
+  "disclaimer": "Reference-only controls do not establish mineral, leasehold, working-interest, net-revenue-interest, or ownership facts."
 }

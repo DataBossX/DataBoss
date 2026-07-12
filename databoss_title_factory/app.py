@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, Callable
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_DIR.parent
@@ -13,6 +15,15 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import streamlit as st
 
+from databoss_title_factory.auth import (
+    AuthError,
+    ROLE_PERMISSIONS,
+    authenticate_session,
+    login,
+    require_permission,
+    revoke_session,
+    roles_for_user,
+)
 from databoss_title_factory.core import (
     build_inventory,
     build_runsheet,
@@ -85,6 +96,113 @@ st.markdown(
 )
 
 
+def _is_streamlit_runtime() -> bool:
+    """Avoid filesystem/database access when this module is imported by tests."""
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        return get_script_run_ctx(suppress_warning=True) is not None
+    except (ImportError, RuntimeError):
+        return False
+
+
+def _authentication_gate() -> None:
+    if not _is_streamlit_runtime():
+        return
+    database_value = os.environ.get("DATABOSS_AUTH_DB", "").strip()
+    if not database_value:
+        st.error("Local authentication is not configured. Access is closed.")
+        st.code(
+            "Set DATABOSS_AUTH_DB to an initialized local database, then run:\n"
+            "databoss-title-factory auth init-db --database PATH --allow-root ROOT\n"
+            "databoss-title-factory auth bootstrap-owner --database PATH "
+            "--project PROJECT --allow-root ROOT"
+        )
+        st.stop()
+    database = Path(database_value).expanduser()
+    if not database.is_file():
+        st.error("The configured local authentication database is unavailable. Access is closed.")
+        st.code(
+            "Initialize the DATABOSS_AUTH_DB path with "
+            "`databoss-title-factory auth init-db`, then bootstrap an Owner."
+        )
+        st.stop()
+
+    token = st.session_state.get("auth_token")
+    if token:
+        try:
+            principal = authenticate_session(database, token)
+            bindings = roles_for_user(database, principal.user_id)
+        except AuthError:
+            st.session_state.pop("auth_token", None)
+        except (OSError, sqlite3.Error):
+            st.error("The local authentication database is unavailable. Access is closed.")
+            st.stop()
+        else:
+            role_text = ", ".join(
+                f"{item['role']} ({item['project']})" for item in bindings
+            ) or "No project roles"
+            with st.sidebar:
+                st.caption(f"SIGNED IN / {principal.username}")
+                st.caption(f"ROLES / {role_text}")
+                if st.button("Log out", key="auth_logout"):
+                    try:
+                        revoke_session(database, token)
+                    finally:
+                        st.session_state.pop("auth_token", None)
+                    st.rerun()
+            st.session_state["auth_bindings"] = bindings
+            return
+
+    st.title("DataBoss Title Factory")
+    st.caption("Local sign-in required")
+    with st.form("local_login"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Sign in")
+    if submitted:
+        try:
+            st.session_state["auth_token"] = login(database, username, password)
+        except AuthError:
+            st.error("Invalid username or password.")
+        except (OSError, sqlite3.Error):
+            st.error("The local authentication database is unavailable. Access is closed.")
+        else:
+            st.rerun()
+    st.stop()
+
+
+_authentication_gate()
+
+
+def _has_project_permission(project: str, permission: str) -> bool:
+    return any(
+        item["project"] == project
+        and permission in ROLE_PERMISSIONS.get(item["role"], frozenset())
+        for item in st.session_state.get("auth_bindings", [])
+    )
+
+
+def _authorize(project: str, permission: str) -> None:
+    """Recheck authorization at mutation time; denials are audit logged."""
+    require_permission(
+        os.environ["DATABOSS_AUTH_DB"],
+        st.session_state.get("auth_token", ""),
+        project,
+        permission,
+    )
+
+
+def _authorized_call(
+    project: str,
+    action: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    _authorize(project, "process")
+    return action(*args, **kwargs)
+
+
 def _default_root() -> str:
     return os.environ.get(
         "DATABOSS_PROJECT_ROOT",
@@ -131,10 +249,14 @@ with st.sidebar:
         help="The folder is scanned read-only. Outputs go into a dedicated versioned subfolder.",
     )
     st.session_state["project_root"] = project_root
-    root_valid = Path(project_root).expanduser().is_dir()
+    can_view_project = _has_project_permission(project_root, "view")
+    can_process_project = _has_project_permission(project_root, "process")
+    root_valid = Path(project_root).expanduser().is_dir() and can_view_project
+    if not can_view_project:
+        st.error("Your account has no role binding for this project.")
     if root_valid:
         st.success("Local source folder found.")
-    else:
+    elif can_view_project:
         st.error("Folder not found on this computer.")
     template_path = st.text_input(
         "Excel template (.xlsx / .xlsm)",
@@ -176,7 +298,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-ctx = _context(project_root)
+ctx = _context(project_root) if can_view_project else None
 summary = run_summary(ctx) if ctx else {
     "files": 0, "ocr_citations": 0, "instruments": 0, "quarantined": 0,
     "runsheet_rows": 0, "run_id": "NO RUN",
@@ -198,8 +320,11 @@ st.caption(f"RUN ID / {summary['run_id']}")
 with st.expander("Project state and safe controls", expanded=False):
     control_columns = st.columns(5)
     with control_columns[0]:
-        if st.button("Run Full Pipeline", use_container_width=True):
+        if st.button(
+            "Run Full Pipeline", use_container_width=True, disabled=not can_process_project
+        ):
             def full_pipeline():
+                _authorize(project_root, "process")
                 active = start_run(project_root)
                 build_inventory(active)
                 if is_pause_requested(active.output_dir, active.run_id):
@@ -223,11 +348,21 @@ with st.expander("Project state and safe controls", expanded=False):
                 _run_action("Running resumable pipeline through draft schedules", full_pipeline)
                 st.rerun()
     with control_columns[1]:
-        if st.button("Pause Safely", use_container_width=True, disabled=ctx is None):
+        if st.button(
+            "Pause Safely",
+            use_container_width=True,
+            disabled=ctx is None or not can_process_project,
+        ):
+            _authorize(project_root, "process")
             request_pause(ctx.output_dir, ctx.run_id, True)
             st.info("Pause recorded. The next stage will not be started automatically.")
     with control_columns[2]:
-        if st.button("Resume Project", use_container_width=True, disabled=ctx is None):
+        if st.button(
+            "Resume Project",
+            use_container_width=True,
+            disabled=ctx is None or not can_process_project,
+        ):
+            _authorize(project_root, "process")
             request_pause(ctx.output_dir, ctx.run_id, False)
             result = _run_action(
                 "Resuming the same run from validated checkpoints",
@@ -242,10 +377,18 @@ with st.expander("Project state and safe controls", expanded=False):
                 st.success(f"Run {ctx.run_id} resumed without creating a replacement run.")
                 st.rerun()
     with control_columns[3]:
-        if st.button("Open Review Queue", use_container_width=True, disabled=ctx is None):
+        if st.button(
+            "Open Review Queue",
+            use_container_width=True,
+            disabled=ctx is None or not can_view_project,
+        ):
             st.session_state["show_review"] = True
     with control_columns[4]:
-        if st.button("Open Output Folder", use_container_width=True, disabled=ctx is None):
+        if st.button(
+            "Open Output Folder",
+            use_container_width=True,
+            disabled=ctx is None or not can_view_project,
+        ):
             try:
                 if os.name == "nt":
                     os.startfile(str(ctx.output_dir))  # type: ignore[attr-defined]
@@ -270,8 +413,14 @@ buttons = st.columns(5)
 
 with buttons[0]:
     st.markdown('<span class="stage-label">01</span>DISCOVER', unsafe_allow_html=True)
-    if st.button("Run Inventory", type="primary", use_container_width=True):
+    if st.button(
+        "Run Inventory",
+        type="primary",
+        use_container_width=True,
+        disabled=not can_process_project,
+    ):
         def inventory_action():
+            _authorize(project_root, "process")
             if not root_valid:
                 raise ValueError("Enter an existing local source folder.")
             new_ctx = start_run(project_root)
@@ -284,13 +433,20 @@ with buttons[0]:
 
 with buttons[1]:
     st.markdown('<span class="stage-label">02</span>READ', unsafe_allow_html=True)
-    if st.button("Run OCR", use_container_width=True):
+    if st.button(
+        "Run OCR", use_container_width=True, disabled=not can_process_project
+    ):
         if not ctx:
             st.error("Run Inventory first.")
         else:
             rows = _run_action(
                 "Pre-processing images and running cited OCR",
-                lambda: run_ocr(ctx, weak_threshold=weak_threshold),
+                lambda: _authorized_call(
+                    project_root,
+                    run_ocr,
+                    ctx,
+                    weak_threshold=weak_threshold,
+                ),
             )
             if rows is not None:
                 st.success(f"Created {len(rows):,} cited text records.")
@@ -298,13 +454,15 @@ with buttons[1]:
 
 with buttons[2]:
     st.markdown('<span class="stage-label">03</span>EXTRACT', unsafe_allow_html=True)
-    if st.button("Extract", use_container_width=True):
+    if st.button("Extract", use_container_width=True, disabled=not can_process_project):
         if not ctx:
             st.error("Run Inventory and OCR first.")
         else:
             rows = _run_action(
                 "Running source-controlled reconciliation",
-                lambda: extract_and_reconcile(
+                lambda: _authorized_call(
+                    project_root,
+                    extract_and_reconcile,
                     ctx,
                     weak_threshold=weak_threshold,
                     cursor_json=cursor_json or None,
@@ -317,18 +475,27 @@ with buttons[2]:
 
 with buttons[3]:
     st.markdown('<span class="stage-label">04</span>ASSEMBLE', unsafe_allow_html=True)
-    if st.button("Build Runsheet", use_container_width=True):
+    if st.button(
+        "Build Runsheet", use_container_width=True, disabled=not can_process_project
+    ):
         if not ctx:
             st.error("Run extraction first.")
         else:
-            bundle = _run_action("Building draft schedules", lambda: build_runsheet(ctx))
+            bundle = _run_action(
+                "Building draft schedules",
+                lambda: _authorized_call(project_root, build_runsheet, ctx),
+            )
             if bundle is not None:
                 st.success(f"Built runsheet with {len(bundle['runsheet']):,} rows.")
                 st.rerun()
 
 with buttons[4]:
     st.markdown('<span class="stage-label">05</span>DELIVER', unsafe_allow_html=True)
-    if st.button("Export Review Package", use_container_width=True):
+    if st.button(
+        "Export Review Package",
+        use_container_width=True,
+        disabled=not can_process_project,
+    ):
         if not ctx:
             st.error("Build a run first.")
         elif not template_path:
@@ -336,7 +503,9 @@ with buttons[4]:
         else:
             output = _run_action(
                 "Auditing template and creating separate control package",
-                lambda: export_safe_xlsx(
+                lambda: _authorized_call(
+                    project_root,
+                    export_safe_xlsx,
                     ctx,
                     template_path,
                     section,

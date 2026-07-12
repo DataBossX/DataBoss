@@ -21,11 +21,19 @@ dependencies = [
   "loguru==0.7.3",
 ]
 
+[project.scripts]
+databoss-title-factory = "databoss_title_factory.cli:main"
+databoss-title-intelligence = "databoss_title_factory.cli:main"
+
 [tool.pytest.ini_options]
 testpaths = ["../tests"]
 
 [tool.setuptools]
 packages = ["databoss_title_factory"]
+include-package-data = true
 
 [tool.setuptools.package-dir]
 databoss_title_factory = "."
+
+[tool.setuptools.package-data]
+databoss_title_factory = ["sample_config/*.json", "prompts/*.md"]

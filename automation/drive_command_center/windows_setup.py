@@ -11,9 +11,16 @@ import json
 import os
 import shutil
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-from automation.drive_command_center.watcher import EXPECTED_FOLDERS
+from automation.drive_command_center.watcher import (
+    EXPECTED_FOLDERS,
+    VERSION,
+    atomic_write_json,
+    sha256_file,
+)
 
 CONTROL_FILES = ("watcher_config.json", "WATCHER_ONLINE.json")
 SKIP_NAMES = {
@@ -60,11 +67,7 @@ def search_roots() -> list[Path]:
         drive = Path(f"{drive_letter}:\\")
         if drive.exists():
             roots.append(drive)
-    for raw in (
-        r"D:\Desktop\DataBossX",
-        r"D:\DataBoss\DataBossX_Final_Modular",
-        os.environ.get("USERPROFILE", ""),
-    ):
+    for raw in (os.environ.get("USERPROFILE", ""),):
         if raw:
             candidate = Path(raw)
             if candidate.exists() and candidate not in roots:
@@ -111,19 +114,65 @@ def backup_file(path: Path, backup_directory: Path) -> Path | None:
     return destination
 
 
-def successful_self_test(root: Path, job_id: str) -> bool:
-    receipt = root / "completed" / f"RESULT_{job_id}.json"
+def read_json(path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as source:
+        value = json.load(source)
+    if not isinstance(value, dict):
+        raise ValueError(f"{path.name} is not a JSON object")
+    return value
+
+
+def successful_self_test(
+    root: Path,
+    job_id: str,
+    canonical_folder_id: str,
+    local_state_dir: Path,
+) -> bool:
+    receipt_path = root / "completed" / f"RESULT_{job_id}.json"
+    job_path = root / "completed" / f"JOB_{job_id}.json"
+    ack_path = root / "results" / f"ACK_{job_id}.json"
+    heartbeat_path = root / "logs" / f"HEARTBEAT_{job_id}.json"
+    proof_path = local_state_dir / "proofs" / f"SELFTEST_PROOF_{job_id}.json"
     try:
-        with receipt.open(encoding="utf-8") as source:
-            value = json.load(source)
-    except (OSError, ValueError):
+        receipt = read_json(receipt_path)
+        job = read_json(job_path)
+        ack = read_json(ack_path)
+        heartbeat = read_json(heartbeat_path)
+        proof = read_json(proof_path)
+        input_hash = sha256_file(job_path)
+        receipt_hash = sha256_file(receipt_path)
+    except (OSError, ValueError, TypeError):
         return False
+    shared_proof = (ack, heartbeat, receipt)
     return (
-        value.get("job_id") == job_id
-        and value.get("status") == "completed"
-        and value.get("source_files_modified") is False
-        and value.get("safety_statement")
+        job.get("job_id") == job_id
+        and job.get("operation") == "noop"
+        and ack.get("status") == "claimed"
+        and heartbeat.get("status") == "running"
+        and receipt.get("status") == "completed"
+        and receipt.get("completed_utc")
+        and receipt.get("source_files_modified") is False
+        and receipt.get("errors") == []
+        and receipt.get("expected_folders_detected") == list(EXPECTED_FOLDERS)
+        and receipt.get("safety_statement")
         == "Original project evidence and Dropbox were not modified."
+        and all(item.get("schema_version") == "1.0" for item in shared_proof)
+        and all(item.get("job_id") == job_id for item in shared_proof)
+        and all(item.get("input_filename") == job_path.name for item in shared_proof)
+        and all(item.get("input_sha256") == input_hash for item in shared_proof)
+        and all(
+            item.get("canonical_folder_id") == canonical_folder_id
+            for item in shared_proof
+        )
+        and all(Path(item.get("local_sync_path", "")).resolve() == root for item in shared_proof)
+        and all(item.get("watcher_version") == VERSION for item in shared_proof)
+        and all(isinstance(item.get("watcher_pid"), int) for item in shared_proof)
+        and proof.get("job_id") == job_id
+        and proof.get("canonical_folder_id") == canonical_folder_id
+        and Path(proof.get("local_sync_path", "")).resolve() == root
+        and proof.get("watcher_version") == VERSION
+        and proof.get("input_sha256") == input_hash
+        and proof.get("receipt_sha256") == receipt_hash
     )
 
 
@@ -131,7 +180,20 @@ def install_startup(config_path: Path, self_test_job_id: str) -> Path:
     with config_path.open(encoding="utf-8") as source:
         config = json.load(source)
     root = Path(os.path.expandvars(config["root"])).expanduser().resolve()
-    if not successful_self_test(root, self_test_job_id):
+    canonical_folder_id = str(config["canonical_folder_id"])
+    state_text = os.path.expandvars(str(config.get("local_state_dir", ""))).strip()
+    if not state_text:
+        raise RuntimeError("startup denied: local_state_dir is not configured")
+    local_state_dir = Path(state_text).expanduser().resolve()
+    try:
+        local_state_dir.relative_to(root)
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("startup denied: local_state_dir must not be synchronized")
+    if not successful_self_test(
+        root, self_test_job_id, canonical_folder_id, local_state_dir
+    ):
         raise RuntimeError("startup denied: successful self-test receipt not found")
     appdata = os.environ.get("APPDATA")
     if not appdata:
@@ -146,16 +208,37 @@ def install_startup(config_path: Path, self_test_job_id: str) -> Path:
     )
     startup.mkdir(parents=True, exist_ok=True)
     command_path = startup / "DataBossXDriveWatcher.cmd"
-    watcher_module = "automation.drive_command_center.watcher"
+    watcher_script = Path(__file__).with_name("watcher.py").resolve()
     python = Path(sys.executable).resolve()
     command = (
         "@echo off\r\n"
-        f'start "DataBossX Drive Watcher" /min "{python}" -m {watcher_module} '
+        f'start "DataBossX Drive Watcher" /min "{python}" "{watcher_script}" '
         f'--config "{config_path.resolve()}"\r\n'
     )
-    temporary = command_path.with_suffix(".cmd.tmp")
+    backup_path = backup_file(
+        command_path,
+        root
+        / "config"
+        / "startup_backups"
+        / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+    )
+    temporary = command_path.with_suffix(f".cmd.{os.getpid()}.tmp")
     temporary.write_text(command, encoding="utf-8", newline="")
     os.replace(temporary, command_path)
+    atomic_write_json(
+        root / "config" / "startup_method.json",
+        {
+            "installed_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "method": "current-user Windows Startup folder command file",
+            "startup_file": str(command_path),
+            "backup_file": str(backup_path) if backup_path else None,
+            "disable_instructions": (
+                "Move DataBossXDriveWatcher.cmd out of the current user's Startup folder."
+            ),
+            "administrator_privileges_required": False,
+            "registry_modified": False,
+        },
+    )
     return command_path
 
 

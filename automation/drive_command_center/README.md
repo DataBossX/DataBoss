@@ -32,7 +32,11 @@ center as:
 - `approved_scripts.example.json` → `approved_scripts.json`
 
 Populate only the private copy of `watcher_config.json`. Confirm its `root` is
-the exact detected path and its poll interval remains 60 seconds.
+the exact detected path, its poll interval remains 60 seconds, and
+`local_state_dir` points to a watcher-only directory under `%LOCALAPPDATA%`
+outside every synchronized folder. Successful jobs create local proof markers
+there; startup is denied if the self-test's marker and synchronized receipts do
+not match.
 
 Run one poll:
 

@@ -5,6 +5,7 @@
   "canonical_folder_id": "SET_ON_THE_SYNCHRONIZED_PC",
   "claim_ack_deadline_seconds": 120,
   "heartbeat_interval_seconds": 240,
+  "local_state_dir": "%LOCALAPPDATA%\\DataBossX\\DriveWatcher",
   "max_file_bytes": 1048576,
   "max_retries": 5,
   "poll_interval_seconds": 60,

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -57,25 +59,89 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def atomic_write_json(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+def atomic_move_no_replace(source: Path, destination: Path) -> None:
+    """Atomically move without replacing an existing destination."""
+    if os.name == "nt":
+        os.rename(source, destination)
+        return
+    if sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = libc.renameat2
+        renameat2.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        result = renameat2(
+            -100,
+            os.fsencode(source),
+            -100,
+            os.fsencode(destination),
+            1,
+        )
+        if result == 0:
+            return
+        error_number = ctypes.get_errno()
+        raise OSError(
+            error_number,
+            os.strerror(error_number),
+            str(destination),
+        )
     try:
-        with temporary.open("x", encoding="utf-8", newline="\n") as output:
-            json.dump(value, output, indent=2, sort_keys=True)
-            output.write("\n")
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, path)
-    finally:
-        with contextlib.suppress(FileNotFoundError):
-            temporary.unlink()
+        os.link(source, destination, follow_symlinks=False)
+    except TypeError:
+        os.link(source, destination)
+    try:
+        source.unlink()
+    except OSError:
+        with contextlib.suppress(OSError):
+            destination.unlink()
+        raise
+
+
+def atomic_write_json(
+    path: Path,
+    value: dict[str, Any],
+    *,
+    allow_replace: bool = True,
+    max_retries: int = 5,
+) -> None:
+    for attempt in range(max_retries):
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.{attempt}.tmp")
+        temporary_created = False
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with temporary.open("x", encoding="utf-8", newline="\n") as output:
+                temporary_created = True
+                json.dump(value, output, indent=2, sort_keys=True)
+                output.write("\n")
+                output.flush()
+                os.fsync(output.fileno())
+            if allow_replace:
+                os.replace(temporary, path)
+            else:
+                os.link(temporary, path)
+            return
+        except FileExistsError:
+            raise
+        except TRANSIENT_ERRORS:
+            if attempt + 1 == max_retries:
+                raise
+            time.sleep(min(2**attempt, 16))
+        finally:
+            if temporary_created:
+                with contextlib.suppress(FileNotFoundError):
+                    temporary.unlink()
 
 
 @dataclass(frozen=True)
 class WatcherConfig:
     root: Path
     canonical_folder_id: str
+    local_state_dir: Path | None = None
     poll_interval_seconds: int = 60
     heartbeat_interval_seconds: int = 240
     claim_ack_deadline_seconds: int = 120
@@ -95,9 +161,11 @@ class WatcherConfig:
         if not root_text or not folder_id:
             raise ValueError("root and canonical_folder_id are required")
         root = Path(root_text).expanduser().resolve()
+        state_text = os.path.expandvars(str(raw.get("local_state_dir", ""))).strip()
         return cls(
             root=root,
             canonical_folder_id=folder_id,
+            local_state_dir=Path(state_text).expanduser().resolve() if state_text else None,
             poll_interval_seconds=int(raw.get("poll_interval_seconds", 60)),
             heartbeat_interval_seconds=int(raw.get("heartbeat_interval_seconds", 240)),
             claim_ack_deadline_seconds=int(raw.get("claim_ack_deadline_seconds", 120)),
@@ -121,6 +189,13 @@ class WatcherConfig:
             raise ValueError("max_file_bytes must be positive")
         if set(self.allowed_operations) - {"noop"}:
             raise ValueError("only the built-in noop operation is supported")
+        if self.local_state_dir is not None:
+            try:
+                self.local_state_dir.relative_to(self.root)
+            except ValueError:
+                pass
+            else:
+                raise ValueError("local_state_dir must be outside the synchronized root")
 
 
 @dataclass
@@ -129,6 +204,7 @@ class JobRecord:
     job_id: str
     input_name: str
     input_hash: str
+    ack_delay_seconds: float = 0.0
     created_files: list[str] = field(default_factory=list)
     moved_files: list[str] = field(default_factory=list)
     modified_files: list[str] = field(default_factory=list)
@@ -261,7 +337,11 @@ class CommandCenterWatcher:
         }
 
     def refresh_online(self, status: str) -> None:
-        atomic_write_json(self.root / "WATCHER_ONLINE.json", self.online_payload(status))
+        atomic_write_json(
+            self.root / "WATCHER_ONLINE.json",
+            self.online_payload(status),
+            max_retries=self.config.max_retries,
+        )
 
     def base_receipt(
         self,
@@ -299,7 +379,18 @@ class CommandCenterWatcher:
             raise ValueError("source path is outside the command center allowlist")
         if destination.parent.name not in self.config.expected_folders:
             raise ValueError("destination path is outside the command center allowlist")
-        os.replace(source, destination)
+        for attempt in range(self.config.max_retries):
+            try:
+                atomic_move_no_replace(source, destination)
+                break
+            except OSError as error:
+                if error.errno in (errno.EEXIST, errno.ENOTEMPTY):
+                    raise FileExistsError(
+                        f"refusing to overwrite existing state file: {destination.name}"
+                    ) from error
+                if attempt + 1 == self.config.max_retries:
+                    raise
+                time.sleep(min(2**attempt, 16))
         if record:
             record.moved_files.append(f"{self.relative(source)} -> {self.relative(destination)}")
 
@@ -332,6 +423,10 @@ class CommandCenterWatcher:
         return ids, hashes
 
     def claim(self, source: Path) -> JobRecord | None:
+        claim_started = time.monotonic()
+        if source.is_symlink():
+            self._reject_unreadable(source, "symbolic links are not allowed", quarantine=True)
+            return None
         if not SAFE_NAME.fullmatch(source.name):
             self._reject_unreadable(source, "unsafe filename", quarantine=True)
             return None
@@ -343,11 +438,26 @@ class CommandCenterWatcher:
         if size > self.config.max_file_bytes:
             self._reject_unreadable(source, "file exceeds size limit", quarantine=True)
             return None
-        try:
-            input_hash = sha256_file(source)
-            with source.open(encoding="utf-8") as input_file:
-                job = json.load(input_file)
-        except (OSError, UnicodeError, json.JSONDecodeError):
+        job: Any = None
+        input_hash = ""
+        for attempt in range(self.config.max_retries):
+            try:
+                input_hash = sha256_file(source)
+                with source.open(encoding="utf-8") as input_file:
+                    job = json.load(input_file)
+                break
+            except OSError:
+                if attempt + 1 == self.config.max_retries:
+                    self._reject_unreadable(
+                        source,
+                        "temporary sync failure exceeded maximum retries",
+                        quarantine=True,
+                    )
+                    return None
+                time.sleep(min(2**attempt, 16))
+            except (UnicodeError, json.JSONDecodeError):
+                break
+        if job is None:
             self._reject_unreadable(source, "malformed JSON", quarantine=True)
             return None
         errors = self.validate_job(job)
@@ -355,6 +465,11 @@ class CommandCenterWatcher:
             self._reject_unreadable(source, "; ".join(errors), quarantine=False)
             return None
         job_id = job["job_id"]
+        if source.name != f"JOB_{job_id}.json":
+            self._reject_unreadable(
+                source, "filename does not match the declared job ID", quarantine=True
+            )
+            return None
         known_ids, known_hashes = self._known_jobs()
         if job_id in known_ids or input_hash in known_hashes:
             self._reject_unreadable(source, "duplicate job ID or content hash", quarantine=True)
@@ -366,9 +481,33 @@ class CommandCenterWatcher:
         record = JobRecord(source, job_id, source.name, input_hash)
         self._move(source, claimed, record)
         record.path = claimed
-        ack = self.path("results", f"ACK_{job_id}.json")
-        record.created_files.append(self.relative(ack))
-        atomic_write_json(ack, self.base_receipt(record, "claimed"))
+        try:
+            if sha256_file(claimed) != input_hash:
+                quarantine = self.path(
+                    "quarantine", f"CHANGED_DURING_CLAIM_{claimed.name}"
+                )
+                self._move(claimed, quarantine, record)
+                self.log(
+                    "job_quarantined",
+                    job_id=job_id,
+                    reason="content changed during claim",
+                )
+                return None
+            ack = self.path("results", f"ACK_{job_id}.json")
+            record.created_files.append(self.relative(ack))
+            atomic_write_json(
+                ack,
+                self.base_receipt(record, "claimed"),
+                allow_replace=False,
+                max_retries=self.config.max_retries,
+            )
+        except Exception as error:
+            record.created_files[:] = [
+                name for name in record.created_files if (self.root / name).exists()
+            ]
+            self.fail(record, error)
+            return None
+        record.ack_delay_seconds = time.monotonic() - claim_started
         self.log("job_claimed", job_id=job_id, input_sha256=input_hash)
         return record
 
@@ -383,11 +522,31 @@ class CommandCenterWatcher:
             errors.append("invalid job_id")
         if job.get("operation") not in self.config.allowed_operations:
             errors.append("operation is not allowlisted")
+        description = job.get("description")
+        if description is not None and (
+            not isinstance(description, str) or len(description) > 500
+        ):
+            errors.append("description must be a string no longer than 500 characters")
+        created = job.get("created_utc")
+        if created is not None:
+            if not isinstance(created, str):
+                errors.append("created_utc must be an ISO-8601 string")
+            else:
+                try:
+                    parsed = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if parsed.tzinfo is None:
+                        raise ValueError
+                except ValueError:
+                    errors.append("created_utc must include a valid timezone")
         if set(job) - {"schema_version", "job_id", "operation", "description", "created_utc"}:
             errors.append("unrecognized job fields")
         return errors
 
     def execute(self, record: JobRecord) -> None:
+        if record.ack_delay_seconds > self.config.claim_ack_deadline_seconds:
+            raise TimeoutError(
+                f"acknowledgment exceeded {self.config.claim_ack_deadline_seconds}-second deadline"
+            )
         running = self.path("running", record.path.name)
         self._move(record.path, running, record)
         record.path = running
@@ -400,29 +559,89 @@ class CommandCenterWatcher:
                 "heartbeat_utc": iso_utc(),
                 "expected_folders_detected": list(self.config.expected_folders),
             },
+            max_retries=self.config.max_retries,
         )
         receipt_path = self.path("completed", f"RESULT_{record.job_id}.json")
         record.created_files.append(self.relative(receipt_path))
         archived_job = self.path("completed", record.path.name)
         self._move(record.path, archived_job, record)
+        record.path = archived_job
         receipt = self.base_receipt(record, "completed", completed=True)
         receipt["expected_folders_detected"] = list(self.config.expected_folders)
         receipt["source_files_modified"] = False
-        atomic_write_json(receipt_path, receipt)
+        atomic_write_json(
+            receipt_path,
+            receipt,
+            allow_replace=False,
+            max_retries=self.config.max_retries,
+        )
+        try:
+            self.write_local_proof(record, receipt_path)
+        except Exception:
+            self._quarantine_conflict(receipt_path)
+            raise
         self.log("job_completed", job_id=record.job_id, receipt=self.relative(receipt_path))
 
     def fail(self, record: JobRecord, error: Exception) -> None:
         message = f"{type(error).__name__}: {error}"
         receipt_path = self.path("failed", f"RESULT_{record.job_id}.json")
-        with contextlib.suppress(Exception):
-            if record.path.exists():
-                failed_job = self.path("failed", record.path.name)
-                self._move(record.path, failed_job, record)
-            record.created_files.append(self.relative(receipt_path))
-            atomic_write_json(
-                receipt_path, self.base_receipt(record, "failed", [message], completed=True)
+        if receipt_path.exists():
+            self._quarantine_conflict(receipt_path)
+        if record.path.exists():
+            failed_job = self.path("failed", record.path.name)
+            if failed_job != record.path and failed_job.exists():
+                self._quarantine_conflict(failed_job)
+            self._move(record.path, failed_job, record)
+            record.path = failed_job
+        record.created_files.append(self.relative(receipt_path))
+        atomic_write_json(
+            receipt_path,
+            self.base_receipt(record, "failed", [message], completed=True),
+            allow_replace=False,
+            max_retries=self.config.max_retries,
+        )
+        self.log("job_failed", job_id=record.job_id, error=message)
+
+    def _quarantine_conflict(self, path: Path) -> None:
+        for counter in range(1_000):
+            destination = self.path(
+                "quarantine",
+                f"CONFLICT_{int(time.time())}_{counter}_{path.name}",
             )
-            self.log("job_failed", job_id=record.job_id, error=message)
+            if destination.exists():
+                continue
+            self._move(path, destination)
+            self.log(
+                "conflicting_artifact_quarantined",
+                input_filename=path.name,
+                destination=self.relative(destination),
+            )
+            return
+        raise RuntimeError(f"unable to allocate quarantine path for {path.name}")
+
+    def write_local_proof(self, record: JobRecord, receipt_path: Path) -> None:
+        if self.config.local_state_dir is None:
+            return
+        proof_path = (
+            self.config.local_state_dir
+            / "proofs"
+            / f"SELFTEST_PROOF_{record.job_id}.json"
+        )
+        atomic_write_json(
+            proof_path,
+            {
+                "created_utc": iso_utc(),
+                "job_id": record.job_id,
+                "canonical_folder_id": self.config.canonical_folder_id,
+                "local_sync_path": str(self.root),
+                "watcher_version": VERSION,
+                "watcher_pid": self.pid,
+                "input_sha256": record.input_hash,
+                "receipt_sha256": sha256_file(receipt_path),
+            },
+            allow_replace=False,
+            max_retries=self.config.max_retries,
+        )
 
     def recover_stale(self) -> None:
         cutoff = time.time() - self.config.stale_job_seconds
@@ -434,17 +653,44 @@ class CommandCenterWatcher:
                     continue
                 if not stale:
                     continue
-                destination = self.path("quarantine", f"STALE_{folder}_{path.name}")
-                if destination.exists():
+                try:
+                    input_hash = sha256_file(path)
+                    with path.open(encoding="utf-8") as source:
+                        job = json.load(source)
+                    errors = self.validate_job(job)
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    errors = ["stale state file is unreadable"]
+                    job = {}
+                    input_hash = ""
+                if errors:
                     destination = self.path(
-                        "quarantine", f"STALE_{folder}_{int(time.time())}_{path.name}"
+                        "quarantine", f"STALE_{folder}_{path.name}"
                     )
-                self._move(path, destination)
-                self.log(
-                    "stale_job_quarantined",
-                    input_filename=path.name,
-                    previous_state=folder,
-                    destination=self.relative(destination),
+                    if destination.exists():
+                        destination = self.path(
+                            "quarantine",
+                            f"STALE_{folder}_{int(time.time())}_{path.name}",
+                        )
+                    self._move(path, destination)
+                    self.log(
+                        "stale_job_quarantined",
+                        input_filename=path.name,
+                        previous_state=folder,
+                        destination=self.relative(destination),
+                        reason="; ".join(errors),
+                    )
+                    continue
+                record = JobRecord(
+                    path=path,
+                    job_id=job["job_id"],
+                    input_name=path.name,
+                    input_hash=input_hash,
+                )
+                self.fail(
+                    record,
+                    RuntimeError(
+                        f"crash recovery terminated stale {folder} job"
+                    ),
                 )
 
     def poll_once(self) -> int:
@@ -474,6 +720,7 @@ class CommandCenterWatcher:
 
         for signum in (signal.SIGINT, signal.SIGTERM):
             signal.signal(signum, request_stop)
+        failed_poll = False
         with self.lock:
             self.validate_layout()
             self.refresh_online("starting")
@@ -482,6 +729,7 @@ class CommandCenterWatcher:
                 try:
                     self.poll_once()
                 except Exception as error:
+                    failed_poll = True
                     self.last_error = f"{type(error).__name__}: {error}"
                     self.log("poll_failed", error=self.last_error)
                     self.refresh_online("degraded")
@@ -492,7 +740,7 @@ class CommandCenterWatcher:
                     time.sleep(min(1, deadline - time.monotonic()))
             self.refresh_online("stopped")
             self.log("watcher_stopped")
-        return 0
+        return 1 if failed_poll else 0
 
 
 def main(argv: list[str] | None = None) -> int:

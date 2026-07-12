@@ -1,39 +1,32 @@
 # DataBossX
 
-DataBossX is a local-first toolkit for evidence-grounded land and mineral title
-research, document extraction, exact interest calculation, human review, and
-versioned report production.
+DataBossX is a local-first toolkit for evidence-grounded land and mineral title research, document extraction, exact interest calculation, human review, and versioned report production.
 
-The repository currently contains several proven but separate systems:
+The repository contains public-safe code and synthetic fixtures for:
 
-- `horizon/` — exact interest math, instrument chaining, validation, repair,
-  versioning, and examiner worklists
-- `grocery_report_pipeline.py` — deterministic inventory-to-report stages A–I
-- `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs,
-  and audit
-- `mineral_deal_room/` — Vite/React operational UI prototype
+- `horizon/` — exact interest math, instrument chaining, validation, repair, versioning, and examiner worklists
+- `grocery_report_pipeline.py` — deterministic inventory-to-report stages
+- `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs, and audit
+- `mineral_deal_room/` — operational UI prototype
 - `backend/` and `frontend/` — legacy document-processing demo
 
-The unification decision, safety rules, title workflow, migration sequence, and
-acceptance gates are in:
+Core controls:
 
 - [DataBossX OS Blueprint](docs/DATABOSSX_OS_BLUEPRINT.md)
 - [Machine-readable build plan](docs/architecture/databossx-os.build-plan.json)
+- [Data classification and publication policy](docs/DATA_CLASSIFICATION_AND_PUBLICATION_POLICY.md)
 - [Security and mandatory credential rotation](SECURITY.md)
 
-## Important status
+## Public repository boundary
 
-This checkout contains code and synthetic fixtures, not the private title
-corpus. It cannot produce a defensible real title report until the relevant
-source documents are inventoried and processed on the authorized local machine.
-Unreviewed output is draft work product, not a certified abstract, title
-opinion, or substitute for a qualified title examiner or licensed attorney.
+This public repository must not contain real client manifests, exact project legal descriptions, source-drive identifiers, evidence hashes, owner data, title chains, workbooks, job queues, QA reports, release receipts, or private runtime telemetry. Real work stays in approved private repositories and controlled cloud storage.
 
-## Existing test suites
+Unreviewed output is draft work product, not a certified abstract, title opinion, or substitute for a qualified title examiner or licensed attorney.
+
+## Tests
 
 ```bash
 python -m pytest -q
 ```
 
-See `horizon/README.md`, `RUNBOOK.md`, and `REPORT_PIPELINE_PLAN.md` for the
-existing subsystem instructions.
+See `horizon/README.md`, `RUNBOOK.md`, and `REPORT_PIPELINE_PLAN.md` for subsystem instructions.

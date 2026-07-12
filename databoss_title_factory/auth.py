@@ -148,15 +148,18 @@ def verify_password(password: str, encoded: str) -> bool:
     """Constant-time password verification; malformed hashes simply fail."""
     try:
         scheme, n, r, p, salt_hex, expected_hex = encoded.split("$")
-        if scheme != PASSWORD_SCHEME:
+        if (
+            scheme != PASSWORD_SCHEME
+            or (int(n), int(r), int(p)) != (SCRYPT_N, SCRYPT_R, SCRYPT_P)
+        ):
             return False
         expected = bytes.fromhex(expected_hex)
         actual = hashlib.scrypt(
             _password_bytes(password),
             salt=bytes.fromhex(salt_hex),
-            n=int(n),
-            r=int(r),
-            p=int(p),
+            n=SCRYPT_N,
+            r=SCRYPT_R,
+            p=SCRYPT_P,
             dklen=len(expected),
         )
     except (ValueError, TypeError, MemoryError):

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
-import shutil
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -97,25 +97,51 @@ class CommandCenter:
             folder.mkdir(exist_ok=True)
         self.store = StateStore(self.root / "command_center.sqlite3")
         self.lock_path = self.root / ".watcher.lock"
-        self._recover_interrupted_jobs()
 
     def close(self) -> None:
         self.store.close()
 
     @contextmanager
     def single_instance(self) -> Iterator[None]:
-        try:
-            descriptor = os.open(
-                self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600
-            )
-        except FileExistsError as exc:
-            raise RuntimeError("another command-center watcher holds the lock") from exc
+        descriptor = self._acquire_lock()
         try:
             os.write(descriptor, str(os.getpid()).encode("ascii"))
             os.close(descriptor)
+            self._recover_interrupted_jobs()
             yield
         finally:
             self.lock_path.unlink(missing_ok=True)
+
+    def _acquire_lock(self) -> int:
+        for _attempt in range(2):
+            try:
+                return os.open(
+                    self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600
+                )
+            except FileExistsError:
+                try:
+                    owner_text = self.lock_path.read_text(encoding="ascii")
+                except OSError as exc:
+                    raise RuntimeError(
+                        "another command-center watcher holds the lock"
+                    ) from exc
+                try:
+                    owner_pid = int(owner_text)
+                except ValueError as exc:
+                    raise RuntimeError(
+                        "another command-center watcher is acquiring the lock"
+                    ) from exc
+                try:
+                    os.kill(owner_pid, 0)
+                except ProcessLookupError:
+                    self.lock_path.unlink(missing_ok=True)
+                    continue
+                except PermissionError as exc:
+                    raise RuntimeError(
+                        "another command-center watcher holds the lock"
+                    ) from exc
+                raise RuntimeError("another command-center watcher holds the lock")
+        raise RuntimeError("could not acquire command-center watcher lock")
 
     def _atomic_json(self, path: Path, payload: Dict[str, Any]) -> None:
         safe = redact(payload)
@@ -138,7 +164,14 @@ class CommandCenter:
             ).fetchone()
             if row is None:
                 path.replace(self.folders["inbox"] / path.name)
-            elif row["state"] == "claimed":
+                continue
+            state = row["state"]
+            if state == "inbox":
+                self.store.transition(
+                    path.stem, "inbox", "claimed", claimed_at=utc_now()
+                )
+                state = "claimed"
+            if state == "claimed":
                 self.store.transition(
                     path.stem,
                     "claimed",
@@ -147,13 +180,39 @@ class CommandCenter:
                     error="InterruptedBeforeExecution",
                 )
                 path.replace(self.folders["failed"] / path.name)
+            elif state in {"completed", "failed"}:
+                path.replace(self.folders[state] / path.name)
+            else:
+                path.replace(self.folders["quarantine"] / path.name)
         for path in sorted(self.folders["running"].glob("*.json")):
             row = self.store.connection.execute(
                 "SELECT state FROM jobs WHERE job_id=?", (path.stem,)
             ).fetchone()
             if row is None:
                 path.replace(self.folders["quarantine"] / path.name)
-            elif row["state"] == "running":
+                continue
+            state = row["state"]
+            if state == "inbox":
+                self.store.transition(
+                    path.stem, "inbox", "claimed", claimed_at=utc_now()
+                )
+                state = "claimed"
+            if state == "claimed":
+                self.store.transition(
+                    path.stem, "claimed", "running", heartbeat_at=utc_now()
+                )
+                state = "running"
+            completed_receipt = (
+                self.folders["receipts"] / f"{path.stem}_COMPLETED.json"
+            )
+            if state == "running" and self._is_valid_terminal_receipt(
+                completed_receipt, path.stem, "completed"
+            ):
+                self.store.transition(
+                    path.stem, "running", "completed", completed_at=utc_now()
+                )
+                path.replace(self.folders["completed"] / path.name)
+            elif state == "running":
                 self.store.transition(
                     path.stem,
                     "running",
@@ -162,8 +221,54 @@ class CommandCenter:
                     error="InterruptedDuringExecution",
                 )
                 path.replace(self.folders["failed"] / path.name)
-            elif row["state"] == "completed":
-                path.replace(self.folders["completed"] / path.name)
+            elif state in {"completed", "failed"}:
+                path.replace(self.folders[state] / path.name)
+            else:
+                path.replace(self.folders["quarantine"] / path.name)
+
+    @staticmethod
+    def _is_valid_terminal_receipt(path: Path, job_id: str, status: str) -> bool:
+        try:
+            receipt = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return False
+        return (
+            receipt.get("schema_id") == "dbx.command_completion_receipt.v1"
+            and receipt.get("job_id") == job_id
+            and receipt.get("status") == status
+        )
+
+    def _read_claimed_job(self, path: Path) -> tuple[Dict[str, Any], str]:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(path, flags)
+        except OSError as exc:
+            raise SecurityViolation("claimed job cannot be opened safely") from exc
+        try:
+            before = os.fstat(descriptor)
+            chunks = []
+            remaining = self.MAX_JOB_BYTES + 1
+            while remaining:
+                chunk = os.read(descriptor, min(65_536, remaining))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            raw = b"".join(chunks)
+            after = os.fstat(descriptor)
+        finally:
+            os.close(descriptor)
+        if len(raw) > self.MAX_JOB_BYTES:
+            raise JobValidationError("job exceeds maximum size")
+        if (before.st_ino, before.st_size, before.st_mtime_ns) != (
+            after.st_ino, after.st_size, after.st_mtime_ns
+        ):
+            raise SecurityViolation("claimed job changed during validation")
+        try:
+            payload = validate_job(json.loads(raw.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise JobValidationError("job is not valid UTF-8 JSON") from exc
+        return payload, hashlib.sha256(raw).hexdigest()
 
     def process_next(self) -> Optional[Dict[str, Any]]:
         jobs = sorted(self.folders["inbox"].glob("*.json"))
@@ -172,20 +277,9 @@ class CommandCenter:
         source = jobs[0]
         claimed = self._move(source, "claimed")
         try:
-            if claimed.is_symlink():
-                raise SecurityViolation("symlink jobs are prohibited")
-            if claimed.stat().st_size > self.MAX_JOB_BYTES:
-                raise JobValidationError("job exceeds maximum size")
-            before = claimed.stat()
-            payload = validate_job(json.loads(claimed.read_text(encoding="utf-8")))
+            payload, claimed_sha256 = self._read_claimed_job(claimed)
             if claimed.stem != str(payload["job_id"]):
                 raise JobValidationError("job filename must equal job_id plus .json")
-            after = claimed.stat()
-            if (before.st_ino, before.st_size, before.st_mtime_ns) != (
-                after.st_ino, after.st_size, after.st_mtime_ns
-            ):
-                raise SecurityViolation("claimed job changed during validation")
-            claimed_sha256 = sha256_file(claimed)
         except (OSError, json.JSONDecodeError, ValueError, SecurityViolation) as exc:
             destination = self._move(claimed, "rejected")
             receipt = {

@@ -231,7 +231,34 @@ def test_command_center_recovers_interrupted_running_job(tmp_path):
 
     recovered = CommandCenter(tmp_path)
     try:
+        with recovered.single_instance():
+            pass
         assert recovered.store.get("job-1")["state"] == "failed"
         assert (recovered.folders["failed"] / "job-1.json").is_file()
     finally:
         recovered.close()
+
+
+def test_second_watcher_cannot_recover_active_job(tmp_path):
+    owner = CommandCenter(tmp_path)
+    payload = job()
+    owner.store.submit(payload)
+    owner.store.transition(
+        "job-1", "inbox", "claimed", claimed_at=datetime.now(timezone.utc).isoformat()
+    )
+    owner.store.transition(
+        "job-1", "claimed", "running", heartbeat_at=datetime.now(timezone.utc).isoformat()
+    )
+    (owner.folders["running"] / "job-1.json").write_text(json.dumps(payload))
+    try:
+        with owner.single_instance():
+            contender = CommandCenter(tmp_path)
+            try:
+                with pytest.raises(RuntimeError, match="another"):
+                    with contender.single_instance():
+                        pass
+                assert contender.store.get("job-1")["state"] == "running"
+            finally:
+                contender.close()
+    finally:
+        owner.close()

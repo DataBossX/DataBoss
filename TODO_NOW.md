@@ -1,5 +1,11 @@
 # TODO NOW — Grocery Report (to Monday, July 6 2026)
 
+> **Status 2026-07-13:** the July 6 target has passed; this file is kept as the
+> Grocery Report runbook checklist. For the current prioritized action list
+> (PR-backlog triage, security queue, verified machinery state), see
+> **`docs/BEST_MOVES_2026-07-13.md`**. Machinery re-verified 2026-07-13:
+> full suite 143 passed / 3 skipped; pipeline `--self-test` PASS.
+
 ## For Rodney (must happen on the machine with the documents)
 1. **[BLOCKER] Run the pipeline on the real folder.** One command:
    ```

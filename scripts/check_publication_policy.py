@@ -16,14 +16,18 @@ import fnmatch
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 # Binary / non-text suffixes are skipped for content scanning.
 IGNORED_SUFFIXES = {
     ".db", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".sqlite",
-    ".sqlite3", ".webp", ".xlsx", ".xlsm", ".zip", ".lock", ".woff", ".woff2",
+    ".sqlite3", ".webp", ".zip", ".lock", ".woff", ".woff2",
     ".ttf", ".eot", ".map",
 }
+
+OOXML_SUFFIXES = {".xlsx", ".xlsm"}
 
 # Files whose *content* is exempt because they define the policy itself.
 CONTENT_ALLOWLIST = {
@@ -89,6 +93,46 @@ def _posix(path: Path) -> str:
     return path.as_posix()
 
 
+def _ooxml_text(path: Path) -> str:
+    """Extract visible cell/comment text from an OOXML workbook package."""
+    parts: list[str] = []
+    try:
+        with zipfile.ZipFile(path) as package:
+            for name in package.namelist():
+                if not name.endswith(".xml"):
+                    continue
+                if not (
+                    name.startswith("xl/sharedStrings")
+                    or name.startswith("xl/worksheets/")
+                    or name.startswith("xl/comments")
+                ):
+                    continue
+                try:
+                    root = ET.fromstring(package.read(name))
+                except (ET.ParseError, KeyError, zipfile.BadZipFile):
+                    continue
+                for element in root.iter():
+                    if not element.tag.endswith("}t") and element.tag != "t":
+                        continue
+                    if element.text:
+                        parts.append(element.text)
+    except (OSError, zipfile.BadZipFile):
+        return ""
+    return "\n".join(parts)
+
+
+def _scan_text(path: Path, posix: str, text: str, findings: list[str]) -> None:
+    for pattern, reason in _CONTENT_RULES:
+        for match in pattern.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            findings.append(f"{posix}:{line}: {reason}")
+    for match in _REPORTED_HASH.finditer(text):
+        digest = match.group(1)
+        if not _looks_synthetic_hash(digest):
+            line = text.count("\n", 0, match.start()) + 1
+            findings.append(f"{posix}:{line}: real-looking evidence hash in manifest")
+
+
 def path_findings(files: list[Path]) -> list[str]:
     findings = []
     for path in files:
@@ -106,21 +150,17 @@ def content_findings(files: list[Path]) -> list[str]:
         posix = _posix(path)
         if posix in CONTENT_ALLOWLIST:
             continue
-        if path.suffix.lower() in IGNORED_SUFFIXES:
+        suffix = path.suffix.lower()
+        if suffix in IGNORED_SUFFIXES:
+            continue
+        if suffix in OOXML_SUFFIXES:
+            _scan_text(path, posix, _ooxml_text(path), findings)
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        for pattern, reason in _CONTENT_RULES:
-            for match in pattern.finditer(text):
-                line = text.count("\n", 0, match.start()) + 1
-                findings.append(f"{posix}:{line}: {reason}")
-        for match in _REPORTED_HASH.finditer(text):
-            digest = match.group(1)
-            if not _looks_synthetic_hash(digest):
-                line = text.count("\n", 0, match.start()) + 1
-                findings.append(f"{posix}:{line}: real-looking evidence hash in manifest")
+        _scan_text(path, posix, text, findings)
     return findings
 
 

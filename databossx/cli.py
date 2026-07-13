@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -71,6 +72,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = control.verify_ledger(args.project_id)
         print(json.dumps(report, indent=2))
         return 0 if report["ok"] else 2
+
+    if not args.intake_root:
+        print("error: intake requires at least one --intake-root", file=sys.stderr)
+        return 2
 
     root = Path(args.path).expanduser().resolve(strict=True)
     paths = (

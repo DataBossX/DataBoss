@@ -57,6 +57,19 @@ def test_detects_google_drive_url(tmp_path, monkeypatch):
     assert any("Google Drive" in item for item in findings)
 
 
+def test_detects_client_identifier_in_workbook_cell(tmp_path, monkeypatch):
+    from openpyxl import Workbook
+
+    path = tmp_path / "generic.xlsx"
+    workbook = Workbook()
+    workbook.active["A1"] = "OK-BECKHAM-32-11N-25W"
+    workbook.save(path)
+    workbook.close()
+    monkeypatch.setattr(gate, "tracked_files", lambda: [path])
+    findings = gate.scan()
+    assert any("client project identifier" in item for item in findings)
+
+
 def test_real_evidence_hash_flagged_but_synthetic_allowed(tmp_path, monkeypatch):
     real = tmp_path / "real.json"
     real.write_text(

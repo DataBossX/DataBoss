@@ -24,7 +24,7 @@ from typing import Any, Iterator, Mapping, Sequence
 from . import classification as cls
 from . import redaction
 from .approval import ApprovalError, ApprovalVerifier, VerifierNotConfigured, load_verifier
-from .paths import hash_file_stable, safe_resolve_file
+from .paths import HashIntegrityError, PathSecurityError, hash_file_stable, safe_resolve_file
 
 SCHEMA_VERSION = 2
 LIFECYCLE = (
@@ -245,13 +245,18 @@ class ControlPlane:
         if project is None:
             raise ValueError(f"unknown project: {project_id}")
 
+        if not self.intake_roots:
+            raise PathSecurityError(
+                "intake requires at least one authorized intake root (fail closed)"
+            )
+
         # Confidential floor for content plus a validated project-asset scope.
         requested = cls.normalize(security_classification)
         scope_classification = cls.strictest(requested, _CONFIDENTIAL_CONTENT_FLOOR)
 
-        source = safe_resolve_file(path, authorized_roots=self.intake_roots or None)
+        source = safe_resolve_file(path, authorized_roots=self.intake_roots)
         sha256, size_bytes = hash_file_stable(
-            source, authorized_roots=self.intake_roots or None
+            source, authorized_roots=self.intake_roots
         )
         asset_id = f"asset:{sha256}"
         created_at = _now()
@@ -290,13 +295,22 @@ class ControlPlane:
                ON CONFLICT(asset_id, project_id, location) DO NOTHING""",
             (asset_id, project_id, str(source), role, source_authority, created_at),
         )
+        existing_scope = connection.execute(
+            """SELECT classification FROM asset_classifications
+               WHERE project_id = ? AND asset_id = ?""",
+            (project_id, asset_id),
+        ).fetchone()
+        effective_scope = cls.ensure_not_downgraded(
+            existing_scope["classification"] if existing_scope else None,
+            scope_classification,
+        )
         connection.execute(
             """INSERT INTO asset_classifications(
                    project_id, asset_id, classification, updated_at
                ) VALUES (?, ?, ?, ?)
                ON CONFLICT(project_id, asset_id) DO UPDATE SET
                    classification = excluded.classification, updated_at = excluded.updated_at""",
-            (project_id, asset_id, scope_classification, created_at),
+            (project_id, asset_id, effective_scope, created_at),
         )
         connection.execute(
             """INSERT INTO asset_states(
@@ -607,6 +621,18 @@ class ControlPlane:
 
             approval_id: str | None = None
             if to_state in APPROVAL_REQUIRED_STATES:
+                try:
+                    live_sha = self._live_sha256_at_primary_location(
+                        connection, project_id, asset_id
+                    )
+                except (PathSecurityError, HashIntegrityError, ValueError) as exc:
+                    raise PromotionError(
+                        f"cannot verify on-disk content before {to_state}: {exc}"
+                    ) from exc
+                if live_sha.lower() != asset["sha256"].lower():
+                    raise PromotionError(
+                        "on-disk content no longer matches the registered asset hash"
+                    )
                 approval_id = self._consume_approval(
                     connection,
                     approval,
@@ -790,9 +816,49 @@ class ControlPlane:
                         f"asset {state['asset_id']} state {state['state']!r} disagrees "
                         f"with ledger {expected!r} (direct state edit)"
                     )
+                if expected in APPROVAL_REQUIRED_STATES:
+                    asset = connection.execute(
+                        "SELECT sha256 FROM assets WHERE id = ?", (state["asset_id"],)
+                    ).fetchone()
+                    if asset is None:
+                        issues.append(f"asset {state['asset_id']} missing from assets table")
+                        continue
+                    try:
+                        live_sha = self._live_sha256_at_primary_location(
+                            connection, project_id, state["asset_id"]
+                        )
+                    except (PathSecurityError, HashIntegrityError, ValueError) as exc:
+                        issues.append(
+                            f"asset {state['asset_id']} live hash verification failed: {exc}"
+                        )
+                        continue
+                    if live_sha.lower() != asset["sha256"].lower():
+                        issues.append(
+                            f"asset {state['asset_id']} on-disk content disagrees with "
+                            "registered hash"
+                        )
 
         return {"project_id": project_id, "ok": not issues, "issues": issues,
                 "promotions": len(promotions)}
+
+    def _live_sha256_at_primary_location(
+        self,
+        connection: sqlite3.Connection,
+        project_id: str,
+        asset_id: str,
+    ) -> str:
+        """Re-hash the highest-authority registered location (TOCTOU-hardened)."""
+        row = connection.execute(
+            """SELECT location FROM asset_locations
+               WHERE project_id = ? AND asset_id = ?
+               ORDER BY source_authority ASC, verified_at DESC
+               LIMIT 1""",
+            (project_id, asset_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"asset {asset_id} has no registered source location")
+        live_sha, _ = hash_file_stable(row["location"], authorized_roots=None)
+        return live_sha
 
     def _verify_approval_receipt(
         self,

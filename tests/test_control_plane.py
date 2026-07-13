@@ -507,6 +507,59 @@ def test_classification_never_downgraded_across_projects(control, tmp_path):
     assert effective == "RESTRICTED"
 
 
+def test_project_scope_classification_never_downgraded_on_reingest(control, tmp_path):
+    shared = tmp_path / "shared.txt"
+    shared.write_bytes(b"scope test content")
+    asset_id = control.ingest_asset(
+        PROJECT_ID, shared, source_authority=1, security_classification="RESTRICTED"
+    )
+    control.ingest_asset(
+        PROJECT_ID, shared, source_authority=2, security_classification="INTERNAL"
+    )
+    with control.connect() as connection:
+        scope = connection.execute(
+            """SELECT classification FROM asset_classifications
+               WHERE project_id = ? AND asset_id = ?""",
+            (PROJECT_ID, asset_id),
+        ).fetchone()[0]
+    assert scope == "RESTRICTED"
+
+
+def test_intake_fails_closed_without_authorized_roots(tmp_path):
+    control = ControlPlane(tmp_path / "control.sqlite3", intake_roots=[], approval_verifier=None)
+    control.initialize()
+    control.create_project(dict(SYNTHETIC_MANIFEST))
+    source = tmp_path / "source.txt"
+    source.write_bytes(b"synthetic")
+    with pytest.raises(Exception) as excinfo:
+        control.ingest_asset(PROJECT_ID, source, source_authority=1)
+    assert "intake root" in str(excinfo.value).lower()
+
+
+def test_promotion_rejects_swapped_on_disk_content(control, tmp_path, keypair):
+    private_pem, _ = keypair
+    asset_id, asset_sha = _advance_to_qa(control, tmp_path)
+    (tmp_path / "example_workbook.xlsx").write_bytes(b"tampered workbook bytes after intake")
+    token = _mint(
+        private_pem,
+        project_id=PROJECT_ID,
+        asset_id=asset_id,
+        asset_sha256=asset_sha,
+        from_state="QA",
+        to_state="APPROVED",
+        nonce=str(uuid.uuid4()),
+    )
+    with pytest.raises(PromotionError, match="on-disk content no longer matches"):
+        control.promote(
+            project_id=PROJECT_ID,
+            asset_id=asset_id,
+            to_state="APPROVED",
+            actor="examiner@example.com",
+            reason="swap detected",
+            approval=token,
+        )
+
+
 def test_intake_rejects_path_outside_authorized_root(control, tmp_path):
     outside = tmp_path.parent / f"outside-{uuid.uuid4().hex}.txt"
     outside.write_bytes(b"synthetic")

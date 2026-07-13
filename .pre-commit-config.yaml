@@ -13,3 +13,10 @@ repos:
         args: ["--maxkb=2048"]
       - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
+      # Prevent real .env files from being committed (only .env.example is allowed)
+      - id: check-added-large-files
+        name: block-.env-commits
+        args: ["--maxkb=0"]
+        files: ^\.env$

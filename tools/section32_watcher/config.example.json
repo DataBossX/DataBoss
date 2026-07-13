@@ -1,0 +1,15 @@
+{
+  "source_roots": [
+    {
+      "name": "DROPBOX_SECTION32_READ_ONLY",
+      "path": "%DBX_DROPBOX_SECTION32%"
+    },
+    {
+      "name": "GOOGLE_DRIVE_SECTION32_READ_ONLY",
+      "path": "%DBX_GDRIVE_SECTION32%"
+    }
+  ],
+  "output_root": "D:\\DataBoss\\Section32_Watcher",
+  "stability_delay_seconds": 3,
+  "poll_seconds": 60
+}

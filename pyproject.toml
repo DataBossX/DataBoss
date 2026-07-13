@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databossx"
+version = "0.1.0"
+description = "DataBossX trusted-kernel: evidence-grounded domain model, vault, task graph, audit log, and control API."
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2",
+    "fastapi>=0.110",
+    "uvicorn>=0.25",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "python-multipart",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

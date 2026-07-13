@@ -52,6 +52,7 @@ agenthub/agents/youtube/db
 venv/
 .venv/
 __pycache__/
+*.egg-info/
 
 # Archives and generated artifacts
 **/*.zip

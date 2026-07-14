@@ -44,6 +44,7 @@ if (!existsSync(dist)) {
 const files = walk(dist);
 const htmlFiles = files.filter((f) => f.endsWith('.html'));
 const read = (f) => readFileSync(f, 'utf8');
+const idsIn = (html) => new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
 
 /* ---------------------------- required outputs ---------------------------- */
 console.log('\nRequired outputs');
@@ -87,6 +88,19 @@ for (const file of htmlFiles) {
     broken.length === 0,
     broken.join(', ')
   );
+
+  const brokenFragments = refs
+    .filter((ref) => ref.startsWith('#') || ref.startsWith('/#'))
+    .filter((ref) => {
+      const targetFile = ref.startsWith('/#') ? path.join(dist, 'index.html') : file;
+      const fragment = decodeURIComponent(ref.slice(ref.indexOf('#') + 1));
+      return fragment && !idsIn(read(targetFile)).has(fragment);
+    });
+  test(
+    `same-page and root-page fragments resolve in ${path.basename(file)}`,
+    brokenFragments.length === 0,
+    brokenFragments.join(', ')
+  );
 }
 
 /* ------------------------------- accessibility ---------------------------- */
@@ -101,11 +115,62 @@ for (const file of htmlFiles) {
   test(`${name} has skip link`, html.includes('Skip to main content'));
   const buttonsNoType = [...html.matchAll(/<button(?![^>]*\btype=)[^>]*>/g)];
   test(`buttons in ${name} declare a type`, buttonsNoType.length === 0);
+  const unsafeBlankLinks = [...html.matchAll(/<a\b([^>]*)>/g)]
+    .map(([, attrs]) => attrs)
+    .filter((attrs) => /\btarget="_blank"/.test(attrs))
+    .filter((attrs) => !/\brel="[^"]*\bnoopener\b[^"]*\bnoreferrer\b[^"]*"/.test(attrs));
+  test(`target=_blank links in ${name} use noopener noreferrer`, unsafeBlankLinks.length === 0);
 }
 
 const css = files.filter((f) => f.endsWith('.css')).map(read).join('\n');
 test('reduced-motion handling present in CSS', css.includes('prefers-reduced-motion'));
 test('focus-visible styling present in CSS', css.includes('focus-visible'));
+
+const sourceCss = read(path.join(root, 'src/styles/global.css'));
+const faintTextColor = sourceCss.match(/--ink-faint:\s*(#[0-9a-f]{6})/i)?.[1];
+const lightestFaintTextBackground = '#141c2c';
+const toLinearChannel = (value) => {
+  const normalized = value / 255;
+  return normalized <= 0.04045
+    ? normalized / 12.92
+    : ((normalized + 0.055) / 1.055) ** 2.4;
+};
+const relativeLuminance = (hex) => {
+  const channels = hex
+    .match(/[0-9a-f]{2}/gi)
+    .map((value) => toLinearChannel(parseInt(value, 16)));
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+};
+const contrastRatio = (foreground, background) => {
+  const values = [relativeLuminance(foreground), relativeLuminance(background)].sort(
+    (a, b) => b - a
+  );
+  return (values[0] + 0.05) / (values[1] + 0.05);
+};
+const faintContrast = faintTextColor
+  ? contrastRatio(faintTextColor, lightestFaintTextBackground)
+  : 0;
+test(
+  `faint text token contrast ≥ 4.5:1 on lightest applicable panel (actual: ${faintContrast.toFixed(2)}:1)`,
+  faintContrast >= 4.5,
+  `${faintTextColor || 'token missing'} on ${lightestFaintTextBackground}`
+);
+
+const verifiedWalkthroughDestinations = new Set();
+const misleadingCtas = htmlFiles.flatMap((file) =>
+  [...read(file).matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)]
+    .filter(([, , label]) => /Request a Walkthrough/i.test(label.replace(/<[^>]+>/g, ' ')))
+    .filter(([, attrs]) => {
+      const href = attrs.match(/\bhref="([^"]+)"/)?.[1];
+      return !href || !verifiedWalkthroughDestinations.has(href);
+    })
+    .map(() => path.basename(file))
+);
+test(
+  'misleading “Request a Walkthrough” CTA is absent',
+  misleadingCtas.length === 0,
+  misleadingCtas.join(', ')
+);
 
 /* ---------------------------------- SEO ----------------------------------- */
 console.log('\nSEO metadata');

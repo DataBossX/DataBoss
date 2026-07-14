@@ -1,0 +1,82 @@
+---
+/**
+ * ReleaseGate — the release-checklist surface. Shows the gate conditions
+ * that must pass before a deliverable version can be released.
+ * All values are synthetic.
+ */
+const checks = [
+  { label: 'All material claims have source support', state: 'pass' },
+  { label: 'No unresolved material conflicts', state: 'pass' },
+  { label: 'Exact-interest conservation check', state: 'pass' },
+  { label: 'Source unchanged since inventory', state: 'pass' },
+  { label: 'Workbook integrity vs. template', state: 'pass' },
+  { label: 'Examiner approval bound to candidate hash', state: 'pending' },
+] as const;
+---
+
+<div class="release-gate">
+  <ul class="release-gate__checks" role="list">
+    {checks.map((check) => (
+      <li class="release-gate__check mono" data-state={check.state}>
+        <span class="release-gate__mark" aria-hidden="true">{check.state === 'pass' ? '✓' : '…'}</span>
+        <span>{check.label}</span>
+        <span class="release-gate__state">{check.state === 'pass' ? 'PASS' : 'AWAITING REVIEW'}</span>
+      </li>
+    ))}
+  </ul>
+  <p class="release-gate__verdict mono">
+    <span class="chip chip--hold">RELEASE HELD</span>
+    <span class="dim">1 of 6 gates awaiting human approval · release is blocked until every gate passes</span>
+  </p>
+</div>
+
+<style>
+  .release-gate__checks {
+    list-style: none;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .release-gate__check {
+    display: grid;
+    grid-template-columns: 1.2rem 1fr auto;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.78rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg-2);
+    color: var(--ink-dim);
+  }
+
+  .release-gate__mark {
+    color: var(--green);
+    text-align: center;
+  }
+
+  .release-gate__check[data-state='pending'] .release-gate__mark {
+    color: var(--amber);
+  }
+
+  .release-gate__state {
+    color: var(--green);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .release-gate__check[data-state='pending'] .release-gate__state {
+    color: var(--amber);
+  }
+
+  .release-gate__verdict {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    font-size: 0.78rem;
+    margin: 0;
+  }
+</style>

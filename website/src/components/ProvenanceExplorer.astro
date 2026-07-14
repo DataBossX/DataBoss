@@ -1,0 +1,153 @@
+---
+/**
+ * ProvenanceExplorer — the differentiator section's centerpiece.
+ *
+ * A single (synthetic) conclusion visually wired to everything that backs
+ * it: source document, page, text span, extraction, confidence, reviewing
+ * agent, approval state, and export version. Connectors are decorative;
+ * the chain is also expressed as an ordered, accessible list.
+ */
+
+const chain = [
+  { key: 'document', label: 'Document', value: '1948 Mineral Deed — Hale to Barrett', mono: 'sha256:9f2c…41aa · 2.1 MB · TIFF' },
+  { key: 'page', label: 'Page', value: 'Page 14 of 22', mono: 'render: page-014.png · 300 dpi' },
+  { key: 'span', label: 'Text span', value: '“an undivided one-eighth (1/8) interest in and to all of the oil, gas…”', mono: 'chars 212–247 · bbox 141,608 → 512,641' },
+  { key: 'extraction', label: 'Extraction', value: 'interest_fraction = 1/8 (exact numerator/denominator)', mono: 'pass 2 of 3 · schema claim.v4 · candidate #1042' },
+  { key: 'confidence', label: 'Confidence', value: '0.97 extraction · 3/3 independent passes agree', mono: 'agreement recorded, not treated as evidence' },
+  { key: 'agent', label: 'Reviewing agent', value: 'Verifier worker challenged and re-derived the span', mono: 'route: extraction.verify · lease #88-3141' },
+  { key: 'approval', label: 'Approval state', value: 'Approved by qualified examiner', mono: 'approval bound to input manifest hash' },
+  { key: 'version', label: 'Export version', value: 'Ownership report v3 — RELEASED', mono: 'sha256:41aa…9f2c · supersedes v2' },
+] as const;
+---
+
+<div class="prov-explorer reveal">
+  <figure class="prov-explorer__conclusion card--glass" aria-hidden="false">
+    <figcaption class="kicker">Conclusion</figcaption>
+    <blockquote class="prov-explorer__claim">
+      Barrett holds an undivided <span class="mono">1/8</span> mineral interest in the subject tract.
+    </blockquote>
+    <p class="mono dim prov-explorer__claim-meta">claim #1042 · state: SUPPORTED · synthetic demonstration data</p>
+  </figure>
+
+  <svg class="prov-explorer__spine" viewBox="0 0 8 100" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M4 0 V100" stroke="var(--line-bright)" stroke-width="1.5" />
+    <path class="flow-line" d="M4 0 V100" stroke="var(--violet)" stroke-width="1.5" opacity="0.8" />
+  </svg>
+
+  <ol class="prov-explorer__chain" role="list">
+    {chain.map((link, i) => (
+      <li class="prov-explorer__link reveal" data-reveal-delay={String(Math.min(i % 4, 3))}>
+        <span class="prov-explorer__dot" aria-hidden="true"></span>
+        <div>
+          <p class="prov-explorer__label">{link.label}</p>
+          <p class="prov-explorer__value">{link.value}</p>
+          <p class="mono prov-explorer__meta">{link.mono}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<style>
+  .prov-explorer {
+    display: grid;
+    grid-template-columns: minmax(0, 26rem) auto minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .prov-explorer__conclusion {
+    position: sticky;
+    top: 6rem;
+    border: 1px solid rgba(157, 140, 255, 0.35);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin: 0;
+    box-shadow: 0 0 40px rgba(157, 140, 255, 0.08);
+  }
+
+  .prov-explorer__claim {
+    margin: 0 0 var(--space-3);
+    font-size: 1.35rem;
+    font-weight: 650;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .prov-explorer__claim .mono {
+    color: var(--violet);
+  }
+
+  .prov-explorer__claim-meta {
+    font-size: 0.72rem;
+    margin: 0;
+  }
+
+  .prov-explorer__spine {
+    width: 8px;
+    height: 100%;
+    min-height: 20rem;
+  }
+
+  .prov-explorer__chain {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .prov-explorer__link {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+  }
+
+  .prov-explorer__dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 0.45rem;
+    border-radius: 50%;
+    background: var(--violet);
+    box-shadow: 0 0 12px rgba(157, 140, 255, 0.6);
+  }
+
+  .prov-explorer__label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--violet);
+    margin-bottom: 0.2rem;
+  }
+
+  .prov-explorer__value {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .prov-explorer__meta {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 56rem) {
+    .prov-explorer {
+      grid-template-columns: 1fr;
+    }
+
+    .prov-explorer__conclusion {
+      position: static;
+    }
+
+    .prov-explorer__spine {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,221 @@
+---
+/**
+ * ArchitectureFlow — the six-node system flow.
+ *
+ * Each node is a real <button> (hover, keyboard focus, and mobile tap all
+ * select it) that reveals a detail card. Every detail card is rendered in
+ * the DOM, so without JavaScript the section reads as a complete list; the
+ * animated flow connectors freeze under prefers-reduced-motion.
+ */
+
+const nodes = [
+  {
+    id: 'sources',
+    label: 'Sources',
+    accent: 'cyan',
+    detail:
+      'Local folders, attached drives, and approved cloud roots are registered read-only. Every file is inventoried, byte-hashed, and given a custody record before anything downstream may touch it.',
+    facts: ['read-only registration', 'SHA-256 byte hashing', 'incremental re-scans'],
+  },
+  {
+    id: 'evidence',
+    label: 'Evidence Layer',
+    accent: 'cyan',
+    detail:
+      'Source bytes are copied into an append-only, content-addressed vault. OCR and rendering derive page images and text without ever modifying originals.',
+    facts: ['content-addressed vault', 'append-only derivation', 'immutable originals'],
+  },
+  {
+    id: 'provenance',
+    label: 'Provenance Database',
+    accent: 'violet',
+    detail:
+      'Claims link to exact evidence spans: source hash, page, and character offsets or bounding regions. Provenance that does not cover the field region is rejected outright.',
+    facts: ['field-level spans', 'typed claims & conflicts', 'immutable revisions'],
+  },
+  {
+    id: 'agents',
+    label: 'Agent Orchestration',
+    accent: 'blue',
+    detail:
+      'One orchestrator leases tasks to least-privilege workers. Independent extraction passes compete; routing decisions, costs, and outcomes are all recorded. Model agreement is never treated as evidence.',
+    facts: ['single-writer orchestrator', 'least-privilege leases', 'recorded route decisions'],
+  },
+  {
+    id: 'gates',
+    label: 'Confidence & Review Gates',
+    accent: 'amber',
+    detail:
+      'Low-confidence and conflicting claims stop at review gates. A qualified human resolves material conflicts with the source image beside the extraction. Approval binds to exact input hashes — any change invalidates it.',
+    facts: ['confidence thresholds', 'human conflict resolution', 'hash-bound approvals'],
+  },
+  {
+    id: 'deliverables',
+    label: 'Versioned Deliverables',
+    accent: 'green',
+    detail:
+      'Releases are append-only versions, verified by SHA-256 and reproducible from their source snapshot, tool versions, and review decisions. Nothing overwrites a released artifact.',
+    facts: ['SHA-256 verification', 'append-only versions', 'full audit reproduction'],
+  },
+];
+---
+
+<div class="arch-flow" data-arch-flow>
+  <ol class="arch-flow__rail" role="list">
+    {nodes.map((node, i) => (
+      <li class="arch-flow__stop">
+        <button
+          type="button"
+          class="arch-flow__node"
+          data-arch-node={node.id}
+          aria-expanded="false"
+          aria-controls={`arch-detail-${node.id}`}
+          data-accent={node.accent}
+        >
+          <span class="mono arch-flow__index" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+          <span>{node.label}</span>
+        </button>
+        {i < nodes.length - 1 && (
+          <svg class="arch-flow__link" viewBox="0 0 40 12" aria-hidden="true" preserveAspectRatio="none">
+            <path d="M0 6 H40" stroke="var(--line-bright)" stroke-width="1.2" />
+            <path class="flow-line" d="M0 6 H40" stroke="var(--cyan)" stroke-width="1.2" opacity="0.7" />
+          </svg>
+        )}
+      </li>
+    ))}
+  </ol>
+
+  <div class="arch-flow__details">
+    {nodes.map((node) => (
+      <article
+        class="arch-flow__detail card"
+        data-arch-detail={node.id}
+        data-accent={node.accent}
+        id={`arch-detail-${node.id}`}
+      >
+        <h3>{node.label}</h3>
+        <p class="dim">{node.detail}</p>
+        <ul class="arch-flow__facts" role="list">
+          {node.facts.map((fact) => (
+            <li class="chip">{fact}</li>
+          ))}
+        </ul>
+      </article>
+    ))}
+  </div>
+</div>
+
+<style>
+  [data-accent='cyan'] { --node-color: var(--cyan); }
+  [data-accent='blue'] { --node-color: var(--blue); }
+  [data-accent='violet'] { --node-color: var(--violet); }
+  [data-accent='amber'] { --node-color: var(--amber); }
+  [data-accent='green'] { --node-color: var(--green); }
+
+  .arch-flow__rail {
+    list-style: none;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .arch-flow__stop {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .arch-flow__node {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-bright);
+    background: var(--panel);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .arch-flow__node:hover,
+  .arch-flow__node.is-active {
+    border-color: var(--node-color);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--node-color) 25%, transparent);
+  }
+
+  .arch-flow__index {
+    font-size: 0.68rem;
+    color: var(--node-color);
+    letter-spacing: 0.12em;
+  }
+
+  .arch-flow__link {
+    width: 2.2rem;
+    height: 0.75rem;
+    flex: none;
+  }
+
+  /* Detail cards: all present without JS; JS collapses to the active one */
+  .arch-flow__details {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  html.js .arch-flow__detail {
+    display: none;
+  }
+
+  html.js .arch-flow__detail.is-active {
+    display: block;
+  }
+
+  .arch-flow__detail h3 {
+    color: var(--node-color, var(--ink));
+    font-size: 1.05rem;
+    margin-bottom: var(--space-2);
+  }
+
+  .arch-flow__detail p {
+    max-width: 56rem;
+  }
+
+  .arch-flow__facts {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (max-width: 48rem) {
+    .arch-flow__rail {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .arch-flow__stop {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .arch-flow__node {
+      justify-content: flex-start;
+      width: 100%;
+    }
+
+    .arch-flow__link {
+      transform: rotate(90deg);
+      align-self: center;
+      width: 1.4rem;
+    }
+  }
+</style>

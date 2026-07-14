@@ -1,0 +1,101 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <div>
+      <p class="site-footer__brand">DataBoss<span>X</span></p>
+      <p class="dim site-footer__tag">
+        Local-first document intelligence with field-level provenance, human review gates, and
+        versioned, hash-verified deliverables.
+      </p>
+    </div>
+    <nav aria-label="Footer">
+      <ul class="site-footer__links">
+        <li><a href="/architecture">Technical overview</a></li>
+        <li><a href="/#provenance">Provenance model</a></li>
+        <li><a href="/#security">Trust &amp; security</a></li>
+        <li>
+          <a href="https://github.com/DataBossX" rel="noopener noreferrer" target="_blank">
+            GitHub<span class="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  <div class="container site-footer__meta">
+    <p class="mono dim">© {year} DataBossX. Unreviewed output is draft work product, not a certified
+      abstract, title opinion, or legal advice.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--line);
+    background: var(--bg-1);
+    padding-block: var(--space-6) var(--space-4);
+    margin-top: var(--space-7);
+  }
+
+  .site-footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+
+  .site-footer__brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin-bottom: var(--space-2);
+  }
+
+  .site-footer__brand span {
+    color: var(--cyan);
+  }
+
+  .site-footer__tag {
+    max-width: 26rem;
+    font-size: 0.92rem;
+  }
+
+  .site-footer__links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .site-footer__links a {
+    color: var(--ink-dim);
+  }
+
+  .site-footer__links a:hover {
+    color: var(--cyan);
+  }
+
+  .site-footer__meta {
+    margin-top: var(--space-5);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--line);
+  }
+
+  .site-footer__meta p {
+    font-size: 0.75rem;
+    margin: 0;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

@@ -1,0 +1,94 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Path portion of the canonical URL, e.g. "/architecture" */
+  path?: string;
+  /** Extra JSON-LD objects to append to the graph */
+  schema?: Record<string, unknown>[];
+}
+
+const { title, description, path = '/', schema = [] } = Astro.props;
+const canonical = new URL(path === '/' ? '/' : path, Astro.site).href;
+const ogImage = new URL('/og/databossx-og.png', Astro.site).href;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': 'https://databossx.com/#org',
+      name: 'DataBossX',
+      url: 'https://databossx.com/',
+      logo: new URL('/icons/icon-512.png', Astro.site).href,
+      sameAs: ['https://github.com/DataBossX'],
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': 'https://databossx.com/#app',
+      name: 'DataBossX',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Windows, macOS, Linux',
+      description:
+        'A local-first command center for document intelligence: evidence provenance, AI agent orchestration, human review gates, and versioned, hash-verified deliverables.',
+      url: 'https://databossx.com/',
+      publisher: { '@id': 'https://databossx.com/#org' },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+        description: 'Walkthroughs available on request.',
+      },
+    },
+    ...schema,
+  ],
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta name="theme-color" content="#06080c" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DataBossX" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="DataBossX — Your Data. Under Command." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+    {/* Mark JS availability before first paint so reveal styles only apply
+        when the enhancement script will actually run. */}
+    <script is:inline>document.documentElement.classList.add('js');</script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <SiteHeader />
+    <main id="main">
+      <slot />
+    </main>
+    <SiteFooter />
+    <script src="../scripts/site.js"></script>
+  </body>
+</html>

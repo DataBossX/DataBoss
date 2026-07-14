@@ -9,6 +9,7 @@ The repository contains public-safe code and synthetic fixtures for:
 - `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs, and audit
 - `mineral_deal_room/` — operational UI prototype
 - `backend/` and `frontend/` — legacy document-processing demo
+- `website/` — public marketing site for databossx.com (Astro, static, synthetic data only)
 
 Core controls:
 

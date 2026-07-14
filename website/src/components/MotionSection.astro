@@ -1,0 +1,41 @@
+---
+/**
+ * MotionSection — standard section shell with scroll-reveal.
+ *
+ * Renders a semantic <section> with kicker/heading/lede and reveals it on
+ * entry via the shared IntersectionObserver in site.js. Without JS or with
+ * reduced motion the content is simply visible.
+ */
+interface Props {
+  id?: string;
+  kicker?: string;
+  heading?: string;
+  lede?: string;
+  tight?: boolean;
+}
+
+const { id, kicker, heading, lede, tight = false } = Astro.props;
+---
+
+<section id={id} class:list={['section', { 'section--tight': tight }]}>
+  <div class="container">
+    {(kicker || heading || lede) && (
+      <header class="reveal motion-section__header">
+        {kicker && <p class="kicker">{kicker}</p>}
+        {heading && <h2>{heading}</h2>}
+        {lede && <p class="lede">{lede}</p>}
+      </header>
+    )}
+    <slot />
+  </div>
+</section>
+
+<style>
+  .motion-section__header {
+    margin-bottom: var(--space-5);
+  }
+
+  .motion-section__header .kicker {
+    margin-bottom: var(--space-2);
+  }
+</style>

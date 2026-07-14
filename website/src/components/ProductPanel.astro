@@ -1,0 +1,64 @@
+---
+/**
+ * ProductPanel — a titled product-surface card with a mono status strip.
+ * Content (tables, ledgers, queues) is provided via the default slot.
+ * All data shown in these panels is synthetic.
+ */
+interface Props {
+  title: string;
+  description: string;
+  status?: { label: string; tone?: 'ok' | 'hold' | 'fail' | 'info' };
+  wide?: boolean;
+}
+
+const { title, description, status, wide = false } = Astro.props;
+---
+
+<article class:list={['card', 'product-panel', 'reveal', { 'product-panel--wide': wide }]}>
+  <header class="product-panel__head">
+    <div>
+      <h3>{title}</h3>
+      <p class="dim product-panel__desc">{description}</p>
+    </div>
+    {status && <span class={`chip chip--${status.tone ?? 'info'}`}>{status.label}</span>}
+  </header>
+  <div class="product-panel__body">
+    <slot />
+  </div>
+</article>
+
+<style>
+  .product-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+
+  .product-panel--wide {
+    grid-column: 1 / -1;
+  }
+
+  .product-panel__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .product-panel__head h3 {
+    font-size: 1.08rem;
+    margin-bottom: var(--space-1);
+  }
+
+  .product-panel__desc {
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .product-panel__body {
+    border-top: 1px solid var(--line);
+    padding-top: var(--space-3);
+    min-width: 0;
+  }
+</style>

@@ -6,14 +6,14 @@
 
 ## 1. Executive summary
 
-A complete, production-quality v2 of the databossx.com marketing site was built
-from scratch as a self-contained Astro project in `website/`. The site is a
-dark, precise, scroll-driven narrative of the DataBossX pipeline — ingest →
-extract → trace → coordinate → review → deliver — grounded in the real
-architecture documented in `docs/DATABOSSX_OS_BLUEPRINT.md`. It ships **~19 KB
-gzipped** on the homepage critical path, scores **Lighthouse 100/100/100/100**
-on mobile and desktop, passes an 81-check automated QA suite, and uses only
-synthetic demonstration data.
+A branch-preview candidate for the DataBossX marketing site was built as a
+self-contained Astro project in `website/`. The site is a dark, scroll-driven
+illustration of the target pipeline — ingest → extract → trace → coordinate →
+review → deliver — grounded in `docs/DATABOSSX_OS_BLUEPRINT.md`. Product
+surfaces use synthetic demonstration data, and production controls remain
+under implementation and validation. The final repaired build confirms an
+approximately 19 KB gzipped homepage critical path and passes the deterministic
+site QA suite.
 
 ## 2. Scope adjustments (documented deviations)
 
@@ -92,7 +92,7 @@ synthetic.
 
 ## 5. Test results
 
-### Automated QA (`npm run test:site`) — 81 checks, 0 failures
+### Automated QA (`npm run test:site`)
 
 Covers required outputs, internal links, alt text, heading structure, skip
 link, button types, per-page SEO metadata, JSON-LD, sitemap/robots wiring,
@@ -110,7 +110,11 @@ PR checks for the authoritative result).
 `scripts/screenshot.mjs` fails on any page error or console error across
 desktop/mobile/404 loads — **0 errors**.
 
-## 6. Lighthouse (local preview, Chromium headless, simulated throttling)
+## 6. Author-reported Lighthouse results from the original local preview
+
+These figures were reported by the original author for the pre-repair commit.
+No machine-readable Lighthouse reports are committed, so they are not treated
+as independently verified results for the final repaired commit.
 
 | Run | Perf | A11y | Best practices | SEO | LCP | CLS | TBT |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -127,13 +131,15 @@ Before-scores: not measurable (see §2.2). One a11y issue found during audit
 | --- | --- | --- |
 | Initial JS (compressed) | < 170 KB | **0.9 KB** |
 | Homepage transfer (html+css+js gzip) | < 2 MB | **~19 KB** |
-| LCP (mobile simulation) | < 2.5 s | **1.0 s** |
-| CLS | < 0.1 | **0** |
+| LCP (mobile simulation) | < 2.5 s | 1.0 s (author-reported, pre-repair) |
+| CLS | < 0.1 | 0 (author-reported, pre-repair) |
 | Largest single asset | < 500 KB | 240 KB (OG image; never loaded by pages) |
 
 ## 8. Accessibility review
 
-- WCAG AA contrast verified (Lighthouse a11y 100 after the contrast fix)
+- Automated accessibility checks passed, including a deterministic 4.5:1
+  minimum contrast check for the faint-text token. Manual and
+  assistive-technology review remains required.
 - Full keyboard operability: skip link, visible `:focus-visible` rings,
   architecture nodes are real `<button>`s with `aria-expanded`/`aria-controls`
 - Correct heading structure (one `<h1>` per page — enforced by test suite)
@@ -165,7 +171,7 @@ Before-scores: not measurable (see §2.2). One a11y issue found during audit
 
 Per-page titles, meta descriptions (length-checked), canonical URLs, Open
 Graph + Twitter cards with a generated 1200×630 preview image, JSON-LD
-(`Organization` + `SoftwareApplication` sitewide, `BreadcrumbList` on
+(`Organization` + `WebSite` sitewide, `BreadcrumbList` on
 /architecture), sitemap + robots.txt, descriptive internal links, custom 404,
 favicon + app icons.
 
@@ -177,16 +183,16 @@ Everything is new; no existing file was modified except the root `README.md`
 ```
 website/                          (new project — see website/README.md for tree)
 website/FINAL_WEBSITE_UPGRADE_REPORT.md   (this file)
-website/docs/qa/*.png             (16 after-screenshots: desktop, mobile, 404)
+website/docs/qa/*.png             (branch-preview QA screenshots)
 ```
 
 ## 12. Deployment & rollback
 
-See `website/README.md` §Deployment: Cloudflare Pages recommended (build
-`cd website && npm ci && npm run build`, output `website/dist`), preview URLs
-per push, **no GoDaddy nameserver or Cloudflare DNS changes for previews**,
-domain attachment only at promotion. Rollback = re-promote the previous
-immutable deployment, or point DNS back at the prior origin.
+See `website/README.md` §Deployment for the branch-preview configuration. Do
+not merge merely to obtain a preview, attach a custom domain, change DNS or
+nameservers, or alter production settings. Production promotion remains
+blocked. Existing production routes must be preserved or intentionally
+redirected before any future cutover; that migration is outside this repair.
 
 ## 13. Remaining risks / recommendation
 
@@ -195,12 +201,11 @@ immutable deployment, or point DNS back at the prior origin.
    promotion.
 2. Live-site baseline was not capturable; take before-screenshots of current
    databossx.com prior to cutover.
-3. The "Request a Walkthrough" CTA links to the GitHub org (no contact
-   endpoint exists that could be verified); replace with a real contact
-   channel when one is decided.
+3. Manual accessibility and assistive-technology review remains outstanding.
 4. OG image URL is absolute to databossx.com — correct for production, but
    social previews will not resolve from preview URLs.
 
-**Recommendation: do not auto-promote.** Merge to main, deploy the preview,
-run the §5–6 checks against the preview URL, capture the live-site baseline,
-then promote manually.
+**Status: branch-preview candidate only.** Keep production promotion blocked.
+Generate and verify the branch preview without merging to `main`; confirm
+headers, routes, fragments, responsive behavior, and accessibility before any
+future release decision.

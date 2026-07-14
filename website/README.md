@@ -29,7 +29,7 @@ npm install          # install dependencies
 npm run dev          # dev server on :4321
 npm run build        # static build into dist/
 npm run preview      # serve dist/ locally
-npm run test:site    # post-build QA (81 checks; requires a prior build)
+npm run test:site    # deterministic post-build QA (requires a prior build)
 npm test             # build + test:site
 
 # occasional / manual
@@ -79,22 +79,39 @@ scripts/
 
 The build output is plain static files in `dist/` — any static host works.
 
-**Recommended: Cloudflare Pages** (keeps current Cloudflare DNS assumptions
-intact and honors `public/_headers` natively):
+**Branch preview configuration for Cloudflare Pages:**
 
-1. Create a Pages project pointed at this repository.
-2. Build command: `cd website && npm ci && npm run build`
-   Output directory: `website/dist`.
-3. Every push gets a **preview URL**; verify it before promoting anything.
-4. Attach the `databossx.com` custom domain only when promoting to production.
-   Do **not** change GoDaddy nameservers or Cloudflare DNS for previews.
+- Root directory: `website`
+- Build command: `npm ci && npm test && npm audit --audit-level=high`
+- Output directory: `dist`
+- Preview branch: `claude/cinematic-site-v2-f462hu`
+
+Use the branch preview URL for this review. Do not merge to `main` merely to
+obtain a preview. Do not attach a custom domain, change DNS, change
+nameservers, or alter redirects or production settings. On the generated
+preview URL, verify that `public/_headers` is honored by checking the response
+headers, including the CSP. Production promotion remains blocked.
+
+Before any future cutover, preserve or intentionally redirect these existing
+production routes:
+
+- `/`
+- `/docs/`
+- `/status/`
+- `/contact/`
+- `/get-started/`
+- `/command-center/`
+- `/privacy/`
+- `/security/`
+
+This repair does not implement the production migration or redirects.
 
 If deploying behind nginx or another host instead, replicate the headers in
 `public/_headers` in that host's configuration.
 
 ### Pre-promotion checklist
 
-- `npm test` passes (build + 81 QA checks)
+- `npm test` passes (build + deterministic QA checks)
 - Preview URL verified: HTTPS, all three routes, redirects, headers
   (`curl -I` should show the CSP), mobile layout, reduced-motion behavior
 - Lighthouse mobile + desktop on the preview

@@ -13,10 +13,10 @@ const breadcrumbSchema = {
 };
 
 const rules = [
-  ['Source controls', 'A model, prompt, spreadsheet, prior report, or majority vote cannot overrule the source image.'],
+  ['Source controls', 'The completed pipeline must prevent a model, prompt, spreadsheet, prior report, or majority vote from overruling the source image.'],
   ['No fabrication', 'Unknown, missing, unreadable, inapplicable, inferred, assumed, and externally researched are distinct values.'],
   ['Field-level provenance', 'Every material value links to a source hash and page/sheet/row plus bounding region or character offsets where possible.'],
-  ['Immutable originals', 'Inventory and vault operations copy and hash; they never delete, rename, move, or overwrite originals.'],
+  ['Immutable originals', 'Inventory and vault operations must copy and hash without deleting, renaming, moving, or overwriting originals.'],
   ['Append-only derivation', 'OCR, extraction, reconciliations, reports, and corrections create new versions.'],
   ['Exact arithmetic', 'Interests use integer numerator/denominator values; display decimals are derived, never authoritative.'],
   ['Conflicts remain conflicts', 'Models may detect them; a qualified human resolves material conflicts.'],
@@ -24,7 +24,7 @@ const rules = [
   ['Least privilege', 'Workers receive only the inputs, tools, scopes, and egress required for one leased task.'],
   ['One writer', 'Only the orchestrator commits state transitions and creates downstream tasks.'],
   ['No production write by default', 'External writes require an exact, expiring human approval of destination and payload hash.'],
-  ['Complete audit', 'A released artifact must be reproducible from its source snapshot, tool versions, route decisions, review decisions, and event log.'],
+  ['Complete audit', 'A released artifact must retain the source snapshot, tool versions, route decisions, review decisions, and event log needed for reconstruction.'],
 ];
 
 const lifecycle = [
@@ -41,7 +41,7 @@ const lifecycle = [
 
 <BaseLayout
   title="Architecture — DataBossX"
-  description="How DataBossX works: a local-first orchestrator, content-addressed evidence vault, field-level provenance, review gates, and versioned hash-verified releases."
+  description="The target DataBossX architecture: a local-first orchestrator, content-addressed evidence vault, field-level provenance, review gates, and versioned releases."
   path="/architecture"
   schema={[breadcrumbSchema]}
 >
@@ -59,17 +59,22 @@ const lifecycle = [
       <p class="kicker">Technical overview</p>
       <h1>A work operating system,<br />not a chatbot with plugins</h1>
       <p class="lede">
-        DataBossX is a local-first pipeline: operator intent flows through one policy-aware
-        orchestrator into a durable task graph, specialized least-privilege workers, an immutable
-        evidence vault, deterministic calculations, qualified human review, and versioned release.
+        DataBossX is being built as a local-first pipeline: the target architecture routes operator
+        intent through one policy-aware orchestrator into a durable task graph, specialized
+        least-privilege workers, an immutable evidence vault, deterministic calculations,
+        qualified human review, and versioned release.
+      </p>
+      <p class="arch-preview">
+        <strong>Development preview:</strong> this page describes target architecture and design
+        controls. Production controls remain under implementation and validation.
       </p>
     </div>
   </section>
 
   <MotionSection
     kicker="The flow"
-    heading="Six guarantees, in order"
-    lede="Select a node to inspect what it enforces."
+    heading="Six target guarantees, in order"
+    lede="Select a node to inspect what the completed system is intended to enforce."
     tight
   >
     <div class="reveal">
@@ -79,8 +84,8 @@ const lifecycle = [
 
   <MotionSection
     kicker="Runtime shape"
-    heading="Everything inside your trust boundary"
-    lede="A deliberately boring runtime: one orchestrator, embedded storage, and provider interfaces at every external edge — no fleet of services to babysit."
+    heading="A runtime designed for your trust boundary"
+    lede="The planned runtime uses one orchestrator, embedded storage, and provider interfaces at external edges."
     tight
   >
     <figure class="reveal arch-diagram card" role="img" aria-label="Runtime diagram: UI to control API to policy engine to orchestrator to task graph, with approval ledger and worker leases, backed by an event outbox, evidence and claim graph, search index, and content-addressed vault, feeding the title engine, review, and report audit — all inside the local trust boundary. Read-only snapshots come in from local and cloud sources; policy-gated calls go out to model and research APIs.">
@@ -109,7 +114,7 @@ const lifecycle = [
 
   <MotionSection
     kicker="Non-negotiable rules"
-    heading="Twelve controls the pipeline cannot skip"
+    heading="Twelve design controls the completed pipeline must enforce"
     tight
   >
     <ol class="rules-grid" role="list">
@@ -125,8 +130,8 @@ const lifecycle = [
 
   <MotionSection
     kicker="Project lifecycle"
-    heading="A project cannot jump the queue"
-    lede="Release is a state you earn, not a button you press. Every transition is recorded in the append-only audit log."
+    heading="A target lifecycle with gated transitions"
+    lede="The completed system is intended to treat release as a gated state and record each transition in an append-only audit log."
     tight
   >
     <ol class="lifecycle reveal" role="list">
@@ -138,16 +143,16 @@ const lifecycle = [
       ))}
     </ol>
     <p class="reveal dim lifecycle__note">
-      The system blocks release if any material claim lacks source support, a material conflict is
-      unresolved, exact-interest validation fails, the source changed after inventory, or artifact
-      integrity checks fail.
+      Target release controls block a release if a material claim lacks source support, a material
+      conflict is unresolved, exact-interest validation fails, the source changed after inventory,
+      or artifact integrity checks fail.
     </p>
   </MotionSection>
 
-  <MotionSection kicker="Next" heading="See it against your document classes" tight>
+  <MotionSection kicker="Next" heading="Review the development preview" tight>
     <div class="reveal arch-cta">
       <a class="btn btn--primary" href="https://github.com/DataBossX" rel="noopener noreferrer" target="_blank">
-        Request a Walkthrough
+        View GitHub
       </a>
       <a class="btn" href="/">Back to the overview</a>
     </div>
@@ -176,6 +181,19 @@ const lifecycle = [
     content: '/';
     margin-right: 0.6rem;
     color: var(--ink-faint);
+  }
+
+  .arch-preview {
+    max-width: 46rem;
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border-left: 3px solid var(--amber);
+    background: rgba(255, 189, 92, 0.08);
+    color: var(--ink-dim);
+  }
+
+  .arch-preview strong {
+    color: var(--amber);
   }
 
   .arch-diagram {

@@ -14,7 +14,7 @@ const nodes = [
     label: 'Sources',
     accent: 'cyan',
     detail:
-      'Local folders, attached drives, and approved cloud roots are registered read-only. Every file is inventoried, byte-hashed, and given a custody record before anything downstream may touch it.',
+      'Target control: register local folders, attached drives, and approved cloud roots read-only, then inventory and byte-hash each file before downstream processing.',
     facts: ['read-only registration', 'SHA-256 byte hashing', 'incremental re-scans'],
   },
   {
@@ -22,7 +22,7 @@ const nodes = [
     label: 'Evidence Layer',
     accent: 'cyan',
     detail:
-      'Source bytes are copied into an append-only, content-addressed vault. OCR and rendering derive page images and text without ever modifying originals.',
+      'Target control: copy source bytes into an append-only, content-addressed vault and derive OCR and page images without modifying originals.',
     facts: ['content-addressed vault', 'append-only derivation', 'immutable originals'],
   },
   {
@@ -30,7 +30,7 @@ const nodes = [
     label: 'Provenance Database',
     accent: 'violet',
     detail:
-      'Claims link to exact evidence spans: source hash, page, and character offsets or bounding regions. Provenance that does not cover the field region is rejected outright.',
+      'Target control: link claims to source hash, page, and character offsets or bounding regions, and reject provenance that does not cover the field region.',
     facts: ['field-level spans', 'typed claims & conflicts', 'immutable revisions'],
   },
   {
@@ -38,7 +38,7 @@ const nodes = [
     label: 'Agent Orchestration',
     accent: 'blue',
     detail:
-      'One orchestrator leases tasks to least-privilege workers. Independent extraction passes compete; routing decisions, costs, and outcomes are all recorded. Model agreement is never treated as evidence.',
+      'Target control: one orchestrator leases tasks to least-privilege workers, records routing decisions, costs, and outcomes, and does not treat model agreement as evidence.',
     facts: ['single-writer orchestrator', 'least-privilege leases', 'recorded route decisions'],
   },
   {
@@ -46,7 +46,7 @@ const nodes = [
     label: 'Confidence & Review Gates',
     accent: 'amber',
     detail:
-      'Low-confidence and conflicting claims stop at review gates. A qualified human resolves material conflicts with the source image beside the extraction. Approval binds to exact input hashes — any change invalidates it.',
+      'Target control: route low-confidence and conflicting claims to review, give qualified reviewers source context, and bind approvals to exact input hashes.',
     facts: ['confidence thresholds', 'human conflict resolution', 'hash-bound approvals'],
   },
   {
@@ -54,8 +54,8 @@ const nodes = [
     label: 'Versioned Deliverables',
     accent: 'green',
     detail:
-      'Releases are append-only versions, verified by SHA-256 and reproducible from their source snapshot, tool versions, and review decisions. Nothing overwrites a released artifact.',
-    facts: ['SHA-256 verification', 'append-only versions', 'full audit reproduction'],
+      'Target control: create append-only release versions, verify them with SHA-256, and retain source snapshots, tool versions, and review decisions for reconstruction.',
+    facts: ['SHA-256 verification', 'append-only versions', 'release reconstruction inputs'],
   },
 ];
 ---

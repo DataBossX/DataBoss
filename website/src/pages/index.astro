@@ -16,7 +16,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
 
 <BaseLayout
   title="DataBossX — Your Data. Under Command."
-  description="A local-first command center for document intelligence: evidence provenance, AI agent orchestration, human review gates, and audit-ready, hash-verified deliverables."
+  description="A development preview of the target DataBossX architecture for local-first document intelligence, using synthetic demonstration data."
   path="/"
 >
   <PerformanceFallback />
@@ -29,8 +29,8 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
         <p class="kicker">Local-first document intelligence</p>
         <h1 id="hero-heading">Your Data. <span class="hero__accent">Under&nbsp;Command.</span></h1>
         <p class="lede">
-          A local-first command center for document intelligence, evidence provenance, AI agent
-          orchestration, review gates, and audit-ready execution.
+          DataBossX is being built as a local-first command center for document intelligence,
+          evidence provenance, AI agent orchestration, review gates, and audit-ready execution.
         </p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="#system">Explore the System</a>
@@ -39,6 +39,13 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
         <p class="mono hero__strap dim">
           sources → evidence → provenance → agents → review → release
         </p>
+        <aside class="preview-disclosure" aria-label="Development preview disclosure">
+          <strong>Development preview</strong>
+          <span>
+            Product surfaces use synthetic demonstration data. The architecture describes the
+            target system; production controls remain under implementation and validation.
+          </span>
+        </aside>
       </div>
       <CommandCore />
     </div>
@@ -49,7 +56,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
     id="system"
     kicker="The system"
     heading="From raw documents to defensible deliverables"
-    lede="Six stages, one rule: nothing moves forward unless it can prove where it came from."
+    lede="Six planned stages, designed around one rule: released work must retain evidence of where it came from."
   >
     <ScrollStory />
   </MotionSection>
@@ -59,7 +66,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
     id="architecture"
     kicker="Architecture"
     heading="One pipeline, gated at every hand-off"
-    lede="Select any node to see what it guarantees. The full technical overview covers the runtime in depth."
+    lede="Select any node to inspect its target control. The technical overview describes the planned runtime in depth."
   >
     <div class="reveal">
       <ArchitectureFlow />
@@ -74,12 +81,12 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
     id="surfaces"
     kicker="Product surfaces"
     heading="An operations room, not a chat window"
-    lede="Every surface below runs on the same evidence graph. All data shown is synthetic demonstration data."
+    lede="The surfaces below illustrate the planned shared evidence model. All data shown is synthetic demonstration data."
   >
     <div class="surface-grid">
       <ProductPanel
         title="Command Center"
-        description="Projects, task graph, worker health, and release status in one view."
+        description="Prototype view of projects, task graph, worker health, and release status."
         status={{ label: 'RUN #DBX-0412 ACTIVE', tone: 'info' }}
       >
         <div class="table-scroll">
@@ -100,7 +107,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
 
       <ProductPanel
         title="Evidence Explorer"
-        description="Source pages with claim highlights — every value opens its source region."
+        description="Prototype source-page view with claim highlights and planned source-region links."
         status={{ label: '312 SPANS INDEXED', tone: 'ok' }}
       >
         <div class="table-scroll">
@@ -121,7 +128,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
 
       <ProductPanel
         title="Agent Tournament"
-        description="Independent extraction passes compete; disagreement becomes review work."
+        description="Prototype comparison where independent extraction passes surface disagreement for review."
         status={{ label: '2/3 PASSES AGREE', tone: 'hold' }}
       >
         <div class="table-scroll">
@@ -141,7 +148,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
 
       <ProductPanel
         title="Release Gate"
-        description="A deliverable ships only when every gate passes — and approval binds to the exact artifact hash."
+        description="Target release control: require every gate to pass and bind approval to the exact artifact hash."
         status={{ label: 'HOLD', tone: 'hold' }}
       >
         <ReleaseGate />
@@ -149,7 +156,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
 
       <ProductPanel
         title="Workflow Monitor"
-        description="Leases, retries, budgets, and dead-letter review keep agent loops bounded."
+        description="Prototype monitoring for planned leases, retries, budgets, and dead-letter review."
         status={{ label: 'ALL WORKERS HEALTHY', tone: 'ok' }}
       >
         <div class="table-scroll">
@@ -169,7 +176,7 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
 
       <ProductPanel
         title="Audit Ledger"
-        description="Append-only events reconstruct every artifact, decision, and approval."
+        description="Prototype ledger illustrating planned append-only artifact, decision, and approval events."
         status={{ label: 'APPEND-ONLY', tone: 'info' }}
       >
         <div class="table-scroll">
@@ -196,10 +203,10 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
     <div class="container">
       <header class="reveal provenance-section__header">
         <p class="kicker">The differentiator</p>
-        <h2>Every conclusion has a source.</h2>
+        <h2>Design every conclusion to retain its source.</h2>
         <p class="lede">
-          Not a citation footnote — a live chain from the sentence you ship back to the pixels it
-          came from. If the chain breaks, the conclusion doesn’t ship.
+          The target is more than a citation footnote: a chain from released text back to source
+          pixels, with incomplete chains blocked by release controls.
         </p>
       </header>
       <ProvenanceExplorer />
@@ -210,8 +217,8 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
   <MotionSection
     id="use-cases"
     kicker="Where it applies"
-    heading="Built for work where being wrong is expensive"
-    lede="The same evidence discipline applies wherever documents drive decisions."
+    heading="Designed for work where being wrong is expensive"
+    lede="These target applications show where the planned evidence discipline can support document-driven decisions."
   >
     <UseCaseGrid />
   </MotionSection>
@@ -220,34 +227,34 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
   <MotionSection
     id="security"
     kicker="Trust & security"
-    heading="Your evidence never has to leave your machine"
-    lede="DataBossX is architecture-first about trust: controls are structural, not promises."
+    heading="A target architecture for operator-controlled evidence"
+    lede="These are design controls for the completed system, not claims about production readiness."
   >
     <div class="trust-grid">
       {[
         {
           title: 'Local-first runtime',
-          body: 'The control API binds to loopback by default. Confidential evidence processing runs on infrastructure you operate — remote processing requires an explicit project policy.',
+          body: 'Target control: bind the control API to loopback by default and require explicit project policy for remote processing.',
         },
         {
           title: 'Operator-controlled infrastructure',
-          body: 'No forced SaaS control plane. Connectors use least-privilege, read-only scopes, and store credential references — never credentials themselves.',
+          body: 'Target control: avoid a required SaaS control plane; use least-privilege, read-only connector scopes and store credential references instead of credentials.',
         },
         {
           title: 'Human review gates',
-          body: 'Material conflicts cannot be resolved by model confidence or majority vote. A qualified human decides, and the decision is recorded against exact input hashes.',
+          body: 'Target control: route material conflicts to qualified human review and record decisions against exact input hashes.',
         },
         {
           title: 'Versioned, append-only history',
-          body: 'Originals are immutable. OCR, extraction, reconciliation, and reports create new versions; nothing silently edits a source or a released artifact.',
+          body: 'Target control: preserve originals and create new versions for OCR, extraction, reconciliation, and reports.',
         },
         {
           title: 'SHA-256 verification',
-          body: 'Sources and deliverables are content-addressed. A released report is reproducible from its source snapshot, tool versions, and review decisions.',
+          body: 'Target control: content-address sources and deliverables, and retain the source snapshot, tool versions, and review decisions needed to reconstruct a release.',
         },
         {
           title: 'Rollback & checkpoint recovery',
-          body: 'Runs are resumable and idempotent: interrupted and uninterrupted executions produce equivalent manifests, and prior versions remain intact for rollback.',
+          body: 'Target control: support resumable runs, equivalent manifests across retries, checkpoints, and intact prior versions for rollback.',
         },
       ].map((item, i) => (
         <article class="card reveal" data-reveal-delay={String(i % 3)}>
@@ -268,11 +275,11 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
     <div class="container final-cta__inner reveal">
       <h2 id="final-cta-heading">Bring Your Data Under&nbsp;Command.</h2>
       <p class="lede">
-        See the full pipeline run on synthetic documents — ingest to hash-verified release.
+        Explore the branch-preview candidate and its target architecture on GitHub.
       </p>
       <div class="final-cta__actions">
         <a class="btn btn--primary" href="https://github.com/DataBossX" rel="noopener noreferrer" target="_blank">
-          Request a Walkthrough
+          View GitHub
         </a>
         <a class="btn" href="/architecture">Read the Technical Overview</a>
       </div>
@@ -321,6 +328,27 @@ import PerformanceFallback from '../components/PerformanceFallback.astro';
     margin-top: var(--space-5);
     font-size: 0.75rem;
     letter-spacing: 0.08em;
+  }
+
+  .preview-disclosure {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    max-width: 44rem;
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    background: rgba(255, 189, 92, 0.08);
+    color: var(--ink-dim);
+    font-size: 0.9rem;
+  }
+
+  .preview-disclosure strong {
+    color: var(--amber);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   @media (max-width: 56rem) {

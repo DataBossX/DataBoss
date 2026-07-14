@@ -17,49 +17,49 @@ const stages = [
     id: 'ingest',
     step: '01',
     title: 'Ingest',
-    sentence: 'Deeds, leases, filings, and scans enter the system as read-only sources.',
-    tech: 'Every source byte stream is hashed with SHA-256 and copied into an append-only, content-addressed vault. Originals are never renamed, moved, or overwritten.',
-    capability: 'Immutable inventory with custody records',
+    sentence: 'Planned flow: deeds, leases, filings, and scans enter as read-only sources.',
+    tech: 'The target pipeline hashes source byte streams with SHA-256, copies them into an append-only, content-addressed vault, and preserves originals.',
+    capability: 'Target: immutable inventory with custody records',
   },
   {
     id: 'extract',
     step: '02',
     title: 'Extract',
-    sentence: 'OCR and structured extraction turn pages into typed, schema-valid candidates.',
-    tech: 'Deterministic OCR runs first; model extraction passes return candidate envelopes — never direct database writes — with page geometry attached.',
-    capability: 'Provider-neutral OCR and extraction routing',
+    sentence: 'Planned flow: OCR and structured extraction produce typed, schema-valid candidates.',
+    tech: 'The target pipeline runs OCR first and requires model extraction passes to return candidate envelopes with page geometry instead of direct database writes.',
+    capability: 'Target: provider-neutral OCR and extraction routing',
   },
   {
     id: 'trace',
     step: '03',
     title: 'Trace',
-    sentence: 'Every extracted fact is pinned to its document, page, and exact text span.',
-    tech: 'Field-level provenance links each claim to a source hash plus page and character offsets. Provenance that does not cover the field region is rejected.',
-    capability: 'Field-level evidence spans',
+    sentence: 'Planned flow: extracted facts are pinned to document, page, and exact text span.',
+    tech: 'The target provenance model links each claim to a source hash, page, and character offsets, and rejects evidence links that do not cover the field region.',
+    capability: 'Target: field-level evidence spans',
   },
   {
     id: 'coordinate',
     step: '04',
     title: 'Coordinate',
-    sentence: 'Independent agents compete on the same task and challenge each other’s output.',
-    tech: 'A single orchestrator leases tasks to least-privilege workers. Agreement between models is recorded — but it is never treated as evidence.',
-    capability: 'Policy-aware agent orchestration',
+    sentence: 'Planned flow: independent agents compare outputs on the same task.',
+    tech: 'The target design uses one orchestrator to lease tasks to least-privilege workers and records model agreement without treating it as evidence.',
+    capability: 'Target: policy-aware agent orchestration',
   },
   {
     id: 'review',
     step: '05',
     title: 'Review',
-    sentence: 'Confidence guards and human review gates stop weak output before it ships.',
-    tech: 'Material conflicts route to a qualified reviewer with image, OCR, competing candidates, and chain impact side by side. Approval binds to exact input hashes.',
-    capability: 'Hash-bound human approval',
+    sentence: 'Planned flow: confidence guards and human review gates stop weak output before release.',
+    tech: 'The target review system routes material conflicts to a qualified reviewer with source context and binds approval to exact input hashes.',
+    capability: 'Target: hash-bound human approval',
   },
   {
     id: 'deliver',
     step: '06',
     title: 'Deliver',
-    sentence: 'Approved work becomes a versioned, hash-verified, reproducible deliverable.',
-    tech: 'Releases are append-only versions with a full audit trail: source snapshot, tool versions, route decisions, and review decisions.',
-    capability: 'Versioned release with complete audit',
+    sentence: 'Planned flow: approved work becomes a versioned, hash-verified deliverable.',
+    tech: 'The target release record retains the source snapshot, tool versions, route decisions, and review decisions needed for reconstruction.',
+    capability: 'Target: versioned release with audit inputs',
   },
 ];
 ---
@@ -78,14 +78,14 @@ const stages = [
           {stage.id === 'ingest' && (
             <svg viewBox="0 0 300 220" fill="none">
               <rect x="30" y="40" width="70" height="92" rx="6" fill="#0e141f" stroke="#3fdcff" stroke-opacity="0.7" />
-              <path d="M44 60h42M44 74h42M44 88h30" stroke="#67748c" stroke-width="2" />
+              <path d="M44 60h42M44 74h42M44 88h30" stroke="#7a889f" stroke-width="2" />
               <rect x="52" y="62" width="70" height="92" rx="6" fill="#0e141f" stroke="#5b8cff" stroke-opacity="0.7" />
-              <path d="M66 82h42M66 96h42M66 110h30" stroke="#67748c" stroke-width="2" />
+              <path d="M66 82h42M66 96h42M66 110h30" stroke="#7a889f" stroke-width="2" />
               <path class="flow-line" d="M132 108 H 196" stroke="#3fdcff" stroke-width="1.6" />
               <rect x="198" y="70" width="76" height="76" rx="10" stroke="#3fdcff" stroke-width="1.4" fill="rgba(63,220,255,0.06)" />
               <text x="212" y="102" fill="#3fdcff" font-family="ui-monospace,monospace" font-size="9">VAULT</text>
-              <text x="206" y="122" fill="#67748c" font-family="ui-monospace,monospace" font-size="8">sha256/9f/…</text>
-              <text x="30" y="186" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">read-only sources → append-only custody</text>
+              <text x="206" y="122" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">sha256/9f/…</text>
+              <text x="30" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: read-only sources → append-only custody</text>
             </svg>
           )}
           {stage.id === 'extract' && (
@@ -103,7 +103,7 @@ const stages = [
                 <rect x="178" y="118" width="96" height="24" rx="5" fill="#141c2c" stroke="#1d2637" />
                 <text x="186" y="133" fill="#9d8cff">interest: 1/8</text>
               </g>
-              <text x="30" y="186" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">pages → typed, schema-valid candidates</text>
+              <text x="30" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: pages → schema-valid candidates</text>
             </svg>
           )}
           {stage.id === 'trace' && (
@@ -115,8 +115,8 @@ const stages = [
               <path class="flow-line" d="M104 99 C 150 99, 150 99, 176 99" stroke="#9d8cff" stroke-width="1.6" />
               <rect x="178" y="80" width="96" height="38" rx="6" fill="#141c2c" stroke="#9d8cff" stroke-opacity="0.6" />
               <text x="186" y="96" fill="#e9eef7" font-family="ui-monospace,monospace" font-size="9">claim #1042</text>
-              <text x="186" y="110" fill="#67748c" font-family="ui-monospace,monospace" font-size="8">p.14 · chars 212–247</text>
-              <text x="30" y="186" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">every fact → document · page · text span</text>
+              <text x="186" y="110" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">p.14 · chars 212–247</text>
+              <text x="30" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: fact → document · page · text span</text>
             </svg>
           )}
           {stage.id === 'coordinate' && (
@@ -131,7 +131,7 @@ const stages = [
               <circle cx="150" cy="30" r="11" fill="#0e141f" stroke="#3fdcff" />
               <circle cx="222" cy="153" r="11" fill="#0e141f" stroke="#5b8cff" />
               <circle cx="78" cy="153" r="11" fill="#0e141f" stroke="#9d8cff" />
-              <text x="30" y="196" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">agents compete · agreement ≠ evidence</text>
+              <text x="30" y="196" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: agent agreement ≠ evidence</text>
             </svg>
           )}
           {stage.id === 'review' && (
@@ -141,22 +141,22 @@ const stages = [
               <text x="62" y="86" fill="#ffbd5c" font-family="ui-monospace,monospace" font-size="8">candidate A · 0.93</text>
               <rect x="156" y="68" width="90" height="68" rx="5" fill="#141c2c" stroke="#5b8cff" stroke-opacity="0.5" />
               <text x="164" y="86" fill="#5b8cff" font-family="ui-monospace,monospace" font-size="8">candidate B · 0.88</text>
-              <text x="62" y="104" fill="#67748c" font-family="ui-monospace,monospace" font-size="8">1/8 of 8/8</text>
-              <text x="164" y="104" fill="#67748c" font-family="ui-monospace,monospace" font-size="8">1/16 of 8/8</text>
+              <text x="62" y="104" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">1/8 of 8/8</text>
+              <text x="164" y="104" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">1/16 of 8/8</text>
               <text x="62" y="124" fill="#e9eef7" font-family="ui-monospace,monospace" font-size="8">⚑ conflict → human</text>
-              <text x="40" y="186" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">material conflicts require a qualified reviewer</text>
+              <text x="40" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: material conflicts → qualified reviewer</text>
             </svg>
           )}
           {stage.id === 'deliver' && (
             <svg viewBox="0 0 300 220" fill="none">
               <rect x="60" y="46" width="120" height="34" rx="6" fill="#141c2c" stroke="#1d2637" />
-              <text x="70" y="67" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">report v1 · superseded</text>
+              <text x="70" y="67" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">report v1 · superseded</text>
               <rect x="76" y="90" width="120" height="34" rx="6" fill="#141c2c" stroke="#1d2637" />
-              <text x="86" y="111" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">report v2 · superseded</text>
+              <text x="86" y="111" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">report v2 · superseded</text>
               <rect x="92" y="134" width="150" height="38" rx="6" fill="rgba(67,223,160,0.08)" stroke="#43dfa0" stroke-opacity="0.7" />
               <text x="102" y="150" fill="#43dfa0" font-family="ui-monospace,monospace" font-size="9">report v3 · RELEASED</text>
-              <text x="102" y="163" fill="#67748c" font-family="ui-monospace,monospace" font-size="8">sha256:41aa…9f2c ✓</text>
-              <text x="60" y="200" fill="#67748c" font-family="ui-monospace,monospace" font-size="9">append-only versions · reproducible releases</text>
+              <text x="102" y="163" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">sha256:41aa…9f2c ✓</text>
+              <text x="60" y="200" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: append-only, reconstructable releases</text>
             </svg>
           )}
         </figure>
@@ -273,7 +273,7 @@ const stages = [
     transition: border-color 300ms ease, opacity 300ms ease;
   }
 
-  /* 0.82 keeps dimmed steps above the WCAG AA 4.5:1 contrast floor */
+  /* Keep inactive steps readable while preserving the active-stage cue. */
   html.js .scroll-story__step {
     opacity: 0.82;
   }

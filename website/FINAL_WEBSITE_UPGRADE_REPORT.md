@@ -92,7 +92,7 @@ synthetic.
 
 ## 5. Test results
 
-### Automated QA (`npm run test:site`)
+### Automated QA (`npm run test:site`) — 89 checks, 0 failures
 
 Covers required outputs, internal links, alt text, heading structure, skip
 link, button types, per-page SEO metadata, JSON-LD, sitemap/robots wiring,
@@ -102,8 +102,9 @@ source-map exposure, and all performance budgets.
 
 ### Existing repository tests
 
-`python -m pytest -q` — run before merge (no Python files were touched; see
-PR checks for the authoritative result).
+The image does not provide a `python` executable, so the exact command
+`python -m pytest -q` cannot start. The equivalent available interpreter,
+`python3 -m pytest -q`, completed with **143 passed, 10 skipped**.
 
 ### JS runtime errors
 
@@ -130,18 +131,20 @@ Before-scores: not measurable (see §2.2). One a11y issue found during audit
 | Budget | Target | Actual |
 | --- | --- | --- |
 | Initial JS (compressed) | < 170 KB | **0.9 KB** |
-| Homepage transfer (html+css+js gzip) | < 2 MB | **~19 KB** |
+| Homepage transfer (html+css+js gzip) | < 2 MB | **18.6 KB** |
 | LCP (mobile simulation) | < 2.5 s | 1.0 s (author-reported, pre-repair) |
 | CLS | < 0.1 | 0 (author-reported, pre-repair) |
 | Largest single asset | < 500 KB | 240 KB (OG image; never loaded by pages) |
 
 ## 8. Accessibility review
 
-- Automated accessibility checks passed, including a deterministic 4.5:1
-  minimum contrast check for the faint-text token. Manual and
+- Automated accessibility checks passed, including a deterministic **4.75:1**
+  contrast check for the faint-text token on its lightest applicable panel.
+  Manual and
   assistive-technology review remains required.
-- Full keyboard operability: skip link, visible `:focus-visible` rings,
-  architecture nodes are real `<button>`s with `aria-expanded`/`aria-controls`
+- Keyboard support includes a skip link, visible `:focus-visible` rings, and
+  architecture nodes implemented as `<button>`s with
+  `aria-expanded`/`aria-controls`
 - Correct heading structure (one `<h1>` per page — enforced by test suite)
 - Decorative SVGs `aria-hidden`; ASCII runtime diagram has a prose `aria-label`
 - No content requires animation or JS; `<noscript>` notice provided

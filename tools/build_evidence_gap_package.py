@@ -8,11 +8,12 @@ import hashlib
 import json
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 
 UNABLE_TO_VERIFY = "Unable to verify from official county records."
@@ -52,6 +53,9 @@ BLUE = "1F4E78"
 RED = "C00000"
 WHITE = "FFFFFF"
 
+Project = Mapping[str, str]
+SheetDefinition = tuple[str, Sequence[str], Iterable[Sequence[object]]]
+
 
 def _excel_text(value: object) -> object:
     if not isinstance(value, str):
@@ -74,26 +78,26 @@ def _validate_output_location(output: Path) -> Path:
     return resolved
 
 
-def _style_sheet(ws) -> None:
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = ws.dimensions
-    for cell in ws[1]:
+def _style_sheet(worksheet: Worksheet) -> None:
+    worksheet.freeze_panes = "A2"
+    worksheet.auto_filter.ref = worksheet.dimensions
+    for cell in worksheet[1]:
         cell.fill = PatternFill("solid", fgColor=BLUE)
         cell.font = Font(color=WHITE, bold=True)
-    for row in ws.iter_rows():
+    for row in worksheet.iter_rows():
         for cell in row:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-    for column in range(1, ws.max_column + 1):
-        values = [str(ws.cell(row, column).value or "") for row in range(1, ws.max_row + 1)]
-        ws.column_dimensions[get_column_letter(column)].width = min(
+    for column in range(1, worksheet.max_column + 1):
+        values = [
+            str(worksheet.cell(row, column).value or "")
+            for row in range(1, worksheet.max_row + 1)
+        ]
+        worksheet.column_dimensions[get_column_letter(column)].width = min(
             60, max(12, max(map(len, values), default=0) + 2)
         )
 
 
-def _write_workbook(
-    path: Path,
-    sheets: Sequence[tuple[str, Sequence[str], Iterable[Sequence[object]]]],
-) -> None:
+def _write_workbook(path: Path, sheets: Sequence[SheetDefinition]) -> None:
     workbook = Workbook()
     workbook.remove(workbook.active)
     for name, headers, rows in sheets:
@@ -417,7 +421,7 @@ def _qa_rows() -> tuple[tuple[object, ...], ...]:
 QA_HEADERS = ("QA Check", "Result", "Finding")
 
 
-def _build_workbooks(output: Path, project: dict[str, str]) -> None:
+def _build_workbooks(output: Path, project: Project) -> None:
     source_note = project["source_note"]
     master_sheets = (
         ("Master Verification", MASTER_HEADERS, _verification_rows(source_note)),
@@ -429,37 +433,38 @@ def _build_workbooks(output: Path, project: dict[str, str]) -> None:
         ("QA Summary", QA_HEADERS, _qa_rows()),
     )
     _write_workbook(output / WORKBOOK_NAMES[0], master_sheets)
-    _write_workbook(
-        output / WORKBOOK_NAMES[1],
-        (("Corrected Run Sheet", RUNSHEET_HEADERS, _runsheet_rows(source_note)),),
+    individual_workbooks: tuple[tuple[str, SheetDefinition], ...] = (
+        (
+            WORKBOOK_NAMES[1],
+            ("Corrected Run Sheet", RUNSHEET_HEADERS, _runsheet_rows(source_note)),
+        ),
+        (
+            WORKBOOK_NAMES[2],
+            ("Instrument Register", MASTER_HEADERS, _verification_rows(source_note)),
+        ),
+        (
+            WORKBOOK_NAMES[3],
+            ("Source Citation Index", SOURCE_HEADERS, _source_rows(source_note)),
+        ),
+        (WORKBOOK_NAMES[4], ("Error Log", ERROR_HEADERS, _error_rows(source_note))),
+        (
+            WORKBOOK_NAMES[5],
+            ("Missing Document Log", MISSING_HEADERS, _missing_rows()),
+        ),
+        (
+            WORKBOOK_NAMES[6],
+            ("Title Gap Analysis", GAP_HEADERS, _gap_rows()),
+        ),
+        (
+            WORKBOOK_NAMES[7],
+            ("Diversified Chain", CHAIN_HEADERS, _chain_rows(project["client"])),
+        ),
     )
-    _write_workbook(
-        output / WORKBOOK_NAMES[2],
-        (("Instrument Register", MASTER_HEADERS, _verification_rows(source_note)),),
-    )
-    _write_workbook(
-        output / WORKBOOK_NAMES[3],
-        (("Source Citation Index", SOURCE_HEADERS, _source_rows(source_note)),),
-    )
-    _write_workbook(
-        output / WORKBOOK_NAMES[4],
-        (("Error Log", ERROR_HEADERS, _error_rows(source_note)),),
-    )
-    _write_workbook(
-        output / WORKBOOK_NAMES[5],
-        (("Missing Document Log", MISSING_HEADERS, _missing_rows()),),
-    )
-    _write_workbook(
-        output / WORKBOOK_NAMES[6],
-        (("Title Gap Analysis", GAP_HEADERS, _gap_rows()),),
-    )
-    _write_workbook(
-        output / WORKBOOK_NAMES[7],
-        (("Diversified Chain", CHAIN_HEADERS, _chain_rows(project["client"])),),
-    )
+    for filename, sheet in individual_workbooks:
+        _write_workbook(output / filename, (sheet,))
 
 
-def _write_reports(output: Path, project: dict[str, str], generated: str) -> None:
+def _write_reports(output: Path, project: Project, generated: str) -> None:
     common = (
         f"Subject: {project['legal']}, {project['county']}\n"
         f"Client: {project['client']}\n"
@@ -524,51 +529,55 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _validate_workbook(path: Path) -> dict[str, object]:
+    workbook = load_workbook(path, data_only=False)
+    formulas: list[str] = []
+    hidden_structures: list[str] = []
+    try:
+        for sheet in workbook.worksheets:
+            if sheet.sheet_state != "visible":
+                hidden_structures.append(f"sheet:{sheet.title}")
+            hidden_structures.extend(
+                f"row:{sheet.title}!{index}"
+                for index, dimension in sheet.row_dimensions.items()
+                if dimension.hidden
+            )
+            hidden_structures.extend(
+                f"column:{sheet.title}!{index}"
+                for index, dimension in sheet.column_dimensions.items()
+                if dimension.hidden
+            )
+            formulas.extend(
+                f"{sheet.title}!{cell.coordinate}"
+                for row in sheet.iter_rows()
+                for cell in row
+                if cell.data_type == "f"
+            )
+        if formulas or hidden_structures:
+            raise RuntimeError(
+                f"{path.name} failed QA: formulas={formulas}, hidden={hidden_structures}"
+            )
+        return {
+            "sheets": workbook.sheetnames,
+            "formula_cells": 0,
+            "hidden_structures": 0,
+        }
+    finally:
+        workbook.close()
+
+
 def _validate(output: Path) -> dict[str, object]:
     missing = [name for name in OUTPUT_NAMES if not (output / name).is_file()]
     if missing:
         raise RuntimeError(f"Missing outputs: {', '.join(missing)}")
 
-    workbook_findings: dict[str, object] = {}
-    for name in WORKBOOK_NAMES:
-        workbook = load_workbook(output / name, data_only=False)
-        formulas: list[str] = []
-        hidden_structures: list[str] = []
-        try:
-            for sheet in workbook.worksheets:
-                if sheet.sheet_state != "visible":
-                    hidden_structures.append(f"sheet:{sheet.title}")
-                hidden_structures.extend(
-                    f"row:{sheet.title}!{index}"
-                    for index, dimension in sheet.row_dimensions.items()
-                    if dimension.hidden
-                )
-                hidden_structures.extend(
-                    f"column:{sheet.title}!{index}"
-                    for index, dimension in sheet.column_dimensions.items()
-                    if dimension.hidden
-                )
-                formulas.extend(
-                    f"{sheet.title}!{cell.coordinate}"
-                    for row in sheet.iter_rows()
-                    for cell in row
-                    if cell.data_type == "f"
-                )
-            if formulas or hidden_structures:
-                raise RuntimeError(
-                    f"{name} failed QA: formulas={formulas}, hidden={hidden_structures}"
-                )
-            workbook_findings[name] = {
-                "sheets": workbook.sheetnames,
-                "formula_cells": 0,
-                "hidden_structures": 0,
-            }
-        finally:
-            workbook.close()
-    return workbook_findings
+    return {
+        name: _validate_workbook(output / name)
+        for name in WORKBOOK_NAMES
+    }
 
 
-def build(output: Path, project: dict[str, str], generated: str) -> None:
+def build(output: Path, project: Project, generated: str) -> None:
     output = _validate_output_location(output)
     if output.exists():
         raise FileExistsError(
@@ -579,10 +588,7 @@ def build(output: Path, project: dict[str, str], generated: str) -> None:
     _write_reports(output, project, generated)
     validation = _validate(output)
 
-    checksums = {
-        name: _sha256(output / name)
-        for name in OUTPUT_NAMES
-    }
+    checksums = {name: _sha256(output / name) for name in OUTPUT_NAMES}
     (output / "SHA256SUMS.txt").write_text(
         "".join(f"{digest}  {name}\n" for name, digest in checksums.items()),
         encoding="utf-8",

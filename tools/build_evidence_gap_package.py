@@ -19,7 +19,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
-OUTPUT_NAMES = (
+WORKBOOK_NAMES = (
     "MASTER_DOCUMENT_LOG.xlsx",
     "MASTER_RUNSHEET.xlsx",
     "TITLE_CHAIN.xlsx",
@@ -27,15 +27,40 @@ OUTPUT_NAMES = (
     "CONFLICT_REPORT.xlsx",
     "IMAGE_REFERENCE_INDEX.xlsx",
     "FINAL_REPORT.xlsx",
+)
+MARKDOWN_NAMES = (
     "QA_REPORT.md",
     "CHANGE_LOG.md",
     "FINAL_EXECUTIVE_SUMMARY.md",
 )
+OUTPUT_NAMES = WORKBOOK_NAMES + MARKDOWN_NAMES
 
 BLUE = "1F4E78"
 RED = "C00000"
-AMBER = "F4B183"
 WHITE = "FFFFFF"
+PRIVATE_REPOSITORY_DIRS = ("client_work", "private_projects", "evidence", "runtime")
+
+
+def _excel_text(value: str) -> str:
+    """Return user-provided text that Excel cannot interpret as a formula."""
+    text = str(value)
+    return f"'{text}" if text.startswith(("=", "+", "-", "@")) else text
+
+
+def _validate_output_location(output: Path) -> Path:
+    """Keep client artifacts out of public portions of this repository."""
+    resolved = output.expanduser().resolve()
+    repository = Path(__file__).resolve().parents[1]
+    try:
+        relative = resolved.relative_to(repository)
+    except ValueError:
+        return resolved
+    if not relative.parts or relative.parts[0] not in PRIVATE_REPOSITORY_DIRS:
+        allowed = ", ".join(PRIVATE_REPOSITORY_DIRS)
+        raise ValueError(
+            f"Repository-local output must be under an ignored private directory: {allowed}"
+        )
+    return resolved
 
 
 def _style_sheet(ws, *, freeze: str = "A2") -> None:
@@ -114,7 +139,7 @@ def _document_log(path: Path) -> None:
                 headers,
                 [
                     _blocking_row(
-                        "No recorded images, PDFs, OCR, or county index files were available.",
+                        "No recorded images, PDFs, OCR, or county index files were supplied to this invocation.",
                         len(headers),
                     )
                 ],
@@ -146,7 +171,7 @@ def _runsheet(path: Path) -> None:
                 headers,
                 [
                     _blocking_row(
-                        "No instruments can be entered until recorded evidence is supplied.",
+                        "No instruments were supplied; none can be entered until recorded evidence is provided.",
                         len(headers),
                     )
                 ],
@@ -194,7 +219,7 @@ OPEN_ITEMS = (
         "OI-001",
         "BLOCKING",
         "Authoritative recorded-image corpus unavailable",
-        "No source images or PDFs were present in the workspace and no external file connector was available.",
+        "No source images, PDFs, or evidence manifest were supplied to this invocation.",
         "Provide read-only access to the complete recorded-image folder for the subject lands.",
         "OPEN ITEM",
     ),
@@ -210,7 +235,7 @@ OPEN_ITEMS = (
         "OI-003",
         "BLOCKING",
         "Index and protocol records unavailable",
-        "No protocoled index, county export, runsheet, or image manifest was present.",
+        "No protocoled index, county export, runsheet, or image manifest was supplied.",
         "Provide all index exports and reconcile them to the image corpus.",
         "OPEN ITEM",
     ),
@@ -226,7 +251,7 @@ OPEN_ITEMS = (
         "OI-005",
         "BLOCKING",
         "Diversified Energy interest not determinable",
-        "There is no recorded evidence in the available materials supporting an interest calculation.",
+        "No recorded evidence supporting an interest calculation was supplied to this invocation.",
         "Trace Diversified Energy and all predecessors through recorded instruments and exact-interest calculations.",
         "NOT VERIFIED",
     ),
@@ -260,8 +285,8 @@ def _conflicts(path: Path) -> None:
             "CF-001",
             "BLOCKING",
             "Evidence sufficiency failure",
-            "Title conflicts cannot be tested because the recorded corpus is absent.",
-            "Workspace inventory: zero recorded images/PDFs/indexes/workbooks.",
+            "Title conflicts cannot be tested because no recorded corpus was supplied.",
+            "Invocation processed zero recorded images, PDFs, indexes, or title workbooks.",
             "Acquire and inventory the complete evidence set; then rerun conflict detection.",
             "INSUFFICIENT EVIDENCE",
         ),
@@ -311,7 +336,7 @@ def _image_index(path: Path) -> None:
                 headers,
                 [
                     _blocking_row(
-                        "No images were available to inventory, hash, group, or inspect.",
+                        "No images were supplied to inventory, hash, group, or inspect.",
                         len(headers),
                     )
                 ],
@@ -326,15 +351,15 @@ def _final_report(path: Path, project: dict[str, str]) -> None:
     title.title = "Title"
     title_rows = (
         ("SECTION 32 TITLE REPORT — EVIDENCE NOT AVAILABLE",),
-        ("Client", project["client"]),
-        ("County", project["county"]),
-        ("Legal", project["legal"]),
+        ("Client", _excel_text(project["client"])),
+        ("County", _excel_text(project["county"])),
+        ("Legal", _excel_text(project["legal"])),
         ("Report Status", "INSUFFICIENT EVIDENCE — NOT A TITLE OPINION"),
         ("Diversified Exact Interest", "NOT VERIFIED"),
         ("Working Interest (WI)", "NOT VERIFIED"),
         ("Net Revenue Interest (NRI)", "NOT VERIFIED"),
         ("Mineral/Royalty/Override Interests", "NOT VERIFIED"),
-        ("Reason", "No recorded images, indexes, or authoritative Horizon template were available."),
+        ("Reason", "No recorded images, indexes, or authoritative Horizon template were supplied."),
     )
     for row in title_rows:
         title.append(row)
@@ -392,9 +417,9 @@ Release status: **BLOCKED — INSUFFICIENT EVIDENCE**
 
 | Review | Result | Finding |
 |---|---|---|
-| 1 — Missing data | BLOCKED | No recorded images, index, OCR, or source manifest available. |
-| 2 — Formatting | BLOCKED | Authoritative Horizon template unavailable. |
-| 3 — Evidence | BLOCKED | Zero recorded documents available for visual verification. |
+| 1 — Missing data | BLOCKED | No evidence manifest or source files were supplied to this invocation. |
+| 2 — Formatting | BLOCKED | Authoritative Horizon template not supplied. |
+| 3 — Evidence | BLOCKED | Zero recorded documents supplied for visual verification. |
 | 4 — Ownership | BLOCKED | No ownership conclusion or decimal was calculated. |
 | 5 — Lease coverage | BLOCKED | No leases, assignments, releases, or well documents available. |
 | 6 — Chronology | BLOCKED | No instruments available to sequence. |
@@ -403,14 +428,15 @@ Release status: **BLOCKED — INSUFFICIENT EVIDENCE**
 | 9 — Names | BLOCKED | Grantor/grantee and owner names cannot be verified. |
 | 10 — Final release audit | BLOCKED | Evidence and template gates failed. |
 
-## Corpus reconciliation
+## Invocation evidence status
 
-- Recorded images observed: 0
-- PDFs observed: 0
-- Index/OCR files observed: 0
-- Authoritative Horizon templates observed: 0
+- Evidence manifest supplied: No
+- Recorded source files processed: 0
 - Visually reviewed recorded pages: 0
-- Verified instruments: 0
+- Verified instruments entered: 0
+
+These are invocation-processing counts, not an assertion that the underlying private
+project corpus contains no records.
 
 ## Ownership QA
 
@@ -425,8 +451,8 @@ title opinion, or legal opinion.
 
 ## {generated}
 
-- Inventoried the available workspace.
-- Confirmed that no recorded-image corpus, index, OCR output, or authoritative Horizon template was available.
+- Generated the package without an evidence manifest or source files.
+- Recorded that no images, indexes, OCR output, or authoritative Horizon template were supplied to this invocation.
 - Created the ten requested deliverables as an evidence-gap package.
 - Entered no document facts, ownership chains, acreage, or interest decimals.
 - Marked unsupported conclusions `NOT VERIFIED`, `OPEN ITEM`, or `INSUFFICIENT EVIDENCE`.
@@ -445,11 +471,11 @@ Client: {project['client']}
 
 **Diversified Energy's exact interest is NOT VERIFIED.**
 
-The available workspace contains no recorded images, PDFs, county index exports, OCR
-results, prior title workbooks, or authoritative Horizon template. Consequently, no
-instrument, title chain, leasehold chain, ownership fraction, WI, NRI, RI, MRI, ORRI,
-acreage, depth limitation, or wellbore limitation can be established from recorded
-evidence.
+No recorded images, PDFs, county index exports, OCR results, prior title workbooks, or
+authoritative Horizon template were supplied to this package-generation invocation.
+Consequently, no instrument, title chain, leasehold chain, ownership fraction, WI, NRI,
+RI, MRI, ORRI, acreage, depth limitation, or wellbore limitation can be established by
+this package. This does not assert that the underlying private project corpus is empty.
 
 This package documents a blocked examination. It does not estimate ownership and is not
 a title opinion. Completion requires the full recorded-image corpus, index materials,
@@ -472,19 +498,32 @@ def _validate(output: Path) -> None:
     missing = [name for name in OUTPUT_NAMES if not (output / name).is_file()]
     if missing:
         raise RuntimeError(f"Missing outputs: {', '.join(missing)}")
-    for name in OUTPUT_NAMES[:7]:
+
+    for name in WORKBOOK_NAMES:
         workbook = load_workbook(output / name, read_only=True, data_only=False)
-        if not workbook.sheetnames:
-            raise RuntimeError(f"{name} has no worksheets")
-        workbook.close()
-    final = load_workbook(output / "FINAL_REPORT.xlsx", read_only=True)
-    if final.sheetnames != ["Title", "Runsheet", "OGL"]:
-        raise RuntimeError(f"Unexpected FINAL_REPORT sheet order: {final.sheetnames}")
-    final.close()
+        try:
+            if not workbook.sheetnames:
+                raise RuntimeError(f"{name} has no worksheets")
+        finally:
+            workbook.close()
+
+    final_report = load_workbook(output / "FINAL_REPORT.xlsx", read_only=True)
+    try:
+        if final_report.sheetnames != ["Title", "Runsheet", "OGL"]:
+            raise RuntimeError(
+                f"Unexpected FINAL_REPORT sheet order: {final_report.sheetnames}"
+            )
+    finally:
+        final_report.close()
 
 
 def build(output: Path, project: dict[str, str], generated: str) -> None:
-    output.mkdir(parents=True, exist_ok=True)
+    output = _validate_output_location(output)
+    if output.exists():
+        raise FileExistsError(
+            f"Output path already exists; use a new versioned directory: {output}"
+        )
+    output.mkdir(parents=True, exist_ok=False)
     _document_log(output / "MASTER_DOCUMENT_LOG.xlsx")
     _runsheet(output / "MASTER_RUNSHEET.xlsx")
     _title_chain(output / "TITLE_CHAIN.xlsx")

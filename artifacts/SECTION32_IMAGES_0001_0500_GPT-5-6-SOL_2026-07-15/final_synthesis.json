@@ -1,0 +1,197 @@
+{
+  "scope": {
+    "property": "Section 32, Township 11 North, Range 25 West, Beckham County, Oklahoma",
+    "images": "0001.jpg-0500.jpg",
+    "source": "Consolidated from batch_01_extraction.json through batch_10_extraction.json without re-opening source images.",
+    "caution": "This is a conservative synthesis of the extracted record set, not a current title opinion. Early historical instruments may affect title, but they do not alone establish present ownership by Diversified or any other party."
+  },
+  "major_title_findings": [
+    {
+      "quarter_or_interest_type": "NE/4 — fee, mineral, leasehold, ORRI, and surface/pipeline",
+      "finding": "The record contains early sovereign/fee evidence, Ellen W. Crook estate distribution and later Crook-family consolidation, followed by 1949-1951 lease and mineral severances. The later instruments prove historical transfers, not the present owner or the completeness of the NE/4 mineral chain.",
+      "citations": [
+        {"group_id": "B01-G002", "images": "0002.jpg-0002.jpg", "instrument": "Warranty Deed"},
+        {"group_id": "B01-G003", "images": "0003.jpg-0003.jpg", "instrument": "Homestead Patent"},
+        {"group_id": "B05-G016", "images": "0221.jpg-0222.jpg", "instrument": "Final Decree—Estate of Ellen W. Crook"},
+        {"group_id": "B07-G002", "images": "0337.jpg-0337.jpg", "instrument": "Quitclaim Deed"},
+        {"group_id": "B07-G007 through B07-G011", "images": "0342.jpg-0346.jpg", "instrument": "Crook-family warranty deeds"},
+        {"group_id": "B08-G016", "images": "0364.jpg-0364.jpg", "instrument": "Oil and Gas Lease"},
+        {"group_id": "B08-G044", "images": "0395.jpg-0396.jpg", "instrument": "Assignment of 1/16 of 8/8 ORRI"},
+        {"group_id": "B08-G046", "images": "0398.jpg-0398.jpg", "instrument": "Assignment of Lease to The Carter Oil Company subject to reserved ORRI"},
+        {"group_id": "B10-G001/B10-G004/B10-G006", "images": "0451.jpg-0451.jpg; 0454.jpg-0454.jpg; 0456.jpg-0456.jpg", "instrument": "NE/4 mineral deeds"},
+        {"group_id": "B10-G025", "images": "0487.jpg-0487.jpg", "instrument": "Pipeline right-of-way in NE/4 NE/4 NE/4"}
+      ]
+    },
+    {
+      "quarter_or_interest_type": "NW/4 — fee, leasehold, mineral, liens, and pipeline rights",
+      "finding": "Historical instruments show fee dealings, oil-and-gas leasing, a pipeline right-of-way across each half of the NW/4, and substantial mineral severance. The S/2 NW/4 passed from A. E. Maddoux to G. B. Keathley and was mortgaged; later mineral deeds and lease assignments divided interests further.",
+      "citations": [
+        {"group_id": "B02-G007", "images": "0057.jpg-0058.jpg", "instrument": "Oil and Gas Lease"},
+        {"group_id": "B03-G019", "images": "0112.jpg-0112.jpg", "instrument": "Warranty Deed of undivided 1/2 NW/4"},
+        {"group_id": "B05-G011/B05-G012", "images": "0218.jpg-0219.jpg", "instrument": "Pipeline right-of-way agreements across N/2 and S/2 NW/4"},
+        {"group_id": "B07-G006", "images": "0341.jpg-0341.jpg", "instrument": "Warranty Deed, S/2 NW/4"},
+        {"group_id": "B07-G004", "images": "0338.jpg-0340.jpg", "instrument": "Mortgage and collateral assignment, S/2 NW/4"},
+        {"group_id": "B08-G018/B08-G026/B08-G027/B08-G032", "images": "0366.jpg-0366.jpg; 0374.jpg-0375.jpg; 0379.jpg-0379.jpg", "instrument": "Mineral deeds affecting S/2 NW/4, N/2 SW/4, and N/2 NW/4"},
+        {"group_id": "B10-G007/B10-G009/B10-G010/B10-G012", "images": "0457.jpg-0457.jpg; 0460.jpg-0461.jpg; 0463.jpg-0463.jpg", "instrument": "S/2 NW/4 mineral deeds"}
+      ]
+    },
+    {
+      "quarter_or_interest_type": "SE/4 — fee, mortgages/releases, leasehold, and mineral severance",
+      "finding": "The SE/4 chain includes early fee evidence, repeated mortgages and releases, leases later assigned to The Carter Oil Company, and mineral conveyances affecting both halves. Releases resolve specific identified liens only; they do not establish that every historical or later lien was released.",
+      "citations": [
+        {"group_id": "B01-G001", "images": "0001.jpg-0001.jpg", "instrument": "Warranty Deed"},
+        {"group_id": "B02-G005/B02-G006", "images": "0055.jpg-0056.jpg", "instrument": "Warranty Deed and Real Estate Mortgage"},
+        {"group_id": "B05-G003/B05-G004", "images": "0210.jpg-0214.jpg", "instrument": "Amortization mortgages on W/2 SE/4 and E/2 SE/4"},
+        {"group_id": "B05-G007/B05-G009", "images": "0215.jpg-0217.jpg", "instrument": "Original and replacement releases of SE/4 mortgage"},
+        {"group_id": "B08-G003/B08-G012", "images": "0353.jpg-0353.jpg; 0360.jpg-0360.jpg", "instrument": "E/2 SE/4 lease and assignment to The Carter Oil Company"},
+        {"group_id": "B08-G020", "images": "0368.jpg-0368.jpg", "instrument": "Mineral deed of stated 1/2 interest in W/2 SE/4 and S/2 SW/4"},
+        {"group_id": "B08-G028/B08-G031", "images": "0376.jpg-0376.jpg; 0378.jpg-0378.jpg", "instrument": "E/2 SE/4 mineral deeds"},
+        {"group_id": "B09-G003", "images": "0404.jpg-0404.jpg", "instrument": "Release of E/2 SE/4 mortgage"},
+        {"group_id": "B10-G011/B10-G015", "images": "0462.jpg-0462.jpg; 0467.jpg-0467.jpg", "instrument": "E/2 SE/4 mineral deeds"}
+      ]
+    },
+    {
+      "quarter_or_interest_type": "SW/4 — fee, mortgage, leasehold, mineral, and ORRI",
+      "finding": "The SW/4 record includes early entry/patent and mortgage history, later leases, mineral deeds affecting N/2 SW/4 and S/2 SW/4, and an ORRI chain tied to the S/2 NW/4/Section 31 lease package. The instruments do not provide a complete current mineral or royalty ownership ledger.",
+      "citations": [
+        {"group_id": "B01-G007/B01-G008", "images": "0005.jpg-0006.jpg", "instrument": "Final receiver's receipts/homestead entries"},
+        {"group_id": "B01-G026", "images": "0025.jpg-0025.jpg", "instrument": "Homestead Patent"},
+        {"group_id": "B02-G019/B02-G020", "images": "0067.jpg-0070.jpg", "instrument": "SW/4 mortgages"},
+        {"group_id": "B03-G004", "images": "0102.jpg-0102.jpg", "instrument": "Affidavit of Oil and Gas Lease affecting E/2 SW/4"},
+        {"group_id": "B08-G024", "images": "0371.jpg-0371.jpg", "instrument": "Lease assignment reserving 1/16 of 7/8 production royalty"},
+        {"group_id": "B09-G024/B09-G025", "images": "0434.jpg-0436.jpg", "instrument": "Grant and assignment of part of the reserved ORRI"},
+        {"group_id": "B10-G003", "images": "0453.jpg-0453.jpg", "instrument": "One-mineral-acre deed affecting S/2 SW/4 and W/2 SE/4"},
+        {"group_id": "B10-G024", "images": "0485.jpg-0486.jpg", "instrument": "Dissolution allocating a 1/60 mineral interest in N/2 SW/4"}
+      ]
+    },
+    {
+      "quarter_or_interest_type": "Section-wide/multi-tract leasehold and working-interest chain",
+      "finding": "1947-1951 leases and assignments place multiple Section 32 leasehold tracts in The Carter Oil Company and then allocate stated percentages among seven assignees. This is direct historical leasehold/WI-chain evidence, but it supplies no current WI, NRI, operating rights, lease-status proof, or later bridge to Diversified.",
+      "citations": [
+        {"group_id": "B08-G003 through B08-G006", "images": "0353.jpg-0356.jpg", "instrument": "Oil and gas leases covering principal Section 32 aliquots"},
+        {"group_id": "B08-G009/B08-G010/B08-G012", "images": "0359.jpg-0360.jpg", "instrument": "Assignments to The Carter Oil Company"},
+        {"group_id": "B08-G024/B08-G025/B08-G046", "images": "0371.jpg-0373.jpg; 0398.jpg-0398.jpg", "instrument": "Additional lease and assignment chain"},
+        {"group_id": "B10-G019", "images": "0473.jpg-0476.jpg", "instrument": "Assignment by The Carter Oil Company to seven assignees in stated percentages"},
+        {"group_id": "B10-G023", "images": "0482.jpg-0484.jpg", "instrument": "Assignment of The Heller Company's stated lease interests"}
+      ]
+    },
+    {
+      "quarter_or_interest_type": "Pipeline easements and utility mortgage history",
+      "finding": "Consolidated Gas Utilities Company/Corporation received pipeline easements across N/2 NW/4, S/2 NW/4, NE/4, and a small NE/4 surface tract. Those rights were included in utility mortgages whose reviewed 1928/1935 and 1941 liens were later generally released. The easements themselves were not released by those mortgage releases, and present ownership, use, location, and succession remain unproved.",
+      "citations": [
+        {"group_id": "B04-G003", "images": "0170.jpg-0208.jpg", "instrument": "Supplemental Indenture of Mortgage"},
+        {"group_id": "B05-G011 through B05-G013", "images": "0218.jpg-0220.jpg", "instrument": "Three pipeline right-of-way agreements"},
+        {"group_id": "B05-G017", "images": "0223.jpg-0332.jpg", "instrument": "Indenture of Mortgage and Deed of Trust"},
+        {"group_id": "B07-G001", "images": "0333.jpg-0336.jpg", "instrument": "General release of 1928 mortgage and supplements"},
+        {"group_id": "B07-G013", "images": "0347.jpg-0351.jpg", "instrument": "General release of 1941 mortgage and supplements"},
+        {"group_id": "B10-G025", "images": "0487.jpg-0487.jpg", "instrument": "1952 pipeline right-of-way grant"}
+      ]
+    }
+  ],
+  "diversified_findings": {
+    "direct_proof": {
+      "finding": "None of the 318 de-duplicated instrument groups names Diversified, conveys an interest to or from Diversified, identifies Diversified as operator, mortgagee, lessee, assignee, royalty owner, ORRI owner, or successor, or otherwise supplies a strict direct nexus.",
+      "diversified_relevant_count_strict_direct_nexus": 0
+    },
+    "historical_chain_relevance": [
+      {
+        "category": "Leasehold/WI",
+        "effect_that_may_matter": "The Carter Oil Company acquired several Section 32 leases and assigned stated percentages to Stanolind, Superior, British American, Heller, Cities Service, Champlin, and Paul W. Fleeger. These records may be part of a predecessor chain, but no later assignment, merger, lease-maintenance evidence, or corporate bridge to Diversified is supplied.",
+        "citations": [{"group_id": "B08-G009/B08-G010/B08-G012/B08-G024/B08-G046", "images": "0359.jpg-0360.jpg; 0371.jpg-0371.jpg; 0398.jpg-0398.jpg"}, {"group_id": "B10-G019/B10-G023", "images": "0473.jpg-0476.jpg; 0482.jpg-0484.jpg"}]
+      },
+      {
+        "category": "NRI/royalty/ORRI burdens",
+        "effect_that_may_matter": "Landowner royalty reservations appear in leases, and specific ORRIs were reserved and transferred. These are direct historical burden instruments, not proof that Diversified presently bears or owns any stated burden.",
+        "citations": [{"group_id": "B08-G024", "images": "0371.jpg-0371.jpg"}, {"group_id": "B08-G044/B08-G046", "images": "0395.jpg-0396.jpg; 0398.jpg-0398.jpg"}, {"group_id": "B09-G006", "images": "0408.jpg-0409.jpg"}, {"group_id": "B09-G024/B09-G025", "images": "0434.jpg-0436.jpg"}]
+      },
+      {
+        "category": "Mineral ownership",
+        "effect_that_may_matter": "Numerous mineral deeds sever and divide interests across all four quarters. They directly prove the historical transfers stated in each deed, but they do not establish present mineral ownership or any Diversified mineral interest.",
+        "citations": [{"group_id": "B08-G018/B08-G020/B08-G026 through B08-G039/B08-G045", "images": "0366.jpg-0397.jpg"}, {"group_id": "B09-G004 through B09-G005/B09-G007 through B09-G022/B09-G026 through B09-G030/B09-G033 through B09-G037", "images": "0405.jpg-0450.jpg"}, {"group_id": "B10-G001 through B10-G012/B10-G014 through B10-G016/B10-G021/B10-G024/B10-G027 through B10-G031", "images": "0451.jpg-0493.jpg"}]
+      },
+      {
+        "category": "Pipeline/surface burdens",
+        "effect_that_may_matter": "Recorded pipeline easements burden portions of the NW/4 and NE/4 and run to successors and assigns. The mortgage releases clear identified utility mortgage liens, not the easements. No document proves Diversified succeeded to or operates these rights.",
+        "citations": [{"group_id": "B05-G011 through B05-G013", "images": "0218.jpg-0220.jpg"}, {"group_id": "B07-G013", "images": "0347.jpg-0351.jpg"}, {"group_id": "B10-G025", "images": "0487.jpg-0487.jpg"}]
+      },
+      {
+        "category": "Liens and releases",
+        "effect_that_may_matter": "Many fee mortgages assign rents, royalties, bonuses, or lease proceeds as collateral, and many specific releases are present. This establishes historical burdens and selected satisfactions, not a complete present lien status.",
+        "citations": [{"group_id": "B05-G003/B05-G004/B05-G007/B05-G009", "images": "0210.jpg-0217.jpg"}, {"group_id": "B07-G004/B07-G013", "images": "0338.jpg-0340.jpg; 0347.jpg-0351.jpg"}, {"group_id": "B08-G017/B08-G019/B08-G022", "images": "0365.jpg-0369.jpg"}, {"group_id": "B09-G003", "images": "0404.jpg-0404.jpg"}, {"group_id": "B10-G029", "images": "0491.jpg-0491.jpg"}]
+      },
+      {
+        "category": "Utility corporate history",
+        "effect_that_may_matter": "The records document transfers, mortgages, and releases involving Consolidated Gas Service Company and Consolidated Gas Utilities Corporation. This may be relevant to a pipeline predecessor analysis, but it does not prove succession to Diversified.",
+        "citations": [{"group_id": "B03-G041", "images": "0149.jpg-0169.jpg"}, {"group_id": "B04-G003", "images": "0170.jpg-0208.jpg"}, {"group_id": "B05-G017", "images": "0223.jpg-0332.jpg"}, {"group_id": "B07-G001/B07-G013", "images": "0333.jpg-0336.jpg; 0347.jpg-0351.jpg"}, {"group_id": "B10-G032", "images": "0494.jpg-0500.jpg"}]
+      }
+    ]
+  },
+  "major_gaps": [
+    {
+      "gap": "No Diversified succession bridge",
+      "detail": "No assignment, merger, name-change filing, acquisition schedule, probate, conveyance, or operator record links Diversified to The Carter Oil Company, its seven assignees, Consolidated Gas Utilities Corporation, any mineral grantee, or any ORRI owner."
+    },
+    {
+      "gap": "No current lease-status or production evidence",
+      "detail": "The extracts do not establish whether the historical leases expired, were held by production, pooled, communitized, extended, released, or superseded; no current division order, pay deck, JIB, operating agreement, spacing/pooling order, well file, or production record is included."
+    },
+    {
+      "gap": "Missing pages and fragments",
+      "detail": "Multiple early instruments are opening-only, ending-only, acknowledgment-only, faint, or lack adjacent recorded pages, including B04-G002 (0170), B05-G002/B05-G005/B05-G010/B05-G014 (0210/0214/0217/0221), B07-G003/B07-G005 (0338/0340), and several Batch 01-03 low-confidence fragments. Their absent parties, legal descriptions, and effects were not inferred."
+    },
+    {
+      "gap": "Continuation beyond image 0500",
+      "detail": "B10-G032, the Seventh Supplemental Indenture, is only pages 225-236 in images 0494-0500 and ends mid-sentence. Property schedules, Section 32 applicability, execution, acknowledgment, and ending are outside scope."
+    },
+    {
+      "gap": "Exhibits and referenced source instruments",
+      "detail": "Many leases, prior deeds, mortgages, supplements, operating agreements, and schedules are referenced but not reproduced. The September 1, 1950 operating agreement referenced by B10-G019 is particularly material to WI/NRI and burdens."
+    },
+    {
+      "gap": "Conflicting or unresolved record facts",
+      "detail": "B05-G007 and B05-G009 conflict over whether the April 1936 SE/4 release was recorded; B07-G002 contains Washita/Beckham county language conflict; B08-G039 states an acreage inconsistent with its fraction; B10-G026 lists layered mineral exclusions that may exhaust the described 160 mineral acres; B10-G005's 54/640 reading is scan-soft."
+    },
+    {
+      "gap": "Illegibility and uncertain indexing",
+      "detail": "Faint handwriting, negative images, compressed schedules, unresolved aliquots, missing recording data, and unidentified parties affect several records. B10-G029 (0491) lacks its complete mortgage, recording data, acknowledgment, and release."
+    },
+    {
+      "gap": "No depth, formation, or wellbore chain",
+      "detail": "The reviewed instruments do not establish any present depth-limited, formation-limited, or wellbore-only interest, nor any well-specific WI/NRI."
+    },
+    {
+      "gap": "No complete ownership calculation",
+      "detail": "The set is a chronological image slice, not a certified run sheet. Fractional mineral deeds, estate shares, reservations, exceptions, survivorship, and later transfers cannot be safely netted without all predecessors and successors."
+    }
+  ],
+  "apparent_interest_conclusion": {
+    "leasehold": "Historical Section 32 leases and assignments are proved, including transfers to The Carter Oil Company and percentage assignments to seven assignees. No present Diversified leasehold, lease validity, lease expiration, HBP status, or current operator status can be concluded.",
+    "WI": "Historical assigned leasehold percentages appear in B10-G019 and B10-G023, but no present Diversified working interest can be concluded and the percentages must not be carried forward without the later chain and governing operating agreements.",
+    "NRI": "No present Diversified NRI can be calculated. The record lacks a complete lease/royalty/ORRI burden stack, current ownership deck, and later assignments.",
+    "royalty": "Historical lessor royalties, rental-payment directions, and mineral ownership are shown. No present Diversified royalty ownership is directly proved.",
+    "ORRI": "Specific historical ORRIs are created, reserved, and assigned in B08-G024, B08-G044, B08-G046, B09-G006, B09-G024, and B09-G025. No present Diversified ORRI ownership or burden is proved.",
+    "mineral_ownership": "The instruments prove many historical mineral transfers, but not a complete current mineral ownership balance and not a Diversified mineral interest. No unrecorded or missing fractions should be manufactured.",
+    "wellbore_depth_formation_rights": "No present wellbore-only, depth-limited, or formation-limited rights can be established from these 500 images.",
+    "liens_and_releases": "Specific historical mortgages and utility indentures are shown, and identified releases discharge some of them. The 1941 utility mortgage lien was released by B07-G013, but the underlying pipeline easements remained. B10-G029 requires a release search, and B10-G032 is incomplete; therefore no global no-lien conclusion is supportable.",
+    "succession": "The records contain historical corporate and lease chains but no direct evidence that Diversified is successor, assignee, operator, or owner of any Section 32 interest. Similarity of business line, predecessor names, or later corporate history outside these images cannot substitute for recorded succession evidence.",
+    "bottom_line": "These 500 images identify material historical fee, mineral, leasehold, ORRI, lien, release, and pipeline-easement events. They do not support a defensible present-interest schedule for Diversified. Early historical instruments may affect title, but they do not alone establish present Diversified ownership."
+  },
+  "counts": {
+    "methodology": "Instrument records were consolidated by group_id. For a group repeated as a boundary-spanning replacement, only the latest complete record was counted: B02-G067, B03-G041, B04-G003, B05-G017, and B07-G013. Section 32 relevance uses the final record's target-tract determination. Strict Diversified relevance requires Diversified to be named or an express instrument-level succession/assignment nexus. High confidence uses final confidence_classification=high. Assumption-supported combines final confidence_classification=medium or assumption_supported. Human-review counts final statuses required, recommended, or required_boundary_continuation.",
+    "instruments": 318,
+    "section32_relevant": 236,
+    "diversified_relevant_strict_direct_nexus": 0,
+    "high_confidence": 208,
+    "assumption_supported": 64,
+    "human_review": 141
+  },
+  "recommended_follow_up": [
+    "Run a certified Beckham County grantor/grantee, lease, mineral, mortgage, release, and miscellaneous-record search from each material historical party through the present.",
+    "Obtain images 0501 forward through the end, schedules, execution, and acknowledgment of B10-G032.",
+    "Trace recorded corporate succession separately for The Carter Oil Company and each B10-G019 assignee, and for Consolidated Gas Utilities Corporation, through any claimed Diversified entity.",
+    "Obtain the referenced September 1, 1950 operating agreement and all later assignments, amendments, releases, pooling/unitization instruments, and depth or wellbore conveyances.",
+    "Reconcile the B05-G007/B05-G009 release conflict, B10-G026 mineral exclusions, B10-G029 mortgage/release status, and all low-confidence or fragmentary instruments against certified originals.",
+    "Compare the completed record chain with current OCC well, spacing/pooling, operator, production, and completion data and with current division-order, pay-deck, JIB, and lease-maintenance records.",
+    "Verify present pipeline location, use, abandonment, operator, and easement succession; do not treat utility mortgage releases as easement releases."
+  ]
+}

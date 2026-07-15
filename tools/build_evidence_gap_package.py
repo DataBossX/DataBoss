@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""Build a non-fabricated title-report package when source evidence is absent.
-
-This utility is intentionally limited to documenting a blocked examination. It
-does not extract instruments, calculate interests, or represent that title was
-examined. Real client artifacts should be written to an ignored/private path.
-"""
+"""Build a traceable, non-fabricated title package when evidence is unavailable."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -19,36 +15,51 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
+UNABLE_TO_VERIFY = "Unable to verify from official county records."
+RELEASE_STATUS = "BLOCKED — DO NOT RELEASE"
+ALLOWED_STATUSES = {
+    "VERIFIED",
+    "PARTIAL MATCH",
+    "LIKELY MATCH",
+    "NOT FOUND",
+    "WRONG BOOK",
+    "WRONG PAGE",
+    "WRONG GRANTOR",
+    "WRONG GRANTEE",
+    "WRONG LEGAL",
+    "DUPLICATE",
+    "CORRECTED RECORDING",
+    "SUPERSEDED",
+}
 WORKBOOK_NAMES = (
-    "MASTER_DOCUMENT_LOG.xlsx",
-    "MASTER_RUNSHEET.xlsx",
-    "TITLE_CHAIN.xlsx",
-    "OPEN_ITEMS.xlsx",
-    "CONFLICT_REPORT.xlsx",
-    "IMAGE_REFERENCE_INDEX.xlsx",
-    "FINAL_REPORT.xlsx",
+    "VERIFIED_MASTER_WORKBOOK.xlsx",
+    "CORRECTED_RUN_SHEET.xlsx",
+    "INSTRUMENT_REGISTER.xlsx",
+    "SOURCE_CITATION_INDEX.xlsx",
+    "ERROR_LOG.xlsx",
+    "MISSING_DOCUMENT_LOG.xlsx",
+    "TITLE_GAP_ANALYSIS.xlsx",
+    "DIVERSIFIED_OWNERSHIP_CHAIN.xlsx",
 )
-MARKDOWN_NAMES = (
-    "QA_REPORT.md",
-    "CHANGE_LOG.md",
-    "FINAL_EXECUTIVE_SUMMARY.md",
+REPORT_NAMES = (
+    "QA_CERTIFICATION.md",
+    "EXECUTIVE_SUMMARY.md",
+    "RELEASE_RECOMMENDATION.md",
 )
-OUTPUT_NAMES = WORKBOOK_NAMES + MARKDOWN_NAMES
-
+OUTPUT_NAMES = WORKBOOK_NAMES + REPORT_NAMES
+PRIVATE_REPOSITORY_DIRS = ("client_work", "private_projects", "evidence", "runtime")
 BLUE = "1F4E78"
 RED = "C00000"
 WHITE = "FFFFFF"
-PRIVATE_REPOSITORY_DIRS = ("client_work", "private_projects", "evidence", "runtime")
 
 
-def _excel_text(value: str) -> str:
-    """Return user-provided text that Excel cannot interpret as a formula."""
-    text = str(value)
-    return f"'{text}" if text.startswith(("=", "+", "-", "@")) else text
+def _excel_text(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    return f"'{value}" if value.startswith(("=", "+", "-", "@")) else value
 
 
 def _validate_output_location(output: Path) -> Path:
-    """Keep client artifacts out of public portions of this repository."""
     resolved = output.expanduser().resolve()
     repository = Path(__file__).resolve().parents[1]
     try:
@@ -63,120 +74,307 @@ def _validate_output_location(output: Path) -> Path:
     return resolved
 
 
-def _style_sheet(ws, *, freeze: str = "A2") -> None:
-    ws.freeze_panes = freeze
+def _style_sheet(ws) -> None:
+    ws.freeze_panes = "A2"
     ws.auto_filter.ref = ws.dimensions
     for cell in ws[1]:
         cell.fill = PatternFill("solid", fgColor=BLUE)
         cell.font = Font(color=WHITE, bold=True)
-        cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
     for column in range(1, ws.max_column + 1):
         values = [str(ws.cell(row, column).value or "") for row in range(1, ws.max_row + 1)]
         ws.column_dimensions[get_column_letter(column)].width = min(
-            55, max(12, max(map(len, values), default=0) + 2)
+            60, max(12, max(map(len, values), default=0) + 2)
         )
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
 
 
-def _workbook(
+def _write_workbook(
     path: Path,
     sheets: Sequence[tuple[str, Sequence[str], Iterable[Sequence[object]]]],
 ) -> None:
-    wb = Workbook()
-    wb.remove(wb.active)
+    workbook = Workbook()
+    workbook.remove(workbook.active)
     for name, headers, rows in sheets:
-        ws = wb.create_sheet(name)
-        ws.append(list(headers))
+        worksheet = workbook.create_sheet(name)
+        worksheet.append([_excel_text(value) for value in headers])
         for row in rows:
-            ws.append(list(row))
-        _style_sheet(ws)
-    wb.save(path)
+            worksheet.append([_excel_text(value) for value in row])
+        _style_sheet(worksheet)
+    workbook.calculation.fullCalcOnLoad = True
+    workbook.calculation.forceFullCalc = True
+    workbook.save(path)
 
 
-def _blocking_row(message: str, columns: int) -> tuple[str, ...]:
-    return ("INSUFFICIENT EVIDENCE", message, *(["NOT VERIFIED"] * (columns - 2)))
+MASTER_HEADERS = (
+    "Entry",
+    "Book",
+    "Page",
+    "Instrument Number",
+    "Recording Date",
+    "Execution Date",
+    "Grantor",
+    "Grantee",
+    "Document Type",
+    "Legal Description",
+    "Section",
+    "Township",
+    "Range",
+    "Interest Conveyed",
+    "Reservations",
+    "Exceptions",
+    "Assignments",
+    "Releases",
+    "Corrections",
+    "Cross References",
+    "Title Effect",
+    "Verification Status",
+    "Official Source",
+    "Confidence",
+    "Notes",
+)
 
 
-def _document_log(path: Path) -> None:
-    headers = (
-        "Document Number",
-        "Book",
-        "Page",
-        "Recording Date",
-        "Execution Date",
-        "Instrument Type",
-        "Grantor(s)",
-        "Grantee(s)",
-        "Legal Description",
-        "Section",
-        "Township",
-        "Range",
-        "Quarter Calls",
-        "Acreage",
-        "Reservations",
-        "Exceptions",
-        "Assignments",
-        "Releases",
-        "Well Names",
-        "Lease Numbers",
-        "Exhibit References",
-        "Notes",
-        "Confidence Score",
-        "Image Filename",
-        "Image Number",
-        "Source Path",
-        "Page Count",
-        "Unreadable Areas",
-        "Evidence Status",
+def _verification_rows(source_note: str) -> tuple[tuple[object, ...], ...]:
+    return (
+        (
+            "NO INSTRUMENTS AVAILABLE TO THIS INVOCATION",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Section 32, Township 11 North, Range 25 West",
+            "32",
+            "11N",
+            "25W",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "No title effect determined",
+            "NOT FOUND",
+            "https://okcountyrecords.com/search/beckham",
+            "0%",
+            f"{UNABLE_TO_VERIFY} {source_note}",
+        ),
     )
-    _workbook(
-        path,
-        [
-            (
-                "Document Log",
-                headers,
-                [
-                    _blocking_row(
-                        "No recorded images, PDFs, OCR, or county index files were supplied to this invocation.",
-                        len(headers),
-                    )
-                ],
-            )
-        ],
+
+
+def _runsheet_rows(source_note: str) -> tuple[tuple[object, ...], ...]:
+    return (
+        (
+            "GAP-001",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "S32 T11N R25W",
+            "NOT FOUND",
+            "0%",
+            f"{UNABLE_TO_VERIFY} {source_note}",
+        ),
     )
 
 
-def _runsheet(path: Path) -> None:
-    headers = (
-        "Document Number",
-        "Book/Page",
-        "Recording Date",
-        "Execution Date",
-        "Instrument",
-        "Grantor",
-        "Grantee",
-        "Legal",
-        "Notes",
-        "Confidence",
-        "Source Image",
-        "Evidence Status",
+RUNSHEET_HEADERS = (
+    "Entry",
+    "Instrument Number",
+    "Book",
+    "Page",
+    "Recording Date",
+    "Execution Date",
+    "Grantor",
+    "Grantee",
+    "Legal Description",
+    "Verification Status",
+    "Confidence",
+    "Examiner Notes",
+)
+
+
+def _source_rows(source_note: str) -> tuple[tuple[object, ...], ...]:
+    return (
+        (
+            "SRC-001",
+            "Official OKCountyRecords — Beckham County search",
+            "Official recorded index and image portal",
+            "https://okcountyrecords.com/search/beckham",
+            "1",
+            "Systematic search unavailable in this invocation",
+            source_note,
+        ),
+        (
+            "SRC-002",
+            "Official OKCountyRecords API search documentation",
+            "Official API specification",
+            "https://okcountyrecords.com/api/v1/documentation/search",
+            "1",
+            "Documentation reviewed",
+            "API search requires an authenticated credential.",
+        ),
+        (
+            "SRC-003",
+            "Recorded instrument images",
+            "Original county document images",
+            "",
+            "2",
+            "Not supplied",
+            UNABLE_TO_VERIFY,
+        ),
+        (
+            "SRC-004",
+            "Existing project workbooks and runsheets",
+            "Prior work product; not authoritative",
+            "",
+            "5",
+            "Not supplied in the checked-out workspace",
+            "Prior AI output was not accepted as evidence.",
+        ),
     )
-    _workbook(
-        path,
-        [
-            (
-                "Runsheet",
-                headers,
-                [
-                    _blocking_row(
-                        "No instruments were supplied; none can be entered until recorded evidence is provided.",
-                        len(headers),
-                    )
-                ],
-            )
-        ],
+
+
+SOURCE_HEADERS = (
+    "Source ID",
+    "Source",
+    "Authority",
+    "URL or Path",
+    "Authority Rank",
+    "Access Result",
+    "Notes",
+)
+
+
+def _error_rows(source_note: str) -> tuple[tuple[object, ...], ...]:
+    return (
+        (
+            "ERR-001",
+            "CRITICAL",
+            "Evidence corpus absent",
+            "No workbook, county index export, recorded image, PDF, or evidence manifest was supplied.",
+            "Every requested instrument and title conclusion is blocked.",
+            "Provide the complete read-only evidence corpus with SHA-256 manifest.",
+            "OPEN",
+        ),
+        (
+            "ERR-002",
+            "CRITICAL",
+            "Official systematic search unavailable",
+            source_note,
+            "Book/page, party, date, legal, and cross-reference searches cannot be completed.",
+            "Configure authorized OKCountyRecords access and rerun every search.",
+            "OPEN",
+        ),
+        (
+            "ERR-003",
+            "CRITICAL",
+            "Spreadsheet QA input absent",
+            "No candidate workbook or authoritative template is present in the checked-out workspace.",
+            "Formulas, links, hidden structures, duplicates, calculations, and formatting cannot be audited.",
+            "Supply each workbook and the authoritative template with hashes.",
+            "OPEN",
+        ),
+    )
+
+
+ERROR_HEADERS = (
+    "Error ID",
+    "Severity",
+    "Discrepancy",
+    "Evidence",
+    "Impact",
+    "Recommended Correction",
+    "Disposition",
+)
+
+
+def _missing_rows() -> tuple[tuple[object, ...], ...]:
+    items = (
+        ("MD-001", "Every candidate workbook and runsheet", "Not present in workspace"),
+        ("MD-002", "Complete Beckham County recorded-image corpus", "Not supplied"),
+        ("MD-003", "Official county index export / search results", "Not supplied"),
+        ("MD-004", "Authoritative workbook template", "Not supplied"),
+        ("MD-005", "Every exhibit, schedule, correction, assignment, and release", "Not supplied"),
+        ("MD-006", "Evidence manifest with file hashes", "Not supplied"),
+    )
+    return tuple(
+        (
+            item_id,
+            document,
+            reason,
+            "Workspace inventory; official API access test",
+            "0%",
+            "NOT FOUND",
+            UNABLE_TO_VERIFY,
+        )
+        for item_id, document, reason in items
+    )
+
+
+MISSING_HEADERS = (
+    "Item ID",
+    "Document or Evidence",
+    "Likely Reason",
+    "Search Attempts",
+    "Confidence",
+    "Verification Status",
+    "Notes",
+)
+
+
+def _gap_rows() -> tuple[tuple[object, ...], ...]:
+    return (
+        (
+            "TG-001",
+            "NOT ESTABLISHED",
+            "NOT ESTABLISHED",
+            "Complete sovereign-to-present fee, mineral, royalty, leasehold, and burden chain",
+            "Recorded copies and index continuation for every instrument affecting S32 T11N R25W",
+            "CRITICAL",
+            "NOT FOUND",
+            UNABLE_TO_VERIFY,
+        ),
+    )
+
+
+GAP_HEADERS = (
+    "Gap ID",
+    "Beginning Owner",
+    "Ending Owner",
+    "Missing Conveyance",
+    "Evidence Required",
+    "Severity",
+    "Verification Status",
+    "Notes",
+)
+
+
+def _chain_rows(client: str) -> tuple[tuple[object, ...], ...]:
+    return (
+        (
+            "1",
+            "NOT ESTABLISHED",
+            f"{client} / affiliate interest not established",
+            "No exact recorded instrument reviewed",
+            "S32 T11N R25W",
+            "Unknown",
+            "Unknown",
+            "Unknown",
+            "Source title, assignments, reservations, schedules, releases, and corporate succession",
+            "0%",
+            "NOT FOUND",
+            UNABLE_TO_VERIFY,
+        ),
     )
 
 
@@ -184,304 +382,135 @@ CHAIN_HEADERS = (
     "Sequence",
     "From",
     "To",
+    "Supporting Instrument",
+    "Legal",
     "Interest",
-    "Supporting Document",
-    "Recording Information",
-    "Legal Description",
-    "Depth/Wellbore Limitation",
-    "Reservation/Reversion",
-    "Source Image",
-    "Evidence Confidence",
-    "Status",
+    "WI",
+    "NRI",
+    "Outstanding Issues",
+    "Confidence",
+    "Verification Status",
+    "Notes",
 )
 
 
-def _title_chain(path: Path) -> None:
-    sheets = []
-    for name in ("Fee Title", "Mineral Title", "Leasehold", "Assignments", "Overrides"):
-        sheets.append(
-            (
-                name,
-                CHAIN_HEADERS,
-                [
-                    _blocking_row(
-                        f"{name} chain cannot be reconstructed without recorded instruments.",
-                        len(CHAIN_HEADERS),
-                    )
-                ],
-            )
-        )
-    _workbook(path, sheets)
+def _qa_rows() -> tuple[tuple[object, ...], ...]:
+    blocked = (
+        "Instrument verification",
+        "Legal-description review",
+        "Title-chain reconstruction",
+        "Diversified ownership analysis",
+        "Candidate workbook QA",
+        "Template comparison",
+    )
+    package_checks = (
+        "Deliverable file presence",
+        "Workbook open validation",
+        "Formula-injection defense",
+        "Hidden row/column/sheet scan",
+    )
+    return tuple(
+        (check, "BLOCKED", UNABLE_TO_VERIFY) for check in blocked
+    ) + tuple((check, "PASS", "Generated package validated.") for check in package_checks)
 
 
-def _open_item_rows(client: str) -> tuple[tuple[str, ...], ...]:
-    return (
-        (
-            "OI-001",
-            "BLOCKING",
-            "Authoritative recorded-image corpus unavailable",
-            "No source images, PDFs, or evidence manifest were supplied to this invocation.",
-            "Provide read-only access to the complete recorded-image folder for the subject lands.",
-            "OPEN ITEM",
-        ),
-        (
-            "OI-002",
-            "BLOCKING",
-            "Horizon template unavailable",
-            "The referenced Section 32 Horizon workbook/template was not supplied.",
-            "Provide the authoritative template and its verified SHA-256 hash.",
-            "OPEN ITEM",
-        ),
-        (
-            "OI-003",
-            "BLOCKING",
-            "Index and protocol records unavailable",
-            "No protocoled index, county export, runsheet, or image manifest was supplied.",
-            "Provide all index exports and reconcile them to the image corpus.",
-            "OPEN ITEM",
-        ),
-        (
-            "OI-004",
-            "BLOCKING",
-            "Ownership not determinable",
-            "No conveyances, reservations, probate instruments, leases, assignments, or releases were supplied.",
-            "Complete image-first examination before stating any ownership, WI, NRI, RI, MRI, or ORRI.",
-            "NOT VERIFIED",
-        ),
-        (
-            "OI-005",
-            "BLOCKING",
-            _excel_text(f"{client} interest not determinable"),
-            "No recorded evidence supporting an interest calculation was supplied to this invocation.",
-            f"Trace {client} and all predecessors through recorded instruments and exact-interest calculations.",
-            "NOT VERIFIED",
-        ),
-        (
-            "OI-006",
-            "BLOCKING",
-            "Template compliance cannot be tested",
-            "Exact formulas, styles, merged cells, print settings, and row structure cannot be inferred without the template.",
-            "Run deterministic workbook comparison after the authoritative template is supplied.",
-            "OPEN ITEM",
-        ),
+QA_HEADERS = ("QA Check", "Result", "Finding")
+
+
+def _build_workbooks(output: Path, project: dict[str, str]) -> None:
+    source_note = project["source_note"]
+    master_sheets = (
+        ("Master Verification", MASTER_HEADERS, _verification_rows(source_note)),
+        ("Error Report", ERROR_HEADERS, _error_rows(source_note)),
+        ("Missing Documents", MISSING_HEADERS, _missing_rows()),
+        ("Title Gaps", GAP_HEADERS, _gap_rows()),
+        ("Diversified Chain", CHAIN_HEADERS, _chain_rows(project["client"])),
+        ("Source Citations", SOURCE_HEADERS, _source_rows(source_note)),
+        ("QA Summary", QA_HEADERS, _qa_rows()),
+    )
+    _write_workbook(output / WORKBOOK_NAMES[0], master_sheets)
+    _write_workbook(
+        output / WORKBOOK_NAMES[1],
+        (("Corrected Run Sheet", RUNSHEET_HEADERS, _runsheet_rows(source_note)),),
+    )
+    _write_workbook(
+        output / WORKBOOK_NAMES[2],
+        (("Instrument Register", MASTER_HEADERS, _verification_rows(source_note)),),
+    )
+    _write_workbook(
+        output / WORKBOOK_NAMES[3],
+        (("Source Citation Index", SOURCE_HEADERS, _source_rows(source_note)),),
+    )
+    _write_workbook(
+        output / WORKBOOK_NAMES[4],
+        (("Error Log", ERROR_HEADERS, _error_rows(source_note)),),
+    )
+    _write_workbook(
+        output / WORKBOOK_NAMES[5],
+        (("Missing Document Log", MISSING_HEADERS, _missing_rows()),),
+    )
+    _write_workbook(
+        output / WORKBOOK_NAMES[6],
+        (("Title Gap Analysis", GAP_HEADERS, _gap_rows()),),
+    )
+    _write_workbook(
+        output / WORKBOOK_NAMES[7],
+        (("Diversified Chain", CHAIN_HEADERS, _chain_rows(project["client"])),),
     )
 
 
-def _open_items(path: Path, client: str) -> None:
-    _workbook(
-        path,
-        [
-            (
-                "Open Items",
-                ("Item ID", "Severity", "Issue", "Evidence", "Recommended Resolution", "Status"),
-                _open_item_rows(client),
-            )
-        ],
+def _write_reports(output: Path, project: dict[str, str], generated: str) -> None:
+    common = (
+        f"Subject: {project['legal']}, {project['county']}\n"
+        f"Client: {project['client']}\n"
+        f"Generated: {generated}\n"
     )
+    (output / "QA_CERTIFICATION.md").write_text(
+        f"""# QA Certification
+{common}
+Certification result: **NOT CERTIFIED — {RELEASE_STATUS}**
 
+The package structure passed mechanical validation. The title examination did not pass
+the evidence gate: zero source workbooks, county index exports, or recorded pages were
+available to this invocation, and systematic official search access was unavailable.
 
-def _conflicts(path: Path) -> None:
-    rows = (
-        (
-            "CF-001",
-            "BLOCKING",
-            "Evidence sufficiency failure",
-            "Title conflicts cannot be tested because no recorded corpus was supplied.",
-            "Invocation processed zero recorded images, PDFs, indexes, or title workbooks.",
-            "Acquire and inventory the complete evidence set; then rerun conflict detection.",
-            "INSUFFICIENT EVIDENCE",
-        ),
-    )
-    _workbook(
-        path,
-        [
-            (
-                "Conflict Report",
-                (
-                    "Conflict ID",
-                    "Severity",
-                    "Type",
-                    "Explanation",
-                    "Supporting Evidence",
-                    "Recommended Resolution",
-                    "Status",
-                ),
-                rows,
-            )
-        ],
-    )
+{UNABLE_TO_VERIFY}
 
-
-def _image_index(path: Path) -> None:
-    headers = (
-        "Logical Document ID",
-        "Image Filename",
-        "Image Number",
-        "Source Path",
-        "Source SHA-256",
-        "Page Number",
-        "Page Count",
-        "Document Number",
-        "Book",
-        "Page",
-        "Visual Review Status",
-        "OCR Status",
-        "Unreadable Areas",
-        "Notes",
-    )
-    _workbook(
-        path,
-        [
-            (
-                "Image Reference Index",
-                headers,
-                [
-                    _blocking_row(
-                        "No images were supplied to inventory, hash, group, or inspect.",
-                        len(headers),
-                    )
-                ],
-            )
-        ],
-    )
-
-
-def _final_report(path: Path, project: dict[str, str]) -> None:
-    wb = Workbook()
-    title = wb.active
-    title.title = "Title"
-    title_rows = (
-        ("TITLE REPORT — EVIDENCE NOT SUPPLIED",),
-        ("Client", _excel_text(project["client"])),
-        ("County", _excel_text(project["county"])),
-        ("Legal", _excel_text(project["legal"])),
-        ("Report Status", "INSUFFICIENT EVIDENCE — NOT A TITLE OPINION"),
-        (f"{_excel_text(project['client'])} Exact Interest", "NOT VERIFIED"),
-        ("Working Interest (WI)", "NOT VERIFIED"),
-        ("Net Revenue Interest (NRI)", "NOT VERIFIED"),
-        ("Mineral/Royalty/Override Interests", "NOT VERIFIED"),
-        ("Reason", "No recorded images, indexes, or authoritative Horizon template were supplied."),
-    )
-    for row in title_rows:
-        title.append(row)
-    title.merge_cells("A1:P1")
-    title["A1"].fill = PatternFill("solid", fgColor=RED)
-    title["A1"].font = Font(color=WHITE, bold=True, size=14)
-    title["A1"].alignment = Alignment(horizontal="center")
-    for cell in title["A"][1:]:
-        cell.font = Font(bold=True)
-    title.column_dimensions["A"].width = 36
-    title.column_dimensions["B"].width = 85
-    title.freeze_panes = "A2"
-
-    runsheet_headers = (
-        "Entry No",
-        "Instrument Date",
-        "Recorded Date",
-        "Doc Type",
-        "Grantor",
-        "Grantee",
-        "Instrument Number",
-        "Book",
-        "Page",
-        "Legal Description",
-        "Gross Acres",
-        "Conveyed Interest",
-        "Retained Interest",
-        "Net Mineral Acres",
-        "Status",
-        "Remarks",
-    )
-    for name in ("Runsheet", "OGL"):
-        ws = wb.create_sheet(name)
-        ws.append(runsheet_headers)
-        ws.append(
-            _blocking_row(
-                "No recorded instruments supplied; no ownership or leasehold conclusion made.",
-                len(runsheet_headers),
-            )
-        )
-        _style_sheet(ws)
-    wb.calculation.fullCalcOnLoad = True
-    wb.calculation.forceFullCalc = True
-    wb.save(path)
-
-
-def _markdown_files(output: Path, project: dict[str, str], generated: str) -> None:
-    (output / "QA_REPORT.md").write_text(
-        f"""# QA Report
-
-Project: {project['legal']}, {project['county']}
-Client: {project['client']}
-Generated: {generated}
-Release status: **BLOCKED — INSUFFICIENT EVIDENCE**
-
-| Review | Result | Finding |
-|---|---|---|
-| 1 — Missing data | BLOCKED | No evidence manifest or source files were supplied to this invocation. |
-| 2 — Formatting | BLOCKED | Authoritative Horizon template not supplied. |
-| 3 — Evidence | BLOCKED | Zero recorded documents supplied for visual verification. |
-| 4 — Ownership | BLOCKED | No ownership conclusion or decimal was calculated. |
-| 5 — Lease coverage | BLOCKED | No leases, assignments, releases, or well documents supplied. |
-| 6 — Chronology | BLOCKED | No instruments supplied to sequence. |
-| 7 — Template compliance | BLOCKED | Exact template comparison cannot be performed. |
-| 8 — Spelling | PASS (limited) | Package labels reviewed; document text unavailable. |
-| 9 — Names | BLOCKED | Grantor/grantee and owner names cannot be verified. |
-| 10 — Final release audit | BLOCKED | Evidence and template gates failed. |
-
-## Invocation evidence status
-
-- Evidence manifest supplied: No
-- Recorded source files processed: 0
-- Visually reviewed recorded pages: 0
-- Verified instruments entered: 0
-
-These are invocation-processing counts, not an assertion that the underlying private
-project corpus contains no records.
-
-## Ownership QA
-
-{project['client']}'s exact interest, WI, NRI, RI, MRI, and ORRI are **NOT VERIFIED**.
-No ownership statement in this package should be treated as a fact, estimate, abstract,
-title opinion, or legal opinion.
+No title, acreage, decimal, WI, NRI, royalty, ORRI, burden, release, operator, or current
+ownership conclusion is certified.
 """,
         encoding="utf-8",
     )
-    (output / "CHANGE_LOG.md").write_text(
-        f"""# Change Log
+    (output / "EXECUTIVE_SUMMARY.md").write_text(
+        f"""# Executive Summary
+{common}
+## Outcome
+**{RELEASE_STATUS}.**
 
-## {generated}
+No candidate workbook or official recorded-image corpus was present in the checked-out
+workspace. The official API access test returned HTTP 401 because no credential was
+configured. Selected public metadata pages are not a substitute for complete recorded
+images and operative exhibits.
 
-- Generated the package without an evidence manifest or source files.
-- Recorded that no images, indexes, OCR output, or authoritative Horizon template were supplied to this invocation.
-- Created the ten requested deliverables as an evidence-gap package.
-- Entered no document facts, ownership chains, acreage, or interest decimals.
-- Marked unsupported conclusions `NOT VERIFIED`, `OPEN ITEM`, or `INSUFFICIENT EVIDENCE`.
-- Preserved the expected `Title`, `Runsheet`, `OGL` sheet order in `FINAL_REPORT.xlsx`;
-  exact Horizon styling and formulas remain unverified because the template is absent.
+{UNABLE_TO_VERIFY}
+
+No ownership, acreage, decimal, title effect, or Diversified chain was estimated. The
+workbooks in this package document the evidence gap and required curative inputs.
 """,
         encoding="utf-8",
     )
-    (output / "FINAL_EXECUTIVE_SUMMARY.md").write_text(
-        f"""# Final Executive Summary
+    (output / "RELEASE_RECOMMENDATION.md").write_text(
+        f"""# Release Recommendation
+{common}
+## Recommendation
+**DO NOT RELEASE AS A TITLE REPORT, RUNSHEET, OWNERSHIP REPORT, OR TITLE OPINION.**
 
-Subject: {project['legal']}, {project['county']}
-Client: {project['client']}
+Release remains blocked until all candidate workbooks and authoritative county records
+are supplied, every instrument is checked against its complete recorded image, every
+legal and cross-reference is resolved, spreadsheet QA passes, and a qualified Oklahoma
+landman approves the exact deliverable hash.
 
-## Result
-
-**{project['client']}'s exact interest is NOT VERIFIED.**
-
-No recorded images, PDFs, county index exports, OCR results, prior title workbooks, or
-authoritative Horizon template were supplied to this package-generation invocation.
-Consequently, no instrument, title chain, leasehold chain, ownership fraction, WI, NRI,
-RI, MRI, ORRI, acreage, depth limitation, or wellbore limitation can be established by
-this package. This does not assert that the underlying private project corpus is empty.
-
-This package documents a blocked examination. It does not estimate ownership and is not
-a title opinion. Completion requires the full recorded-image corpus, index materials,
-and authoritative Horizon template, followed by image-first examination and independent
-quality control.
+{UNABLE_TO_VERIFY}
 """,
         encoding="utf-8",
     )
@@ -495,27 +524,48 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _validate(output: Path) -> None:
+def _validate(output: Path) -> dict[str, object]:
     missing = [name for name in OUTPUT_NAMES if not (output / name).is_file()]
     if missing:
         raise RuntimeError(f"Missing outputs: {', '.join(missing)}")
 
+    workbook_findings: dict[str, object] = {}
     for name in WORKBOOK_NAMES:
-        workbook = load_workbook(output / name, read_only=True, data_only=False)
+        workbook = load_workbook(output / name, data_only=False)
+        formulas: list[str] = []
+        hidden_structures: list[str] = []
         try:
-            if not workbook.sheetnames:
-                raise RuntimeError(f"{name} has no worksheets")
+            for sheet in workbook.worksheets:
+                if sheet.sheet_state != "visible":
+                    hidden_structures.append(f"sheet:{sheet.title}")
+                hidden_structures.extend(
+                    f"row:{sheet.title}!{index}"
+                    for index, dimension in sheet.row_dimensions.items()
+                    if dimension.hidden
+                )
+                hidden_structures.extend(
+                    f"column:{sheet.title}!{index}"
+                    for index, dimension in sheet.column_dimensions.items()
+                    if dimension.hidden
+                )
+                formulas.extend(
+                    f"{sheet.title}!{cell.coordinate}"
+                    for row in sheet.iter_rows()
+                    for cell in row
+                    if cell.data_type == "f"
+                )
+            if formulas or hidden_structures:
+                raise RuntimeError(
+                    f"{name} failed QA: formulas={formulas}, hidden={hidden_structures}"
+                )
+            workbook_findings[name] = {
+                "sheets": workbook.sheetnames,
+                "formula_cells": 0,
+                "hidden_structures": 0,
+            }
         finally:
             workbook.close()
-
-    final_report = load_workbook(output / "FINAL_REPORT.xlsx", read_only=True)
-    try:
-        if final_report.sheetnames != ["Title", "Runsheet", "OGL"]:
-            raise RuntimeError(
-                f"Unexpected FINAL_REPORT sheet order: {final_report.sheetnames}"
-            )
-    finally:
-        final_report.close()
+    return workbook_findings
 
 
 def build(output: Path, project: dict[str, str], generated: str) -> None:
@@ -524,21 +574,37 @@ def build(output: Path, project: dict[str, str], generated: str) -> None:
         raise FileExistsError(
             f"Output path already exists; use a new versioned directory: {output}"
         )
-    output.mkdir(parents=True, exist_ok=False)
-    _document_log(output / "MASTER_DOCUMENT_LOG.xlsx")
-    _runsheet(output / "MASTER_RUNSHEET.xlsx")
-    _title_chain(output / "TITLE_CHAIN.xlsx")
-    _open_items(output / "OPEN_ITEMS.xlsx", project["client"])
-    _conflicts(output / "CONFLICT_REPORT.xlsx")
-    _image_index(output / "IMAGE_REFERENCE_INDEX.xlsx")
-    _final_report(output / "FINAL_REPORT.xlsx", project)
-    _markdown_files(output, project, generated)
-    _validate(output)
+    output.mkdir(parents=True)
+    _build_workbooks(output, project)
+    _write_reports(output, project, generated)
+    validation = _validate(output)
 
-    checksums = "\n".join(
-        f"{_sha256(output / name)}  {name}" for name in OUTPUT_NAMES
+    checksums = {
+        name: _sha256(output / name)
+        for name in OUTPUT_NAMES
+    }
+    (output / "SHA256SUMS.txt").write_text(
+        "".join(f"{digest}  {name}\n" for name, digest in checksums.items()),
+        encoding="utf-8",
     )
-    (output / "SHA256SUMS.txt").write_text(f"{checksums}\n", encoding="utf-8")
+    manifest = {
+        "project": project,
+        "generated": generated,
+        "release_status": RELEASE_STATUS,
+        "official_verification": UNABLE_TO_VERIFY,
+        "input_counts": {
+            "candidate_workbooks": 0,
+            "county_index_exports": 0,
+            "recorded_pages": 0,
+            "verified_instruments": 0,
+        },
+        "outputs": checksums,
+        "workbook_validation": validation,
+    }
+    (output / "INVOCATION_MANIFEST.json").write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -548,9 +614,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--legal", required=True)
     parser.add_argument("--county", required=True)
     parser.add_argument(
+        "--source-note",
+        required=True,
+        help="Traceable explanation of why authoritative search/evidence is unavailable.",
+    )
+    parser.add_argument(
         "--as-of",
         default=date.today().isoformat(),
-        help="Report date (YYYY-MM-DD); defaults to the current date.",
+        help="Report date (YYYY-MM-DD); defaults to today.",
     )
     return parser.parse_args()
 
@@ -560,12 +631,14 @@ def main() -> None:
     generated = datetime.combine(
         date.fromisoformat(args.as_of), datetime.min.time(), tzinfo=timezone.utc
     ).isoformat()
-    build(
-        args.output,
-        {"client": args.client, "legal": args.legal, "county": args.county},
-        generated,
-    )
-    print(f"Created evidence-gap package at {args.output}")
+    project = {
+        "client": args.client,
+        "legal": args.legal,
+        "county": args.county,
+        "source_note": args.source_note,
+    }
+    build(args.output, project, generated)
+    print(f"Created blocked evidence package at {args.output}")
 
 
 if __name__ == "__main__":

@@ -397,7 +397,7 @@ def _final_report(path: Path, project: dict[str, str]) -> None:
         ws.append(runsheet_headers)
         ws.append(
             _blocking_row(
-                "No recorded instruments available; no ownership or leasehold conclusion made.",
+                "No recorded instruments supplied; no ownership or leasehold conclusion made.",
                 len(runsheet_headers),
             )
         )
@@ -422,8 +422,8 @@ Release status: **BLOCKED — INSUFFICIENT EVIDENCE**
 | 2 — Formatting | BLOCKED | Authoritative Horizon template not supplied. |
 | 3 — Evidence | BLOCKED | Zero recorded documents supplied for visual verification. |
 | 4 — Ownership | BLOCKED | No ownership conclusion or decimal was calculated. |
-| 5 — Lease coverage | BLOCKED | No leases, assignments, releases, or well documents available. |
-| 6 — Chronology | BLOCKED | No instruments available to sequence. |
+| 5 — Lease coverage | BLOCKED | No leases, assignments, releases, or well documents supplied. |
+| 6 — Chronology | BLOCKED | No instruments supplied to sequence. |
 | 7 — Template compliance | BLOCKED | Exact template comparison cannot be performed. |
 | 8 — Spelling | PASS (limited) | Package labels reviewed; document text unavailable. |
 | 9 — Names | BLOCKED | Grantor/grantee and owner names cannot be verified. |

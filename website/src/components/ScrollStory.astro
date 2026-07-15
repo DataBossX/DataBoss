@@ -1,0 +1,327 @@
+---
+/**
+ * ScrollStory — the six-stage product narrative.
+ *
+ * Layout: a two-column grid where the visual column is position:sticky and
+ * the text stages scroll past it natively. site.js watches which stage is
+ * centered and swaps the active scene. There is NO scroll hijacking: the
+ * page scrolls exactly as the browser intends.
+ *
+ * Without JS (or on narrow screens) every stage renders with its own
+ * static description, and the first scene stays visible; under
+ * prefers-reduced-motion scene transitions are instant.
+ */
+
+const stages = [
+  {
+    id: 'ingest',
+    step: '01',
+    title: 'Ingest',
+    sentence: 'Planned flow: deeds, leases, filings, and scans enter as read-only sources.',
+    tech: 'The target pipeline hashes source byte streams with SHA-256, copies them into an append-only, content-addressed vault, and preserves originals.',
+    capability: 'Target: immutable inventory with custody records',
+  },
+  {
+    id: 'extract',
+    step: '02',
+    title: 'Extract',
+    sentence: 'Planned flow: OCR and structured extraction produce typed, schema-valid candidates.',
+    tech: 'The target pipeline runs OCR first and requires model extraction passes to return candidate envelopes with page geometry instead of direct database writes.',
+    capability: 'Target: provider-neutral OCR and extraction routing',
+  },
+  {
+    id: 'trace',
+    step: '03',
+    title: 'Trace',
+    sentence: 'Planned flow: extracted facts are pinned to document, page, and exact text span.',
+    tech: 'The target provenance model links each claim to a source hash, page, and character offsets, and rejects evidence links that do not cover the field region.',
+    capability: 'Target: field-level evidence spans',
+  },
+  {
+    id: 'coordinate',
+    step: '04',
+    title: 'Coordinate',
+    sentence: 'Planned flow: independent agents compare outputs on the same task.',
+    tech: 'The target design uses one orchestrator to lease tasks to least-privilege workers and records model agreement without treating it as evidence.',
+    capability: 'Target: policy-aware agent orchestration',
+  },
+  {
+    id: 'review',
+    step: '05',
+    title: 'Review',
+    sentence: 'Planned flow: confidence guards and human review gates stop weak output before release.',
+    tech: 'The target review system routes material conflicts to a qualified reviewer with source context and binds approval to exact input hashes.',
+    capability: 'Target: hash-bound human approval',
+  },
+  {
+    id: 'deliver',
+    step: '06',
+    title: 'Deliver',
+    sentence: 'Planned flow: approved work becomes a versioned, hash-verified deliverable.',
+    tech: 'The target release record retains the source snapshot, tool versions, route decisions, and review decisions needed for reconstruction.',
+    capability: 'Target: versioned release with audit inputs',
+  },
+];
+---
+
+<div class="scroll-story" data-scroll-story>
+  <div class="scroll-story__visual-col">
+    <div class="scroll-story__visual" aria-hidden="true">
+      <div class="scroll-story__progress" data-story-progress>
+        {stages.map((stage, i) => (
+          <span class="scroll-story__tick" data-tick={i}>{stage.step}</span>
+        ))}
+      </div>
+
+      {stages.map((stage, i) => (
+        <figure class="scroll-story__scene" data-story-scene={String(i)}>
+          {stage.id === 'ingest' && (
+            <svg viewBox="0 0 300 220" fill="none">
+              <rect x="30" y="40" width="70" height="92" rx="6" fill="#0e141f" stroke="#3fdcff" stroke-opacity="0.7" />
+              <path d="M44 60h42M44 74h42M44 88h30" stroke="#7a889f" stroke-width="2" />
+              <rect x="52" y="62" width="70" height="92" rx="6" fill="#0e141f" stroke="#5b8cff" stroke-opacity="0.7" />
+              <path d="M66 82h42M66 96h42M66 110h30" stroke="#7a889f" stroke-width="2" />
+              <path class="flow-line" d="M132 108 H 196" stroke="#3fdcff" stroke-width="1.6" />
+              <rect x="198" y="70" width="76" height="76" rx="10" stroke="#3fdcff" stroke-width="1.4" fill="rgba(63,220,255,0.06)" />
+              <text x="212" y="102" fill="#3fdcff" font-family="ui-monospace,monospace" font-size="9">VAULT</text>
+              <text x="206" y="122" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">sha256/9f/…</text>
+              <text x="30" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: read-only sources → append-only custody</text>
+            </svg>
+          )}
+          {stage.id === 'extract' && (
+            <svg viewBox="0 0 300 220" fill="none">
+              <rect x="30" y="46" width="86" height="110" rx="6" fill="#0e141f" stroke="#5b8cff" stroke-opacity="0.7" />
+              <rect x="42" y="66" width="62" height="9" rx="2" fill="#22304a" />
+              <rect x="42" y="82" width="62" height="9" rx="2" fill="#3fdcff" opacity="0.55" />
+              <rect x="42" y="98" width="46" height="9" rx="2" fill="#22304a" />
+              <path class="flow-line" d="M124 100 H 176" stroke="#5b8cff" stroke-width="1.6" />
+              <g font-family="ui-monospace,monospace" font-size="9">
+                <rect x="178" y="58" width="96" height="24" rx="5" fill="#141c2c" stroke="#1d2637" />
+                <text x="186" y="73" fill="#3fdcff">grantor: "Hale"</text>
+                <rect x="178" y="88" width="96" height="24" rx="5" fill="#141c2c" stroke="#1d2637" />
+                <text x="186" y="103" fill="#5b8cff">date: 1948-03-11</text>
+                <rect x="178" y="118" width="96" height="24" rx="5" fill="#141c2c" stroke="#1d2637" />
+                <text x="186" y="133" fill="#9d8cff">interest: 1/8</text>
+              </g>
+              <text x="30" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: pages → schema-valid candidates</text>
+            </svg>
+          )}
+          {stage.id === 'trace' && (
+            <svg viewBox="0 0 300 220" fill="none">
+              <rect x="30" y="46" width="86" height="110" rx="6" fill="#0e141f" stroke="#9d8cff" stroke-opacity="0.7" />
+              <rect x="42" y="94" width="62" height="10" rx="2" fill="#9d8cff" opacity="0.5" />
+              <rect x="42" y="66" width="62" height="8" rx="2" fill="#22304a" />
+              <rect x="42" y="112" width="48" height="8" rx="2" fill="#22304a" />
+              <path class="flow-line" d="M104 99 C 150 99, 150 99, 176 99" stroke="#9d8cff" stroke-width="1.6" />
+              <rect x="178" y="80" width="96" height="38" rx="6" fill="#141c2c" stroke="#9d8cff" stroke-opacity="0.6" />
+              <text x="186" y="96" fill="#e9eef7" font-family="ui-monospace,monospace" font-size="9">claim #1042</text>
+              <text x="186" y="110" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">p.14 · chars 212–247</text>
+              <text x="30" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: fact → document · page · text span</text>
+            </svg>
+          )}
+          {stage.id === 'coordinate' && (
+            <svg viewBox="0 0 300 220" fill="none">
+              <circle cx="150" cy="100" r="26" stroke="#3fdcff" stroke-width="1.4" fill="rgba(63,220,255,0.07)" />
+              <text x="129" y="104" fill="#3fdcff" font-family="ui-monospace,monospace" font-size="8">ORCHESTRATOR</text>
+              <g stroke-width="1.3" opacity="0.75">
+                <path class="flow-line" d="M150 74 L 150 40" stroke="#3fdcff" />
+                <path class="flow-line" d="M172 114 L 214 146" stroke="#5b8cff" />
+                <path class="flow-line" d="M128 114 L 86 146" stroke="#9d8cff" />
+              </g>
+              <circle cx="150" cy="30" r="11" fill="#0e141f" stroke="#3fdcff" />
+              <circle cx="222" cy="153" r="11" fill="#0e141f" stroke="#5b8cff" />
+              <circle cx="78" cy="153" r="11" fill="#0e141f" stroke="#9d8cff" />
+              <text x="30" y="196" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: agent agreement ≠ evidence</text>
+            </svg>
+          )}
+          {stage.id === 'review' && (
+            <svg viewBox="0 0 300 220" fill="none">
+              <rect x="40" y="52" width="220" height="100" rx="10" fill="#0e141f" stroke="#1d2637" />
+              <rect x="54" y="68" width="90" height="68" rx="5" fill="#141c2c" stroke="#ffbd5c" stroke-opacity="0.5" />
+              <text x="62" y="86" fill="#ffbd5c" font-family="ui-monospace,monospace" font-size="8">candidate A · 0.93</text>
+              <rect x="156" y="68" width="90" height="68" rx="5" fill="#141c2c" stroke="#5b8cff" stroke-opacity="0.5" />
+              <text x="164" y="86" fill="#5b8cff" font-family="ui-monospace,monospace" font-size="8">candidate B · 0.88</text>
+              <text x="62" y="104" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">1/8 of 8/8</text>
+              <text x="164" y="104" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">1/16 of 8/8</text>
+              <text x="62" y="124" fill="#e9eef7" font-family="ui-monospace,monospace" font-size="8">⚑ conflict → human</text>
+              <text x="40" y="186" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: material conflicts → qualified reviewer</text>
+            </svg>
+          )}
+          {stage.id === 'deliver' && (
+            <svg viewBox="0 0 300 220" fill="none">
+              <rect x="60" y="46" width="120" height="34" rx="6" fill="#141c2c" stroke="#1d2637" />
+              <text x="70" y="67" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">report v1 · superseded</text>
+              <rect x="76" y="90" width="120" height="34" rx="6" fill="#141c2c" stroke="#1d2637" />
+              <text x="86" y="111" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">report v2 · superseded</text>
+              <rect x="92" y="134" width="150" height="38" rx="6" fill="rgba(67,223,160,0.08)" stroke="#43dfa0" stroke-opacity="0.7" />
+              <text x="102" y="150" fill="#43dfa0" font-family="ui-monospace,monospace" font-size="9">report v3 · RELEASED</text>
+              <text x="102" y="163" fill="#7a889f" font-family="ui-monospace,monospace" font-size="8">sha256:41aa…9f2c ✓</text>
+              <text x="60" y="200" fill="#7a889f" font-family="ui-monospace,monospace" font-size="9">target: append-only, reconstructable releases</text>
+            </svg>
+          )}
+        </figure>
+      ))}
+    </div>
+  </div>
+
+  <ol class="scroll-story__steps">
+    {stages.map((stage, i) => (
+      <li class="scroll-story__step" data-story-step={String(i)}>
+        <p class="mono scroll-story__num" aria-hidden="true">{stage.step}</p>
+        <h3>{stage.title}</h3>
+        <p class="scroll-story__sentence">{stage.sentence}</p>
+        <p class="dim scroll-story__tech">{stage.tech}</p>
+        <p class="chip chip--info">{stage.capability}</p>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<style>
+  .scroll-story {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  .scroll-story__visual-col {
+    position: sticky;
+    top: 5.5rem;
+  }
+
+  .scroll-story__visual {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(ellipse 120% 90% at 30% 0%, rgba(63, 220, 255, 0.06), transparent 60%),
+      var(--bg-2);
+    min-height: 24rem;
+    overflow: hidden;
+  }
+
+  .scroll-story__progress {
+    --story-progress: 0.17;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.7rem 1rem 0;
+    z-index: 2;
+  }
+
+  .scroll-story__progress::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: calc(var(--story-progress) * 100%);
+    background: linear-gradient(90deg, var(--cyan), var(--violet));
+    transition: width 400ms ease;
+  }
+
+  .scroll-story__tick {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+  }
+
+  .scroll-story__scene {
+    position: absolute;
+    inset: 2rem 0 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: var(--space-3);
+    opacity: 0;
+    transition: opacity 420ms ease, transform 420ms ease;
+    transform: translateY(10px);
+  }
+
+  .scroll-story__scene.is-active {
+    opacity: 1;
+    transform: none;
+  }
+
+  .scroll-story__scene svg {
+    width: min(100%, 24rem);
+    height: auto;
+  }
+
+  /* Non-JS fallback: keep the first scene visible so the panel is never blank */
+  html:not(.js) .scroll-story__scene:first-of-type {
+    opacity: 1;
+    transform: none;
+  }
+
+  .scroll-story__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: clamp(3rem, 8vh, 5.5rem);
+  }
+
+  .scroll-story__step {
+    border-left: 2px solid var(--line);
+    padding-left: var(--space-4);
+    transition: border-color 300ms ease, opacity 300ms ease;
+  }
+
+  /* Keep inactive steps readable while preserving the active-stage cue. */
+  html.js .scroll-story__step {
+    opacity: 0.82;
+  }
+
+  html.js .scroll-story__step.is-active {
+    opacity: 1;
+    border-color: var(--cyan);
+  }
+
+  .scroll-story__num {
+    color: var(--cyan);
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    margin-bottom: var(--space-1);
+  }
+
+  .scroll-story__sentence {
+    font-size: 1.12rem;
+    font-weight: 600;
+  }
+
+  .scroll-story__tech {
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 56rem) {
+    .scroll-story {
+      grid-template-columns: 1fr;
+    }
+
+    /* On small screens the sticky panel would crowd the text; show the
+       steps as a plain sequence instead and let the panel scroll away. */
+    .scroll-story__visual-col {
+      position: static;
+    }
+
+    .scroll-story__visual {
+      min-height: 18rem;
+    }
+
+    html.js .scroll-story__step {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-story__scene {
+      transform: none;
+    }
+  }
+</style>

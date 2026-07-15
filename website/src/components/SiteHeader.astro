@@ -1,0 +1,105 @@
+---
+const links = [
+  { href: '/#system', label: 'System' },
+  { href: '/#surfaces', label: 'Surfaces' },
+  { href: '/#provenance', label: 'Provenance' },
+  { href: '/#security', label: 'Security' },
+  { href: '/architecture', label: 'Architecture' },
+];
+---
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="site-header__brand" href="/" aria-label="DataBossX home">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" rx="5" stroke="var(--cyan)" stroke-width="1.5" />
+        <path d="M7 12h10M12 7v10" stroke="var(--cyan)" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <span>DataBoss<span class="site-header__x">X</span></span>
+    </a>
+    <nav aria-label="Primary">
+      <ul class="site-header__nav">
+        {links.map((link) => (
+          <li><a href={link.href}>{link.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(6, 8, 12, 0.82);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 3.6rem;
+  }
+
+  .site-header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    font-size: 1.05rem;
+  }
+
+  .site-header__brand:hover {
+    text-decoration: none;
+  }
+
+  .site-header__x {
+    color: var(--cyan);
+  }
+
+  .site-header__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-header__nav a {
+    color: var(--ink-dim);
+    font-size: 0.92rem;
+    padding: 0.5rem 0.15rem;
+    display: inline-block;
+  }
+
+  .site-header__nav a:hover {
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  @media (max-width: 40rem) {
+    .site-header__inner {
+      flex-direction: column;
+      gap: 0;
+      padding-block: 0.55rem 0.15rem;
+      min-height: 0;
+    }
+
+    .site-header__nav {
+      justify-content: center;
+      gap: 0 1rem;
+    }
+
+    .site-header__nav a {
+      font-size: 0.82rem;
+      padding-block: 0.35rem;
+    }
+  }
+</style>

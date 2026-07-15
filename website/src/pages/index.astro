@@ -1,0 +1,439 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CommandCore from '../components/CommandCore.astro';
+import MotionSection from '../components/MotionSection.astro';
+import ScrollStory from '../components/ScrollStory.astro';
+import ArchitectureFlow from '../components/ArchitectureFlow.astro';
+import ProductPanel from '../components/ProductPanel.astro';
+import ProvenanceExplorer from '../components/ProvenanceExplorer.astro';
+import ReleaseGate from '../components/ReleaseGate.astro';
+import UseCaseGrid from '../components/UseCaseGrid.astro';
+import PerformanceFallback from '../components/PerformanceFallback.astro';
+
+// NOTE: every value in the product-surface panels below is synthetic
+// demonstration data — no client names, real documents, or real hashes.
+---
+
+<BaseLayout
+  title="DataBossX — Your Data. Under Command."
+  description="A development preview of the target DataBossX architecture for local-first document intelligence, using synthetic demonstration data."
+  path="/"
+>
+  <PerformanceFallback />
+
+  {/* ============================== HERO ============================== */}
+  <section class="hero" aria-labelledby="hero-heading">
+    <div class="grid-field"></div>
+    <div class="container hero__inner">
+      <div class="hero__copy">
+        <p class="kicker">Local-first document intelligence</p>
+        <h1 id="hero-heading">Your Data. <span class="hero__accent">Under&nbsp;Command.</span></h1>
+        <p class="lede">
+          DataBossX is being built as a local-first command center for document intelligence,
+          evidence provenance, AI agent orchestration, review gates, and audit-ready execution.
+        </p>
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="#system">Explore the System</a>
+          <a class="btn" href="/architecture">View Architecture</a>
+        </div>
+        <p class="mono hero__strap dim">
+          sources → evidence → provenance → agents → review → release
+        </p>
+        <aside class="preview-disclosure" aria-label="Development preview disclosure">
+          <strong>Development preview</strong>
+          <span>
+            Product surfaces use synthetic demonstration data. The architecture describes the
+            target system; production controls remain under implementation and validation.
+          </span>
+        </aside>
+      </div>
+      <CommandCore />
+    </div>
+  </section>
+
+  {/* ====================== SCROLL-DRIVEN STORY ====================== */}
+  <MotionSection
+    id="system"
+    kicker="The system"
+    heading="From raw documents to defensible deliverables"
+    lede="Six planned stages, designed around one rule: released work must retain evidence of where it came from."
+  >
+    <ScrollStory />
+  </MotionSection>
+
+  {/* ===================== INTERACTIVE ARCHITECTURE ===================== */}
+  <MotionSection
+    id="architecture"
+    kicker="Architecture"
+    heading="One pipeline, gated at every hand-off"
+    lede="Select any node to inspect its target control. The technical overview describes the planned runtime in depth."
+  >
+    <div class="reveal">
+      <ArchitectureFlow />
+    </div>
+    <p class="reveal arch-more">
+      <a class="btn" href="/architecture">Read the Technical Overview</a>
+    </p>
+  </MotionSection>
+
+  {/* ======================== PRODUCT SURFACES ======================== */}
+  <MotionSection
+    id="surfaces"
+    kicker="Product surfaces"
+    heading="An operations room, not a chat window"
+    lede="The surfaces below illustrate the planned shared evidence model. All data shown is synthetic demonstration data."
+  >
+    <div class="surface-grid">
+      <ProductPanel
+        title="Command Center"
+        description="Prototype view of projects, task graph, worker health, and release status."
+        status={{ label: 'RUN #DBX-0412 ACTIVE', tone: 'info' }}
+      >
+        <div class="table-scroll">
+          <table class="data-table">
+            <caption class="visually-hidden">Synthetic project run status</caption>
+            <thead>
+              <tr><th scope="col">Task</th><th scope="col">Worker</th><th scope="col">State</th><th scope="col">Budget</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>inventory.scan</td><td>local-01</td><td><span class="chip chip--ok">SUCCEEDED</span></td><td>—</td></tr>
+              <tr><td>ocr.render</td><td>local-02</td><td><span class="chip chip--ok">SUCCEEDED</span></td><td>$0.00</td></tr>
+              <tr><td>extract.pass-3</td><td>route:model-b</td><td><span class="chip chip--info">RUNNING</span></td><td>$0.42</td></tr>
+              <tr><td>chain.build</td><td>—</td><td><span class="chip chip--hold">BLOCKED</span></td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </ProductPanel>
+
+      <ProductPanel
+        title="Evidence Explorer"
+        description="Prototype source-page view with claim highlights and planned source-region links."
+        status={{ label: '312 SPANS INDEXED', tone: 'ok' }}
+      >
+        <div class="table-scroll">
+          <table class="data-table">
+            <caption class="visually-hidden">Synthetic evidence spans</caption>
+            <thead>
+              <tr><th scope="col">Claim</th><th scope="col">Source</th><th scope="col">Span</th><th scope="col">Conf.</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>grantor</td><td class="mono">9f2c…41aa · p.14</td><td class="mono">212–247</td><td>0.97</td></tr>
+              <tr><td>rec. date</td><td class="mono">9f2c…41aa · p.1</td><td class="mono">88–108</td><td>0.99</td></tr>
+              <tr><td>interest</td><td class="mono">9f2c…41aa · p.14</td><td class="mono">212–247</td><td>0.97</td></tr>
+              <tr><td>legal desc.</td><td class="mono">7be1…03cd · p.2</td><td class="mono">301–388</td><td>0.91</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </ProductPanel>
+
+      <ProductPanel
+        title="Agent Tournament"
+        description="Prototype comparison where independent extraction passes surface disagreement for review."
+        status={{ label: '2/3 PASSES AGREE', tone: 'hold' }}
+      >
+        <div class="table-scroll">
+          <table class="data-table">
+            <caption class="visually-hidden">Synthetic agent extraction comparison</caption>
+            <thead>
+              <tr><th scope="col">Pass</th><th scope="col">interest_fraction</th><th scope="col">Schema</th><th scope="col">Verdict</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>pass-1</td><td class="mono">1/8</td><td><span class="chip chip--ok">VALID</span></td><td class="mono">agree</td></tr>
+              <tr><td>pass-2</td><td class="mono">1/8</td><td><span class="chip chip--ok">VALID</span></td><td class="mono">agree</td></tr>
+              <tr><td>pass-3</td><td class="mono">1/16</td><td><span class="chip chip--ok">VALID</span></td><td class="mono">conflict → human</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </ProductPanel>
+
+      <ProductPanel
+        title="Release Gate"
+        description="Target release control: require every gate to pass and bind approval to the exact artifact hash."
+        status={{ label: 'HOLD', tone: 'hold' }}
+      >
+        <ReleaseGate />
+      </ProductPanel>
+
+      <ProductPanel
+        title="Workflow Monitor"
+        description="Prototype monitoring for planned leases, retries, budgets, and dead-letter review."
+        status={{ label: 'ALL WORKERS HEALTHY', tone: 'ok' }}
+      >
+        <div class="table-scroll">
+          <table class="data-table">
+            <caption class="visually-hidden">Synthetic worker lease status</caption>
+            <thead>
+              <tr><th scope="col">Lease</th><th scope="col">Capability</th><th scope="col">Heartbeat</th><th scope="col">Attempt</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">#88-3141</td><td>extract.verify</td><td class="mono">2s ago</td><td>1/3</td></tr>
+              <tr><td class="mono">#88-3142</td><td>ocr.render</td><td class="mono">4s ago</td><td>1/3</td></tr>
+              <tr><td class="mono">#88-3139</td><td>chain.validate</td><td class="mono">expired</td><td>2/3 → requeued</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </ProductPanel>
+
+      <ProductPanel
+        title="Audit Ledger"
+        description="Prototype ledger illustrating planned append-only artifact, decision, and approval events."
+        status={{ label: 'APPEND-ONLY', tone: 'info' }}
+      >
+        <div class="table-scroll">
+          <table class="data-table">
+            <caption class="visually-hidden">Synthetic audit events</caption>
+            <thead>
+              <tr><th scope="col">Event</th><th scope="col">Subject</th><th scope="col">Actor</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">EVIDENCE_LOCKED</td><td class="mono">project DBX-0412</td><td>operator</td></tr>
+              <tr><td class="mono">CONFLICT_OPENED</td><td class="mono">claim #1042</td><td>orchestrator</td></tr>
+              <tr><td class="mono">CONFLICT_RESOLVED</td><td class="mono">claim #1042</td><td>examiner</td></tr>
+              <tr><td class="mono">VERSION_RELEASED</td><td class="mono">report v3 · 41aa…9f2c</td><td>operator</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </ProductPanel>
+    </div>
+  </MotionSection>
+
+  {/* ==================== PROVENANCE DIFFERENTIATOR ==================== */}
+  <section id="provenance" class="section provenance-section">
+    <div class="grid-field"></div>
+    <div class="container">
+      <header class="reveal provenance-section__header">
+        <p class="kicker">The differentiator</p>
+        <h2>Design every conclusion to retain its source.</h2>
+        <p class="lede">
+          The target is more than a citation footnote: a chain from released text back to source
+          pixels, with incomplete chains blocked by release controls.
+        </p>
+      </header>
+      <ProvenanceExplorer />
+    </div>
+  </section>
+
+  {/* ========================= INDUSTRY USE CASES ========================= */}
+  <MotionSection
+    id="use-cases"
+    kicker="Where it applies"
+    heading="Designed for work where being wrong is expensive"
+    lede="These target applications show where the planned evidence discipline can support document-driven decisions."
+  >
+    <UseCaseGrid />
+  </MotionSection>
+
+  {/* ========================= TRUST & SECURITY ========================= */}
+  <MotionSection
+    id="security"
+    kicker="Trust & security"
+    heading="A target architecture for operator-controlled evidence"
+    lede="These are design controls for the completed system, not claims about production readiness."
+  >
+    <div class="trust-grid">
+      {[
+        {
+          title: 'Local-first runtime',
+          body: 'Target control: bind the control API to loopback by default and require explicit project policy for remote processing.',
+        },
+        {
+          title: 'Operator-controlled infrastructure',
+          body: 'Target control: avoid a required SaaS control plane; use least-privilege, read-only connector scopes and store credential references instead of credentials.',
+        },
+        {
+          title: 'Human review gates',
+          body: 'Target control: route material conflicts to qualified human review and record decisions against exact input hashes.',
+        },
+        {
+          title: 'Versioned, append-only history',
+          body: 'Target control: preserve originals and create new versions for OCR, extraction, reconciliation, and reports.',
+        },
+        {
+          title: 'SHA-256 verification',
+          body: 'Target control: content-address sources and deliverables, and retain the source snapshot, tool versions, and review decisions needed to reconstruct a release.',
+        },
+        {
+          title: 'Rollback & checkpoint recovery',
+          body: 'Target control: support resumable runs, equivalent manifests across retries, checkpoints, and intact prior versions for rollback.',
+        },
+      ].map((item, i) => (
+        <article class="card reveal" data-reveal-delay={String(i % 3)}>
+          <h3>{item.title}</h3>
+          <p class="dim">{item.body}</p>
+        </article>
+      ))}
+    </div>
+    <p class="reveal mono trust-note dim">
+      This public site contains no client evidence, no private runtime data, and no credentials —
+      by policy and by automated scanning.
+    </p>
+  </MotionSection>
+
+  {/* ============================ FINAL CTA ============================ */}
+  <section class="section final-cta" aria-labelledby="final-cta-heading">
+    <div class="grid-field"></div>
+    <div class="container final-cta__inner reveal">
+      <h2 id="final-cta-heading">Bring Your Data Under&nbsp;Command.</h2>
+      <p class="lede">
+        Explore the branch-preview candidate and its target architecture on GitHub.
+      </p>
+      <div class="final-cta__actions">
+        <a class="btn btn--primary" href="https://github.com/DataBossX" rel="noopener noreferrer" target="_blank">
+          View GitHub
+        </a>
+        <a class="btn" href="/architecture">Read the Technical Overview</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  /* ------------------------------ Hero ------------------------------ */
+  .hero {
+    position: relative;
+    min-height: calc(100svh - 3.6rem);
+    display: flex;
+    align-items: center;
+    padding-block: var(--space-6);
+    background:
+      radial-gradient(ellipse 80% 55% at 70% 20%, rgba(91, 140, 255, 0.09), transparent 65%),
+      radial-gradient(ellipse 60% 45% at 20% 80%, rgba(157, 140, 255, 0.07), transparent 65%),
+      var(--bg-0);
+    overflow: clip;
+  }
+
+  .hero__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-5);
+    position: relative;
+  }
+
+  .hero__accent {
+    background: linear-gradient(100deg, var(--cyan), var(--blue) 55%, var(--violet));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero__cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .hero__strap {
+    margin-top: var(--space-5);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+  }
+
+  .preview-disclosure {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    max-width: 44rem;
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    background: rgba(255, 189, 92, 0.08);
+    color: var(--ink-dim);
+    font-size: 0.9rem;
+  }
+
+  .preview-disclosure strong {
+    color: var(--amber);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 56rem) {
+    .hero {
+      min-height: 0;
+    }
+
+    .hero__inner {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .arch-more {
+    margin-top: var(--space-4);
+  }
+
+  /* -------------------------- Surface grid -------------------------- */
+  .surface-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+    gap: var(--space-3);
+  }
+
+  /* ------------------------ Provenance section ---------------------- */
+  .provenance-section {
+    background: linear-gradient(180deg, var(--bg-0), var(--bg-1) 20%, var(--bg-1) 80%, var(--bg-0));
+    border-block: 1px solid var(--line);
+  }
+
+  .provenance-section__header {
+    margin-bottom: var(--space-5);
+  }
+
+  /* --------------------------- Trust grid --------------------------- */
+  .trust-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: var(--space-3);
+  }
+
+  .trust-grid h3 {
+    font-size: 1.02rem;
+    margin-bottom: var(--space-2);
+  }
+
+  .trust-grid p {
+    font-size: 0.94rem;
+    margin: 0;
+  }
+
+  .trust-note {
+    margin-top: var(--space-4);
+    font-size: 0.75rem;
+  }
+
+  /* ---------------------------- Final CTA ---------------------------- */
+  .final-cta {
+    text-align: center;
+  }
+
+  .final-cta__inner {
+    position: relative;
+  }
+
+  .final-cta .lede {
+    margin-inline: auto;
+  }
+
+  .final-cta__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

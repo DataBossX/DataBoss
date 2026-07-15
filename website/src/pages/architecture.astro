@@ -1,0 +1,287 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MotionSection from '../components/MotionSection.astro';
+import ArchitectureFlow from '../components/ArchitectureFlow.astro';
+import PerformanceFallback from '../components/PerformanceFallback.astro';
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://databossx.com/' },
+    { '@type': 'ListItem', position: 2, name: 'Architecture', item: 'https://databossx.com/architecture' },
+  ],
+};
+
+const rules = [
+  ['Source controls', 'The completed pipeline must prevent a model, prompt, spreadsheet, prior report, or majority vote from overruling the source image.'],
+  ['No fabrication', 'Unknown, missing, unreadable, inapplicable, inferred, assumed, and externally researched are distinct values.'],
+  ['Field-level provenance', 'Every material value links to a source hash and page/sheet/row plus bounding region or character offsets where possible.'],
+  ['Immutable originals', 'Inventory and vault operations must copy and hash without deleting, renaming, moving, or overwriting originals.'],
+  ['Append-only derivation', 'OCR, extraction, reconciliations, reports, and corrections create new versions.'],
+  ['Exact arithmetic', 'Interests use integer numerator/denominator values; display decimals are derived, never authoritative.'],
+  ['Conflicts remain conflicts', 'Models may detect them; a qualified human resolves material conflicts.'],
+  ['Approval binds hashes', 'Any input, policy, tool, prompt, or output change invalidates the previous approval.'],
+  ['Least privilege', 'Workers receive only the inputs, tools, scopes, and egress required for one leased task.'],
+  ['One writer', 'Only the orchestrator commits state transitions and creates downstream tasks.'],
+  ['No production write by default', 'External writes require an exact, expiring human approval of destination and payload hash.'],
+  ['Complete audit', 'A released artifact must retain the source snapshot, tool versions, route decisions, review decisions, and event log needed for reconstruction.'],
+];
+
+const lifecycle = [
+  'DRAFT',
+  'INVENTORY_REVIEW',
+  'EVIDENCE_LOCKED',
+  'PROCESSING',
+  'EXAMINER_REVIEW',
+  'APPROVED_FOR_EXPORT',
+  'EXPORTED_CANDIDATE',
+  'RELEASED',
+];
+---
+
+<BaseLayout
+  title="Architecture — DataBossX"
+  description="The target DataBossX architecture: a local-first orchestrator, content-addressed evidence vault, field-level provenance, review gates, and versioned releases."
+  path="/architecture"
+  schema={[breadcrumbSchema]}
+>
+  <PerformanceFallback />
+
+  <section class="section arch-hero">
+    <div class="grid-field"></div>
+    <div class="container">
+      <nav aria-label="Breadcrumb" class="arch-breadcrumb">
+        <ol class="mono">
+          <li><a href="/">Home</a></li>
+          <li aria-current="page">Architecture</li>
+        </ol>
+      </nav>
+      <p class="kicker">Technical overview</p>
+      <h1>A work operating system,<br />not a chatbot with plugins</h1>
+      <p class="lede">
+        DataBossX is being built as a local-first pipeline: the target architecture routes operator
+        intent through one policy-aware orchestrator into a durable task graph, specialized
+        least-privilege workers, an immutable evidence vault, deterministic calculations,
+        qualified human review, and versioned release.
+      </p>
+      <p class="arch-preview">
+        <strong>Development preview:</strong> this page describes target architecture and design
+        controls. Production controls remain under implementation and validation.
+      </p>
+    </div>
+  </section>
+
+  <MotionSection
+    kicker="The flow"
+    heading="Six target guarantees, in order"
+    lede="Select a node to inspect what the completed system is intended to enforce."
+    tight
+  >
+    <div class="reveal">
+      <ArchitectureFlow />
+    </div>
+  </MotionSection>
+
+  <MotionSection
+    kicker="Runtime shape"
+    heading="A runtime designed for your trust boundary"
+    lede="The planned runtime uses one orchestrator, embedded storage, and provider interfaces at external edges."
+    tight
+  >
+    <figure class="reveal arch-diagram card" role="img" aria-label="Runtime diagram: UI to control API to policy engine to orchestrator to task graph, with approval ledger and worker leases, backed by an event outbox, evidence and claim graph, search index, and content-addressed vault, feeding the title engine, review, and report audit — all inside the local trust boundary. Read-only snapshots come in from local and cloud sources; policy-gated calls go out to model and research APIs.">
+      <pre class="mono arch-diagram__pre" aria-hidden="true">{`┌──────────────────── local trust boundary ────────────────────┐
+│ UI → Control API → Policy engine → Orchestrator → Task graph │
+│                      ↓                 ↓                      │
+│              Approval ledger       Worker leases              │
+│                      ↓                 ↓                      │
+│   Storage + FTS ← Event outbox ← Outcomes → Claim graph      │
+│        ↓                                 ↓                    │
+│   Search index               Content-addressed vault         │
+│                                          ↓                    │
+│         Calculation engine → review → release audit          │
+└───────────────────────────────────────────────────────────────┘
+      ↑ read-only snapshots            ↓ policy-gated calls
+   local folders · drives · cloud    model and research APIs`}</pre>
+    </figure>
+    <ul class="arch-runtime-notes reveal" role="list">
+      <li class="chip">loopback-bound control API</li>
+      <li class="chip">embedded database, numbered migrations</li>
+      <li class="chip">vault: sha256/&lt;prefix&gt;/&lt;hash&gt;</li>
+      <li class="chip">outbox-based reliable events</li>
+      <li class="chip">provider interfaces at every boundary</li>
+    </ul>
+  </MotionSection>
+
+  <MotionSection
+    kicker="Non-negotiable rules"
+    heading="Twelve design controls the completed pipeline must enforce"
+    tight
+  >
+    <ol class="rules-grid" role="list">
+      {rules.map(([title, body], i) => (
+        <li class="card reveal" data-reveal-delay={String(i % 3)}>
+          <p class="mono rules-grid__num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</p>
+          <h3>{title}</h3>
+          <p class="dim">{body}</p>
+        </li>
+      ))}
+    </ol>
+  </MotionSection>
+
+  <MotionSection
+    kicker="Project lifecycle"
+    heading="A target lifecycle with gated transitions"
+    lede="The completed system is intended to treat release as a gated state and record each transition in an append-only audit log."
+    tight
+  >
+    <ol class="lifecycle reveal" role="list">
+      {lifecycle.map((state, i) => (
+        <li class="lifecycle__state">
+          <span class="mono">{state}</span>
+          {i < lifecycle.length - 1 && <span class="lifecycle__arrow" aria-hidden="true">→</span>}
+        </li>
+      ))}
+    </ol>
+    <p class="reveal dim lifecycle__note">
+      Target release controls block a release if a material claim lacks source support, a material
+      conflict is unresolved, exact-interest validation fails, the source changed after inventory,
+      or artifact integrity checks fail.
+    </p>
+  </MotionSection>
+
+  <MotionSection kicker="Next" heading="Review the development preview" tight>
+    <div class="reveal arch-cta">
+      <a class="btn btn--primary" href="https://github.com/DataBossX" rel="noopener noreferrer" target="_blank">
+        View GitHub
+      </a>
+      <a class="btn" href="/">Back to the overview</a>
+    </div>
+  </MotionSection>
+</BaseLayout>
+
+<style>
+  .arch-hero {
+    position: relative;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(63, 220, 255, 0.07), transparent 65%),
+      var(--bg-0);
+  }
+
+  .arch-breadcrumb ol {
+    list-style: none;
+    display: flex;
+    gap: 0.6rem;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+  }
+
+  .arch-breadcrumb li + li::before {
+    content: '/';
+    margin-right: 0.6rem;
+    color: var(--ink-faint);
+  }
+
+  .arch-preview {
+    max-width: 46rem;
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    border-left: 3px solid var(--amber);
+    background: rgba(255, 189, 92, 0.08);
+    color: var(--ink-dim);
+  }
+
+  .arch-preview strong {
+    color: var(--amber);
+  }
+
+  .arch-diagram {
+    margin: 0;
+    overflow-x: auto;
+  }
+
+  .arch-diagram__pre {
+    margin: 0;
+    font-size: clamp(0.58rem, 0.4rem + 1vw, 0.82rem);
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
+  .arch-runtime-notes {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    padding: 0;
+  }
+
+  .rules-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: var(--space-3);
+    counter-reset: rules;
+  }
+
+  .rules-grid h3 {
+    font-size: 1rem;
+    margin-bottom: var(--space-1);
+  }
+
+  .rules-grid p:last-child {
+    font-size: 0.92rem;
+    margin: 0;
+  }
+
+  .rules-grid__num {
+    color: var(--cyan);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    margin-bottom: var(--space-2);
+  }
+
+  .lifecycle {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-2);
+  }
+
+  .lifecycle__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--cyan);
+  }
+
+  .lifecycle__state:last-child span:first-child {
+    color: var(--green);
+  }
+
+  .lifecycle__arrow {
+    color: var(--ink-faint);
+  }
+
+  .lifecycle__note {
+    margin-top: var(--space-3);
+    font-size: 0.92rem;
+    max-width: 56rem;
+  }
+
+  .arch-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+</style>

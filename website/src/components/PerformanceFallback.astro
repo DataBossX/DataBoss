@@ -1,0 +1,29 @@
+---
+/**
+ * PerformanceFallback — <noscript> + low-power notice wrapper.
+ *
+ * The whole site is server-rendered HTML, so the "fallback" is simply the
+ * page itself. This component documents that contract in one place and
+ * gives non-JS visitors an unobtrusive note that motion is disabled while
+ * every piece of content remains available.
+ */
+---
+
+<noscript>
+  <p class="perf-fallback container mono">
+    JavaScript is disabled — animations are off, but every section, diagram, and detail on this
+    page is fully readable without it.
+  </p>
+</noscript>
+
+<style>
+  .perf-fallback {
+    margin-top: var(--space-3);
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-2);
+    color: var(--ink-dim);
+    font-size: 0.75rem;
+  }
+</style>

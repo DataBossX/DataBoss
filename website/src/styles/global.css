@@ -1,0 +1,413 @@
+/* ==========================================================================
+   DataBossX design system — "secure AI operations command center"
+   Deep charcoal bases, controlled cyan/blue/violet highlights, grid
+   structure, monospace evidence accents, restrained glow and depth.
+   ========================================================================== */
+
+:root {
+  /* Surfaces */
+  --bg-0: #06080c;
+  --bg-1: #0a0e15;
+  --bg-2: #0e141f;
+  --panel: #101724;
+  --panel-2: #141c2c;
+  --line: #1d2637;
+  --line-bright: #2b3850;
+
+  /* Ink */
+  --ink: #e9eef7;
+  --ink-dim: #9aa8bf;
+  --ink-faint: #7a889f;
+
+  /* Signals */
+  --cyan: #3fdcff;
+  --blue: #5b8cff;
+  --violet: #9d8cff;
+  --green: #43dfa0;
+  --amber: #ffbd5c;
+  --red: #ff6161;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* Rhythm */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+  --space-7: 6.5rem;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --container: 72rem;
+
+  --focus-ring: 0 0 0 2px var(--bg-0), 0 0 0 4.5px var(--cyan);
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   Reset / base
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--space-3);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.4rem, 1.2rem + 5vw, 4.4rem);
+}
+
+h2 {
+  font-size: clamp(1.7rem, 1.1rem + 2.4vw, 2.6rem);
+}
+
+h3 {
+  font-size: clamp(1.15rem, 1rem + 0.7vw, 1.45rem);
+}
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+::selection {
+  background: rgba(63, 220, 255, 0.25);
+}
+
+/* Visible focus everywhere, keyboard-friendly */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 6px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line-bright);
+  border-radius: 0 0 var(--radius) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Layout helpers
+   -------------------------------------------------------------------------- */
+
+.container {
+  width: min(100% - 2.5rem, var(--container));
+  margin-inline: auto;
+}
+
+.section {
+  padding-block: var(--space-7);
+  position: relative;
+}
+
+.section--tight {
+  padding-block: var(--space-6);
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: var(--space-3);
+}
+
+.kicker::before {
+  content: '';
+  width: 1.6rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan));
+}
+
+.lede {
+  font-size: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
+  color: var(--ink-dim);
+  max-width: 46rem;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.dim {
+  color: var(--ink-dim);
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.9rem;
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-bright);
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--ink);
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.btn:hover {
+  text-decoration: none;
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, rgba(63, 220, 255, 0.16), rgba(91, 140, 255, 0.16));
+  border-color: rgba(63, 220, 255, 0.55);
+  box-shadow: 0 0 24px rgba(63, 220, 255, 0.12);
+}
+
+.btn--primary:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 32px rgba(63, 220, 255, 0.22);
+}
+
+/* --------------------------------------------------------------------------
+   Panels / cards
+   -------------------------------------------------------------------------- */
+
+.card {
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.card--glass {
+  background: rgba(16, 23, 36, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+/* Ambient grid backdrop used behind hero and section breaks */
+.grid-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(63, 220, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(63, 220, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 75%);
+}
+
+/* --------------------------------------------------------------------------
+   Status chips (evidence / gate language)
+   -------------------------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.14rem 0.6rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line-bright);
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip--ok {
+  color: var(--green);
+  border-color: rgba(67, 223, 160, 0.4);
+}
+
+.chip--hold {
+  color: var(--amber);
+  border-color: rgba(255, 189, 92, 0.4);
+}
+
+.chip--fail {
+  color: var(--red);
+  border-color: rgba(255, 97, 97, 0.4);
+}
+
+.chip--info {
+  color: var(--cyan);
+  border-color: rgba(63, 220, 255, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Scroll-reveal (progressive enhancement; content is fully visible
+   without JS and under prefers-reduced-motion)
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 640ms cubic-bezier(0.2, 0.65, 0.25, 1),
+      transform 640ms cubic-bezier(0.2, 0.65, 0.25, 1);
+  }
+
+  html.js .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  html.js .reveal[data-reveal-delay='1'] {
+    transition-delay: 90ms;
+  }
+
+  html.js .reveal[data-reveal-delay='2'] {
+    transition-delay: 180ms;
+  }
+
+  html.js .reveal[data-reveal-delay='3'] {
+    transition-delay: 270ms;
+  }
+}
+
+/* Flowing dash animation for data-flow lines (SVG) */
+@media (prefers-reduced-motion: no-preference) {
+  .flow-line {
+    stroke-dasharray: 6 10;
+    animation: flow-dash 1.6s linear infinite;
+  }
+
+  @keyframes flow-dash {
+    to {
+      stroke-dashoffset: -16;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Tables (product surfaces)
+   -------------------------------------------------------------------------- */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.data-table th {
+  color: var(--ink-faint);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+
+.data-table td {
+  color: var(--ink-dim);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

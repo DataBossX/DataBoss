@@ -1,0 +1,94 @@
+---
+/**
+ * UseCaseGrid — industry applications. Written as "built for" capability
+ * statements; no customer, testimonial, or adoption claims.
+ */
+const useCases = [
+  {
+    title: 'Land & mineral title',
+    body: 'Target application: chain instruments across county records, compute ownership with exact fractions, and give examiners a review queue designed to trace interests to recorded documents.',
+    accent: 'cyan',
+    tag: 'deeds · leases · assignments',
+  },
+  {
+    title: 'Legal document review',
+    body: 'Target application: extract parties, dates, terms, and obligations with page-and-span citations so assertions can be checked against source language.',
+    accent: 'blue',
+    tag: 'contracts · filings · discovery',
+  },
+  {
+    title: 'Compliance & audit operations',
+    body: 'Target application: use append-only evidence, hash-bound approvals, and reconstruction inputs to show who decided what, from which document, and when.',
+    accent: 'violet',
+    tag: 'controls · attestations · trails',
+  },
+  {
+    title: 'Enterprise document intelligence',
+    body: 'Target application: turn mixed-format archives into a searchable claim graph with field-level provenance under operator-controlled processing policies.',
+    accent: 'green',
+    tag: 'archives · knowledge · search',
+  },
+  {
+    title: 'High-volume operational backlogs',
+    body: 'Target application: compare extraction-agent outputs, route results through confidence gates, and concentrate human attention on material conflicts.',
+    accent: 'amber',
+    tag: 'intake · triage · throughput',
+  },
+];
+---
+
+<ul class="use-cases" role="list">
+  {useCases.map((useCase, i) => (
+    <li
+      class="use-cases__item card reveal"
+      data-reveal-delay={String(i % 3)}
+      data-accent={useCase.accent}
+    >
+      <p class="mono use-cases__tag">{useCase.tag}</p>
+      <h3>{useCase.title}</h3>
+      <p class="dim">{useCase.body}</p>
+    </li>
+  ))}
+</ul>
+
+<style>
+  [data-accent='cyan'] { --accent: var(--cyan); }
+  [data-accent='blue'] { --accent: var(--blue); }
+  [data-accent='violet'] { --accent: var(--violet); }
+  [data-accent='green'] { --accent: var(--green); }
+  [data-accent='amber'] { --accent: var(--amber); }
+
+  .use-cases {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: var(--space-3);
+  }
+
+  .use-cases__item {
+    border-top: 2px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .use-cases__item h3 {
+    font-size: 1.08rem;
+    margin-bottom: var(--space-1);
+  }
+
+  .use-cases__item p:last-child {
+    font-size: 0.94rem;
+    margin: 0;
+  }
+
+  .use-cases__tag {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: var(--space-2);
+  }
+</style>

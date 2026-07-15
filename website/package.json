@@ -1,0 +1,19 @@
+{
+  "name": "databossx-website",
+  "version": "2.0.0",
+  "description": "DataBossX marketing website — cinematic scroll-driven v2 (Astro, static-first)",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test:site": "node scripts/test-site.mjs",
+    "test": "npm run build && npm run test:site"
+  },
+  "devDependencies": {
+    "@astrojs/sitemap": "^3.7.3",
+    "astro": "^7.0.9",
+    "playwright-core": "^1.61.1"
+  },
+  "private": true,
+  "type": "module"
+}

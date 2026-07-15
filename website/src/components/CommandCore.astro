@@ -1,0 +1,344 @@
+---
+/**
+ * CommandCore — the signature hero visual.
+ *
+ * Pure SVG + CSS: source documents travel inbound lanes into the core,
+ * resolve into structured evidence rows, provenance lines tie records back
+ * to their source, agent nodes pulse around the core, and the release gate
+ * cycles HOLD → VERIFIED. A pointer-follow tilt (set via --tilt-x/--tilt-y
+ * from site.js) adds depth on fine pointers only.
+ *
+ * Under prefers-reduced-motion every animation is disabled and the SVG
+ * reads as a clear static system diagram. The visual is decorative:
+ * aria-hidden, with the narrative carried by the surrounding hero copy.
+ */
+---
+
+<div class="command-core" data-command-core aria-hidden="true">
+  <svg viewBox="0 0 640 520" fill="none" class="command-core__svg">
+    <defs>
+      <linearGradient id="cc-core" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#3fdcff" stop-opacity="0.22" />
+        <stop offset="1" stop-color="#9d8cff" stop-opacity="0.16" />
+      </linearGradient>
+      <radialGradient id="cc-halo" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#3fdcff" stop-opacity="0.16" />
+        <stop offset="1" stop-color="#3fdcff" stop-opacity="0" />
+      </radialGradient>
+    </defs>
+
+    <!-- Halo -->
+    <circle cx="320" cy="250" r="220" fill="url(#cc-halo)" />
+
+    <!-- Inbound source lanes (left) -->
+    <g stroke="#2b3850" stroke-width="1.2">
+      <path d="M20 120 C 140 120, 180 210, 254 226" />
+      <path d="M20 250 C 120 250, 170 250, 250 250" />
+      <path d="M20 380 C 140 380, 180 290, 254 274" />
+    </g>
+    <g stroke="#3fdcff" stroke-width="1.4" opacity="0.75">
+      <path class="flow-line" d="M20 120 C 140 120, 180 210, 254 226" />
+      <path class="flow-line" d="M20 250 C 120 250, 170 250, 250 250" />
+      <path class="flow-line" d="M20 380 C 140 380, 180 290, 254 274" />
+    </g>
+
+    <!-- Source documents travelling the lanes -->
+    <g class="cc-doc cc-doc--1">
+      <rect x="-9" y="-11" width="18" height="22" rx="2.5" fill="#0e141f" stroke="#3fdcff" stroke-width="1.2" />
+      <path d="M-4 -4 h8 M-4 0 h8 M-4 4 h5" stroke="#7a889f" stroke-width="1" />
+    </g>
+    <g class="cc-doc cc-doc--2">
+      <rect x="-9" y="-11" width="18" height="22" rx="2.5" fill="#0e141f" stroke="#5b8cff" stroke-width="1.2" />
+      <path d="M-4 -4 h8 M-4 0 h8 M-4 4 h5" stroke="#7a889f" stroke-width="1" />
+    </g>
+    <g class="cc-doc cc-doc--3">
+      <rect x="-9" y="-11" width="18" height="22" rx="2.5" fill="#0e141f" stroke="#9d8cff" stroke-width="1.2" />
+      <path d="M-4 -4 h8 M-4 0 h8 M-4 4 h5" stroke="#7a889f" stroke-width="1" />
+    </g>
+
+    <!-- The core: structured evidence records -->
+    <g class="cc-tilt">
+      <rect x="252" y="168" width="176" height="164" rx="14" fill="url(#cc-core)" stroke="#3fdcff" stroke-opacity="0.55" stroke-width="1.4" />
+      <rect x="252" y="168" width="176" height="164" rx="14" fill="#0a0e15" fill-opacity="0.55" />
+      <text x="268" y="192" fill="#3fdcff" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">EVIDENCE</text>
+
+      <g class="cc-record cc-record--1">
+        <rect x="268" y="204" width="144" height="18" rx="4" fill="#141c2c" stroke="#1d2637" />
+        <rect x="274" y="211" width="52" height="4" rx="2" fill="#3fdcff" opacity="0.85" />
+        <rect x="334" y="211" width="30" height="4" rx="2" fill="#7a889f" />
+        <circle cx="400" cy="213" r="3" fill="#43dfa0" />
+      </g>
+      <g class="cc-record cc-record--2">
+        <rect x="268" y="228" width="144" height="18" rx="4" fill="#141c2c" stroke="#1d2637" />
+        <rect x="274" y="235" width="40" height="4" rx="2" fill="#5b8cff" opacity="0.85" />
+        <rect x="322" y="235" width="42" height="4" rx="2" fill="#7a889f" />
+        <circle cx="400" cy="237" r="3" fill="#43dfa0" />
+      </g>
+      <g class="cc-record cc-record--3">
+        <rect x="268" y="252" width="144" height="18" rx="4" fill="#141c2c" stroke="#1d2637" />
+        <rect x="274" y="259" width="58" height="4" rx="2" fill="#9d8cff" opacity="0.85" />
+        <rect x="340" y="259" width="24" height="4" rx="2" fill="#7a889f" />
+        <circle cx="400" cy="261" r="3" fill="#ffbd5c" />
+      </g>
+      <g class="cc-record cc-record--4">
+        <rect x="268" y="276" width="144" height="18" rx="4" fill="#141c2c" stroke="#1d2637" />
+        <rect x="274" y="283" width="46" height="4" rx="2" fill="#3fdcff" opacity="0.85" />
+        <rect x="328" y="283" width="36" height="4" rx="2" fill="#7a889f" />
+        <circle cx="400" cy="285" r="3" fill="#43dfa0" />
+      </g>
+      <text x="268" y="318" fill="#7a889f" font-family="ui-monospace, monospace" font-size="9">sha256:9f2c…41aa · p.14 · span 212–247</text>
+    </g>
+
+    <!-- Provenance line: record back to source page -->
+    <path class="cc-provenance" d="M268 261 C 200 261, 170 330, 96 330" stroke="#9d8cff" stroke-width="1.2" stroke-dasharray="4 5" />
+    <g class="cc-tilt-lite">
+      <rect x="52" y="300" width="44" height="58" rx="4" fill="#0e141f" stroke="#9d8cff" stroke-opacity="0.6" stroke-width="1.2" />
+      <path d="M60 312 h28 M60 320 h28 M60 328 h20" stroke="#7a889f" stroke-width="1.2" />
+      <rect x="60" y="336" width="28" height="6" rx="2" fill="#9d8cff" opacity="0.45" />
+      <text x="52" y="374" fill="#7a889f" font-family="ui-monospace, monospace" font-size="9">page 14</text>
+    </g>
+
+    <!-- Agent nodes orbiting the core -->
+    <g class="cc-agent cc-agent--1">
+      <circle cx="470" cy="140" r="15" fill="#0e141f" stroke="#3fdcff" stroke-width="1.3" />
+      <circle cx="470" cy="140" r="4.5" fill="#3fdcff" />
+    </g>
+    <g class="cc-agent cc-agent--2">
+      <circle cx="510" cy="250" r="15" fill="#0e141f" stroke="#5b8cff" stroke-width="1.3" />
+      <circle cx="510" cy="250" r="4.5" fill="#5b8cff" />
+    </g>
+    <g class="cc-agent cc-agent--3">
+      <circle cx="470" cy="360" r="15" fill="#0e141f" stroke="#9d8cff" stroke-width="1.3" />
+      <circle cx="470" cy="360" r="4.5" fill="#9d8cff" />
+    </g>
+    <g stroke-width="1.1" opacity="0.6">
+      <path class="flow-line" d="M455 148 C 440 168, 436 182, 428 198" stroke="#3fdcff" />
+      <path class="flow-line" d="M495 250 C 470 250, 452 250, 430 250" stroke="#5b8cff" />
+      <path class="flow-line" d="M455 352 C 440 332, 436 318, 428 302" stroke="#9d8cff" />
+    </g>
+
+    <!-- Release gate: HOLD -> VERIFIED -->
+    <g stroke="#2b3850" stroke-width="1.2">
+      <path d="M428 250 C 500 250, 520 430, 560 430" transform="translate(0 0)" />
+    </g>
+    <path class="flow-line" d="M430 288 C 480 330, 480 430, 528 442" stroke="#43dfa0" stroke-width="1.3" opacity="0.7" />
+    <g class="cc-gate">
+      <rect x="500" y="418" width="120" height="48" rx="10" fill="#0e141f" stroke="#2b3850" stroke-width="1.2" />
+      <g class="cc-gate__hold">
+        <circle cx="520" cy="442" r="5" fill="#ffbd5c" />
+        <text x="534" y="446" fill="#ffbd5c" font-family="ui-monospace, monospace" font-size="11" letter-spacing="1.5">HOLD</text>
+      </g>
+      <g class="cc-gate__ok">
+        <circle cx="520" cy="442" r="5" fill="#43dfa0" />
+        <text x="534" y="446" fill="#43dfa0" font-family="ui-monospace, monospace" font-size="11" letter-spacing="1.5">VERIFIED</text>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<style>
+  .command-core {
+    --tilt-x: 0;
+    --tilt-y: 0;
+    position: relative;
+    width: min(100%, 40rem);
+    margin-inline: auto;
+  }
+
+  .command-core__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cc-tilt {
+      transform: translate(calc(var(--tilt-x) * 7px), calc(var(--tilt-y) * 7px));
+      transition: transform 300ms ease-out;
+    }
+
+    .cc-tilt-lite {
+      transform: translate(calc(var(--tilt-x) * 3px), calc(var(--tilt-y) * 3px));
+      transition: transform 300ms ease-out;
+    }
+
+    .cc-doc {
+      animation: cc-travel-2 7s linear infinite;
+      offset-rotate: 0deg;
+    }
+
+    .cc-doc--1 {
+      offset-path: path('M20 120 C 140 120, 180 210, 254 226');
+      animation-name: cc-travel;
+      animation-duration: 6.4s;
+    }
+
+    .cc-doc--2 {
+      offset-path: path('M20 250 C 120 250, 170 250, 250 250');
+      animation-duration: 7.6s;
+      animation-delay: -2.4s;
+    }
+
+    .cc-doc--3 {
+      offset-path: path('M20 380 C 140 380, 180 290, 254 274');
+      animation-name: cc-travel;
+      animation-duration: 8.4s;
+      animation-delay: -4.8s;
+    }
+
+    @keyframes cc-travel {
+      0% {
+        offset-distance: 0%;
+        opacity: 0;
+      }
+      12% {
+        opacity: 1;
+      }
+      86% {
+        opacity: 1;
+      }
+      100% {
+        offset-distance: 100%;
+        opacity: 0;
+      }
+    }
+
+    @keyframes cc-travel-2 {
+      0% {
+        offset-distance: 0%;
+        opacity: 0;
+      }
+      12% {
+        opacity: 1;
+      }
+      86% {
+        opacity: 1;
+      }
+      100% {
+        offset-distance: 100%;
+        opacity: 0;
+      }
+    }
+
+    .cc-record {
+      animation: cc-resolve 9s ease-in-out infinite;
+    }
+
+    .cc-record--2 {
+      animation-delay: 0.7s;
+    }
+
+    .cc-record--3 {
+      animation-delay: 1.4s;
+    }
+
+    .cc-record--4 {
+      animation-delay: 2.1s;
+    }
+
+    @keyframes cc-resolve {
+      0%,
+      6% {
+        opacity: 0.35;
+      }
+      14%,
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .cc-provenance {
+      animation: flow-dash 2.4s linear infinite;
+      stroke-dasharray: 4 5;
+    }
+
+    @keyframes flow-dash {
+      to {
+        stroke-dashoffset: -18;
+      }
+    }
+
+    .cc-agent {
+      transform-origin: center;
+      transform-box: fill-box;
+      animation: cc-pulse 3.4s ease-in-out infinite;
+    }
+
+    .cc-agent--2 {
+      animation-delay: 1.1s;
+    }
+
+    .cc-agent--3 {
+      animation-delay: 2.2s;
+    }
+
+    @keyframes cc-pulse {
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.85;
+      }
+      50% {
+        transform: scale(1.12);
+        opacity: 1;
+      }
+    }
+
+    /* Gate cycles HOLD (amber) -> VERIFIED (green) */
+    .cc-gate__hold {
+      animation: cc-gate-hold 9s ease-in-out infinite;
+    }
+
+    .cc-gate__ok {
+      animation: cc-gate-ok 9s ease-in-out infinite;
+    }
+
+    @keyframes cc-gate-hold {
+      0%,
+      42% {
+        opacity: 1;
+      }
+      50%,
+      92% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes cc-gate-ok {
+      0%,
+      42% {
+        opacity: 0;
+      }
+      50%,
+      92% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+  }
+
+  /* Reduced motion / static state: show the resolved system with the
+     gate reading VERIFIED and documents parked on their lanes. */
+  @media (prefers-reduced-motion: reduce) {
+    .cc-doc--1 {
+      transform: translate(120px, 140px);
+    }
+
+    .cc-doc--2 {
+      transform: translate(140px, 250px);
+    }
+
+    .cc-doc--3 {
+      transform: translate(120px, 360px);
+    }
+
+    .cc-gate__hold {
+      opacity: 0;
+    }
+  }
+</style>

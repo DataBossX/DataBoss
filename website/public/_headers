@@ -1,0 +1,23 @@
+# Security headers for Cloudflare Pages / Netlify-style static hosts.
+# If the site is served another way (e.g. Cloudflare zone rules or nginx),
+# replicate these headers there — see website/README.md.
+#
+# CSP origins were derived from an audit of the built output:
+#   - all CSS is inlined or same-origin
+#   - the only script is the same-origin enhancement bundle
+#   - images are same-origin SVG/PNG; no fonts, frames, or XHR are used
+# 'unsafe-inline' is NOT needed for styles because Astro bundles scoped
+# styles into stylesheets; style-src keeps 'unsafe-inline' OFF on purpose.
+# The script-src sha256 hash allows exactly one inline script — the
+# `document.documentElement.classList.add('js')` bootstrap in <head>.
+# If that script ever changes, scripts/test-site.mjs fails the build until
+# this hash is regenerated (printf <script> | openssl dgst -sha256 -binary | base64).
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-/x7W7R75k8Roq0WaVRQX9blP4OufE5xbAdzklGxsgpw='; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin

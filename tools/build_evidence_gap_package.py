@@ -214,66 +214,67 @@ def _title_chain(path: Path) -> None:
     _workbook(path, sheets)
 
 
-OPEN_ITEMS = (
-    (
-        "OI-001",
-        "BLOCKING",
-        "Authoritative recorded-image corpus unavailable",
-        "No source images, PDFs, or evidence manifest were supplied to this invocation.",
-        "Provide read-only access to the complete recorded-image folder for the subject lands.",
-        "OPEN ITEM",
-    ),
-    (
-        "OI-002",
-        "BLOCKING",
-        "Horizon template unavailable",
-        "The referenced Section 32 Horizon workbook/template was not present.",
-        "Provide the authoritative template and its verified SHA-256 hash.",
-        "OPEN ITEM",
-    ),
-    (
-        "OI-003",
-        "BLOCKING",
-        "Index and protocol records unavailable",
-        "No protocoled index, county export, runsheet, or image manifest was supplied.",
-        "Provide all index exports and reconcile them to the image corpus.",
-        "OPEN ITEM",
-    ),
-    (
-        "OI-004",
-        "BLOCKING",
-        "Ownership not determinable",
-        "No conveyances, reservations, probate instruments, leases, assignments, or releases were available.",
-        "Complete image-first examination before stating any ownership, WI, NRI, RI, MRI, or ORRI.",
-        "NOT VERIFIED",
-    ),
-    (
-        "OI-005",
-        "BLOCKING",
-        "Diversified Energy interest not determinable",
-        "No recorded evidence supporting an interest calculation was supplied to this invocation.",
-        "Trace Diversified Energy and all predecessors through recorded instruments and exact-interest calculations.",
-        "NOT VERIFIED",
-    ),
-    (
-        "OI-006",
-        "BLOCKING",
-        "Template compliance cannot be tested",
-        "Exact formulas, styles, merged cells, print settings, and row structure cannot be inferred without the template.",
-        "Run deterministic workbook comparison after the authoritative template is supplied.",
-        "OPEN ITEM",
-    ),
-)
+def _open_item_rows(client: str) -> tuple[tuple[str, ...], ...]:
+    return (
+        (
+            "OI-001",
+            "BLOCKING",
+            "Authoritative recorded-image corpus unavailable",
+            "No source images, PDFs, or evidence manifest were supplied to this invocation.",
+            "Provide read-only access to the complete recorded-image folder for the subject lands.",
+            "OPEN ITEM",
+        ),
+        (
+            "OI-002",
+            "BLOCKING",
+            "Horizon template unavailable",
+            "The referenced Section 32 Horizon workbook/template was not supplied.",
+            "Provide the authoritative template and its verified SHA-256 hash.",
+            "OPEN ITEM",
+        ),
+        (
+            "OI-003",
+            "BLOCKING",
+            "Index and protocol records unavailable",
+            "No protocoled index, county export, runsheet, or image manifest was supplied.",
+            "Provide all index exports and reconcile them to the image corpus.",
+            "OPEN ITEM",
+        ),
+        (
+            "OI-004",
+            "BLOCKING",
+            "Ownership not determinable",
+            "No conveyances, reservations, probate instruments, leases, assignments, or releases were supplied.",
+            "Complete image-first examination before stating any ownership, WI, NRI, RI, MRI, or ORRI.",
+            "NOT VERIFIED",
+        ),
+        (
+            "OI-005",
+            "BLOCKING",
+            _excel_text(f"{client} interest not determinable"),
+            "No recorded evidence supporting an interest calculation was supplied to this invocation.",
+            f"Trace {client} and all predecessors through recorded instruments and exact-interest calculations.",
+            "NOT VERIFIED",
+        ),
+        (
+            "OI-006",
+            "BLOCKING",
+            "Template compliance cannot be tested",
+            "Exact formulas, styles, merged cells, print settings, and row structure cannot be inferred without the template.",
+            "Run deterministic workbook comparison after the authoritative template is supplied.",
+            "OPEN ITEM",
+        ),
+    )
 
 
-def _open_items(path: Path) -> None:
+def _open_items(path: Path, client: str) -> None:
     _workbook(
         path,
         [
             (
                 "Open Items",
                 ("Item ID", "Severity", "Issue", "Evidence", "Recommended Resolution", "Status"),
-                OPEN_ITEMS,
+                _open_item_rows(client),
             )
         ],
     )
@@ -350,12 +351,12 @@ def _final_report(path: Path, project: dict[str, str]) -> None:
     title = wb.active
     title.title = "Title"
     title_rows = (
-        ("SECTION 32 TITLE REPORT — EVIDENCE NOT AVAILABLE",),
+        ("TITLE REPORT — EVIDENCE NOT SUPPLIED",),
         ("Client", _excel_text(project["client"])),
         ("County", _excel_text(project["county"])),
         ("Legal", _excel_text(project["legal"])),
         ("Report Status", "INSUFFICIENT EVIDENCE — NOT A TITLE OPINION"),
-        ("Diversified Exact Interest", "NOT VERIFIED"),
+        (f"{_excel_text(project['client'])} Exact Interest", "NOT VERIFIED"),
         ("Working Interest (WI)", "NOT VERIFIED"),
         ("Net Revenue Interest (NRI)", "NOT VERIFIED"),
         ("Mineral/Royalty/Override Interests", "NOT VERIFIED"),
@@ -440,7 +441,7 @@ project corpus contains no records.
 
 ## Ownership QA
 
-Diversified Energy's exact interest, WI, NRI, RI, MRI, and ORRI are **NOT VERIFIED**.
+{project['client']}'s exact interest, WI, NRI, RI, MRI, and ORRI are **NOT VERIFIED**.
 No ownership statement in this package should be treated as a fact, estimate, abstract,
 title opinion, or legal opinion.
 """,
@@ -469,7 +470,7 @@ Client: {project['client']}
 
 ## Result
 
-**Diversified Energy's exact interest is NOT VERIFIED.**
+**{project['client']}'s exact interest is NOT VERIFIED.**
 
 No recorded images, PDFs, county index exports, OCR results, prior title workbooks, or
 authoritative Horizon template were supplied to this package-generation invocation.
@@ -527,7 +528,7 @@ def build(output: Path, project: dict[str, str], generated: str) -> None:
     _document_log(output / "MASTER_DOCUMENT_LOG.xlsx")
     _runsheet(output / "MASTER_RUNSHEET.xlsx")
     _title_chain(output / "TITLE_CHAIN.xlsx")
-    _open_items(output / "OPEN_ITEMS.xlsx")
+    _open_items(output / "OPEN_ITEMS.xlsx", project["client"])
     _conflicts(output / "CONFLICT_REPORT.xlsx")
     _image_index(output / "IMAGE_REFERENCE_INDEX.xlsx")
     _final_report(output / "FINAL_REPORT.xlsx", project)

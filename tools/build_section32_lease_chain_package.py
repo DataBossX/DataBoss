@@ -434,9 +434,30 @@ IMAGE_IDS = {
     "4393.jpg": "18ab8XOnjLkSjSAWgU9Wct5YXQ6R_CjWR",
 }
 
+COMPONENT_IMAGE_NAMES = {
+    "H-01": "4393.jpg",
+    "H-02": "1197.jpg",
+    "H-09": "4392.jpg",
+    "H-10": "4392.jpg",
+    "H-11": "4392.jpg",
+}
+DEFAULT_COMPONENT_IMAGE_NAME = "4391.jpg"
+
+EXPECTED_DELIVERABLES = {
+    "MASTER_LEASE_CHAIN.xlsx",
+    "LEASE_SUMMARY.docx",
+    "CHANGE_LOG.xlsx",
+    "EVIDENCE_INDEX.xlsx",
+    "README.md",
+}
+
 
 def image_url(image_name: str) -> str:
     return f"https://drive.google.com/file/d/{IMAGE_IDS[image_name]}/view"
+
+
+def component_image_name(component_id: str) -> str:
+    return COMPONENT_IMAGE_NAMES.get(component_id, DEFAULT_COMPONENT_IMAGE_NAME)
 
 
 def prepare_output() -> None:
@@ -1015,6 +1036,27 @@ def build_summary_docx() -> Path:
     return path
 
 
+def component_correction(component_id: str) -> str:
+    if component_id == "H-01":
+        return (
+            "Corrected lessor from generic 'Garretts' to Cora B. Garrett and "
+            "S. A. Garrett from the exhibit."
+        )
+    if component_id == "H-02":
+        return (
+            "Confirmed Charlie B. Crook and Ima Pearl Crook, not index variant "
+            "'Cook/Charles R.'; separated 240-acre whole lease from 160 Section 32 acres."
+        )
+    if component_id in {"H-04", "H-05", "H-07", "H-08"}:
+        return "Flagged overlapping N/2 SW/4 descriptions; prohibited additive acreage."
+    if component_id == "H-11":
+        return (
+            "Added corrected-lease metadata at Bk 1039/Pgs 20–23 without treating "
+            "metadata as operative proof."
+        )
+    return "Converted generic workbook recital to a named historical candidate."
+
+
 def build_change_log() -> Path:
     wb = Workbook()
     ws = wb.active
@@ -1040,18 +1082,7 @@ def build_change_log() -> Path:
         ]
     )
     for c in COMPONENTS:
-        correction = "Converted generic workbook recital to a named historical candidate."
-        if c["id"] == "H-01":
-            correction = "Corrected lessor from generic 'Garretts' to Cora B. Garrett and S. A. Garrett from the exhibit."
-        elif c["id"] == "H-02":
-            correction = (
-                "Confirmed Charlie B. Crook and Ima Pearl Crook, not index variant 'Cook/Charles R.'; "
-                "separated 240-acre whole lease from 160 Section 32 acres."
-            )
-        elif c["id"] in {"H-04", "H-05", "H-07", "H-08"}:
-            correction = "Flagged overlapping N/2 SW/4 descriptions; prohibited additive acreage."
-        elif c["id"] == "H-11":
-            correction = "Added corrected-lease metadata at Bk 1039/Pgs 20–23 without treating metadata as operative proof."
+        correction = component_correction(c["id"])
         ws.append(
             [
                 c["id"],
@@ -1242,9 +1273,7 @@ def build_evidence_index() -> Path:
         ]
     )
     for c in COMPONENTS:
-        image = "4393.jpg" if c["id"] == "H-01" else ("1197.jpg" if c["id"] == "H-02" else "4391.jpg")
-        if c["id"] in {"H-09", "H-10", "H-11"}:
-            image = "4392.jpg"
+        image = component_image_name(c["id"])
         ws.append(
             [
                 c["name"],
@@ -1408,16 +1437,11 @@ def build_readme() -> Path:
 
 
 def qc_package(files: list[Path]) -> None:
-    expected = {
-        "MASTER_LEASE_CHAIN.xlsx",
-        "LEASE_SUMMARY.docx",
-        "CHANGE_LOG.xlsx",
-        "EVIDENCE_INDEX.xlsx",
-        "README.md",
-    }
     actual = {path.name for path in files}
-    if actual != expected:
-        raise AssertionError(f"Deliverable mismatch: expected {expected}, got {actual}")
+    if actual != EXPECTED_DELIVERABLES:
+        raise AssertionError(
+            f"Deliverable mismatch: expected {EXPECTED_DELIVERABLES}, got {actual}"
+        )
     for path in files:
         if not path.exists() or path.stat().st_size == 0:
             raise AssertionError(f"Missing or empty deliverable: {path}")
@@ -1455,8 +1479,9 @@ def qc_package(files: list[Path]) -> None:
 
     doc = Document(PACKAGE_DIR / "LEASE_SUMMARY.docx")
     full_text = "\n".join(p.text for p in doc.paragraphs)
+    normalized_text = full_text.lower()
     for phrase in ["OK48147.001.1", "I-2023-000796", "not a final title opinion"]:
-        if phrase.lower() not in full_text.lower():
+        if phrase.lower() not in normalized_text:
             raise AssertionError(f"Summary is missing required phrase: {phrase}")
 
 
@@ -1466,8 +1491,11 @@ def package_zip(files: list[Path]) -> None:
             archive.write(path, arcname=f"{PACKAGE_NAME}/{path.name}")
     with zipfile.ZipFile(ZIP_PATH) as archive:
         names = archive.namelist()
-        if len(names) != 5:
-            raise AssertionError(f"ZIP contains {len(names)} entries, expected 5")
+        expected_entry_count = len(EXPECTED_DELIVERABLES)
+        if len(names) != expected_entry_count:
+            raise AssertionError(
+                f"ZIP contains {len(names)} entries, expected {expected_entry_count}"
+            )
         if any(not name.startswith(f"{PACKAGE_NAME}/") for name in names):
             raise AssertionError("ZIP must contain exactly one top-level folder")
         bad = archive.testzip()

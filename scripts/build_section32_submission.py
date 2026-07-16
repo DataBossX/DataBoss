@@ -348,6 +348,13 @@ LEASES = [
     ["376/369", "Great Western Oil & Gas, Inc.", "Union", "1979-03-21", None, None, "376/369", "NE/4", 160, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Correction metadata at 1039/20–23 unreviewed"],
 ]
 
+# Pad legacy source rows to the full 24-column normalized lease schema.
+for lease in LEASES:
+    if len(lease) == 22:
+        lease[14:14] = [None, None]
+    elif len(lease) == 23:
+        lease.insert(15, None)
+
 WI_ROWS = [
     ["509/220", "Crook #1-32", "Mesa; American Petrofina; ENI; McCall; Midland; Sterling", "64%; 25%; 5%; 4%; 1%; 1% of assigned interest", "Assigned Crook wellbore interest", "After-payout reversion", "Historical WI allocation", "NO", "Baseline is not proven 8/8; present chain and payout open"],
     ["509/220", "Crook #1-32", "Leede Exploration", "1/4", "After-payout reversion in assigned Crook interest", "After payout", "Reversion", "NO", "Current payout and survival unknown"],
@@ -449,7 +456,7 @@ def build_json() -> dict:
                 "mineral_owners_proven": [],
                 "mineral_claimants_unresolved": [],
                 "leases": [
-                    {"lease_id": row[0], "legal": row[7], "current_status": row[19], "notes": row[22]}
+                    {"lease_id": row[0], "legal": row[7], "current_status": row[20], "notes": row[23]}
                     for row in LEASES
                     if (tract["legal"] == row[7]) or (tract["tract_no"] == 4)
                 ],

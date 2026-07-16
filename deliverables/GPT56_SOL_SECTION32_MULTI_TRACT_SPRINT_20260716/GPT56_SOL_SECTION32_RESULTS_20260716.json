@@ -1,0 +1,1110 @@
+{
+  "submission": {
+    "ai_name": "GPT-5.6 Sol",
+    "timestamp": "2026-07-16T22:38:00Z",
+    "base_files_reviewed": [
+      "CHATGPT_NE4_IMPROVED_WORKBOOK_20260715.xlsx",
+      "32-11N-25W_Beckham_Co_SECTION32_FINAL_CHAMPION_V2_INTERNAL_REVIEW_HOLD.xlsx",
+      "Template.xlsx",
+      "SECTION32_FINAL_CHAMPION_EVIDENCE_SUMMARY.md",
+      "SECTION32_FINAL_CHAMPION_PROVENANCE.xlsx",
+      "SECTION32_FINAL_CHAMPION_OPEN_ISSUES.md",
+      "SECTION32_MASTER_INDEX.csv",
+      "SECTION32_CONFLICTS.xlsx",
+      "SECTION32_DUPLICATES.xlsx",
+      "SECTION32_LOW_CONFIDENCE.xlsx",
+      "SECTION32_MISSING_ENTRIES.xlsx",
+      "SECTION32_EXTRACTION_REPORT.md",
+      "SECTION32_CONFIDENCE_REPORT.md"
+    ],
+    "drive_folder_created": "",
+    "files_uploaded": [],
+    "overall_release_status": "HOLD_NO_RELEASE"
+  },
+  "tracts": [
+    {
+      "tract_no": 1,
+      "legal": "NE/4",
+      "nominal_acres": 160,
+      "scope_notes": "Crook #1-32 historic focus; Morrow–Springer wellbore interval 16,210–20,451 feet.",
+      "current_conclusion": "Historic fee inception and Crook lease/wellbore branches are supported. Present mineral and leasehold ownership is NOT DETERMINED.",
+      "remaining_open_items": [
+        "Complete post-Bollenbach fee/mineral chain.",
+        "Original and amended leases, releases, production, and HBP evidence.",
+        "Operative modern schedules mapping OK48147.001.1 to this tract and depth."
+      ],
+      "instruments": [
+        {
+          "execution_date": "1907-03-22",
+          "recording_date": "1907-06-08",
+          "doc_type": "PAT",
+          "instrument_no": "Homestead Certificate 4300 / Application 17722",
+          "book_page": "Patent 3/469",
+          "grantor": [
+            "United States of America"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Cornelius B. Cornelius"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4, Section 32-11N-25W; stated 160 acres",
+          "estate": "Historic fee inception",
+          "depth": null,
+          "interest_conveyed_fraction": "Historic fee estate; no mineral reservation apparent on reviewed image",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": null,
+          "portfolio_branch": "Historic fee",
+          "evidence_class": "DIRECT IMAGE",
+          "source_file": "P-001 / Images/0003.jpg",
+          "source_page_or_image": "Image 0003",
+          "confidence": 98,
+          "current_effect": "Historic inception only; not present vesting",
+          "conflicts": [],
+          "curative_action": "Run complete downstream fee/mineral chain from Cornelius/Bollenbach",
+          "notes": "Do not post 160 present net mineral acres."
+        },
+        {
+          "execution_date": "1907-07-16",
+          "recording_date": "1907-07-18",
+          "doc_type": "WD",
+          "instrument_no": null,
+          "book_page": "Roger Mills 11/214",
+          "grantor": [
+            "Cornelius B. Cornelius",
+            "Margreta Cornelius"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Jacob Bollenbach"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4, Section 32-11N-25W; stated 160 acres",
+          "estate": "Fee conveyance",
+          "depth": null,
+          "interest_conveyed_fraction": "Historic fee conveyance; no reservation apparent on reviewed image",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": null,
+          "portfolio_branch": "Historic fee",
+          "evidence_class": "DIRECT IMAGE",
+          "source_file": "Recorded deed / Images/0002.jpg",
+          "source_page_or_image": "Image 0002",
+          "confidence": 98,
+          "current_effect": "Historic bridge only",
+          "conflicts": [
+            "County/book metadata must be confirmed in Roger Mills and Beckham records"
+          ],
+          "curative_action": "Obtain certified copy and continue grantee chain",
+          "notes": "Present mineral vesting remains open."
+        },
+        {
+          "execution_date": "1981-09-17",
+          "recording_date": "1981-10-13",
+          "doc_type": "CORR ASG",
+          "instrument_no": null,
+          "book_page": "509/220",
+          "grantor": [
+            "Leede Exploration"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Mesa 64%",
+            "American Petrofina 25%",
+            "ENI 5%",
+            "Jack O. McCall 4%",
+            "Midland National Bank, Trustee 1%",
+            "Sterling Petroleum-1978-A 1%"
+          ],
+          "grantee_addresses": [],
+          "legal": "Crook #1-32 wellbore",
+          "estate": "Historic depth-limited wellbore interest",
+          "depth": "Morrow–Springer, 16,210–20,451 feet",
+          "interest_conveyed_fraction": "100% allocation of the assigned Crook interest, not 8/8 tract WI",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": "Aggregate participant NRI fixed at 75%; Leede retained 1/4 after-payout reversion",
+          "lease_id": "264/345 branch",
+          "portfolio_branch": "Crook",
+          "evidence_class": "DIRECT IMAGE / INCOMPLETE COPY",
+          "source_file": "L-002; recorded correction exhibit / Image 1952",
+          "source_page_or_image": "Image 1952",
+          "confidence": 98,
+          "current_effect": "Historical document-scoped allocation only",
+          "conflicts": [],
+          "curative_action": "Obtain complete instrument, payout evidence, and successor assignments",
+          "notes": "Never apply the percentages to 8/8 unless the assignor baseline is proven."
+        }
+      ],
+      "mineral_owners_proven": [],
+      "mineral_claimants_unresolved": [],
+      "leases": [
+        {
+          "lease_id": "264/345",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "HBP, amendments, releases, and modern linkage open"
+        },
+        {
+          "lease_id": "352/719",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "352/721",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "376/369",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "Correction metadata at 1039/20–23 unreviewed"
+        }
+      ],
+      "working_interest_candidates": [],
+      "burdens": [],
+      "addresses": []
+    },
+    {
+      "tract_no": 2,
+      "legal": "E/2 SE/4",
+      "nominal_acres": 80,
+      "scope_notes": "Pearl #1-32 historic focus; later assignments use approximately 11,100–19,480 feet.",
+      "current_conclusion": "OGL 63/33 identity and the Humble–Union–Leede Pearl branch are supported historically. Present minerals, lease status, WI, burdens, and HBP are NOT DETERMINED.",
+      "remaining_open_items": [
+        "Original OGL 63/33 and all amendments/releases.",
+        "Complete Pearl wellbore assignment and payout/reversion evidence.",
+        "Downstream schedule mapping and present burden survival."
+      ],
+      "instruments": [
+        {
+          "execution_date": "1947-11-13",
+          "recording_date": null,
+          "doc_type": "OGL REF",
+          "instrument_no": null,
+          "book_page": "63/33",
+          "grantor": [
+            "Cora B. Garrett",
+            "S.A. Garrett"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "C.E. McKinley"
+          ],
+          "grantee_addresses": [],
+          "legal": "E/2 SE/4",
+          "estate": "Leasehold identity",
+          "depth": null,
+          "interest_conveyed_fraction": null,
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "L-91511 / 63/33",
+          "portfolio_branch": "Pearl",
+          "evidence_class": "DIRECT-IMAGE ASSIGNMENT RECITAL",
+          "source_file": "Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
+          "source_page_or_image": "Images 1062, 4393",
+          "confidence": 95,
+          "current_effect": "Historic lease identity only",
+          "conflicts": [],
+          "curative_action": "Pull original OGL and all amendments/releases",
+          "notes": "Royalty, term, clauses, depth, expiration, and HBP remain open."
+        },
+        {
+          "execution_date": "1969-11-25",
+          "recording_date": null,
+          "doc_type": "ASG OGL",
+          "instrument_no": null,
+          "book_page": "244/432",
+          "grantor": [
+            "Humble Oil & Refining Company"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "E/2 SE/4",
+          "estate": "Leasehold assignment",
+          "depth": null,
+          "interest_conveyed_fraction": "OGL 63/33 branch; effective 1969-12-01",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "L-91511 / 63/33",
+          "portfolio_branch": "Pearl",
+          "evidence_class": "DIRECT IMAGE",
+          "source_file": "Recorded assignment / Image 1062",
+          "source_page_or_image": "Image 1062",
+          "confidence": 96,
+          "current_effect": "Historic chain only",
+          "conflicts": [
+            "January 1970 recording day partially illegible"
+          ],
+          "curative_action": "Confirm clerk metadata and downstream assignments",
+          "notes": "No present title conclusion."
+        },
+        {
+          "execution_date": "1985-07-29",
+          "recording_date": "1985-10-23",
+          "doc_type": "WB ASG",
+          "instrument_no": null,
+          "book_page": "845/47",
+          "grantor": [
+            "Cities Service Oil & Gas Corporation"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Leede Exploration"
+          ],
+          "grantee_addresses": [],
+          "legal": "E/2 SE/4; Pearl #1-32 wellbore",
+          "estate": "Historic wellbore working-interest branch",
+          "depth": "Below 11,100 feet to but not below 19,480 feet",
+          "interest_conveyed_fraction": "Assigned wellbore interest; exact 8/8 baseline not established",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": "1/8 of 8/8 ORRI",
+          "lease_id": "63/33 / Pearl",
+          "portfolio_branch": "Pearl",
+          "evidence_class": "DIRECT IMAGE",
+          "source_file": "L-006 / Images 4118–4119",
+          "source_page_or_image": "Images 4118–4119",
+          "confidence": 98,
+          "current_effect": "Historical only",
+          "conflicts": [],
+          "curative_action": "Obtain unrecorded 1985 agreement, payout and successor records",
+          "notes": "Five-year renewal/extension reach; no warranty."
+        },
+        {
+          "execution_date": "1985-10-29",
+          "recording_date": "1986-03-06",
+          "doc_type": "ASG / LEASE SCHEDULE",
+          "instrument_no": null,
+          "book_page": "872/279",
+          "grantor": [
+            "Union Oil Company of California"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Leede Exploration"
+          ],
+          "grantee_addresses": [],
+          "legal": "Listed Section 32 leases; E/2 SE/4 specially limited",
+          "estate": "Depth-limited leasehold",
+          "depth": "Generally top Morrow–19,480 feet; E/2 SE/4 11,100–19,480 feet; prior Crook rights excluded",
+          "interest_conveyed_fraction": "Scheduled leasehold; exact quantum not stated in reviewed pages",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": "1/8 gas/condensate/distillate ORRI; 1/16 oil/casinghead-gas ORRI",
+          "lease_id": "Bk 872/Pg 279 schedule",
+          "portfolio_branch": "Union/Leede deep",
+          "evidence_class": "DIRECT IMAGE / PARTIAL INSTRUMENT",
+          "source_file": "L-007 / Images 4388, 4391–4393",
+          "source_page_or_image": "Images 4388, 4391–4393",
+          "confidence": 92,
+          "current_effect": "Historic depth-limited branch only",
+          "conflicts": [
+            "Unrecorded 1984 agreement and incomplete instrument review"
+          ],
+          "curative_action": "Pull complete instrument, agreement, all scheduled OGLs and releases",
+          "notes": "Rows overlap; no additive-acre or current-HBP inference."
+        }
+      ],
+      "mineral_owners_proven": [],
+      "mineral_claimants_unresolved": [],
+      "leases": [
+        {
+          "lease_id": "63/33",
+          "legal": "E/2 SE/4",
+          "current_status": "OPEN",
+          "notes": "Original lease and terms not reviewed"
+        }
+      ],
+      "working_interest_candidates": [],
+      "burdens": [],
+      "addresses": []
+    },
+    {
+      "tract_no": 3,
+      "legal": "N/2 of Section 32 below top of Hunton",
+      "nominal_acres": 320,
+      "scope_notes": "Depth-defined leasehold scope; 320 acres is surface geometry only and overlaps Tracts 1, 2, and 4.",
+      "current_conclusion": "Bk 1014/Pg 75 facially describes N/2 below top Hunton, but assignor source title and exact quantum are unresolved. No present WI may be posted.",
+      "remaining_open_items": [
+        "Complete 1014/75 and predecessor trust/McCall instruments.",
+        "Instrument-defined top Hunton reference and well limitations.",
+        "Source title proving the assignor held the purported working/cost-bearing interest."
+      ],
+      "instruments": [
+        {
+          "execution_date": "1988-02-18",
+          "recording_date": "1988-04-26",
+          "doc_type": "ASG",
+          "instrument_no": null,
+          "book_page": "1014/75",
+          "grantor": [
+            "Consolidation of Leede Trusts"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Leede Exploration"
+          ],
+          "grantee_addresses": [],
+          "legal": "N/2 Section 32",
+          "estate": "Purported OGL and working/cost-bearing interests",
+          "depth": "All depths below top Hunton",
+          "interest_conveyed_fraction": null,
+          "interest_conveyed_decimal": null,
+          "interest_reserved": "Royalty/ORRI reconveyance effect unclear",
+          "lease_id": null,
+          "portfolio_branch": "Leede/McCall/trust",
+          "evidence_class": "DIRECT IMAGE",
+          "source_file": "L-011 / Image 4893",
+          "source_page_or_image": "Image 4893",
+          "confidence": 90,
+          "current_effect": "Facial transfer only; title effect OPEN",
+          "conflicts": [
+            "Assignor source evidence proves royalty/ORRI, not the purported WI; exact quantum absent"
+          ],
+          "curative_action": "Establish predecessor title and obtain complete instrument",
+          "notes": "No 1% or 52.632% figure may be posted as present WI."
+        }
+      ],
+      "mineral_owners_proven": [],
+      "mineral_claimants_unresolved": [],
+      "leases": [],
+      "working_interest_candidates": [],
+      "burdens": [],
+      "addresses": []
+    },
+    {
+      "tract_no": 4,
+      "legal": "Deep leasehold references and lease list in Bk 872/Pg 279",
+      "nominal_acres": null,
+      "scope_notes": "Overlapping lease-by-lease and depth-by-depth scope; non-additive. General assignment interval is top Morrow–19,480 feet, subject to exceptions.",
+      "current_conclusion": "Historic lease identities and assignment depth limitations are supported. Unique acreage, uncovered gaps, current lease status, and current quantum are NOT DETERMINED.",
+      "remaining_open_items": [
+        "Complete Bk 872/Pg 279 and the unrecorded 1984 agreement.",
+        "Every original scheduled lease, amendment, release, and HBP record.",
+        "GIS/legal normalization before calculating unique acres, overlap, or gaps."
+      ],
+      "instruments": [
+        {
+          "execution_date": "1985-10-29",
+          "recording_date": "1986-03-06",
+          "doc_type": "ASG / LEASE SCHEDULE",
+          "instrument_no": null,
+          "book_page": "872/279",
+          "grantor": [
+            "Union Oil Company of California"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Leede Exploration"
+          ],
+          "grantee_addresses": [],
+          "legal": "Listed Section 32 leases; E/2 SE/4 specially limited",
+          "estate": "Depth-limited leasehold",
+          "depth": "Generally top Morrow–19,480 feet; E/2 SE/4 11,100–19,480 feet; prior Crook rights excluded",
+          "interest_conveyed_fraction": "Scheduled leasehold; exact quantum not stated in reviewed pages",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": "1/8 gas/condensate/distillate ORRI; 1/16 oil/casinghead-gas ORRI",
+          "lease_id": "Bk 872/Pg 279 schedule",
+          "portfolio_branch": "Union/Leede deep",
+          "evidence_class": "DIRECT IMAGE / PARTIAL INSTRUMENT",
+          "source_file": "L-007 / Images 4388, 4391–4393",
+          "source_page_or_image": "Images 4388, 4391–4393",
+          "confidence": 92,
+          "current_effect": "Historic depth-limited branch only",
+          "conflicts": [
+            "Unrecorded 1984 agreement and incomplete instrument review"
+          ],
+          "curative_action": "Pull complete instrument, agreement, all scheduled OGLs and releases",
+          "notes": "Rows overlap; no additive-acre or current-HBP inference."
+        }
+      ],
+      "mineral_owners_proven": [],
+      "mineral_claimants_unresolved": [],
+      "leases": [
+        {
+          "lease_id": "63/33",
+          "legal": "E/2 SE/4",
+          "current_status": "OPEN",
+          "notes": "Original lease and terms not reviewed"
+        },
+        {
+          "lease_id": "264/345",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "HBP, amendments, releases, and modern linkage open"
+        },
+        {
+          "lease_id": "307/31",
+          "legal": "W/2 SE/4 and S/2 SW/4",
+          "current_status": "OPEN",
+          "notes": "Overlaps other rows; original OGL not reviewed"
+        },
+        {
+          "lease_id": "340/302",
+          "legal": "N/2 SW/4",
+          "current_status": "OPEN",
+          "notes": "Relationship to 340/304 open"
+        },
+        {
+          "lease_id": "340/304",
+          "legal": "N/2 SW/4",
+          "current_status": "OPEN",
+          "notes": "Possible separate/corrective lease; do not double count"
+        },
+        {
+          "lease_id": "340/323",
+          "legal": "N/2 NW/4 and N/2 SW/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "342/564",
+          "legal": "N/2 SW/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "342/566",
+          "legal": "N/2 SW/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "352/719",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "352/721",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "Overlapping legal"
+        },
+        {
+          "lease_id": "376/369",
+          "legal": "NE/4",
+          "current_status": "OPEN",
+          "notes": "Correction metadata at 1039/20–23 unreviewed"
+        }
+      ],
+      "working_interest_candidates": [],
+      "burdens": [],
+      "addresses": []
+    },
+    {
+      "tract_no": 5,
+      "legal": "Full-section modern Diversified-affiliated record branch",
+      "nominal_acres": null,
+      "scope_notes": "Section-wide reporting scope; whole-section indexing does not prove 640 net acres, 8/8 WI, all depths, or ownership.",
+      "current_conclusion": "2395/462 and 2400/566 support a recorded claimant path for OK48147.001.1 into Diversified Production LLC. Tract allocation, estate, depth, and quantum are NOT DETERMINED.",
+      "remaining_open_items": [
+        "Complete operative schedules and incorporated documents for 2395/415–464 and 2400/551–567.",
+        "Complete 2340, 2371, 2389, 2393, and related branch schedules.",
+        "Separate and reconcile Unbridled/MNR, Teocalli, Canvas/DP Ponies, Burlington, and lien branches."
+      ],
+      "instruments": [
+        {
+          "execution_date": null,
+          "recording_date": "2022-11-18",
+          "doc_type": "CONFIRMATORY CONV",
+          "instrument_no": "I-2022-004838",
+          "book_page": "2395/415–464",
+          "grantor": [
+            "DP Legacy Tapstone LLC"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Diversified ABS VI Upstream LLC",
+            "DP Sooner HoldCo LLC"
+          ],
+          "grantee_addresses": [],
+          "legal": "Section 32 schedule reference; asset OK48147.001.1",
+          "estate": "Leasehold claimant identity",
+          "depth": null,
+          "interest_conveyed_fraction": null,
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "OK48147.001.1",
+          "portfolio_branch": "DP Sooner",
+          "evidence_class": "REVIEWED SCHEDULE PAGE",
+          "source_file": "I-2022-004838 / Exhibit E p.462",
+          "source_page_or_image": "Bk 2395/Pg 462",
+          "confidence": 96,
+          "current_effect": "Asset routed to DP Sooner path; no tract or quantum proof",
+          "conflicts": [],
+          "curative_action": "Obtain complete operative schedules and incorporated documents",
+          "notes": "Asset-line legal and interest fields do not support a decimal."
+        },
+        {
+          "execution_date": null,
+          "recording_date": "2023-03-02",
+          "doc_type": "CONFIRMATORY CONV",
+          "instrument_no": "I-2023-000796",
+          "book_page": "2400/551–567",
+          "grantor": [
+            "DP Sooner HoldCo LLC"
+          ],
+          "grantor_addresses": [],
+          "grantee": [
+            "Diversified Production LLC"
+          ],
+          "grantee_addresses": [],
+          "legal": "Section 32 schedule reference; asset OK48147.001.1",
+          "estate": "Leasehold claimant identity",
+          "depth": null,
+          "interest_conveyed_fraction": null,
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "OK48147.001.1",
+          "portfolio_branch": "DP Sooner / Diversified",
+          "evidence_class": "REVIEWED SCHEDULE PAGE",
+          "source_file": "I-2023-000796 / Schedule B p.566",
+          "source_page_or_image": "Bk 2400/Pg 566",
+          "confidence": 96,
+          "current_effect": "Latest supported recorded claimant identity; no tract or quantum proof",
+          "conflicts": [],
+          "curative_action": "Obtain complete operative schedules and incorporated documents",
+          "notes": "Do not post Diversified as proven current owner or assign a WI decimal."
+        }
+      ],
+      "mineral_owners_proven": [],
+      "mineral_claimants_unresolved": [],
+      "leases": [],
+      "working_interest_candidates": [
+        {
+          "party": "Diversified Production LLC",
+          "asset_id": "OK48147.001.1",
+          "quantum": null,
+          "status": "SCHEDULE-DEPENDENT CLAIMANT ONLY"
+        }
+      ],
+      "burdens": [],
+      "addresses": [
+        [
+          "Diversified Production LLC",
+          "1600 Corporate Drive, Birmingham, AL 35242",
+          "1600 Corporate Drive, Birmingham, AL 35242",
+          "Recorded instrument address",
+          "2395/415–464; 2400/551–567",
+          "2022-11-18 / 2023-03-02",
+          "Historic recorded address; not represented as verified current"
+        ]
+      ]
+    }
+  ],
+  "title_sheet_rows": [
+    {
+      "tract_no": 1,
+      "legal": "NE/4",
+      "nominal_acres": 160,
+      "proven_current_mineral_owner": null,
+      "present_leasehold_candidate": null,
+      "net_acres": null,
+      "confidence": "HOLD",
+      "comments": "Historic fee inception and Crook lease/wellbore branches are supported. Present mineral and leasehold ownership is NOT DETERMINED."
+    },
+    {
+      "tract_no": 2,
+      "legal": "E/2 SE/4",
+      "nominal_acres": 80,
+      "proven_current_mineral_owner": null,
+      "present_leasehold_candidate": null,
+      "net_acres": null,
+      "confidence": "HOLD",
+      "comments": "OGL 63/33 identity and the Humble–Union–Leede Pearl branch are supported historically. Present minerals, lease status, WI, burdens, and HBP are NOT DETERMINED."
+    },
+    {
+      "tract_no": 3,
+      "legal": "N/2 of Section 32 below top of Hunton",
+      "nominal_acres": 320,
+      "proven_current_mineral_owner": null,
+      "present_leasehold_candidate": null,
+      "net_acres": null,
+      "confidence": "HOLD",
+      "comments": "Bk 1014/Pg 75 facially describes N/2 below top Hunton, but assignor source title and exact quantum are unresolved. No present WI may be posted."
+    },
+    {
+      "tract_no": 4,
+      "legal": "Deep leasehold references and lease list in Bk 872/Pg 279",
+      "nominal_acres": null,
+      "proven_current_mineral_owner": null,
+      "present_leasehold_candidate": null,
+      "net_acres": null,
+      "confidence": "HOLD",
+      "comments": "Historic lease identities and assignment depth limitations are supported. Unique acreage, uncovered gaps, current lease status, and current quantum are NOT DETERMINED."
+    },
+    {
+      "tract_no": 5,
+      "legal": "Full-section modern Diversified-affiliated record branch",
+      "nominal_acres": null,
+      "proven_current_mineral_owner": null,
+      "present_leasehold_candidate": "Diversified Production LLC / OK48147.001.1 (schedule-dependent)",
+      "net_acres": null,
+      "confidence": "HOLD",
+      "comments": "2395/462 and 2400/566 support a recorded claimant path for OK48147.001.1 into Diversified Production LLC. Tract allocation, estate, depth, and quantum are NOT DETERMINED."
+    }
+  ],
+  "working_interest_rows": [
+    {
+      "source": "509/220",
+      "scope": "Crook #1-32",
+      "party": "Mesa; American Petrofina; ENI; McCall; Midland; Sterling",
+      "fraction_or_percentage": "64%; 25%; 5%; 4%; 1%; 1% of assigned interest",
+      "applies_to": "Assigned Crook wellbore interest",
+      "payout_status": "After-payout reversion",
+      "interest_type": "Historical WI allocation",
+      "usable_in_current_totals": "NO",
+      "notes": "Baseline is not proven 8/8; present chain and payout open"
+    },
+    {
+      "source": "509/220",
+      "scope": "Crook #1-32",
+      "party": "Leede Exploration",
+      "fraction_or_percentage": "1/4",
+      "applies_to": "After-payout reversion in assigned Crook interest",
+      "payout_status": "After payout",
+      "interest_type": "Reversion",
+      "usable_in_current_totals": "NO",
+      "notes": "Current payout and survival unknown"
+    },
+    {
+      "source": "845/47",
+      "scope": "Pearl #1-32",
+      "party": "Cities Service reservation",
+      "fraction_or_percentage": "1/8 of 8/8",
+      "applies_to": "Pearl assigned wellbore interest, 11,100–19,480 ft",
+      "payout_status": "Not stated",
+      "interest_type": "ORRI",
+      "usable_in_current_totals": "NO",
+      "notes": "Survival and successors open"
+    },
+    {
+      "source": "872/279",
+      "scope": "Scheduled deep leases",
+      "party": "Union reservation",
+      "fraction_or_percentage": "1/8",
+      "applies_to": "Gas/condensate/distillate from assigned scheduled interest",
+      "payout_status": "Not stated",
+      "interest_type": "ORRI",
+      "usable_in_current_totals": "NO",
+      "notes": "Historic, schedule- and depth-limited"
+    },
+    {
+      "source": "872/279",
+      "scope": "Scheduled deep leases",
+      "party": "Union reservation",
+      "fraction_or_percentage": "1/16",
+      "applies_to": "Oil/casinghead gas from assigned scheduled interest",
+      "payout_status": "Not stated",
+      "interest_type": "ORRI",
+      "usable_in_current_totals": "NO",
+      "notes": "Historic, schedule- and depth-limited"
+    },
+    {
+      "source": "903/50",
+      "scope": "Defined LGWI",
+      "party": "Each PRF",
+      "fraction_or_percentage": "0.526300%",
+      "applies_to": "Defined LGWI, not 8/8",
+      "payout_status": "Before payout",
+      "interest_type": "Contract WI/cost share",
+      "usable_in_current_totals": "NO",
+      "notes": "Three PRFs; historical agreement"
+    },
+    {
+      "source": "903/50",
+      "scope": "Defined LGWI",
+      "party": "Each PRF",
+      "fraction_or_percentage": "1.315750%",
+      "applies_to": "Defined LGWI, not 8/8",
+      "payout_status": "After payout",
+      "interest_type": "Contract WI/cost share",
+      "usable_in_current_totals": "NO",
+      "notes": "Three PRFs; historical agreement"
+    },
+    {
+      "source": "987/159 et seq.",
+      "scope": "McCall",
+      "party": "TCW/Grantham/Carlson reservation",
+      "fraction_or_percentage": "0.043146%",
+      "applies_to": "0.5% of Leede NRI",
+      "payout_status": "Not stated",
+      "interest_type": "ORRI",
+      "usable_in_current_totals": "NO",
+      "notes": "Historic burden only"
+    },
+    {
+      "source": "987/159 et seq.",
+      "scope": "Pearl",
+      "party": "TCW/Grantham/Carlson reservation",
+      "fraction_or_percentage": "0.052310%",
+      "applies_to": "0.5% of Leede NRI",
+      "payout_status": "Not stated",
+      "interest_type": "ORRI",
+      "usable_in_current_totals": "NO",
+      "notes": "Historic burden only"
+    },
+    {
+      "source": "2395/462; 2400/566",
+      "scope": "OK48147.001.1",
+      "party": "Diversified Production LLC",
+      "fraction_or_percentage": null,
+      "applies_to": null,
+      "payout_status": null,
+      "interest_type": "Present-title candidate",
+      "usable_in_current_totals": "NO",
+      "notes": "Claimant identity only; exact WI/NRI/ORRI and tract allocation not proved"
+    }
+  ],
+  "runsheet_rows": [
+    {
+      "sequence": 1,
+      "tracts": "T1",
+      "execution_date": "1907-03-22",
+      "recording_date": "1907-06-08",
+      "doc_type": "PAT",
+      "instrument_no": "Homestead Certificate 4300 / Application 17722",
+      "book_page": "Patent 3/469",
+      "grantor": "United States of America",
+      "grantee": "Cornelius B. Cornelius",
+      "legal": "NE/4, Section 32-11N-25W; stated 160 acres",
+      "estate": "Historic fee inception",
+      "depth": null,
+      "interest_conveyed": "Historic fee estate; no mineral reservation apparent on reviewed image",
+      "interest_reserved": null,
+      "lease_id": null,
+      "portfolio_branch": "Historic fee",
+      "evidence_class": "DIRECT IMAGE",
+      "source_file": "P-001 / Images/0003.jpg",
+      "image_page": "Image 0003",
+      "confidence": 98,
+      "current_effect": "Historic inception only; not present vesting",
+      "conflict": null,
+      "curative_action": "Run complete downstream fee/mineral chain from Cornelius/Bollenbach",
+      "notes": "Do not post 160 present net mineral acres."
+    },
+    {
+      "sequence": 2,
+      "tracts": "T1",
+      "execution_date": "1907-07-16",
+      "recording_date": "1907-07-18",
+      "doc_type": "WD",
+      "instrument_no": null,
+      "book_page": "Roger Mills 11/214",
+      "grantor": "Cornelius B. Cornelius; Margreta Cornelius",
+      "grantee": "Jacob Bollenbach",
+      "legal": "NE/4, Section 32-11N-25W; stated 160 acres",
+      "estate": "Fee conveyance",
+      "depth": null,
+      "interest_conveyed": "Historic fee conveyance; no reservation apparent on reviewed image",
+      "interest_reserved": null,
+      "lease_id": null,
+      "portfolio_branch": "Historic fee",
+      "evidence_class": "DIRECT IMAGE",
+      "source_file": "Recorded deed / Images/0002.jpg",
+      "image_page": "Image 0002",
+      "confidence": 98,
+      "current_effect": "Historic bridge only",
+      "conflict": "County/book metadata must be confirmed in Roger Mills and Beckham records",
+      "curative_action": "Obtain certified copy and continue grantee chain",
+      "notes": "Present mineral vesting remains open."
+    },
+    {
+      "sequence": 3,
+      "tracts": "T2",
+      "execution_date": "1947-11-13",
+      "recording_date": null,
+      "doc_type": "OGL REF",
+      "instrument_no": null,
+      "book_page": "63/33",
+      "grantor": "Cora B. Garrett; S.A. Garrett",
+      "grantee": "C.E. McKinley",
+      "legal": "E/2 SE/4",
+      "estate": "Leasehold identity",
+      "depth": null,
+      "interest_conveyed": null,
+      "interest_reserved": null,
+      "lease_id": "L-91511 / 63/33",
+      "portfolio_branch": "Pearl",
+      "evidence_class": "DIRECT-IMAGE ASSIGNMENT RECITAL",
+      "source_file": "Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
+      "image_page": "Images 1062, 4393",
+      "confidence": 95,
+      "current_effect": "Historic lease identity only",
+      "conflict": null,
+      "curative_action": "Pull original OGL and all amendments/releases",
+      "notes": "Royalty, term, clauses, depth, expiration, and HBP remain open."
+    },
+    {
+      "sequence": 4,
+      "tracts": "T2",
+      "execution_date": "1969-11-25",
+      "recording_date": null,
+      "doc_type": "ASG OGL",
+      "instrument_no": null,
+      "book_page": "244/432",
+      "grantor": "Humble Oil & Refining Company",
+      "grantee": "Union Oil Company of California",
+      "legal": "E/2 SE/4",
+      "estate": "Leasehold assignment",
+      "depth": null,
+      "interest_conveyed": "OGL 63/33 branch; effective 1969-12-01",
+      "interest_reserved": null,
+      "lease_id": "L-91511 / 63/33",
+      "portfolio_branch": "Pearl",
+      "evidence_class": "DIRECT IMAGE",
+      "source_file": "Recorded assignment / Image 1062",
+      "image_page": "Image 1062",
+      "confidence": 96,
+      "current_effect": "Historic chain only",
+      "conflict": "January 1970 recording day partially illegible",
+      "curative_action": "Confirm clerk metadata and downstream assignments",
+      "notes": "No present title conclusion."
+    },
+    {
+      "sequence": 5,
+      "tracts": "T1",
+      "execution_date": "1981-09-17",
+      "recording_date": "1981-10-13",
+      "doc_type": "CORR ASG",
+      "instrument_no": null,
+      "book_page": "509/220",
+      "grantor": "Leede Exploration",
+      "grantee": "Mesa 64%; American Petrofina 25%; ENI 5%; Jack O. McCall 4%; Midland National Bank, Trustee 1%; Sterling Petroleum-1978-A 1%",
+      "legal": "Crook #1-32 wellbore",
+      "estate": "Historic depth-limited wellbore interest",
+      "depth": "Morrow–Springer, 16,210–20,451 feet",
+      "interest_conveyed": "100% allocation of the assigned Crook interest, not 8/8 tract WI",
+      "interest_reserved": "Aggregate participant NRI fixed at 75%; Leede retained 1/4 after-payout reversion",
+      "lease_id": "264/345 branch",
+      "portfolio_branch": "Crook",
+      "evidence_class": "DIRECT IMAGE / INCOMPLETE COPY",
+      "source_file": "L-002; recorded correction exhibit / Image 1952",
+      "image_page": "Image 1952",
+      "confidence": 98,
+      "current_effect": "Historical document-scoped allocation only",
+      "conflict": null,
+      "curative_action": "Obtain complete instrument, payout evidence, and successor assignments",
+      "notes": "Never apply the percentages to 8/8 unless the assignor baseline is proven."
+    },
+    {
+      "sequence": 6,
+      "tracts": "T2",
+      "execution_date": "1985-07-29",
+      "recording_date": "1985-10-23",
+      "doc_type": "WB ASG",
+      "instrument_no": null,
+      "book_page": "845/47",
+      "grantor": "Cities Service Oil & Gas Corporation",
+      "grantee": "Leede Exploration",
+      "legal": "E/2 SE/4; Pearl #1-32 wellbore",
+      "estate": "Historic wellbore working-interest branch",
+      "depth": "Below 11,100 feet to but not below 19,480 feet",
+      "interest_conveyed": "Assigned wellbore interest; exact 8/8 baseline not established",
+      "interest_reserved": "1/8 of 8/8 ORRI",
+      "lease_id": "63/33 / Pearl",
+      "portfolio_branch": "Pearl",
+      "evidence_class": "DIRECT IMAGE",
+      "source_file": "L-006 / Images 4118–4119",
+      "image_page": "Images 4118–4119",
+      "confidence": 98,
+      "current_effect": "Historical only",
+      "conflict": null,
+      "curative_action": "Obtain unrecorded 1985 agreement, payout and successor records",
+      "notes": "Five-year renewal/extension reach; no warranty."
+    },
+    {
+      "sequence": 7,
+      "tracts": "T2,T4",
+      "execution_date": "1985-10-29",
+      "recording_date": "1986-03-06",
+      "doc_type": "ASG / LEASE SCHEDULE",
+      "instrument_no": null,
+      "book_page": "872/279",
+      "grantor": "Union Oil Company of California",
+      "grantee": "Leede Exploration",
+      "legal": "Listed Section 32 leases; E/2 SE/4 specially limited",
+      "estate": "Depth-limited leasehold",
+      "depth": "Generally top Morrow–19,480 feet; E/2 SE/4 11,100–19,480 feet; prior Crook rights excluded",
+      "interest_conveyed": "Scheduled leasehold; exact quantum not stated in reviewed pages",
+      "interest_reserved": "1/8 gas/condensate/distillate ORRI; 1/16 oil/casinghead-gas ORRI",
+      "lease_id": "Bk 872/Pg 279 schedule",
+      "portfolio_branch": "Union/Leede deep",
+      "evidence_class": "DIRECT IMAGE / PARTIAL INSTRUMENT",
+      "source_file": "L-007 / Images 4388, 4391–4393",
+      "image_page": "Images 4388, 4391–4393",
+      "confidence": 92,
+      "current_effect": "Historic depth-limited branch only",
+      "conflict": "Unrecorded 1984 agreement and incomplete instrument review",
+      "curative_action": "Pull complete instrument, agreement, all scheduled OGLs and releases",
+      "notes": "Rows overlap; no additive-acre or current-HBP inference."
+    },
+    {
+      "sequence": 8,
+      "tracts": "T3",
+      "execution_date": "1988-02-18",
+      "recording_date": "1988-04-26",
+      "doc_type": "ASG",
+      "instrument_no": null,
+      "book_page": "1014/75",
+      "grantor": "Consolidation of Leede Trusts",
+      "grantee": "Leede Exploration",
+      "legal": "N/2 Section 32",
+      "estate": "Purported OGL and working/cost-bearing interests",
+      "depth": "All depths below top Hunton",
+      "interest_conveyed": null,
+      "interest_reserved": "Royalty/ORRI reconveyance effect unclear",
+      "lease_id": null,
+      "portfolio_branch": "Leede/McCall/trust",
+      "evidence_class": "DIRECT IMAGE",
+      "source_file": "L-011 / Image 4893",
+      "image_page": "Image 4893",
+      "confidence": 90,
+      "current_effect": "Facial transfer only; title effect OPEN",
+      "conflict": "Assignor source evidence proves royalty/ORRI, not the purported WI; exact quantum absent",
+      "curative_action": "Establish predecessor title and obtain complete instrument",
+      "notes": "No 1% or 52.632% figure may be posted as present WI."
+    },
+    {
+      "sequence": 9,
+      "tracts": "T5",
+      "execution_date": null,
+      "recording_date": "2022-11-18",
+      "doc_type": "CONFIRMATORY CONV",
+      "instrument_no": "I-2022-004838",
+      "book_page": "2395/415–464",
+      "grantor": "DP Legacy Tapstone LLC",
+      "grantee": "Diversified ABS VI Upstream LLC; DP Sooner HoldCo LLC",
+      "legal": "Section 32 schedule reference; asset OK48147.001.1",
+      "estate": "Leasehold claimant identity",
+      "depth": null,
+      "interest_conveyed": null,
+      "interest_reserved": null,
+      "lease_id": "OK48147.001.1",
+      "portfolio_branch": "DP Sooner",
+      "evidence_class": "REVIEWED SCHEDULE PAGE",
+      "source_file": "I-2022-004838 / Exhibit E p.462",
+      "image_page": "Bk 2395/Pg 462",
+      "confidence": 96,
+      "current_effect": "Asset routed to DP Sooner path; no tract or quantum proof",
+      "conflict": null,
+      "curative_action": "Obtain complete operative schedules and incorporated documents",
+      "notes": "Asset-line legal and interest fields do not support a decimal."
+    },
+    {
+      "sequence": 10,
+      "tracts": "T5",
+      "execution_date": null,
+      "recording_date": "2023-03-02",
+      "doc_type": "CONFIRMATORY CONV",
+      "instrument_no": "I-2023-000796",
+      "book_page": "2400/551–567",
+      "grantor": "DP Sooner HoldCo LLC",
+      "grantee": "Diversified Production LLC",
+      "legal": "Section 32 schedule reference; asset OK48147.001.1",
+      "estate": "Leasehold claimant identity",
+      "depth": null,
+      "interest_conveyed": null,
+      "interest_reserved": null,
+      "lease_id": "OK48147.001.1",
+      "portfolio_branch": "DP Sooner / Diversified",
+      "evidence_class": "REVIEWED SCHEDULE PAGE",
+      "source_file": "I-2023-000796 / Schedule B p.566",
+      "image_page": "Bk 2400/Pg 566",
+      "confidence": 96,
+      "current_effect": "Latest supported recorded claimant identity; no tract or quantum proof",
+      "conflict": null,
+      "curative_action": "Obtain complete operative schedules and incorporated documents",
+      "notes": "Do not post Diversified as proven current owner or assign a WI decimal."
+    }
+  ],
+  "template_improvements": [
+    "Central protected Tract Control table; report cells reference one authoritative legal/scope definition.",
+    "Separate execution and recording date columns.",
+    "Pair exact fraction/source percentage with decimal only when denominator and application are proven.",
+    "Use explicit NOT DETERMINED and OPEN fields; never formulas that coerce blanks to zero.",
+    "Add address type, source, and effective/recording date.",
+    "Add portfolio branch, estate, and depth columns.",
+    "Add conflict ID, current effect, and curative action.",
+    "Prevent additive acreage totals across overlapping tract scopes.",
+    "Tier colors: direct image, reviewed schedule, index locator, open/rejected.",
+    "QA stale-token scan for Section 27/Roger Mills template facts and unsupported present-owner language."
+  ],
+  "new_evidence_only": [
+    "Controlling tract correction: T1 NE/4 160; T2 E/2 SE/4 80; T3 N/2 below top Hunton 320 overlapping; T4 Bk 872/279 non-additive deep overlay; T5 modern full-section record branch.",
+    "OGL 63/33 and Bk 244/Pg 432 isolate the Garrett/Pearl branch to E/2 SE/4.",
+    "Bk 845/Pg 47 defines the Pearl wellbore interval and a historic 1/8 of 8/8 ORRI reservation.",
+    "Bk 1014/Pg 75 contains no exact WI quantum and has a source-title defect; donor 1%/52.632% implications are rejected.",
+    "Bk 872/Pg 279 scheduled leases overlap; row acreage cannot be summed into Diversified net leasehold acres.",
+    "2395/462 and 2400/566 prove claimant identity for OK48147.001.1 only, not tract allocation or quantum."
+  ],
+  "rejected_or_downgraded_claims": [
+    "Donor five-parcel tract definitions and additive 640-acre total.",
+    "15.000875% as present tract WI; it is relative-chain planning math only.",
+    "48.75% OCM transaction RTI as present Diversified WI.",
+    "Bk 509/Pg 220 participant percentages as fractions of 8/8.",
+    "Financing statements, mortgages, releases, or merger notices as affirmative ownership proof.",
+    "Historic probate internal Tract 3/4 labels as project tracts.",
+    "Carlson wells in Section 5-10N-25W as Section 32 HBP evidence.",
+    "Any owner address other than the cited recorded Diversified address."
+  ],
+  "acquisition_queue": [
+    {
+      "priority": 1,
+      "tract": "T5",
+      "source": "Certified complete 2395/415–464 and 2400/551–567, all exhibits and incorporated documents",
+      "purpose": "Maps OK48147.001.1 by legal, estate, depth, quantum, exclusions, and burdens"
+    },
+    {
+      "priority": 2,
+      "tract": "T2",
+      "source": "Original OGL 63/33 plus amendments, ratifications, releases, production and shut-in records",
+      "purpose": "Determines Pearl lease terms, status, and HBP"
+    },
+    {
+      "priority": 3,
+      "tract": "T3",
+      "source": "Complete 1014/75 and Leede trust/McCall predecessor chain",
+      "purpose": "Resolves depth-defined source title and nemo-dat risk"
+    },
+    {
+      "priority": 4,
+      "tract": "T4",
+      "source": "Complete 872/279, unrecorded 1984 agreement, and every scheduled OGL",
+      "purpose": "Enables lease matrix, overlap/gap analysis, and burden review"
+    },
+    {
+      "priority": 5,
+      "tract": "T1",
+      "source": "Post-Bollenbach deeds, mineral deeds, probates, decrees, reservations, and releases",
+      "purpose": "Determines present NE/4 mineral vesting"
+    },
+    {
+      "priority": 6,
+      "tract": "ALL",
+      "source": "Complete 2340, 2371, 2389, 2393, 2415, 2434, 2475–2476 schedules",
+      "purpose": "Separates portfolio branches and tests actual Section 32 overlap"
+    },
+    {
+      "priority": 7,
+      "tract": "ALL",
+      "source": "Stamped index page 48 and recorded copies for promoted index-only rows",
+      "purpose": "Closes source gap and prevents locator evidence from becoming title evidence"
+    }
+  ],
+  "qa": {
+    "tract_legals_verified": true,
+    "no_blank_as_zero": true,
+    "no_unsupported_current_owner": true,
+    "portfolio_branches_separated": true,
+    "addresses_source_cited": true,
+    "formulas_checked": true,
+    "uploaded_files_reopened": false
+  }
+}

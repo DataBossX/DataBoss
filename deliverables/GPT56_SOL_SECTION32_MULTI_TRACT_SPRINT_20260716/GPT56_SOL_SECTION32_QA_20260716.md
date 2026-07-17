@@ -2,11 +2,13 @@
 
 ## Passed
 - All five controlling tract definitions are present.
-- No overlapping tract-acre total is calculated.
+- Tract 4 document-location math is separately controlled: 1,360 row acres, 560 unique nominal acres, 800 overlap, and 80 schedule-gap acres; no current net-acre total is calculated.
 - Unknown ownership quantities are null, blank, OPEN, or NOT DETERMINED—not zero.
 - No unsupported current mineral owner, WI, NRI, ORRI, net acres, HBP, or lease term is stated.
 - Portfolio branches, title conveyances, mergers, mortgages, financing statements, and releases are classified separately.
-- The sole address is source-cited and not represented as verified current.
+- The recorded Diversified address and 14 historical addresses are source/date cited; no historical address is represented as current.
+- Eleven original OGL faces were directly reviewed and matched to the Bk 872/Pg 279 lease schedule.
+- Three direct-face/index instrument-number conflicts are visible and remain open for clerk confirmation.
 - JSON parses and contains all five tracts.
 - Workbook sheets reopen successfully and required headers are present.
 

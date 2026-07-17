@@ -13,9 +13,15 @@ Status: **HOLD_NO_RELEASE**
 8. Separated Chesapeake/Tapstone/KL CHK, Burlington, Unbridled/MNR, Teocalli, and Canvas/DP Ponies branches.
 9. Rejected 15.000875%, 48.75%, and Bk 509/Pg 220 participant allocations as present tract WI.
 10. Added explicit acquisition, conflict, curative, evidence-tier, and no-blank-as-zero controls.
+11. Reviewed original faces for all 11 OGLs listed in Bk 872/Pg 279 and populated historic royalty, term, recording, address, and party fields.
+12. Reconciled Bk 872/Pg 279 to 1,360 row acres, 560 unique nominal acres, 800 overlap, and an 80-acre S/2 NW/4 schedule gap—document metrics only.
+13. Corrected the historic lessor spelling to Ima Pearl Crook from Image 1197.
+14. Flagged direct-face/index conflicts: 352/719 instrument 5169 vs 5051; 352/721 instrument 5168 vs 5052; 376/369 instrument 3757 vs 3707.
+15. Added 14 source-dated historical address rows, each expressly labeled not current.
 
 ## Evidence limitations
 - The canonical index has 1,928 unique locator rows; 1,883 are index-only.
 - Stamped page 48 is missing.
 - Fifty-three repeated page-54 occurrences are quarantined.
 - Complete operative schedules remain missing for the modern claimant chain.
+- Bk 872/Pg 280–281, the unrecorded 1984 agreement, amendments, releases, and lease-specific HBP evidence remain missing.

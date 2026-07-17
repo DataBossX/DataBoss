@@ -134,6 +134,145 @@
           "conflicts": [],
           "curative_action": "Obtain complete instrument, payout evidence, and successor assignments",
           "notes": "Never apply the percentages to 8/8 unless the assignor baseline is proven."
+        },
+        {
+          "execution_date": "1972-02-05",
+          "recording_date": "1972-02-22",
+          "doc_type": "OGL",
+          "instrument_no": "1131",
+          "book_page": "264/345",
+          "grantor": [
+            "Charlie B. Crook",
+            "Ima Pearl Crook, his wife"
+          ],
+          "grantor_addresses": [
+            "Route 1, Mayfield, Oklahoma"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 1/8; primary term 5 years commencing 1973-01-13",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "264/345",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1197–1198 and 4392. Instrument also covers 80 acres in Section 28; only 160 Section 32 row acres counted.",
+          "source_page_or_image": "Images 1197–1198 and 4392",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1978-05-16",
+          "recording_date": "1978-06-27",
+          "doc_type": "OGL",
+          "instrument_no": "5169",
+          "book_page": "352/719",
+          "grantor": [
+            "F.L. Randel"
+          ],
+          "grantor_addresses": [
+            "P. O. Box 7, c/o Ramada Inn, Big Spring, Texas 79720"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "352/719",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1552–1553 and 4391. Face instrument 5169 conflicts with protocol index 5051; clerk confirmation required.",
+          "source_page_or_image": "Images 1552–1553 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [
+            "Direct face instrument 5169 conflicts with protocol index 5051"
+          ],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1978-05-16",
+          "recording_date": "1978-06-27",
+          "doc_type": "OGL",
+          "instrument_no": "5168",
+          "book_page": "352/721",
+          "grantor": [
+            "J.L. Randel"
+          ],
+          "grantor_addresses": [
+            "Box 2609, Wichita Falls, Texas"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "352/721",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1554–1555 and 4392. Face instrument 5168 conflicts with protocol index 5052; clerk confirmation required.",
+          "source_page_or_image": "Images 1554–1555 and 4392",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [
+            "Direct face instrument 5168 conflicts with protocol index 5052"
+          ],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1979-03-21",
+          "recording_date": "1979-04-30",
+          "doc_type": "OGL",
+          "instrument_no": "3757",
+          "book_page": "376/369",
+          "grantor": [
+            "Great Western Oil & Gas, Inc., a California corporation"
+          ],
+          "grantor_addresses": [
+            "4010 Palos Verdes Drive North, Suite 206, Rolling Hills Estates, California 90274"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "376/369",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1569–1570 and 4392. Face instrument 3757 conflicts with protocol index 3707; correction metadata at 1039/20–23 remains unreviewed.",
+          "source_page_or_image": "Images 1569–1570 and 4392",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [
+            "Direct face instrument 3757 conflicts with protocol index 3707"
+          ],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
         }
       ],
       "mineral_owners_proven": [],
@@ -142,31 +281,68 @@
         {
           "lease_id": "264/345",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "HBP, amendments, releases, and modern linkage open"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1197–1198 and 4392. Instrument also covers 80 acres in Section 28; only 160 Section 32 row acres counted."
         },
         {
           "lease_id": "352/719",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1552–1553 and 4391. Face instrument 5169 conflicts with protocol index 5051; clerk confirmation required."
         },
         {
           "lease_id": "352/721",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1554–1555 and 4392. Face instrument 5168 conflicts with protocol index 5052; clerk confirmation required."
         },
         {
           "lease_id": "376/369",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "Correction metadata at 1039/20–23 unreviewed"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1569–1570 and 4392. Face instrument 3757 conflicts with protocol index 3707; correction metadata at 1039/20–23 remains unreviewed."
         }
       ],
       "working_interest_candidates": [],
       "burdens": [],
-      "addresses": []
+      "addresses": [
+        {
+          "party": "Charlie B. Crook; Ima Pearl Crook",
+          "address_as_recorded": "Route 1, Mayfield, Oklahoma",
+          "normalized_address": "Route 1, Mayfield, OK",
+          "address_type": "Lessor address",
+          "source": "OGL 264/345 / Image 1197",
+          "source_date": "1972-02-05",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "F.L. Randel",
+          "address_as_recorded": "P. O. Box 7, c/o Ramada Inn, Big Spring, Texas 79720",
+          "normalized_address": "P.O. Box 7, c/o Ramada Inn, Big Spring, TX 79720",
+          "address_type": "Lessor address",
+          "source": "OGL 352/719 / Image 1552",
+          "source_date": "1978-05-16",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "J.L. Randel",
+          "address_as_recorded": "Box 2609, Wichita Falls, Texas",
+          "normalized_address": "P.O. Box 2609, Wichita Falls, TX",
+          "address_type": "Lessor address",
+          "source": "OGL 352/721 / Image 1554",
+          "source_date": "1978-05-16",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Great Western Oil & Gas, Inc.",
+          "address_as_recorded": "4010 Palos Verdes Drive North, Suite 206, Rolling Hills Estates, California 90274",
+          "normalized_address": "4010 Palos Verdes Drive N, Suite 206, Rolling Hills Estates, CA 90274",
+          "address_type": "Lessor corporate address",
+          "source": "OGL 376/369 / Image 1569",
+          "source_date": "1979-03-21",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        }
+      ]
     },
     {
       "tract_no": 2,
@@ -182,15 +358,17 @@
       "instruments": [
         {
           "execution_date": "1947-11-13",
-          "recording_date": null,
-          "doc_type": "OGL REF",
+          "recording_date": "1947-11-26",
+          "doc_type": "OGL",
           "instrument_no": null,
           "book_page": "63/33",
           "grantor": [
             "Cora B. Garrett",
-            "S.A. Garrett"
+            "S.A. Garrett, her husband"
           ],
-          "grantor_addresses": [],
+          "grantor_addresses": [
+            "Mayfield, Oklahoma"
+          ],
           "grantee": [
             "C.E. McKinley"
           ],
@@ -198,19 +376,19 @@
           "legal": "E/2 SE/4",
           "estate": "Leasehold identity",
           "depth": null,
-          "interest_conveyed_fraction": null,
+          "interest_conveyed_fraction": "Historic leasehold face; 1/8 royalty; 10-year primary term",
           "interest_conveyed_decimal": null,
           "interest_reserved": null,
           "lease_id": "L-91511 / 63/33",
           "portfolio_branch": "Pearl",
-          "evidence_class": "DIRECT-IMAGE ASSIGNMENT RECITAL",
-          "source_file": "Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
-          "source_page_or_image": "Images 1062, 4393",
-          "confidence": 95,
-          "current_effect": "Historic lease identity only",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED ASSIGNMENT EXHIBITS",
+          "source_file": "OGL 63/33 / Image 0353; Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
+          "source_page_or_image": "Images 0353, 1062, 4393",
+          "confidence": 98,
+          "current_effect": "Historic lease terms and identity only",
           "conflicts": [],
-          "curative_action": "Pull original OGL and all amendments/releases",
-          "notes": "Royalty, term, clauses, depth, expiration, and HBP remain open."
+          "curative_action": "Pull amendments, ratifications, releases, pooling, production, and HBP evidence",
+          "notes": "Original face proves 1/8 royalty and 10-year term. Pooling and shut-in clauses are present but current effect, continuation, and HBP remain open."
         },
         {
           "execution_date": "1969-11-25",
@@ -285,11 +463,15 @@
           "grantor": [
             "Union Oil Company of California"
           ],
-          "grantor_addresses": [],
+          "grantor_addresses": [
+            "P. O. Box 3100, Midland, Texas 79702"
+          ],
           "grantee": [
             "Leede Exploration"
           ],
-          "grantee_addresses": [],
+          "grantee_addresses": [
+            "600 North Marienfeld, Midland, Texas 79701"
+          ],
           "legal": "Listed Section 32 leases; E/2 SE/4 specially limited",
           "estate": "Depth-limited leasehold",
           "depth": "Generally top Morrow–19,480 feet; E/2 SE/4 11,100–19,480 feet; prior Crook rights excluded",
@@ -316,13 +498,23 @@
         {
           "lease_id": "63/33",
           "legal": "E/2 SE/4",
-          "current_status": "OPEN",
-          "notes": "Original lease and terms not reviewed"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 0353 and 4393. Original face proves historic terms only; amendments, release, HBP, and current ownership remain open."
         }
       ],
       "working_interest_candidates": [],
       "burdens": [],
-      "addresses": []
+      "addresses": [
+        {
+          "party": "Cora B. Garrett; S.A. Garrett",
+          "address_as_recorded": "Mayfield, Oklahoma",
+          "normalized_address": "Mayfield, OK",
+          "address_type": "Lessor locality",
+          "source": "OGL 63/33 / Image 0353",
+          "source_date": "1947-11-13",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        }
+      ]
     },
     {
       "tract_no": 3,
@@ -345,15 +537,19 @@
           "grantor": [
             "Consolidation of Leede Trusts"
           ],
-          "grantor_addresses": [],
+          "grantor_addresses": [
+            "600 North Marienfeld, Midland, Texas 79701"
+          ],
           "grantee": [
             "Leede Exploration"
           ],
-          "grantee_addresses": [],
+          "grantee_addresses": [
+            "600 North Marienfeld, Midland, Texas 79701"
+          ],
           "legal": "N/2 Section 32",
           "estate": "Purported OGL and working/cost-bearing interests",
           "depth": "All depths below top Hunton",
-          "interest_conveyed_fraction": null,
+          "interest_conveyed_fraction": "All assignor right, title, and interest in OGLs and other working/cost-bearing interests; effective for all purposes as of first production from McCall #1-29",
           "interest_conveyed_decimal": null,
           "interest_reserved": "Royalty/ORRI reconveyance effect unclear",
           "lease_id": null,
@@ -375,18 +571,37 @@
       "leases": [],
       "working_interest_candidates": [],
       "burdens": [],
-      "addresses": []
+      "addresses": [
+        {
+          "party": "Leede Exploration",
+          "address_as_recorded": "600 North Marienfeld, Midland, Texas 79701",
+          "normalized_address": "600 N Marienfeld, Midland, TX 79701",
+          "address_type": "Assignee address",
+          "source": "Bk 872/Pg 279 / Image 4388",
+          "source_date": "1985-10-29",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Consolidation of Leede Trusts",
+          "address_as_recorded": "600 North Marienfeld, Midland, Texas 79701",
+          "normalized_address": "600 N Marienfeld, Midland, TX 79701",
+          "address_type": "Assignor address",
+          "source": "Bk 1014/Pg 75 / Image 4893",
+          "source_date": "1988-02-18",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        }
+      ]
     },
     {
       "tract_no": 4,
       "legal": "Deep leasehold references and lease list in Bk 872/Pg 279",
       "nominal_acres": null,
-      "scope_notes": "Overlapping lease-by-lease and depth-by-depth scope; non-additive. General assignment interval is top Morrow–19,480 feet, subject to exceptions.",
-      "current_conclusion": "Historic lease identities and assignment depth limitations are supported. Unique acreage, uncovered gaps, current lease status, and current quantum are NOT DETERMINED.",
+      "scope_notes": "Overlapping lease-by-lease and depth-by-depth scope; non-additive. Eleven listed Section 32 lease rows total 1,360 row acres but reconcile to 560 unique nominal acres, 800 overlapping row acres, and an 80-acre S/2 NW/4 schedule gap. General assignment interval is top Morrow–19,480 feet, subject to exceptions.",
+      "current_conclusion": "Original faces for all 11 listed leases and Bk 872/Pg 279 assignment/exhibits support the historic lease package and document-location math. Current lease status, HBP, successor title, and current quantum are NOT DETERMINED.",
       "remaining_open_items": [
-        "Complete Bk 872/Pg 279 and the unrecorded 1984 agreement.",
-        "Every original scheduled lease, amendment, release, and HBP record.",
-        "GIS/legal normalization before calculating unique acres, overlap, or gaps."
+        "Missing Bk 872/Pg 280–281 terms/signature pages and the unrecorded 1984 agreement.",
+        "Every amendment, correction, release, pooling record, and lease-specific HBP record.",
+        "Post-1985 lease-by-lease successor chain and burden survival."
       ],
       "instruments": [
         {
@@ -398,11 +613,15 @@
           "grantor": [
             "Union Oil Company of California"
           ],
-          "grantor_addresses": [],
+          "grantor_addresses": [
+            "P. O. Box 3100, Midland, Texas 79702"
+          ],
           "grantee": [
             "Leede Exploration"
           ],
-          "grantee_addresses": [],
+          "grantee_addresses": [
+            "600 North Marienfeld, Midland, Texas 79701"
+          ],
           "legal": "Listed Section 32 leases; E/2 SE/4 specially limited",
           "estate": "Depth-limited leasehold",
           "depth": "Generally top Morrow–19,480 feet; E/2 SE/4 11,100–19,480 feet; prior Crook rights excluded",
@@ -421,6 +640,348 @@
           ],
           "curative_action": "Pull complete instrument, agreement, all scheduled OGLs and releases",
           "notes": "Rows overlap; no additive-acre or current-HBP inference."
+        },
+        {
+          "execution_date": "1972-02-05",
+          "recording_date": "1972-02-22",
+          "doc_type": "OGL",
+          "instrument_no": "1131",
+          "book_page": "264/345",
+          "grantor": [
+            "Charlie B. Crook",
+            "Ima Pearl Crook, his wife"
+          ],
+          "grantor_addresses": [
+            "Route 1, Mayfield, Oklahoma"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 1/8; primary term 5 years commencing 1973-01-13",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "264/345",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1197–1198 and 4392. Instrument also covers 80 acres in Section 28; only 160 Section 32 row acres counted.",
+          "source_page_or_image": "Images 1197–1198 and 4392",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1976-04-29",
+          "recording_date": "1976-06-09",
+          "doc_type": "OGL",
+          "instrument_no": "2991",
+          "book_page": "307/31",
+          "grantor": [
+            "Cora B. LeGrand, widow"
+          ],
+          "grantor_addresses": [
+            "Sweetwater, Oklahoma"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "W/2 SE/4 and S/2 SW/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 1/8; primary term 5 years commencing 1976-09-23",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "307/31",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1372 and 4391. Overlaps other listed rows; no present status or HBP inference.",
+          "source_page_or_image": "Images 1372 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1977-10-14",
+          "recording_date": null,
+          "doc_type": "OGL",
+          "instrument_no": null,
+          "book_page": "340/302",
+          "grantor": [
+            "Gertrude L. LaFortune",
+            "Jeanne L. Fair",
+            "Mary Ann L. Wilcox",
+            "J.A. LaFortune Jr.",
+            "Robert J. LaFortune, co-trustees under the will of Joseph A. LaFortune"
+          ],
+          "grantor_addresses": [
+            "2300 Fourth National Bank Building, Tulsa, Oklahoma"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "N/2 SW/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years commencing 1977-11-28",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "340/302",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1522–1523 and 4391. Relationship to separate 340/304 remains open.",
+          "source_page_or_image": "Images 1522–1523 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1977-10-14",
+          "recording_date": null,
+          "doc_type": "OGL",
+          "instrument_no": null,
+          "book_page": "340/304",
+          "grantor": [
+            "Gertrude LaFortune, widow"
+          ],
+          "grantor_addresses": [
+            "2300 Fourth National Building, Tulsa, Oklahoma 74119"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "N/2 SW/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years commencing 1977-11-28",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "340/304",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1524–1525 and 4391. Separate overlapping lease; do not double count.",
+          "source_page_or_image": "Images 1524–1525 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1977-09-29",
+          "recording_date": "1977-11-07",
+          "doc_type": "OGL",
+          "instrument_no": null,
+          "book_page": "340/323",
+          "grantor": [
+            "George T. Harrison Jr.",
+            "Renata Harrison"
+          ],
+          "grantor_addresses": [
+            "201 North Charles Street, Baltimore, Maryland 21201"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "N/2 NW/4 and N/2 SW/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years commencing 1977-11-27",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "340/323",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1526–1527 and 4391. This is the only listed lease aliquot covering N/2 NW/4.",
+          "source_page_or_image": "Images 1526–1527 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1977-09-29",
+          "recording_date": "1978-02-09",
+          "doc_type": "OGL",
+          "instrument_no": "1089",
+          "book_page": "342/564",
+          "grantor": [
+            "Carol Seidenbach Leach"
+          ],
+          "grantor_addresses": [
+            "c/o Mrs. J. Leslie Seidenbach, 2827 South Birmingham Place, Tulsa, Oklahoma"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "N/2 SW/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years commencing 1977-11-30",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "342/564",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1542–1543 and 4391. Overlapping legal; current status open.",
+          "source_page_or_image": "Images 1542–1543 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1977-11-01",
+          "recording_date": "1978-02-09",
+          "doc_type": "OGL",
+          "instrument_no": "1090",
+          "book_page": "342/566",
+          "grantor": [
+            "Cynthia Seidenbach Kruse"
+          ],
+          "grantor_addresses": [
+            "c/o M. B. Johnson, 1623 S. College, Tulsa, Oklahoma 74104"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "N/2 SW/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years commencing 1977-11-30",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "342/566",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1544–1545 and 4391. Overlapping legal; current status open.",
+          "source_page_or_image": "Images 1544–1545 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1978-05-16",
+          "recording_date": "1978-06-27",
+          "doc_type": "OGL",
+          "instrument_no": "5169",
+          "book_page": "352/719",
+          "grantor": [
+            "F.L. Randel"
+          ],
+          "grantor_addresses": [
+            "P. O. Box 7, c/o Ramada Inn, Big Spring, Texas 79720"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "352/719",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1552–1553 and 4391. Face instrument 5169 conflicts with protocol index 5051; clerk confirmation required.",
+          "source_page_or_image": "Images 1552–1553 and 4391",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [
+            "Direct face instrument 5169 conflicts with protocol index 5051"
+          ],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1978-05-16",
+          "recording_date": "1978-06-27",
+          "doc_type": "OGL",
+          "instrument_no": "5168",
+          "book_page": "352/721",
+          "grantor": [
+            "J.L. Randel"
+          ],
+          "grantor_addresses": [
+            "Box 2609, Wichita Falls, Texas"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "352/721",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1554–1555 and 4392. Face instrument 5168 conflicts with protocol index 5052; clerk confirmation required.",
+          "source_page_or_image": "Images 1554–1555 and 4392",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [
+            "Direct face instrument 5168 conflicts with protocol index 5052"
+          ],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
+        },
+        {
+          "execution_date": "1979-03-21",
+          "recording_date": "1979-04-30",
+          "doc_type": "OGL",
+          "instrument_no": "3757",
+          "book_page": "376/369",
+          "grantor": [
+            "Great Western Oil & Gas, Inc., a California corporation"
+          ],
+          "grantor_addresses": [
+            "4010 Palos Verdes Drive North, Suite 206, Rolling Hills Estates, California 90274"
+          ],
+          "grantee": [
+            "Union Oil Company of California"
+          ],
+          "grantee_addresses": [],
+          "legal": "NE/4",
+          "estate": "Historic leasehold",
+          "depth": null,
+          "interest_conveyed_fraction": "Royalty 3/16; primary term 5 years",
+          "interest_conveyed_decimal": null,
+          "interest_reserved": null,
+          "lease_id": "376/369",
+          "portfolio_branch": "Union/Leede deep package",
+          "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+          "source_file": "Images 1569–1570 and 4392. Face instrument 3757 conflicts with protocol index 3707; correction metadata at 1039/20–23 remains unreviewed.",
+          "source_page_or_image": "Images 1569–1570 and 4392",
+          "confidence": 98,
+          "current_effect": "Historic original lease facts only; current status OPEN",
+          "conflicts": [
+            "Direct face instrument 3757 conflicts with protocol index 3707"
+          ],
+          "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+          "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms."
         }
       ],
       "mineral_owners_proven": [],
@@ -429,73 +990,191 @@
         {
           "lease_id": "63/33",
           "legal": "E/2 SE/4",
-          "current_status": "OPEN",
-          "notes": "Original lease and terms not reviewed"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 0353 and 4393. Original face proves historic terms only; amendments, release, HBP, and current ownership remain open."
         },
         {
           "lease_id": "264/345",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "HBP, amendments, releases, and modern linkage open"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1197–1198 and 4392. Instrument also covers 80 acres in Section 28; only 160 Section 32 row acres counted."
         },
         {
           "lease_id": "307/31",
           "legal": "W/2 SE/4 and S/2 SW/4",
-          "current_status": "OPEN",
-          "notes": "Overlaps other rows; original OGL not reviewed"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1372 and 4391. Overlaps other listed rows; no present status or HBP inference."
         },
         {
           "lease_id": "340/302",
           "legal": "N/2 SW/4",
-          "current_status": "OPEN",
-          "notes": "Relationship to 340/304 open"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1522–1523 and 4391. Relationship to separate 340/304 remains open."
         },
         {
           "lease_id": "340/304",
           "legal": "N/2 SW/4",
-          "current_status": "OPEN",
-          "notes": "Possible separate/corrective lease; do not double count"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1524–1525 and 4391. Separate overlapping lease; do not double count."
         },
         {
           "lease_id": "340/323",
           "legal": "N/2 NW/4 and N/2 SW/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1526–1527 and 4391. This is the only listed lease aliquot covering N/2 NW/4."
         },
         {
           "lease_id": "342/564",
           "legal": "N/2 SW/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1542–1543 and 4391. Overlapping legal; current status open."
         },
         {
           "lease_id": "342/566",
           "legal": "N/2 SW/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1544–1545 and 4391. Overlapping legal; current status open."
         },
         {
           "lease_id": "352/719",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1552–1553 and 4391. Face instrument 5169 conflicts with protocol index 5051; clerk confirmation required."
         },
         {
           "lease_id": "352/721",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "Overlapping legal"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1554–1555 and 4392. Face instrument 5168 conflicts with protocol index 5052; clerk confirmation required."
         },
         {
           "lease_id": "376/369",
           "legal": "NE/4",
-          "current_status": "OPEN",
-          "notes": "Correction metadata at 1039/20–23 unreviewed"
+          "current_status": "OPEN_UNVERIFIED_CURRENT",
+          "notes": "Images 1569–1570 and 4392. Face instrument 3757 conflicts with protocol index 3707; correction metadata at 1039/20–23 remains unreviewed."
         }
       ],
       "working_interest_candidates": [],
       "burdens": [],
-      "addresses": []
+      "addresses": [
+        {
+          "party": "Cora B. Garrett; S.A. Garrett",
+          "address_as_recorded": "Mayfield, Oklahoma",
+          "normalized_address": "Mayfield, OK",
+          "address_type": "Lessor locality",
+          "source": "OGL 63/33 / Image 0353",
+          "source_date": "1947-11-13",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Charlie B. Crook; Ima Pearl Crook",
+          "address_as_recorded": "Route 1, Mayfield, Oklahoma",
+          "normalized_address": "Route 1, Mayfield, OK",
+          "address_type": "Lessor address",
+          "source": "OGL 264/345 / Image 1197",
+          "source_date": "1972-02-05",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Cora B. LeGrand",
+          "address_as_recorded": "Sweetwater, Oklahoma",
+          "normalized_address": "Sweetwater, OK",
+          "address_type": "Lessor locality",
+          "source": "OGL 307/31 / Image 1372",
+          "source_date": "1976-04-29",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "LaFortune co-trustees",
+          "address_as_recorded": "2300 Fourth National Bank Building, Tulsa, Oklahoma",
+          "normalized_address": "2300 Fourth National Bank Building, Tulsa, OK",
+          "address_type": "Lessor address",
+          "source": "OGL 340/302 / Image 1522",
+          "source_date": "1977-10-14",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Gertrude LaFortune",
+          "address_as_recorded": "2300 Fourth National Building, Tulsa, Oklahoma 74119",
+          "normalized_address": "2300 Fourth National Building, Tulsa, OK 74119",
+          "address_type": "Lessor address",
+          "source": "OGL 340/304 / Image 1524",
+          "source_date": "1977-10-14",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "George T. Harrison Jr.; Renata Harrison",
+          "address_as_recorded": "201 North Charles Street, Baltimore, Maryland 21201",
+          "normalized_address": "201 North Charles Street, Baltimore, MD 21201",
+          "address_type": "Lessor address",
+          "source": "OGL 340/323 / Image 1526",
+          "source_date": "1977-09-29",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Carol Seidenbach Leach",
+          "address_as_recorded": "c/o Mrs. J. Leslie Seidenbach, 2827 South Birmingham Place, Tulsa, Oklahoma",
+          "normalized_address": "c/o Mrs. J. Leslie Seidenbach, 2827 South Birmingham Place, Tulsa, OK",
+          "address_type": "Lessor address",
+          "source": "OGL 342/564 / Image 1542",
+          "source_date": "1977-09-29",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Cynthia Seidenbach Kruse",
+          "address_as_recorded": "c/o M. B. Johnson, 1623 S. College, Tulsa, Oklahoma 74104",
+          "normalized_address": "c/o M. B. Johnson, 1623 S. College, Tulsa, OK 74104",
+          "address_type": "Lessor address",
+          "source": "OGL 342/566 / Image 1544",
+          "source_date": "1977-11-01",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "F.L. Randel",
+          "address_as_recorded": "P. O. Box 7, c/o Ramada Inn, Big Spring, Texas 79720",
+          "normalized_address": "P.O. Box 7, c/o Ramada Inn, Big Spring, TX 79720",
+          "address_type": "Lessor address",
+          "source": "OGL 352/719 / Image 1552",
+          "source_date": "1978-05-16",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "J.L. Randel",
+          "address_as_recorded": "Box 2609, Wichita Falls, Texas",
+          "normalized_address": "P.O. Box 2609, Wichita Falls, TX",
+          "address_type": "Lessor address",
+          "source": "OGL 352/721 / Image 1554",
+          "source_date": "1978-05-16",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Great Western Oil & Gas, Inc.",
+          "address_as_recorded": "4010 Palos Verdes Drive North, Suite 206, Rolling Hills Estates, California 90274",
+          "normalized_address": "4010 Palos Verdes Drive N, Suite 206, Rolling Hills Estates, CA 90274",
+          "address_type": "Lessor corporate address",
+          "source": "OGL 376/369 / Image 1569",
+          "source_date": "1979-03-21",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Union Oil Company of California",
+          "address_as_recorded": "P. O. Box 3100, Midland, Texas 79702",
+          "normalized_address": "P.O. Box 3100, Midland, TX 79702",
+          "address_type": "Assignor address",
+          "source": "Bk 872/Pg 279 / Image 4388",
+          "source_date": "1985-10-29",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        },
+        {
+          "party": "Leede Exploration",
+          "address_as_recorded": "600 North Marienfeld, Midland, Texas 79701",
+          "normalized_address": "600 N Marienfeld, Midland, TX 79701",
+          "address_type": "Assignee address",
+          "source": "Bk 872/Pg 279 / Image 4388",
+          "source_date": "1985-10-29",
+          "currentness_caveat": "Historical only; not a current mailing address"
+        }
+      ]
     },
     {
       "tract_no": 5,
@@ -554,7 +1233,9 @@
           "grantee": [
             "Diversified Production LLC"
           ],
-          "grantee_addresses": [],
+          "grantee_addresses": [
+            "1600 Corporate Drive, Birmingham, AL 35242"
+          ],
           "legal": "Section 32 schedule reference; asset OK48147.001.1",
           "estate": "Leasehold claimant identity",
           "depth": null,
@@ -586,15 +1267,15 @@
       ],
       "burdens": [],
       "addresses": [
-        [
-          "Diversified Production LLC",
-          "1600 Corporate Drive, Birmingham, AL 35242",
-          "1600 Corporate Drive, Birmingham, AL 35242",
-          "Recorded instrument address",
-          "2395/415–464; 2400/551–567",
-          "2022-11-18 / 2023-03-02",
-          "Historic recorded address; not represented as verified current"
-        ]
+        {
+          "party": "Diversified Production LLC",
+          "address_as_recorded": "1600 Corporate Drive, Birmingham, AL 35242",
+          "normalized_address": "1600 Corporate Drive, Birmingham, AL 35242",
+          "address_type": "Recorded instrument address",
+          "source": "2395/415–464; 2400/551–567",
+          "source_date": "2022-11-18 / 2023-03-02",
+          "currentness_caveat": "Historic recorded address; not represented as verified current"
+        }
       ]
     }
   ],
@@ -637,7 +1318,7 @@
       "present_leasehold_candidate": null,
       "net_acres": null,
       "confidence": "HOLD",
-      "comments": "Historic lease identities and assignment depth limitations are supported. Unique acreage, uncovered gaps, current lease status, and current quantum are NOT DETERMINED."
+      "comments": "Original faces for all 11 listed leases and Bk 872/Pg 279 assignment/exhibits support the historic lease package and document-location math. Current lease status, HBP, successor title, and current quantum are NOT DETERMINED."
     },
     {
       "tract_no": 5,
@@ -819,27 +1500,27 @@
       "sequence": 3,
       "tracts": "T2",
       "execution_date": "1947-11-13",
-      "recording_date": null,
-      "doc_type": "OGL REF",
+      "recording_date": "1947-11-26",
+      "doc_type": "OGL",
       "instrument_no": null,
       "book_page": "63/33",
-      "grantor": "Cora B. Garrett; S.A. Garrett",
+      "grantor": "Cora B. Garrett; S.A. Garrett, her husband",
       "grantee": "C.E. McKinley",
       "legal": "E/2 SE/4",
       "estate": "Leasehold identity",
       "depth": null,
-      "interest_conveyed": null,
+      "interest_conveyed": "Historic leasehold face; 1/8 royalty; 10-year primary term",
       "interest_reserved": null,
       "lease_id": "L-91511 / 63/33",
       "portfolio_branch": "Pearl",
-      "evidence_class": "DIRECT-IMAGE ASSIGNMENT RECITAL",
-      "source_file": "Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
-      "image_page": "Images 1062, 4393",
-      "confidence": 95,
-      "current_effect": "Historic lease identity only",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED ASSIGNMENT EXHIBITS",
+      "source_file": "OGL 63/33 / Image 0353; Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
+      "image_page": "Images 0353, 1062, 4393",
+      "confidence": 98,
+      "current_effect": "Historic lease terms and identity only",
       "conflict": null,
-      "curative_action": "Pull original OGL and all amendments/releases",
-      "notes": "Royalty, term, clauses, depth, expiration, and HBP remain open."
+      "curative_action": "Pull amendments, ratifications, releases, pooling, production, and HBP evidence",
+      "notes": "Original face proves 1/8 royalty and 10-year term. Pooling and shut-in clauses are present but current effect, continuation, and HBP remain open."
     },
     {
       "sequence": 4,
@@ -958,7 +1639,7 @@
       "legal": "N/2 Section 32",
       "estate": "Purported OGL and working/cost-bearing interests",
       "depth": "All depths below top Hunton",
-      "interest_conveyed": null,
+      "interest_conveyed": "All assignor right, title, and interest in OGLs and other working/cost-bearing interests; effective for all purposes as of first production from McCall #1-29",
       "interest_reserved": "Royalty/ORRI reconveyance effect unclear",
       "lease_id": null,
       "portfolio_branch": "Leede/McCall/trust",
@@ -1022,6 +1703,272 @@
       "conflict": null,
       "curative_action": "Obtain complete operative schedules and incorporated documents",
       "notes": "Do not post Diversified as proven current owner or assign a WI decimal."
+    },
+    {
+      "sequence": 11,
+      "tracts": "T1,T4",
+      "execution_date": "1972-02-05",
+      "recording_date": "1972-02-22",
+      "doc_type": "OGL",
+      "instrument_no": "1131",
+      "book_page": "264/345",
+      "grantor": "Charlie B. Crook; Ima Pearl Crook, his wife",
+      "grantee": "Union Oil Company of California",
+      "legal": "NE/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 1/8; primary term 5 years commencing 1973-01-13",
+      "interest_reserved": null,
+      "lease_id": "264/345",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1197–1198 and 4392. Instrument also covers 80 acres in Section 28; only 160 Section 32 row acres counted.",
+      "image_page": "Images 1197–1198 and 4392",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 12,
+      "tracts": "T4",
+      "execution_date": "1976-04-29",
+      "recording_date": "1976-06-09",
+      "doc_type": "OGL",
+      "instrument_no": "2991",
+      "book_page": "307/31",
+      "grantor": "Cora B. LeGrand, widow",
+      "grantee": "Union Oil Company of California",
+      "legal": "W/2 SE/4 and S/2 SW/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 1/8; primary term 5 years commencing 1976-09-23",
+      "interest_reserved": null,
+      "lease_id": "307/31",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1372 and 4391. Overlaps other listed rows; no present status or HBP inference.",
+      "image_page": "Images 1372 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 13,
+      "tracts": "T4",
+      "execution_date": "1977-10-14",
+      "recording_date": null,
+      "doc_type": "OGL",
+      "instrument_no": null,
+      "book_page": "340/302",
+      "grantor": "Gertrude L. LaFortune; Jeanne L. Fair; Mary Ann L. Wilcox; J.A. LaFortune Jr.; Robert J. LaFortune, co-trustees under the will of Joseph A. LaFortune",
+      "grantee": "Union Oil Company of California",
+      "legal": "N/2 SW/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years commencing 1977-11-28",
+      "interest_reserved": null,
+      "lease_id": "340/302",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1522–1523 and 4391. Relationship to separate 340/304 remains open.",
+      "image_page": "Images 1522–1523 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 14,
+      "tracts": "T4",
+      "execution_date": "1977-10-14",
+      "recording_date": null,
+      "doc_type": "OGL",
+      "instrument_no": null,
+      "book_page": "340/304",
+      "grantor": "Gertrude LaFortune, widow",
+      "grantee": "Union Oil Company of California",
+      "legal": "N/2 SW/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years commencing 1977-11-28",
+      "interest_reserved": null,
+      "lease_id": "340/304",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1524–1525 and 4391. Separate overlapping lease; do not double count.",
+      "image_page": "Images 1524–1525 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 15,
+      "tracts": "T4",
+      "execution_date": "1977-09-29",
+      "recording_date": "1977-11-07",
+      "doc_type": "OGL",
+      "instrument_no": null,
+      "book_page": "340/323",
+      "grantor": "George T. Harrison Jr.; Renata Harrison",
+      "grantee": "Union Oil Company of California",
+      "legal": "N/2 NW/4 and N/2 SW/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years commencing 1977-11-27",
+      "interest_reserved": null,
+      "lease_id": "340/323",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1526–1527 and 4391. This is the only listed lease aliquot covering N/2 NW/4.",
+      "image_page": "Images 1526–1527 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 16,
+      "tracts": "T4",
+      "execution_date": "1977-09-29",
+      "recording_date": "1978-02-09",
+      "doc_type": "OGL",
+      "instrument_no": "1089",
+      "book_page": "342/564",
+      "grantor": "Carol Seidenbach Leach",
+      "grantee": "Union Oil Company of California",
+      "legal": "N/2 SW/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years commencing 1977-11-30",
+      "interest_reserved": null,
+      "lease_id": "342/564",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1542–1543 and 4391. Overlapping legal; current status open.",
+      "image_page": "Images 1542–1543 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 17,
+      "tracts": "T4",
+      "execution_date": "1977-11-01",
+      "recording_date": "1978-02-09",
+      "doc_type": "OGL",
+      "instrument_no": "1090",
+      "book_page": "342/566",
+      "grantor": "Cynthia Seidenbach Kruse",
+      "grantee": "Union Oil Company of California",
+      "legal": "N/2 SW/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years commencing 1977-11-30",
+      "interest_reserved": null,
+      "lease_id": "342/566",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1544–1545 and 4391. Overlapping legal; current status open.",
+      "image_page": "Images 1544–1545 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 18,
+      "tracts": "T1,T4",
+      "execution_date": "1978-05-16",
+      "recording_date": "1978-06-27",
+      "doc_type": "OGL",
+      "instrument_no": "5169",
+      "book_page": "352/719",
+      "grantor": "F.L. Randel",
+      "grantee": "Union Oil Company of California",
+      "legal": "NE/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years",
+      "interest_reserved": null,
+      "lease_id": "352/719",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1552–1553 and 4391. Face instrument 5169 conflicts with protocol index 5051; clerk confirmation required.",
+      "image_page": "Images 1552–1553 and 4391",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [
+        "Direct face instrument 5169 conflicts with protocol index 5051"
+      ],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 19,
+      "tracts": "T1,T4",
+      "execution_date": "1978-05-16",
+      "recording_date": "1978-06-27",
+      "doc_type": "OGL",
+      "instrument_no": "5168",
+      "book_page": "352/721",
+      "grantor": "J.L. Randel",
+      "grantee": "Union Oil Company of California",
+      "legal": "NE/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years",
+      "interest_reserved": null,
+      "lease_id": "352/721",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1554–1555 and 4392. Face instrument 5168 conflicts with protocol index 5052; clerk confirmation required.",
+      "image_page": "Images 1554–1555 and 4392",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [
+        "Direct face instrument 5168 conflicts with protocol index 5052"
+      ],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
+    },
+    {
+      "sequence": 20,
+      "tracts": "T1,T4",
+      "execution_date": "1979-03-21",
+      "recording_date": "1979-04-30",
+      "doc_type": "OGL",
+      "instrument_no": "3757",
+      "book_page": "376/369",
+      "grantor": "Great Western Oil & Gas, Inc., a California corporation",
+      "grantee": "Union Oil Company of California",
+      "legal": "NE/4",
+      "estate": "Historic leasehold",
+      "depth": null,
+      "interest_conveyed": "Royalty 3/16; primary term 5 years",
+      "interest_reserved": null,
+      "lease_id": "376/369",
+      "portfolio_branch": "Union/Leede deep package",
+      "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT",
+      "source_file": "Images 1569–1570 and 4392. Face instrument 3757 conflicts with protocol index 3707; correction metadata at 1039/20–23 remains unreviewed.",
+      "image_page": "Images 1569–1570 and 4392",
+      "confidence": 98,
+      "current_effect": "Historic original lease facts only; current status OPEN",
+      "conflict": [
+        "Direct face instrument 3757 conflicts with protocol index 3707"
+      ],
+      "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+      "notes": "Later assignment depths and reservations are not original-lease terms."
     }
   ],
   "template_improvements": [
@@ -1038,10 +1985,13 @@
   ],
   "new_evidence_only": [
     "Controlling tract correction: T1 NE/4 160; T2 E/2 SE/4 80; T3 N/2 below top Hunton 320 overlapping; T4 Bk 872/279 non-additive deep overlay; T5 modern full-section record branch.",
-    "OGL 63/33 and Bk 244/Pg 432 isolate the Garrett/Pearl branch to E/2 SE/4.",
+    "Original OGL 63/33 proves the Garrett/McKinley E/2 SE/4 lease face, 1/8 royalty, 10-year primary term, and 1947-11-26 recording; later assignments control only their own depth-limited scope.",
     "Bk 845/Pg 47 defines the Pearl wellbore interval and a historic 1/8 of 8/8 ORRI reservation.",
     "Bk 1014/Pg 75 contains no exact WI quantum and has a source-title defect; donor 1%/52.632% implications are rejected.",
-    "Bk 872/Pg 279 scheduled leases overlap; row acreage cannot be summed into Diversified net leasehold acres.",
+    "Original faces for all 11 leases listed in Bk 872/Pg 279 establish historic parties, legals, royalties, primary terms, and recorded addresses without proving present survival.",
+    "Bk 872/Pg 279 lease rows reconcile to 1,360 row acres, 560 unique nominal acres, 800 overlap, and an 80-acre S/2 NW/4 schedule gap; none is Diversified net leasehold acreage.",
+    "Direct lease faces show instrument 5169 at 352/719, 5168 at 352/721, and 3757 at 376/369, conflicting with protocol-index values 5051, 5052, and 3707.",
+    "Bk 1014/Pg 75 is without warranty and effective for all purposes as of first production from the McCall #1-29 well; that condition does not prove current production or title.",
     "2395/462 and 2400/566 prove claimant identity for OK48147.001.1 only, not tract allocation or quantum."
   ],
   "rejected_or_downgraded_claims": [
@@ -1052,7 +2002,7 @@
     "Financing statements, mortgages, releases, or merger notices as affirmative ownership proof.",
     "Historic probate internal Tract 3/4 labels as project tracts.",
     "Carlson wells in Section 5-10N-25W as Section 32 HBP evidence.",
-    "Any owner address other than the cited recorded Diversified address."
+    "Any historical lease/probate/instrument address as a verified current address."
   ],
   "acquisition_queue": [
     {
@@ -1064,8 +2014,8 @@
     {
       "priority": 2,
       "tract": "T2",
-      "source": "Original OGL 63/33 plus amendments, ratifications, releases, production and shut-in records",
-      "purpose": "Determines Pearl lease terms, status, and HBP"
+      "source": "Amendments, ratifications, releases, production and shut-in records for OGL 63/33",
+      "purpose": "Determines Pearl lease continuation, status, and HBP beyond the reviewed original face"
     },
     {
       "priority": 3,
@@ -1076,8 +2026,8 @@
     {
       "priority": 4,
       "tract": "T4",
-      "source": "Complete 872/279, unrecorded 1984 agreement, and every scheduled OGL",
-      "purpose": "Enables lease matrix, overlap/gap analysis, and burden review"
+      "source": "Missing 872/279 pages 280–281, unrecorded 1984 agreement, amendments, releases, and HBP records",
+      "purpose": "Completes assignment terms and current-effect review beyond the faces and exhibits already inspected"
     },
     {
       "priority": 5,

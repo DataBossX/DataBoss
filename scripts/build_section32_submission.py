@@ -59,12 +59,12 @@ TRACTS = [
         "tract_no": 4,
         "legal": "Deep leasehold references and lease list in Bk 872/Pg 279",
         "nominal_acres": None,
-        "scope_notes": "Overlapping lease-by-lease and depth-by-depth scope; non-additive. General assignment interval is top Morrow–19,480 feet, subject to exceptions.",
-        "current_conclusion": "Historic lease identities and assignment depth limitations are supported. Unique acreage, uncovered gaps, current lease status, and current quantum are NOT DETERMINED.",
+        "scope_notes": "Overlapping lease-by-lease and depth-by-depth scope; non-additive. Eleven listed Section 32 lease rows total 1,360 row acres but reconcile to 560 unique nominal acres, 800 overlapping row acres, and an 80-acre S/2 NW/4 schedule gap. General assignment interval is top Morrow–19,480 feet, subject to exceptions.",
+        "current_conclusion": "Original faces for all 11 listed leases and Bk 872/Pg 279 assignment/exhibits support the historic lease package and document-location math. Current lease status, HBP, successor title, and current quantum are NOT DETERMINED.",
         "remaining_open_items": [
-            "Complete Bk 872/Pg 279 and the unrecorded 1984 agreement.",
-            "Every original scheduled lease, amendment, release, and HBP record.",
-            "GIS/legal normalization before calculating unique acres, overlap, or gaps.",
+            "Missing Bk 872/Pg 280–281 terms/signature pages and the unrecorded 1984 agreement.",
+            "Every amendment, correction, release, pooling record, and lease-specific HBP record.",
+            "Post-1985 lease-by-lease successor chain and burden survival.",
         ],
     },
     {
@@ -135,27 +135,28 @@ INSTRUMENTS = [
     {
         "tracts": "T2",
         "execution_date": "1947-11-13",
-        "recording_date": None,
-        "doc_type": "OGL REF",
+        "recording_date": "1947-11-26",
+        "doc_type": "OGL",
         "instrument_no": None,
         "book_page": "63/33",
-        "grantor": "Cora B. Garrett; S.A. Garrett",
+        "grantor": "Cora B. Garrett; S.A. Garrett, her husband",
+        "grantor_address": "Mayfield, Oklahoma",
         "grantee": "C.E. McKinley",
         "legal": "E/2 SE/4",
         "estate": "Leasehold identity",
         "depth": None,
-        "interest": None,
+        "interest": "Historic leasehold face; 1/8 royalty; 10-year primary term",
         "reserved": None,
         "lease_id": "L-91511 / 63/33",
         "branch": "Pearl",
-        "evidence_class": "DIRECT-IMAGE ASSIGNMENT RECITAL",
-        "source": "Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
-        "image": "Images 1062, 4393",
-        "confidence": 95,
-        "current_effect": "Historic lease identity only",
+        "evidence_class": "DIRECT ORIGINAL IMAGE + RECORDED ASSIGNMENT EXHIBITS",
+        "source": "OGL 63/33 / Image 0353; Bk 244/Pg 432 / Image 1062; Bk 872/Pg 284 / Image 4393",
+        "image": "Images 0353, 1062, 4393",
+        "confidence": 98,
+        "current_effect": "Historic lease terms and identity only",
         "conflict": None,
-        "curative": "Pull original OGL and all amendments/releases",
-        "notes": "Royalty, term, clauses, depth, expiration, and HBP remain open.",
+        "curative": "Pull amendments, ratifications, releases, pooling, production, and HBP evidence",
+        "notes": "Original face proves 1/8 royalty and 10-year term. Pooling and shut-in clauses are present but current effect, continuation, and HBP remain open.",
     },
     {
         "tracts": "T2",
@@ -240,7 +241,9 @@ INSTRUMENTS = [
         "instrument_no": None,
         "book_page": "872/279",
         "grantor": "Union Oil Company of California",
+        "grantor_address": "P. O. Box 3100, Midland, Texas 79702",
         "grantee": "Leede Exploration",
+        "grantee_address": "600 North Marienfeld, Midland, Texas 79701",
         "legal": "Listed Section 32 leases; E/2 SE/4 specially limited",
         "estate": "Depth-limited leasehold",
         "depth": "Generally top Morrow–19,480 feet; E/2 SE/4 11,100–19,480 feet; prior Crook rights excluded",
@@ -265,11 +268,13 @@ INSTRUMENTS = [
         "instrument_no": None,
         "book_page": "1014/75",
         "grantor": "Consolidation of Leede Trusts",
+        "grantor_address": "600 North Marienfeld, Midland, Texas 79701",
         "grantee": "Leede Exploration",
+        "grantee_address": "600 North Marienfeld, Midland, Texas 79701",
         "legal": "N/2 Section 32",
         "estate": "Purported OGL and working/cost-bearing interests",
         "depth": "All depths below top Hunton",
-        "interest": None,
+        "interest": "All assignor right, title, and interest in OGLs and other working/cost-bearing interests; effective for all purposes as of first production from McCall #1-29",
         "reserved": "Royalty/ORRI reconveyance effect unclear",
         "lease_id": None,
         "branch": "Leede/McCall/trust",
@@ -316,6 +321,7 @@ INSTRUMENTS = [
         "book_page": "2400/551–567",
         "grantor": "DP Sooner HoldCo LLC",
         "grantee": "Diversified Production LLC",
+        "grantee_address": "1600 Corporate Drive, Birmingham, AL 35242",
         "legal": "Section 32 schedule reference; asset OK48147.001.1",
         "estate": "Leasehold claimant identity",
         "depth": None,
@@ -335,25 +341,26 @@ INSTRUMENTS = [
 ]
 
 LEASES = [
-    ["63/33", "Cora B. Garrett; S.A. Garrett", "C.E. McKinley", "1947-11-13", None, None, "63/33", "E/2 SE/4", 80, None, None, None, None, None, "244/432; 845/47; 872/279", None, None, None, "OPEN", "Assignment recital/direct image", 95, "Original lease and terms not reviewed"],
-    ["264/345", "Charlie B. Crook; Ima Pearl Crook", "Union Oil Company of California", "1972-02-05", "1972-02-22", "1131", "264/345", "NE/4", 160, None, None, None, "Five years commencing 1973-01-13", None, None, "502/267; 872/279 exclusion", None, None, None, "OPEN", "Original OGL direct image", 98, "HBP, amendments, releases, and modern linkage open"],
-    ["307/31", "Cora B. LeGrand, widow", "Union", "1976-04-29", None, None, "307/31", "W/2 SE/4 and S/2 SW/4", 160, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Overlaps other rows; original OGL not reviewed"],
-    ["340/302", "Gertrude L. LaFortune et al., co-trustees", "Union", "1977-10-14", None, None, "340/302", "N/2 SW/4", 80, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 88, "Relationship to 340/304 open"],
-    ["340/304", "Gertrude LaFortune, widow", "Union", "1977-10-14", None, None, "340/304", "N/2 SW/4", 80, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 88, "Possible separate/corrective lease; do not double count"],
-    ["340/323", "George T. Harrison Jr.; Renata Harrison", "Union", "1977-09-29", None, None, "340/323", "N/2 NW/4 and N/2 SW/4", 160, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Overlapping legal"],
-    ["342/564", "Carol Seidenbach Leach", "Union", "1977-09-29", None, None, "342/564", "N/2 SW/4", 80, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Overlapping legal"],
-    ["342/566", "Cynthia Seidenbach Kruse", "Union", "1977-11-01", None, None, "342/566", "N/2 SW/4", 80, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Overlapping legal"],
-    ["352/719", "F.L. Randel", "Union", "1978-05-16", None, None, "352/719", "NE/4", 160, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Overlapping legal"],
-    ["352/721", "J.L. Randel", "Union", "1978-05-16", None, None, "352/721", "NE/4", 160, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Overlapping legal"],
-    ["376/369", "Great Western Oil & Gas, Inc.", "Union", "1979-03-21", None, None, "376/369", "NE/4", 160, None, None, None, None, None, None, "872/279", None, None, None, "OPEN", "Lease schedule reference", 90, "Correction metadata at 1039/20–23 unreviewed"],
+    ["63/33", "Cora B. Garrett; S.A. Garrett, her husband", "C.E. McKinley", "1947-11-13", "1947-11-26", None, "63/33", "E/2 SE/4", 80, None, None, "1/8", "10 years", None, "Clause present; effect not adjudicated", "Clause present; effect not adjudicated", "244/432; 845/47; 872/279", "Union later reserved depth-limited ORRIs in 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 0353 and 4393. Original face proves historic terms only; amendments, release, HBP, and current ownership remain open."],
+    ["264/345", "Charlie B. Crook; Ima Pearl Crook, his wife", "Union Oil Company of California", "1972-02-05", "1972-02-22", "1131", "264/345", "NE/4", 160, None, None, "1/8", "5 years commencing 1973-01-13", None, None, None, "502/267; excluded from 872/279 to extent previously assigned", "Union ORRIs under 502/267", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1197–1198 and 4392. Instrument also covers 80 acres in Section 28; only 160 Section 32 row acres counted."],
+    ["307/31", "Cora B. LeGrand, widow", "Union Oil Company of California", "1976-04-29", "1976-06-09", "2991", "307/31", "W/2 SE/4 and S/2 SW/4", 160, None, None, "1/8", "5 years commencing 1976-09-23", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1372 and 4391. Overlaps other listed rows; no present status or HBP inference."],
+    ["340/302", "Gertrude L. LaFortune; Jeanne L. Fair; Mary Ann L. Wilcox; J.A. LaFortune Jr.; Robert J. LaFortune, co-trustees under the will of Joseph A. LaFortune", "Union Oil Company of California", "1977-10-14", None, None, "340/302", "N/2 SW/4", 80, None, None, "3/16", "5 years commencing 1977-11-28", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1522–1523 and 4391. Relationship to separate 340/304 remains open."],
+    ["340/304", "Gertrude LaFortune, widow", "Union Oil Company of California", "1977-10-14", None, None, "340/304", "N/2 SW/4", 80, None, None, "3/16", "5 years commencing 1977-11-28", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1524–1525 and 4391. Separate overlapping lease; do not double count."],
+    ["340/323", "George T. Harrison Jr.; Renata Harrison", "Union Oil Company of California", "1977-09-29", "1977-11-07", None, "340/323", "N/2 NW/4 and N/2 SW/4", 160, None, None, "3/16", "5 years commencing 1977-11-27", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1526–1527 and 4391. This is the only listed lease aliquot covering N/2 NW/4."],
+    ["342/564", "Carol Seidenbach Leach", "Union Oil Company of California", "1977-09-29", "1978-02-09", "1089", "342/564", "N/2 SW/4", 80, None, None, "3/16", "5 years commencing 1977-11-30", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1542–1543 and 4391. Overlapping legal; current status open."],
+    ["342/566", "Cynthia Seidenbach Kruse", "Union Oil Company of California", "1977-11-01", "1978-02-09", "1090", "342/566", "N/2 SW/4", 80, None, None, "3/16", "5 years commencing 1977-11-30", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1544–1545 and 4391. Overlapping legal; current status open."],
+    ["352/719", "F.L. Randel", "Union Oil Company of California", "1978-05-16", "1978-06-27", "5169", "352/719", "NE/4", 160, None, None, "3/16", "5 years", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1552–1553 and 4391. Face instrument 5169 conflicts with protocol index 5051; clerk confirmation required."],
+    ["352/721", "J.L. Randel", "Union Oil Company of California", "1978-05-16", "1978-06-27", "5168", "352/721", "NE/4", 160, None, None, "3/16", "5 years", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1554–1555 and 4392. Face instrument 5168 conflicts with protocol index 5052; clerk confirmation required."],
+    ["376/369", "Great Western Oil & Gas, Inc., a California corporation", "Union Oil Company of California", "1979-03-21", "1979-04-30", "3757", "376/369", "NE/4", 160, None, None, "3/16", "5 years", None, None, None, "872/279", "Union depth-limited ORRIs under 872/279", None, None, "OPEN_UNVERIFIED_CURRENT", "DIRECT ORIGINAL IMAGE + RECORDED EXHIBIT", 98, "Images 1569–1570 and 4392. Face instrument 3757 conflicts with protocol index 3707; correction metadata at 1039/20–23 remains unreviewed."],
 ]
 
-# Pad legacy source rows to the full 24-column normalized lease schema.
-for lease in LEASES:
-    if len(lease) == 22:
-        lease[14:14] = [None, None]
-    elif len(lease) == 23:
-        lease.insert(15, None)
+ACREAGE_RECONCILIATION = [
+    ["Row acres", 1360, "Sum of the 11 Section 32 lease-row aliquots; only 160 Section 32 acres counted for 264/345"],
+    ["Unique nominal acres", 560, "Union of listed aliquots: NE/4, SE/4, SW/4, and N/2 NW/4"],
+    ["Overlap", 800, "1,360 row acres minus 560 unique nominal acres"],
+    ["Schedule gap", 80, "S/2 NW/4 is not among the Bk 872/Pg 279 listed lease aliquots"],
+    ["Diversified net leasehold acres", None, "NOT DETERMINED; document-location math does not prove current title, HBP, or quantum"],
+]
 
 WI_ROWS = [
     ["509/220", "Crook #1-32", "Mesa; American Petrofina; ENI; McCall; Midland; Sterling", "64%; 25%; 5%; 4%; 1%; 1% of assigned interest", "Assigned Crook wellbore interest", "After-payout reversion", "Historical WI allocation", "NO", "Baseline is not proven 8/8; present chain and payout open"],
@@ -384,13 +391,45 @@ MODERN_CHAIN = [
 
 ADDRESSES = [
     ["Diversified Production LLC", "1600 Corporate Drive, Birmingham, AL 35242", "1600 Corporate Drive, Birmingham, AL 35242", "Recorded instrument address", "2395/415–464; 2400/551–567", "2022-11-18 / 2023-03-02", "Historic recorded address; not represented as verified current"],
+    ["Cora B. Garrett; S.A. Garrett", "Mayfield, Oklahoma", "Mayfield, OK", "Lessor locality", "OGL 63/33 / Image 0353", "1947-11-13", "Historical only; not a current mailing address"],
+    ["Charlie B. Crook; Ima Pearl Crook", "Route 1, Mayfield, Oklahoma", "Route 1, Mayfield, OK", "Lessor address", "OGL 264/345 / Image 1197", "1972-02-05", "Historical only; not a current mailing address"],
+    ["Cora B. LeGrand", "Sweetwater, Oklahoma", "Sweetwater, OK", "Lessor locality", "OGL 307/31 / Image 1372", "1976-04-29", "Historical only; not a current mailing address"],
+    ["LaFortune co-trustees", "2300 Fourth National Bank Building, Tulsa, Oklahoma", "2300 Fourth National Bank Building, Tulsa, OK", "Lessor address", "OGL 340/302 / Image 1522", "1977-10-14", "Historical only; not a current mailing address"],
+    ["Gertrude LaFortune", "2300 Fourth National Building, Tulsa, Oklahoma 74119", "2300 Fourth National Building, Tulsa, OK 74119", "Lessor address", "OGL 340/304 / Image 1524", "1977-10-14", "Historical only; not a current mailing address"],
+    ["George T. Harrison Jr.; Renata Harrison", "201 North Charles Street, Baltimore, Maryland 21201", "201 North Charles Street, Baltimore, MD 21201", "Lessor address", "OGL 340/323 / Image 1526", "1977-09-29", "Historical only; not a current mailing address"],
+    ["Carol Seidenbach Leach", "c/o Mrs. J. Leslie Seidenbach, 2827 South Birmingham Place, Tulsa, Oklahoma", "c/o Mrs. J. Leslie Seidenbach, 2827 South Birmingham Place, Tulsa, OK", "Lessor address", "OGL 342/564 / Image 1542", "1977-09-29", "Historical only; not a current mailing address"],
+    ["Cynthia Seidenbach Kruse", "c/o M. B. Johnson, 1623 S. College, Tulsa, Oklahoma 74104", "c/o M. B. Johnson, 1623 S. College, Tulsa, OK 74104", "Lessor address", "OGL 342/566 / Image 1544", "1977-11-01", "Historical only; not a current mailing address"],
+    ["F.L. Randel", "P. O. Box 7, c/o Ramada Inn, Big Spring, Texas 79720", "P.O. Box 7, c/o Ramada Inn, Big Spring, TX 79720", "Lessor address", "OGL 352/719 / Image 1552", "1978-05-16", "Historical only; not a current mailing address"],
+    ["J.L. Randel", "Box 2609, Wichita Falls, Texas", "P.O. Box 2609, Wichita Falls, TX", "Lessor address", "OGL 352/721 / Image 1554", "1978-05-16", "Historical only; not a current mailing address"],
+    ["Great Western Oil & Gas, Inc.", "4010 Palos Verdes Drive North, Suite 206, Rolling Hills Estates, California 90274", "4010 Palos Verdes Drive N, Suite 206, Rolling Hills Estates, CA 90274", "Lessor corporate address", "OGL 376/369 / Image 1569", "1979-03-21", "Historical only; not a current mailing address"],
+    ["Union Oil Company of California", "P. O. Box 3100, Midland, Texas 79702", "P.O. Box 3100, Midland, TX 79702", "Assignor address", "Bk 872/Pg 279 / Image 4388", "1985-10-29", "Historical only; not a current mailing address"],
+    ["Leede Exploration", "600 North Marienfeld, Midland, Texas 79701", "600 N Marienfeld, Midland, TX 79701", "Assignee address", "Bk 872/Pg 279 / Image 4388", "1985-10-29", "Historical only; not a current mailing address"],
+    ["Consolidation of Leede Trusts", "600 North Marienfeld, Midland, Texas 79701", "600 N Marienfeld, Midland, TX 79701", "Assignor address", "Bk 1014/Pg 75 / Image 4893", "1988-02-18", "Historical only; not a current mailing address"],
 ]
+
+ADDRESS_TRACTS = {
+    "Diversified Production LLC": {5},
+    "Cora B. Garrett; S.A. Garrett": {2, 4},
+    "Charlie B. Crook; Ima Pearl Crook": {1, 4},
+    "Cora B. LeGrand": {4},
+    "LaFortune co-trustees": {4},
+    "Gertrude LaFortune": {4},
+    "George T. Harrison Jr.; Renata Harrison": {4},
+    "Carol Seidenbach Leach": {4},
+    "Cynthia Seidenbach Kruse": {4},
+    "F.L. Randel": {1, 4},
+    "J.L. Randel": {1, 4},
+    "Great Western Oil & Gas, Inc.": {1, 4},
+    "Union Oil Company of California": {4},
+    "Leede Exploration": {3, 4},
+    "Consolidation of Leede Trusts": {3},
+}
 
 ACQUISITION_QUEUE = [
     [1, "T5", "Certified complete 2395/415–464 and 2400/551–567, all exhibits and incorporated documents", "Maps OK48147.001.1 by legal, estate, depth, quantum, exclusions, and burdens"],
-    [2, "T2", "Original OGL 63/33 plus amendments, ratifications, releases, production and shut-in records", "Determines Pearl lease terms, status, and HBP"],
+    [2, "T2", "Amendments, ratifications, releases, production and shut-in records for OGL 63/33", "Determines Pearl lease continuation, status, and HBP beyond the reviewed original face"],
     [3, "T3", "Complete 1014/75 and Leede trust/McCall predecessor chain", "Resolves depth-defined source title and nemo-dat risk"],
-    [4, "T4", "Complete 872/279, unrecorded 1984 agreement, and every scheduled OGL", "Enables lease matrix, overlap/gap analysis, and burden review"],
+    [4, "T4", "Missing 872/279 pages 280–281, unrecorded 1984 agreement, amendments, releases, and HBP records", "Completes assignment terms and current-effect review beyond the faces and exhibits already inspected"],
     [5, "T1", "Post-Bollenbach deeds, mineral deeds, probates, decrees, reservations, and releases", "Determines present NE/4 mineral vesting"],
     [6, "ALL", "Complete 2340, 2371, 2389, 2393, 2415, 2434, 2475–2476 schedules", "Separates portfolio branches and tests actual Section 32 overlap"],
     [7, "ALL", "Stamped index page 48 and recorded copies for promoted index-only rows", "Closes source gap and prevents locator evidence from becoming title evidence"],
@@ -418,9 +457,9 @@ def instrument_json(row: dict) -> dict:
         "instrument_no": row["instrument_no"],
         "book_page": row["book_page"],
         "grantor": [p.strip() for p in row["grantor"].split(";")],
-        "grantor_addresses": [],
+        "grantor_addresses": [row["grantor_address"]] if row.get("grantor_address") else [],
         "grantee": [p.strip() for p in row["grantee"].split(";")],
-        "grantee_addresses": [],
+        "grantee_addresses": [row["grantee_address"]] if row.get("grantee_address") else [],
         "legal": row["legal"],
         "estate": row["estate"],
         "depth": row["depth"],
@@ -440,6 +479,72 @@ def instrument_json(row: dict) -> dict:
     }
 
 
+LEASE_TRACTS = {
+    "63/33": "T2,T4",
+    "264/345": "T1,T4",
+    "307/31": "T4",
+    "340/302": "T4",
+    "340/304": "T4",
+    "340/323": "T4",
+    "342/564": "T4",
+    "342/566": "T4",
+    "352/719": "T1,T4",
+    "352/721": "T1,T4",
+    "376/369": "T1,T4",
+}
+
+LEASE_ADDRESSES = {
+    "63/33": "Mayfield, Oklahoma",
+    "264/345": "Route 1, Mayfield, Oklahoma",
+    "307/31": "Sweetwater, Oklahoma",
+    "340/302": "2300 Fourth National Bank Building, Tulsa, Oklahoma",
+    "340/304": "2300 Fourth National Building, Tulsa, Oklahoma 74119",
+    "340/323": "201 North Charles Street, Baltimore, Maryland 21201",
+    "342/564": "c/o Mrs. J. Leslie Seidenbach, 2827 South Birmingham Place, Tulsa, Oklahoma",
+    "342/566": "c/o M. B. Johnson, 1623 S. College, Tulsa, Oklahoma 74104",
+    "352/719": "P. O. Box 7, c/o Ramada Inn, Big Spring, Texas 79720",
+    "352/721": "Box 2609, Wichita Falls, Texas",
+    "376/369": "4010 Palos Verdes Drive North, Suite 206, Rolling Hills Estates, California 90274",
+}
+
+
+def lease_instrument_json(row: list) -> dict:
+    conflict = None
+    if row[0] == "352/719":
+        conflict = "Direct face instrument 5169 conflicts with protocol index 5051"
+    elif row[0] == "352/721":
+        conflict = "Direct face instrument 5168 conflicts with protocol index 5052"
+    elif row[0] == "376/369":
+        conflict = "Direct face instrument 3757 conflicts with protocol index 3707"
+    return {
+        "execution_date": row[3],
+        "recording_date": row[4],
+        "doc_type": "OGL",
+        "instrument_no": row[5],
+        "book_page": row[6],
+        "grantor": [party.strip() for party in row[1].split(";")],
+        "grantor_addresses": [LEASE_ADDRESSES[row[0]]],
+        "grantee": [row[2]],
+        "grantee_addresses": [],
+        "legal": row[7],
+        "estate": "Historic leasehold",
+        "depth": None,
+        "interest_conveyed_fraction": f"Royalty {row[11]}; primary term {row[12]}",
+        "interest_conveyed_decimal": None,
+        "interest_reserved": None,
+        "lease_id": row[0],
+        "portfolio_branch": "Union/Leede deep package" if row[0] != "63/33" else "Pearl / Union/Leede deep package",
+        "evidence_class": row[21],
+        "source_file": row[23],
+        "source_page_or_image": row[23].split(".")[0],
+        "confidence": row[22],
+        "current_effect": "Historic original lease facts only; current status OPEN",
+        "conflicts": [conflict] if conflict else [],
+        "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+        "notes": "Later Bk 872/Pg 279 depth and ORRI terms apply only to that assignment; they are not original-lease terms.",
+    }
+
+
 def build_json() -> dict:
     tracts = []
     for tract in TRACTS:
@@ -449,6 +554,11 @@ def build_json() -> dict:
             for row in INSTRUMENTS
             if tag in row["tracts"].split(",")
         ]
+        tract_instruments.extend(
+            lease_instrument_json(row)
+            for row in LEASES
+            if row[0] != "63/33" and tag in LEASE_TRACTS[row[0]].split(",")
+        )
         tracts.append(
             {
                 **tract,
@@ -466,7 +576,19 @@ def build_json() -> dict:
                     else []
                 ),
                 "burdens": [],
-                "addresses": ADDRESSES if tract["tract_no"] == 5 else [],
+                "addresses": [
+                    {
+                        "party": row[0],
+                        "address_as_recorded": row[1],
+                        "normalized_address": row[2],
+                        "address_type": row[3],
+                        "source": row[4],
+                        "source_date": row[5],
+                        "currentness_caveat": row[6],
+                    }
+                    for row in ADDRESSES
+                    if tract["tract_no"] in ADDRESS_TRACTS[row[0]]
+                ],
             }
         )
 
@@ -549,14 +671,45 @@ def build_json() -> dict:
                 "notes": row["notes"],
             }
             for i, row in enumerate(INSTRUMENTS, start=1)
+        ] + [
+            {
+                "sequence": len(INSTRUMENTS) + i,
+                "tracts": LEASE_TRACTS[row[0]],
+                "execution_date": row[3],
+                "recording_date": row[4],
+                "doc_type": "OGL",
+                "instrument_no": row[5],
+                "book_page": row[6],
+                "grantor": row[1],
+                "grantee": row[2],
+                "legal": row[7],
+                "estate": "Historic leasehold",
+                "depth": None,
+                "interest_conveyed": f"Royalty {row[11]}; primary term {row[12]}",
+                "interest_reserved": None,
+                "lease_id": row[0],
+                "portfolio_branch": "Union/Leede deep package",
+                "evidence_class": row[21],
+                "source_file": row[23],
+                "image_page": row[23].split(".")[0],
+                "confidence": row[22],
+                "current_effect": "Historic original lease facts only; current status OPEN",
+                "conflict": lease_instrument_json(row)["conflicts"],
+                "curative_action": "Confirm clerk metadata; acquire amendments, corrections, releases, pooling, and HBP evidence",
+                "notes": "Later assignment depths and reservations are not original-lease terms.",
+            }
+            for i, row in enumerate((lease for lease in LEASES if lease[0] != "63/33"), start=1)
         ],
         "template_improvements": TEMPLATE_IMPROVEMENTS,
         "new_evidence_only": [
             "Controlling tract correction: T1 NE/4 160; T2 E/2 SE/4 80; T3 N/2 below top Hunton 320 overlapping; T4 Bk 872/279 non-additive deep overlay; T5 modern full-section record branch.",
-            "OGL 63/33 and Bk 244/Pg 432 isolate the Garrett/Pearl branch to E/2 SE/4.",
+            "Original OGL 63/33 proves the Garrett/McKinley E/2 SE/4 lease face, 1/8 royalty, 10-year primary term, and 1947-11-26 recording; later assignments control only their own depth-limited scope.",
             "Bk 845/Pg 47 defines the Pearl wellbore interval and a historic 1/8 of 8/8 ORRI reservation.",
             "Bk 1014/Pg 75 contains no exact WI quantum and has a source-title defect; donor 1%/52.632% implications are rejected.",
-            "Bk 872/Pg 279 scheduled leases overlap; row acreage cannot be summed into Diversified net leasehold acres.",
+            "Original faces for all 11 leases listed in Bk 872/Pg 279 establish historic parties, legals, royalties, primary terms, and recorded addresses without proving present survival.",
+            "Bk 872/Pg 279 lease rows reconcile to 1,360 row acres, 560 unique nominal acres, 800 overlap, and an 80-acre S/2 NW/4 schedule gap; none is Diversified net leasehold acreage.",
+            "Direct lease faces show instrument 5169 at 352/719, 5168 at 352/721, and 3757 at 376/369, conflicting with protocol-index values 5051, 5052, and 3707.",
+            "Bk 1014/Pg 75 is without warranty and effective for all purposes as of first production from the McCall #1-29 well; that condition does not prove current production or title.",
             "2395/462 and 2400/566 prove claimant identity for OK48147.001.1 only, not tract allocation or quantum.",
         ],
         "rejected_or_downgraded_claims": [
@@ -567,7 +720,7 @@ def build_json() -> dict:
             "Financing statements, mortgages, releases, or merger notices as affirmative ownership proof.",
             "Historic probate internal Tract 3/4 labels as project tracts.",
             "Carlson wells in Section 5-10N-25W as Section 32 HBP evidence.",
-            "Any owner address other than the cited recorded Diversified address.",
+            "Any historical lease/probate/instrument address as a verified current address.",
         ],
         "acquisition_queue": [
             {"priority": row[0], "tract": row[1], "source": row[2], "purpose": row[3]}
@@ -662,24 +815,64 @@ def build_workbook(path: Path) -> None:
         "Title",
         ["Tract", "Legal", "Nominal Acres", "Historic Fee Owner Proven", "Current Mineral Owner Proven", "Unresolved Claimant Branches", "Historical Leasehold", "Present Leasehold Candidate", "Mailing Address", "Address Source", "OGL", "Royalty", "Term / Expiration", "Net Acres", "Evidence Class", "Confidence", "Curative Action", "Comments"],
         [
-            ["T1", "NE/4", 160, "Cornelius B. Cornelius (historic inception only)", None, "Post-Bollenbach mineral chain", "Union/Leede Crook and deep branches", None, None, None, "264/345; 352/719; 352/721; 376/369", None, None, None, "Direct images + schedule references", "HOLD", "Complete downstream fee/mineral and lease chains", TRACTS[0]["current_conclusion"]],
-            ["T2", "E/2 SE/4", 80, None, None, "Garrett/Pearl/Crook/Leede successors", "63/33; Humble/Union; Cities Service/Leede", None, None, None, "63/33", None, None, None, "Direct image/assignment recital", "HOLD", "Pull original OGL, releases, payout and successors", TRACTS[1]["current_conclusion"]],
+            ["T1", "NE/4", 160, "Cornelius B. Cornelius (historic inception only)", None, "Post-Bollenbach mineral chain", "Union/Leede Crook and deep branches", None, None, None, "264/345; 352/719; 352/721; 376/369", "1/8 at 264/345; 3/16 at later original faces", "5 years by reviewed faces; commencement varies", None, "Direct original images + recorded exhibits", "HOLD", "Complete downstream fee/mineral, amendment, release, and HBP chains", TRACTS[0]["current_conclusion"]],
+            ["T2", "E/2 SE/4", 80, None, None, "Garrett/Pearl/Crook/Leede successors", "63/33; Humble/Union; Cities Service/Leede", None, None, None, "63/33", "1/8", "10 years from 1947-11-13", None, "Direct original image + recorded assignments", "HOLD", "Pull amendments, releases, payout, successors, and HBP evidence", TRACTS[1]["current_conclusion"]],
             ["T3", "N/2 below top Hunton", 320, None, None, "Leede/McCall/trust branch", "1014/75 facial branch", None, None, None, None, None, None, None, "Direct image; source-title conflict", "HOLD", "Prove predecessor title and exact depth definition", TRACTS[2]["current_conclusion"]],
-            ["T4", "Bk 872/Pg 279 deep leasehold overlay", None, None, None, "Union/Leede lease schedule", "Eleven historic lease references", None, None, None, "Bk 872/Pg 279 schedule", None, None, None, "Partial direct-image instrument", "HOLD", "Pull complete assignment, agreement, OGLs, releases and HBP", TRACTS[3]["current_conclusion"]],
+            ["T4", "Bk 872/Pg 279 deep leasehold overlay", None, None, None, "Union/Leede lease schedule", "Eleven original OGL faces reviewed", None, None, None, "Bk 872/Pg 279 schedule", "1/8 or 3/16 by original face; later Union ORRIs are assignment-scoped", "5 or 10 years by original face", None, "Direct original images + assignment/exhibits", "HOLD", "Pull missing assignment pages, agreement, amendments, releases and HBP", TRACTS[3]["current_conclusion"]],
             ["T5", "Full-section modern record branch", None, None, None, "Chesapeake/Tapstone/KL CHK; Burlington; Unbridled/MNR; Teocalli; Canvas/DP Ponies", "Schedule-dependent corporate branches", "Diversified Production LLC / OK48147.001.1 — claimant only", "1600 Corporate Drive, Birmingham, AL 35242", "Recorded address blocks, 2395/415–464 and 2400/551–567", None, None, None, None, "Reviewed schedule pages + index metadata", "HOLD", "Pull all operative schedules and reconcile branches", TRACTS[4]["current_conclusion"]],
         ],
     )
     run_headers = ["Sequence", "Tracts", "Execution Date", "Recording Date", "Doc Type", "Instrument No", "Book/Page", "Grantor", "Grantor Address", "Grantee", "Grantee Address", "Legal", "Estate", "Depth", "Interest Conveyed", "Interest Reserved", "Lease ID", "Portfolio Branch", "Evidence Class", "Source File", "Image/Page", "Confidence", "Current Effect", "Conflict ID / Text", "Curative Action", "Notes"]
     run_rows = [
-        [i, r["tracts"], r["execution_date"], r["recording_date"], r["doc_type"], r["instrument_no"], r["book_page"], r["grantor"], None, r["grantee"], None, r["legal"], r["estate"], r["depth"], r["interest"], r["reserved"], r["lease_id"], r["branch"], r["evidence_class"], r["source"], r["image"], r["confidence"], r["current_effect"], r["conflict"], r["curative"], r["notes"]]
+        [i, r["tracts"], r["execution_date"], r["recording_date"], r["doc_type"], r["instrument_no"], r["book_page"], r["grantor"], r.get("grantor_address"), r["grantee"], r.get("grantee_address"), r["legal"], r["estate"], r["depth"], r["interest"], r["reserved"], r["lease_id"], r["branch"], r["evidence_class"], r["source"], r["image"], r["confidence"], r["current_effect"], r["conflict"], r["curative"], r["notes"]]
         for i, r in enumerate(INSTRUMENTS, start=1)
     ]
+    for row in LEASES:
+        if row[0] == "63/33":
+            continue
+        details = lease_instrument_json(row)
+        run_rows.append(
+            [
+                len(run_rows) + 1,
+                LEASE_TRACTS[row[0]],
+                row[3],
+                row[4],
+                "OGL",
+                row[5],
+                row[6],
+                row[1],
+                LEASE_ADDRESSES[row[0]],
+                row[2],
+                None,
+                row[7],
+                "Historic leasehold",
+                None,
+                f"Royalty {row[11]}; primary term {row[12]}",
+                None,
+                row[0],
+                details["portfolio_branch"],
+                row[21],
+                row[23],
+                details["source_page_or_image"],
+                row[22],
+                details["current_effect"],
+                "; ".join(details["conflicts"]) or None,
+                details["curative_action"],
+                details["notes"],
+            ]
+        )
     add_table_sheet(wb, "Runsheet", run_headers, run_rows)
     add_table_sheet(
         wb,
         "Leases",
         ["Lease_ID", "Lessor", "Lessee", "Execution_Date", "Recording_Date", "Instrument_No", "Book_Page", "Legal", "Gross_Acres", "Depth_From", "Depth_To", "Royalty", "Primary_Term", "Pugh", "Pooling", "Shut_In", "Later_Assignment", "Reservation", "Release", "HBP_Evidence", "Current_Status", "Evidence_Class", "Confidence", "Notes"],
         LEASES,
+    )
+    add_table_sheet(
+        wb,
+        "Acreage Reconciliation",
+        ["Metric", "Acres", "Basis / Limitation"],
+        ACREAGE_RECONCILIATION,
     )
     add_table_sheet(
         wb,
@@ -691,10 +884,7 @@ def build_workbook(path: Path) -> None:
         wb,
         "WI Present Candidates",
         ["Tract", "Candidate", "Asset ID", "WI", "NRI", "Royalty", "ORRI", "Net Leasehold Acres", "Depth", "Status", "Source", "Curative"],
-        [
-            [f"T{t['tract_no']}", "Diversified Production LLC — schedule-dependent claimant only", "OK48147.001.1", None, None, None, None, None, None, UNKNOWN, "2395/462; 2400/566", "Obtain operative schedules and predecessor title"]
-            for t in TRACTS
-        ],
+        [["T5 / exact tract allocation open", "Diversified Production LLC — schedule-dependent claimant only", "OK48147.001.1", None, None, None, None, None, None, UNKNOWN, "2395/462; 2400/566", "Obtain operative schedules and predecessor title"]],
     )
     add_table_sheet(wb, "Modern Chain", ["Book/Page", "Instrument No", "Grantor", "Grantee", "Type", "Portfolio Branch", "Evidence", "Open"], MODERN_CHAIN)
     add_table_sheet(wb, "Addresses", ["Party", "Recorded Address", "Normalized Address", "Address Type", "Source", "Effective/Recording Date", "Currentness Caveat"], ADDRESSES)
@@ -706,11 +896,13 @@ def build_workbook(path: Path) -> None:
         ["Control", "Result", "Evidence / Note"],
         [
             ["Controlling tract definitions", "PASS", "T1 NE/4; T2 E/2 SE/4; T3 N/2 below Hunton; T4 Bk 872/279 deep overlay; T5 modern record branch"],
-            ["No additive tract-acre total", "PASS", "All scopes marked non-additive; T4/T5 nominal acres intentionally blank"],
+            ["No additive tract-acre total", "PASS", "T4 document-location math is separately labeled: 1,360 row / 560 unique / 800 overlap / 80 schedule gap; no current net acres"],
             ["Unknown not zero", "PASS", "Unknown quantities are blank or NOT DETERMINED"],
             ["No unsupported current owner", "PASS", "Diversified is identified only as schedule-dependent claimant"],
             ["Portfolio branches separated", "PASS", "Modern Chain uses distinct branch column"],
-            ["Addresses source-cited", "PASS", "Only one recorded Diversified address included"],
+            ["Addresses source-cited", "PASS", "One modern recorded Diversified address and 14 exact historical addresses; every historical address is marked not current"],
+            ["Original OGL faces", "PASS", "Eleven lease faces reviewed at Images 0353, 1197–1198, 1372, 1522–1527, 1542–1545, 1552–1555, 1569–1570"],
+            ["Face/index conflicts visible", "PASS", "352/719: 5169 vs 5051; 352/721: 5168 vs 5052; 376/369: 3757 vs 3707"],
             ["Formula safeguards", "PASS", "No ownership-total formula exists; no blank-to-zero arithmetic"],
             ["Stale template facts", "PASS", "No Section 27, Cherokee, Kunu, Greenhead, Aztek, or Phillips facts imported"],
             ["Index limitation", "PASS", "Page 48 gap and locator-only limits disclosed"],
@@ -766,22 +958,30 @@ Status: **HOLD_NO_RELEASE**
 8. Separated Chesapeake/Tapstone/KL CHK, Burlington, Unbridled/MNR, Teocalli, and Canvas/DP Ponies branches.
 9. Rejected 15.000875%, 48.75%, and Bk 509/Pg 220 participant allocations as present tract WI.
 10. Added explicit acquisition, conflict, curative, evidence-tier, and no-blank-as-zero controls.
+11. Reviewed original faces for all 11 OGLs listed in Bk 872/Pg 279 and populated historic royalty, term, recording, address, and party fields.
+12. Reconciled Bk 872/Pg 279 to 1,360 row acres, 560 unique nominal acres, 800 overlap, and an 80-acre S/2 NW/4 schedule gap—document metrics only.
+13. Corrected the historic lessor spelling to Ima Pearl Crook from Image 1197.
+14. Flagged direct-face/index conflicts: 352/719 instrument 5169 vs 5051; 352/721 instrument 5168 vs 5052; 376/369 instrument 3757 vs 3707.
+15. Added 14 source-dated historical address rows, each expressly labeled not current.
 
 ## Evidence limitations
 - The canonical index has 1,928 unique locator rows; 1,883 are index-only.
 - Stamped page 48 is missing.
 - Fifty-three repeated page-54 occurrences are quarantined.
 - Complete operative schedules remain missing for the modern claimant chain.
+- Bk 872/Pg 280–281, the unrecorded 1984 agreement, amendments, releases, and lease-specific HBP evidence remain missing.
 """
     qa = """# GPT-5.6 Sol Section 32 QA
 
 ## Passed
 - All five controlling tract definitions are present.
-- No overlapping tract-acre total is calculated.
+- Tract 4 document-location math is separately controlled: 1,360 row acres, 560 unique nominal acres, 800 overlap, and 80 schedule-gap acres; no current net-acre total is calculated.
 - Unknown ownership quantities are null, blank, OPEN, or NOT DETERMINED—not zero.
 - No unsupported current mineral owner, WI, NRI, ORRI, net acres, HBP, or lease term is stated.
 - Portfolio branches, title conveyances, mergers, mortgages, financing statements, and releases are classified separately.
-- The sole address is source-cited and not represented as verified current.
+- The recorded Diversified address and 14 historical addresses are source/date cited; no historical address is represented as current.
+- Eleven original OGL faces were directly reviewed and matched to the Bk 872/Pg 279 lease schedule.
+- Three direct-face/index instrument-number conflicts are visible and remain open for clerk confirmation.
 - JSON parses and contains all five tracts.
 - Workbook sheets reopen successfully and required headers are present.
 

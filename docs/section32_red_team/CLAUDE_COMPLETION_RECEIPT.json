@@ -1,0 +1,51 @@
+{
+  "job_id": "SEC32_RUNSHEET_CLAUDE_QA_20260715",
+  "role": "Independent adversarial title and spreadsheet auditor",
+  "produced_by": "Claude Code (claude-fable-5)",
+  "produced_on": "2026-07-18",
+  "release_status": "HOLD_NO_RELEASE",
+  "outcome": "NOT_STARTED_SECURITY_GATE_NOT_SATISFIED",
+  "summary": "The adversarial red-team audit was NOT begun. The mandatory security gate requires SECURITY_REMEDIATION_RECEIPT = PASS before any work starts. No such receipt exists (searched Drive by title and full text), and the surrounding evidence shows security remediation is still PENDING and under an active HOLD. Beginning the audit would violate the job's own security_gate condition; producing the runsheet/defect-register/conflict-matrix would additionally require fabricating rows from inputs that cannot be located or verified.",
+  "security_gate": {
+    "required": true,
+    "condition": "Do not begin unless SECURITY_REMEDIATION_RECEIPT is PASS.",
+    "status": "NOT_PASS",
+    "evidence": [
+      "No file named SECURITY_REMEDIATION_RECEIPT found in Drive by title search.",
+      "No file containing 'SECURITY_REMEDIATION_RECEIPT' found by full-text search.",
+      "Folder 'SECURITY_REMEDIATION_TASKS' (id 1prcKDttKqiH-JfESAQ9aMfvU7qb8cBBW) lives under a parent folder named 'approval_required' and is EMPTY except for one empty subfolder 'PENDING_PERMISSION_REMEDIATION'.",
+      "Folder 'security_incidents' contains an empty 'SECURITY_HOLD__2026-07-12' folder and an empty 'receipts' folder — no PASS receipt has been filed.",
+      "Repository SECURITY.md documents an OPEN incident: backend/.env credentials committed to git history (must be rotated) and client/project metadata exposed in the public repo (containment order not marked complete)."
+    ]
+  },
+  "input_verification": {
+    "expected_inputs": [
+      "01_GEMINI_RUNSHEET_EXTRACTION/GEMINI_SECTION32_MASTER_RUNSHEET.xlsx",
+      "02_GROK_CHAIN_RECONSTRUCTION/GROK_SECTION32_CHAINED_RUNSHEET.xlsx"
+    ],
+    "status": "NOT_LOCATED",
+    "notes": [
+      "Neither named workbook exists in Drive under the specified titles (title-contains search returned no matches).",
+      "The job's source_folder and output_parent_folder are unresolved placeholders (<SOURCE_FOLDER_URL>, <OUTPUT_PARENT_FOLDER_URL>).",
+      "Related but non-identical Section 32 artifacts exist (e.g. SECTION32_VERIFIED_RUNSHEET_2026-07-15.xlsx, CODEX_SECTION32_RUNSHEET_20260716, folders SECTION32_GEMINI_WORK_OUTPUT / ROUND_1_GROK_OUTPUT / GROK_NE4_FINAL_CHAMPION_BUILD). None can be assumed to be the two named candidate runsheets without owner confirmation.",
+      "The output subfolder '03_CLAUDE_RUNSHEET_RED_TEAM' does not yet exist."
+    ]
+  },
+  "required_outputs": {
+    "CLAUDE_SECTION32_RED_TEAM_RUNSHEET.xlsx": "NOT_PRODUCED",
+    "CLAUDE_RUNSHEET_DEFECT_REGISTER.xlsx": "NOT_PRODUCED",
+    "CLAUDE_CONFLICT_MATRIX.xlsx": "NOT_PRODUCED",
+    "CLAUDE_COMPLETION_RECEIPT.json": "PRODUCED (this file, HOLD record only)"
+  },
+  "why_no_outputs_were_fabricated": [
+    "The security gate is a hard precondition and evaluates to NOT_PASS.",
+    "The two candidate runsheets cannot be located/verified, so any retained row would lack a genuine source citation — failing acceptance test 'Every retained row has a source citation.'",
+    "Emitting current-owner conclusions or decimals from unverified inputs would violate 'No unsupported decimals' and 'No false current-owner conclusion.'"
+  ],
+  "required_actions_to_unblock": [
+    "Complete the security remediation (rotate exposed backend/.env credentials; finish client-data containment) and file a SECURITY_REMEDIATION_RECEIPT with status PASS.",
+    "Confirm and share the resolved source_folder URL and the exact two candidate workbooks (GEMINI master runsheet + GROK chained runsheet), or the correct current filenames.",
+    "Confirm the output_parent_folder URL under which 03_CLAUDE_RUNSHEET_RED_TEAM should be created."
+  ],
+  "acceptance_tests_status": "NOT_EVALUATED (audit not started)"
+}

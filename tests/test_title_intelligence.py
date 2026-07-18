@@ -18,6 +18,7 @@ from databossx.title_intelligence import (
     build_title_analysis,
     export_report,
     extract_conveyance,
+    project_activity,
     seed_demo_project,
 )
 
@@ -151,6 +152,40 @@ def test_seed_demo_project_persists_auditable_artifact(tmp_path):
         (project_id,),
     )
     assert lineage["n"] >= 6
+
+
+def test_analysis_recorded_as_workflow_run_and_in_activity(tmp_path):
+    config = DataBossConfig.from_repo_root(tmp_path / "repo")
+    result = seed_demo_project(config)
+    project_id = result["project_id"]
+    db = DataBossDatabase(config.project_db_path(project_id))
+
+    # The analysis is tracked as a completed run + succeeded task + attempt.
+    run = db.fetchone(
+        """
+        SELECT r.status FROM runs r
+          JOIN workflow_definitions w ON w.id = r.workflow_id
+         WHERE r.project_id = ? AND w.name = 'title_analysis'
+         ORDER BY r.id DESC LIMIT 1
+        """,
+        (project_id,),
+    )
+    assert run is not None and run["status"] == "COMPLETED"
+    task = db.fetchone(
+        "SELECT state FROM tasks WHERE task_type = 'ANALYZE_TITLE' ORDER BY id DESC LIMIT 1"
+    )
+    assert task is not None and task["state"] == "SUCCEEDED"
+    attempt = db.fetchone(
+        "SELECT status, log_artifact_id FROM task_attempts ORDER BY id DESC LIMIT 1"
+    )
+    assert attempt["status"] == "SUCCEEDED"
+    assert attempt["log_artifact_id"] is not None  # tied to the produced artifact
+
+    # The audit trail surfaces the key steps.
+    events = {e["event_type"] for e in project_activity(config, project_id)}
+    assert "project.created" in events
+    assert "document.registered" in events
+    assert "title.analyzed" in events
 
 
 def test_export_report_writes_xlsx_and_worklist(tmp_path):

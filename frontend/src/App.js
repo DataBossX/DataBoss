@@ -612,10 +612,22 @@ const App = () => {
     </div>
   );
 
+  const activityLabels = {
+    'project.created': '🆕 Project created',
+    'run.seeded': '🧩 Workflow seeded',
+    'source.registered': '🔌 Source registered',
+    'source.inventory.completed': '🔒 Evidence inventoried',
+    'document.registered': '📄 Document registered',
+    'template.registered': '📐 Template registered',
+    'title.analyzed': '⚙️ Title analyzed',
+    'report.exported': '⬇️ Report exported',
+  };
+
   const renderLandmanDetail = () => {
     const proj = currentProject.project;
     const analysis = currentProject.analysis;
     const documentsList = currentProject.documents || [];
+    const activity = currentProject.activity || [];
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -864,6 +876,24 @@ const App = () => {
             </div>
           </>
         )}
+
+        {/* Project activity / audit trail */}
+        <div className="bg-gray-800 border border-cyan-500 rounded-lg p-6">
+          <h4 className="text-lg font-bold text-cyan-400 mb-3">🧾 PROJECT ACTIVITY (AUDIT TRAIL)</h4>
+          {activity.length === 0 ? (
+            <div className="text-gray-500 text-sm">No activity recorded yet.</div>
+          ) : (
+            <ul className="space-y-1 text-xs">
+              {activity.map((ev, i) => (
+                <li key={i} className="flex items-start gap-3 border-b border-gray-700 pb-1">
+                  <span className="text-gray-500 whitespace-nowrap">{ev.created_at}</span>
+                  <span className="text-cyan-300 whitespace-nowrap">{activityLabels[ev.event_type] || ev.event_type}</span>
+                  <span className="text-gray-400 break-all">{ev.entity_type}:{ev.entity_id}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     );
   };

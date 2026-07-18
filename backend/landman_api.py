@@ -45,6 +45,7 @@ from databossx.title_intelligence import (  # noqa: E402
     export_report,
     extract_conveyance,
     load_text_from_bytes,
+    project_activity,
     register_document,
     seed_demo_project,
 )
@@ -177,7 +178,14 @@ async def get_landman_project(project_id: str) -> Dict[str, Any]:
             (project_id,),
         )
         documents = [{"filename": r["logical_key"], "analyzed": False} for r in rows]
-    return {"project": meta, "documents": documents, "analysis": analysis}
+    activity = project_activity(CONFIG, project_id, limit=25)
+    return {"project": meta, "documents": documents, "analysis": analysis, "activity": activity}
+
+
+@router.get("/projects/{project_id}/activity")
+async def get_landman_activity(project_id: str) -> List[Dict[str, Any]]:
+    _db(project_id)  # existence check
+    return project_activity(CONFIG, project_id, limit=100)
 
 
 @router.delete("/projects/{project_id}")

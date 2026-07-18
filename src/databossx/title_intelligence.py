@@ -653,9 +653,14 @@ def analyze_project(
             )
         conn.commit()
 
+    run_id = _record_analysis_run(db, project_id, section, artifact_id)
+
     artifacts_dir = config.project_artifacts_root(project_id)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     out_path = artifacts_dir / f"title_analysis_{artifact_id}.json"
+    analysis["artifact_id"] = artifact_id
+    analysis["artifact_path"] = str(out_path)
+    analysis["run_id"] = run_id
     out_path.write_text(json.dumps(analysis, indent=2, sort_keys=True), encoding="utf-8")
 
     db.audit(
@@ -663,12 +668,88 @@ def analyze_project(
         "title.analyzed",
         "derived_artifact",
         str(artifact_id),
-        json.dumps({"section": section, **analysis["summary"]}, sort_keys=True),
+        json.dumps({"section": section, "run_id": run_id, **analysis["summary"]}, sort_keys=True),
     )
-
-    analysis["artifact_id"] = artifact_id
-    analysis["artifact_path"] = str(out_path)
     return analysis
+
+
+def _record_analysis_run(
+    db: DataBossDatabase, project_id: str, section: str, artifact_id: int
+) -> int:
+    """Record the analysis as a completed run/task/attempt in the workflow spine.
+
+    Turns each analysis into a first-class, tracked run (mirroring the foundation
+    intake-run pattern) and ties the produced artifact to the task attempt via
+    ``log_artifact_id`` -- so the runs/tasks tables reflect real work, not just
+    the seeded intake plan.
+    """
+    workflow_name = "title_analysis"
+    workflow_id = db.execute(
+        "INSERT OR IGNORE INTO workflow_definitions (name, version) VALUES (?, ?)",
+        (workflow_name, "1.0.0"),
+    )
+    if not workflow_id:
+        row = db.fetchone(
+            "SELECT id FROM workflow_definitions WHERE name = ? ORDER BY id DESC LIMIT 1",
+            (workflow_name,),
+        )
+        workflow_id = int(row["id"])
+    run_id = db.execute(
+        "INSERT INTO runs (project_id, workflow_id, status, completed_at) "
+        "VALUES (?, ?, 'COMPLETED', CURRENT_TIMESTAMP)",
+        (project_id, workflow_id),
+    )
+    task_id = db.execute(
+        "INSERT INTO tasks (run_id, task_type, state, priority, payload_json) "
+        "VALUES (?, 'ANALYZE_TITLE', 'SUCCEEDED', 100, ?)",
+        (run_id, json.dumps({"section": section}, sort_keys=True)),
+    )
+    db.execute(
+        "INSERT INTO task_attempts (task_id, worker_name, completed_at, status, log_artifact_id) "
+        "VALUES (?, 'landman', CURRENT_TIMESTAMP, 'SUCCEEDED', ?)",
+        (task_id, artifact_id),
+    )
+    return run_id
+
+
+def project_activity(
+    config: DataBossConfig, project_id: str, limit: int = 50
+) -> List[Dict[str, Any]]:
+    """Return the project's append-only audit trail (newest first).
+
+    Every step -- project creation, source/document registration, analysis, and
+    export -- writes an ``audit_events`` row; this surfaces that chain of custody
+    for the command-center UI.
+    """
+    db_path = config.project_db_path(project_id)
+    if not db_path.exists():
+        return []
+    db = DataBossDatabase(db_path)
+    rows = db.fetchall(
+        """
+        SELECT event_type, entity_type, entity_id, payload_json, created_at
+          FROM audit_events
+         WHERE project_id = ?
+         ORDER BY id DESC LIMIT ?
+        """,
+        (project_id, limit),
+    )
+    events: List[Dict[str, Any]] = []
+    for r in rows:
+        try:
+            payload = json.loads(r["payload_json"]) if r["payload_json"] else {}
+        except (json.JSONDecodeError, TypeError):
+            payload = {}
+        events.append(
+            {
+                "event_type": r["event_type"],
+                "entity_type": r["entity_type"],
+                "entity_id": r["entity_id"],
+                "created_at": r["created_at"],
+                "payload": payload,
+            }
+        )
+    return events
 
 
 def latest_analysis(config: DataBossConfig, project_id: str) -> Optional[Dict[str, Any]]:

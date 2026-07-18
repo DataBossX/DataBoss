@@ -34,8 +34,9 @@ NON-NEGOTIABLES ENFORCED BY THIS TOOL
     confidence score and audit note. No secrets are stored in outputs.
 7.  Every output carries a generation timestamp.
 
-STAGES (match the mission spec A-I)
+STAGES (vertical slice)
 -----------------------------------
+0  System audit          -> output/system_component_audit.csv/.xlsx/.json
 A  File inventory        -> output/file_inventory.csv / .xlsx
 B  Duplicate detection   -> output/duplicate_candidates.csv, quarantine_plan.csv
 C  Text extraction       -> output/extracted_text/, source_text_index.csv
@@ -47,7 +48,8 @@ G  Validation            -> output/validation_report.xlsx, review_required.csv
 H  Report assembly       -> output/Grocery_Report_DRAFT.md / .docx,
                             Executive_Summary.md, Curative_List.xlsx,
                             Source_Index.xlsx
-I  Dashboard             -> output/status_dashboard.html / .xlsx
+J  Petroleum artifacts   -> runsheet/abstract/ownership/leasehold/defect/evidence XLSX
+K  Dashboard             -> output/status_dashboard.html / .xlsx
 
 USAGE (Windows PowerShell / CMD)
 --------------------------------
@@ -155,6 +157,100 @@ DOC_CATEGORIES = [
     "tax/assessment", "runsheet", "ownership spreadsheet", "OGL/lease sheet",
     "map/plat", "prior report", "unknown/review required",
 ]
+
+
+# System component classifications required by the build tournament audit.
+COMPONENT_CLASSES = (
+    "REUSE", "REFACTOR", "MIGRATE", "REPLACE", "PRESERVE", "QUARANTINE", "UNKNOWN"
+)
+
+
+# ===========================================================================
+# STAGE 0 -- SYSTEM AUDIT (required before build)
+# ===========================================================================
+def _classify_component(path: Path, scope: str) -> Tuple[str, str, str]:
+    name = path.name.lower()
+    rel = str(path).lower()
+
+    if any(s in name for s in (".env", "secrets", "credential", "token", "key")):
+        return "QUARANTINE", "security", "Potential credential-bearing artifact; isolate before use."
+
+    if scope == "repository":
+        if name == "horizon":
+            return "REUSE", "title-engine", "Core exact-math title chaining and validation engine."
+        if name == "grocery_report_pipeline.py":
+            return "REUSE", "pipeline", "Deterministic ingest-to-report pipeline with audit outputs."
+        if name in ("run_horizon.bat", "runbook.md", "security.md"):
+            return "PRESERVE", "ops", "Operator entrypoint/policy material should remain authoritative."
+        if name == "automation":
+            return "MIGRATE", "legacy-automation", "Contains useful project-specific logic to port into common flow."
+        if name in ("doto_image_commander", "mineral_deal_room"):
+            return "REFACTOR", "ui-ocr", "Usable module/prototype that needs hardening and integration."
+        if name in ("backend", "frontend", "website"):
+            return "QUARANTINE", "legacy-demo", "Legacy/demo surface; keep isolated from production title flow."
+        if name == "examples":
+            return "PRESERVE", "fixtures", "Synthetic/golden-like fixture source for repeatable tests."
+    else:
+        if path.is_dir():
+            if name in ("output", "quarantine", "trash", "backup"):
+                return "PRESERVE", "workspace", "Operational output/backup workspace."
+            return "UNKNOWN", "project-folder", "Unrecognized project folder; inspect before automation."
+        if path.suffix.lower() in EXCEL_EXT | PDF_EXT | IMAGE_EXT | WORD_EXT | CSV_EXT | TEXT_EXT:
+            return "PRESERVE", "source-evidence", "Source evidence document; preserve original."
+
+    if "template" in rel:
+        return "PRESERVE", "template", "Client/template artifact should not be modified in-place."
+    return "UNKNOWN", "unclassified", "No deterministic rule matched."
+
+
+def audit_system(root: Path, output_dir: Path, log: BuildLog) -> Dict[str, Any]:
+    log.section("STAGE 0 -- System audit")
+    repo_root = Path(__file__).resolve().parent
+    entries: List[Dict[str, str]] = []
+
+    def collect(base: Path, scope: str) -> None:
+        if not base.exists() or not base.is_dir():
+            return
+        for p in sorted(base.iterdir(), key=lambda x: x.name.lower()):
+            if p.name.startswith(".") and p.name not in (".env", ".env.example"):
+                continue
+            klass, kind, reason = _classify_component(p, scope)
+            entries.append({
+                "scope": scope,
+                "path": str(p.resolve()),
+                "name": p.name,
+                "kind": kind,
+                "classification": klass,
+                "reason": reason,
+            })
+
+    collect(repo_root, "repository")
+    if root.resolve() != repo_root.resolve():
+        collect(root, "project")
+
+    counts = {k: 0 for k in COMPONENT_CLASSES}
+    for e in entries:
+        counts[e["classification"]] = counts.get(e["classification"], 0) + 1
+
+    headers = ["scope", "name", "kind", "classification", "reason", "path"]
+    rows = [[e["scope"], e["name"], e["kind"], e["classification"], e["reason"], e["path"]]
+            for e in entries]
+    write_csv(output_dir / "system_component_audit.csv", headers, rows)
+    write_xlsx(output_dir / "system_component_audit.xlsx", [("components", headers, rows)], log)
+    summary = {
+        "generated_at": RUN_TS,
+        "repository_root": str(repo_root),
+        "target_root": str(root),
+        "counts": counts,
+        "components": entries,
+    }
+    (output_dir / "system_component_audit.json").write_text(
+        json.dumps(summary, indent=2), encoding="utf-8"
+    )
+    log(f"Audited {len(entries)} components. "
+        f"Reuse={counts.get('REUSE', 0)}, Refactor={counts.get('REFACTOR', 0)}, "
+        f"Migrate={counts.get('MIGRATE', 0)}, Quarantine={counts.get('QUARANTINE', 0)}.")
+    return summary
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -1104,8 +1200,15 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     ], log)
 
     log(f"Reconciled {len(tract_groups)} tract(s); {len(conflicts)} conflict/gap(s) flagged.")
-    return {"tracts": tract_groups, "conflicts": conflicts, "party_rows": party_rows,
-            "lease_rows": lease_rows, "assign_rows": assign_rows}
+    return {
+        "tracts": tract_groups,
+        "conflicts": conflicts,
+        "party_rows": party_rows,
+        "tract_rows": tract_rows,
+        "lease_rows": lease_rows,
+        "assign_rows": assign_rows,
+        "calc_rows": calc_rows,
+    }
 
 
 def _to_float(x: Any) -> Optional[float]:
@@ -1425,6 +1528,140 @@ def _write_docx(path: Path, title: str, exec_md: str, recon, issues, classes,
 
 
 # ===========================================================================
+# STAGE J -- PETROLEUM TITLE ARTIFACTS
+# ===========================================================================
+def _parse_percent_or_decimal(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("%"):
+            return float(s[:-1].replace(",", "").strip()) / 100.0
+        return float(s.replace(",", ""))
+    except Exception:
+        return None
+
+
+def build_petroleum_artifacts(
+    report_name: str,
+    facts: List[Fact],
+    recon: Dict[str, Any],
+    issues: List[Dict[str, str]],
+    output_dir: Path,
+    log: BuildLog,
+) -> Dict[str, int]:
+    log.section("STAGE J -- Petroleum title artifacts")
+
+    # Runsheet + abstract rows from structured facts (one evidence-grounded row/doc).
+    abstract_rows: List[List[Any]] = []
+    evidence_rows: List[List[Any]] = []
+    for f in facts:
+        v = f.values
+        instrument = v.get("book_page_or_instrument", "")
+        abstract_rows.append([
+            v.get("recording_date", "") or v.get("execution_date", "") or v.get("effective_date", ""),
+            v.get("doc_type_or_action", ""),
+            v.get("grantor", "") or v.get("lessor", "") or v.get("assignor", ""),
+            v.get("grantee", "") or v.get("lessee", "") or v.get("assignee", ""),
+            instrument,
+            v.get("legal_description", ""),
+            v.get("gross_acres", ""),
+            v.get("decimal_interest", ""),
+            v.get("royalty", ""),
+            v.get("working_interest", ""),
+            v.get("net_revenue_interest", ""),
+            f.source_file,
+            f.source_page,
+        ])
+        evidence_rows.append([
+            f.source_file,
+            f.source_page,
+            instrument,
+            "; ".join(f.review_flags),
+            f.overall_confidence,
+            f.snippet,
+        ])
+
+    # Ownership and tract-chain detail from reconciliation.
+    tract_chain = recon.get("tract_rows", []) or []
+    party_chain = recon.get("party_rows", []) or []
+    lease_rows = recon.get("lease_rows", []) or []
+    assign_rows = recon.get("assign_rows", []) or []
+    calc_rows = recon.get("calc_rows", []) or []
+
+    # Leasehold WI/NRI calculations (deterministic, no fabrication).
+    leasehold_rows: List[List[Any]] = []
+    for row in assign_rows:
+        wi = _parse_percent_or_decimal(row[4]) if len(row) > 4 else None
+        nri = _parse_percent_or_decimal(row[3]) if len(row) > 3 else None
+        burden = None
+        if wi is not None and nri is not None and wi != 0:
+            burden = round(max(wi - nri, 0.0), 8)
+        leasehold_rows.append([
+            row[0] if len(row) > 0 else "",
+            row[1] if len(row) > 1 else "",
+            row[2] if len(row) > 2 else "",
+            row[3] if len(row) > 3 else "",
+            row[4] if len(row) > 4 else "",
+            f"{burden:.8f}" if burden is not None else "",
+            row[5] if len(row) > 5 else "",
+            row[6] if len(row) > 6 else "",
+            row[7] if len(row) > 7 else "",
+        ])
+
+    defect_rows = [[i["severity"], i["rule"], i["subject"], i["detail"], i["source"]]
+                   for i in issues if i["severity"] in ("red", "yellow")]
+
+    write_xlsx(output_dir / f"{report_name}_Runsheet.xlsx", [
+        ("runsheet", ["legal_description", "date", "grantor", "grantee", "instrument",
+                      "source_file", "page"], tract_chain),
+    ], log)
+    write_xlsx(output_dir / f"{report_name}_Abstracts.xlsx", [
+        ("abstracts", ["date", "doc_type", "from_party", "to_party", "instrument",
+                       "legal_description", "gross_acres", "decimal_interest", "royalty",
+                       "working_interest", "net_revenue_interest", "source_file", "source_page"],
+         abstract_rows),
+    ], log)
+    write_xlsx(output_dir / f"{report_name}_Ownership_Chain.xlsx", [
+        ("party_chain", ["party", "role", "date", "instrument", "source_file", "page"], party_chain),
+        ("tract_chain", ["legal_description", "date", "grantor", "grantee", "instrument",
+                         "source_file", "page"], tract_chain),
+    ], log)
+    write_xlsx(output_dir / f"{report_name}_Mineral_Ownership_Calculations.xlsx", [
+        ("tract_calcs", ["legal_description", "doc_count", "decimal_sum", "decimal_check",
+                         "gross_acres_seen", "acreage_check"], calc_rows),
+    ], log)
+    write_xlsx(output_dir / f"{report_name}_Leasehold_Calculations.xlsx", [
+        ("lease_events", ["date", "lessor", "lessee", "royalty", "term", "legal",
+                          "instrument", "source_file"], lease_rows),
+        ("assignment_calcs", ["date", "assignor", "assignee", "nri", "wi",
+                              "lease_burden", "legal", "instrument", "source_file"],
+         leasehold_rows),
+    ], log)
+    write_xlsx(output_dir / f"{report_name}_Defect_Missing_Evidence_Report.xlsx", [
+        ("defects", ["severity", "rule", "subject", "detail", "source"], defect_rows),
+    ], log)
+    write_xlsx(output_dir / f"{report_name}_Evidence_Audit_Trail.xlsx", [
+        ("evidence", ["source_file", "source_page", "instrument", "review_flags",
+                      "confidence", "snippet"], evidence_rows),
+    ], log)
+
+    counts = {
+        "abstract_rows": len(abstract_rows),
+        "runsheet_rows": len(tract_chain),
+        "ownership_rows": len(party_chain),
+        "defect_rows": len(defect_rows),
+        "evidence_rows": len(evidence_rows),
+        "leasehold_rows": len(leasehold_rows),
+    }
+    log(f"Petroleum artifacts generated: runsheet={counts['runsheet_rows']}, "
+        f"abstracts={counts['abstract_rows']}, defects={counts['defect_rows']}.")
+    return counts
+
+
+# ===========================================================================
 # STAGE I -- DASHBOARD
 # ===========================================================================
 def build_dashboard(root: Path, recs, texts, classes, facts, recon, issues,
@@ -1543,6 +1780,7 @@ def run_pipeline(root: Path, output_dir: Path, report_name: str,
     log(f"Root: {root}")
     log(f"Output: {output_dir}")
 
+    audit = audit_system(root, output_dir, log)
     recs = inventory(root, output_dir, log)
     texts = extract_text(recs, output_dir, log)
     dups = detect_duplicates(recs, texts, output_dir, log)
@@ -1554,6 +1792,7 @@ def run_pipeline(root: Path, output_dir: Path, report_name: str,
     issues = validate(recs, texts, classes, facts, recon, output_dir, log)
     assemble_report(root, recs, texts, classes, facts, recon, issues,
                     output_dir, report_name, log)
+    petroleum = build_petroleum_artifacts(report_name, facts, recon, issues, output_dir, log)
     build_dashboard(root, recs, texts, classes, facts, recon, issues,
                     output_dir, report_name, log)
 
@@ -1570,7 +1809,13 @@ def run_pipeline(root: Path, output_dir: Path, report_name: str,
             "tracts": len(recon.get("tracts", {})),
             "issues_red": sum(1 for i in issues if i["severity"] == "red"),
             "issues_yellow": sum(1 for i in issues if i["severity"] == "yellow"),
+            "system_components_audited": len(audit.get("components", [])),
+            "petroleum_abstract_rows": petroleum.get("abstract_rows", 0),
+            "petroleum_runsheet_rows": petroleum.get("runsheet_rows", 0),
+            "petroleum_defect_rows": petroleum.get("defect_rows", 0),
         },
+        "system_audit_counts": audit.get("counts", {}),
+        "petroleum_artifacts": petroleum,
         "warnings": log.warnings,
         "errors": log.errors,
         "optional_deps": {

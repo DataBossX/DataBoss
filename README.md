@@ -5,7 +5,7 @@ DataBossX is a local-first toolkit for evidence-grounded land and mineral title 
 The repository contains public-safe code and synthetic fixtures for:
 
 - `horizon/` — exact interest math, instrument chaining, validation, repair, versioning, and examiner worklists
-- `grocery_report_pipeline.py` — deterministic inventory-to-report stages
+- `grocery_report_pipeline.py` — deterministic audit/inventory-to-report pipeline, including petroleum runsheet/abstract/ownership/defect/evidence artifacts
 - `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs, and audit
 - `mineral_deal_room/` — operational UI prototype
 - `backend/` and `frontend/` — legacy document-processing demo

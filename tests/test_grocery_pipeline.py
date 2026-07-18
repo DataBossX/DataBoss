@@ -45,6 +45,7 @@ def run(tmp_path_factory):
 
 
 EXPECTED_OUTPUTS = [
+    "system_component_audit.csv", "system_component_audit.xlsx", "system_component_audit.json",
     "file_inventory.csv", "file_inventory.xlsx",
     "duplicate_candidates.csv", "quarantine_plan.csv",
     "source_text_index.csv",
@@ -54,6 +55,11 @@ EXPECTED_OUTPUTS = [
     "validation_report.xlsx", "review_required.csv",
     "Grocery_Report_DRAFT.md", "Grocery_Report_Executive_Summary.md",
     "Grocery_Report_Curative_List.xlsx", "Grocery_Report_Source_Index.xlsx",
+    "Grocery_Report_Runsheet.xlsx", "Grocery_Report_Abstracts.xlsx",
+    "Grocery_Report_Ownership_Chain.xlsx", "Grocery_Report_Mineral_Ownership_Calculations.xlsx",
+    "Grocery_Report_Leasehold_Calculations.xlsx",
+    "Grocery_Report_Defect_Missing_Evidence_Report.xlsx",
+    "Grocery_Report_Evidence_Audit_Trail.xlsx",
     "status_dashboard.html", "status_dashboard.xlsx",
     "run_manifest.json", "extraction_log.csv",
 ]
@@ -122,6 +128,17 @@ def test_manifest_counts(run):
     m = run["manifest"]
     assert m["counts"]["documents"] == 8  # 7 unique + 1 exact copy
     assert m["counts"]["issues_red"] >= 2
+    assert m["counts"]["system_components_audited"] > 0
+    assert m["counts"]["petroleum_abstract_rows"] > 0
+    assert "REUSE" in m["system_audit_counts"]
+
+
+def test_system_audit_has_classifications(run):
+    rows = _read_csv(run["out"] / "system_component_audit.csv")
+    assert rows
+    classes = {r["classification"] for r in rows}
+    assert "REUSE" in classes
+    assert "QUARANTINE" in classes
 
 
 def test_rerunnable_idempotent(run, tmp_path):

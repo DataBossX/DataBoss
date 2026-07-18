@@ -45,6 +45,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Landman Helper: the connected title-intelligence workflow (document extraction
+# + exact interest chaining + evidence-vaulted persistence). Kept in its own
+# router module so this legacy demo server stays untouched.
+try:
+    from landman_api import router as landman_router
+
+    app.include_router(landman_router)
+    logger.info("Landman Helper router mounted at /api/landman")
+except Exception as exc:  # pragma: no cover - defensive; keep base API working
+    logger.error(f"Landman Helper router unavailable: {exc}")
+
 # Database configuration
 SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "./databossx.db")
 

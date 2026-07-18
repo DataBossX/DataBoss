@@ -25,10 +25,20 @@ tagged `Needs Examiner Review`.
 - API: `backend/landman_api.py`, mounted at `/api/landman/*` by `backend/server.py`.
 - UI: the "⚖️ Landman" tab in `frontend/` (dark command-center theme).
 
+Real document formats are supported end to end: PDFs (text layer via
+`pdfplumber`/`PyMuPDF`), Word `.docx` (via `python-docx`), and scanned
+images/PDFs (OCR via `pytesseract`). PDF-text and Word extraction need only the
+Python packages; **image / scanned-PDF OCR also requires the `tesseract-ocr`
+system binary** (`sudo apt-get install -y tesseract-ocr`). When a backend is
+missing, or OCR mangles a value, the field is left blank and flagged for examiner
+review — never fabricated. If you install these backends into a running backend,
+restart it so the extractors are re-detected.
+
 Try it locally (backend on `:8001`, frontend on `:3000`), then open the Landman
 tab and click **Load Demo Project** for a synthetic, public-safe walkthrough, or
-`curl -X POST localhost:8001/api/landman/demo`. Tests: `python -m pytest
-tests/test_title_intelligence.py -q`.
+`curl -X POST localhost:8001/api/landman/demo`. You can also upload real
+`.pdf`/`.docx`/image deeds. Tests: `python -m pytest tests/test_title_intelligence.py
+tests/test_landman_document_formats.py -q`.
 
 Core controls:
 

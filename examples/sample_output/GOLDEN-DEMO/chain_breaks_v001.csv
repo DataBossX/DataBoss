@@ -1,0 +1,3 @@
+instrument_number,status,detail
+20200003,unreferenced_ogl,OGL instrument never referenced in the runsheet
+20999999,orphan_note,runsheet note references an instrument with no OGL record

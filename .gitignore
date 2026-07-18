@@ -51,7 +51,12 @@ agenthub/agents/youtube/db
 
 venv/
 .venv/
+.dbxvenv/
 __pycache__/
+
+# DataBossX generated run output (never commit a real run; regenerate on demand)
+**/databossx_output/
+.dbx_doctor_probe
 
 # Archives and generated artifacts
 **/*.zip

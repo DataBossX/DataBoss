@@ -1,0 +1,14 @@
+{
+  "schema_id": "dbx.synthetic_project_manifest",
+  "schema_version": "1.0",
+  "project_id": "GOLDEN-DEMO-001",
+  "client": "FICTIONAL CLIENT -- SYNTHETIC ONLY",
+  "legal_description": "SYNTHETIC LAND ONLY (Sec 31 & 32, T12N R24W placeholder)",
+  "source_policy": "IMMUTABLE_READ_ONLY",
+  "release_policy": {
+    "technical_verification_is_not_release": true,
+    "human_approval_required": true
+  },
+  "status": "SYNTHETIC_EXAMPLE",
+  "notes": "SYNTHETIC DEMONSTRATION DATA -- NOT A REAL TITLE RECORD"
+}

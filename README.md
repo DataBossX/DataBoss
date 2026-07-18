@@ -2,8 +2,24 @@
 
 DataBossX is a local-first toolkit for evidence-grounded land and mineral title research, document extraction, exact interest calculation, human review, and versioned report production.
 
+## Start here: the Command Center
+
+`databossx/` is the unified application that ties the engines below into **one
+project-based command** producing client-ready **Excel + PDF + a dashboard**:
+
+```bash
+python -m databossx doctor    # self-check
+python -m databossx demo      # build + run a synthetic project end to end
+python -m databossx run --project horizon --root /path/to/files
+```
+
+One-click launchers: **`DataBossX.bat`** (Windows, menu-driven) / `run_databossx.sh`.
+Operator quick start: [`DATABOSSX_COMMAND_CENTER.md`](DATABOSSX_COMMAND_CENTER.md).
+Package details: [`databossx/README.md`](databossx/README.md).
+
 The repository contains public-safe code and synthetic fixtures for:
 
+- `databossx/` — **Command Center**: project orchestration, exact mineral/WI/NRI economics, Excel+PDF+dashboard, self-check, backups
 - `horizon/` — exact interest math, instrument chaining, validation, repair, versioning, and examiner worklists
 - `grocery_report_pipeline.py` — deterministic inventory-to-report stages
 - `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs, and audit

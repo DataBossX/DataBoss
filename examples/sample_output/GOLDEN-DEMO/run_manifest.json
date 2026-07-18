@@ -1,0 +1,36 @@
+{
+  "schema_id": "dbx.run_manifest",
+  "version": "1.0.0",
+  "project": "Golden Demo (synthetic)",
+  "section": "31-12N-24W",
+  "generated": "2026-07-18 04:24:32 UTC",
+  "source_root": "/home/user/DataBoss/examples/projects/GOLDEN-DEMO",
+  "output_dir": "/home/user/DataBoss/examples/projects/GOLDEN-DEMO/databossx_output",
+  "rag": "RED",
+  "counts": {
+    "runsheet_rows": 5,
+    "tracts": 2,
+    "mineral_owners": 5,
+    "doi_rows": 10,
+    "chain_breaks": 2,
+    "review_items": 1,
+    "defects": 4,
+    "evidence": 5
+  },
+  "deliverables": {
+    "excel": "DataBossX_Report.xlsx",
+    "pdf": "DataBossX_Report.pdf",
+    "dashboard": "dashboard.html",
+    "worklists": [
+      "examiner_review_worklist_v001.csv",
+      "chain_breaks_v001.csv"
+    ]
+  },
+  "defect_count": 4,
+  "warnings": [],
+  "errors": [],
+  "release_policy": {
+    "technical_verification_is_not_release": true,
+    "human_approval_required": true
+  }
+}

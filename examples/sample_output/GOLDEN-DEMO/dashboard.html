@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DataBossX Dashboard -- Golden Demo (synthetic)</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; background: #f4f6f9; color: #1a2230; }
+  header { background: #13233b; color: #fff; padding: 22px 28px; }
+  header h1 { margin: 0 0 4px; font-size: 22px; }
+  header .meta { opacity: .85; font-size: 13px; }
+  .rag { display: inline-block; padding: 4px 14px; border-radius: 20px; color:#fff;
+    background: #b42318; font-weight: 700; margin-left: 10px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 22px 28px 60px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
+    gap: 12px; margin: 18px 0; }
+  .card { background:#fff; border:1px solid #dde3ea; border-radius:10px; padding:14px;
+    text-align:center; }
+  .card .num { font-size: 28px; font-weight: 700; color:#13233b; }
+  .card .lbl { font-size: 12px; color:#5a6675; margin-top:4px; }
+  h2 { margin: 26px 0 10px; font-size: 16px; color:#13233b;
+    border-bottom: 2px solid #e2e7ee; padding-bottom: 6px; }
+  table { width:100%; border-collapse: collapse; background:#fff; font-size:13px;
+    border:1px solid #dde3ea; border-radius:8px; overflow:hidden; }
+  th { background:#1f3a5f; color:#fff; text-align:left; padding:8px 10px; }
+  td { padding:7px 10px; border-top:1px solid #eef1f5; vertical-align:top; }
+  tr.sev-red td { background:#fdecea; }
+  tr.sev-yellow td { background:#fff8e6; }
+  code { background:#eef1f5; padding:1px 5px; border-radius:4px; font-size:12px;
+    word-break: break-all; }
+  ul { line-height: 1.6; }
+  .ok { color:#1a7f37; font-weight:600; }
+  .err { color:#b42318; }
+  footer { max-width:1080px; margin:0 auto; padding: 0 28px 40px; color:#7a8494;
+    font-size:12px; }
+  @media (prefers-color-scheme: dark) {
+    body { background:#0f151d; color:#e6ebf2; }
+    .card, table { background:#18202b; border-color:#2a3644; }
+    .card .num { color:#e6ebf2; } td { border-top-color:#232d3a; }
+    tr.sev-red td { background:#3a1e1c; } tr.sev-yellow td { background:#38310f; }
+    code { background:#232d3a; }
+  }
+</style></head><body>
+<header>
+  <h1>DataBossX &mdash; Golden Demo (synthetic)<span class="rag">RED</span></h1>
+  <div class="meta">Section 31-12N-24W &nbsp;|&nbsp; Generated 2026-07-18 04:24:32 UTC
+    &nbsp;|&nbsp; Source: <code>/home/user/DataBoss/examples/projects/GOLDEN-DEMO</code></div>
+</header>
+<main>
+  <div class="cards"><div class="card"><div class="num">5</div><div class="lbl">Runsheet rows</div></div><div class="card"><div class="num">2</div><div class="lbl">Tracts</div></div><div class="card"><div class="num">5</div><div class="lbl">Mineral owners</div></div><div class="card"><div class="num">10</div><div class="lbl">DOI rows</div></div><div class="card"><div class="num">2</div><div class="lbl">Chain breaks</div></div><div class="card"><div class="num">1</div><div class="lbl">Examiner reviews</div></div><div class="card"><div class="num">4</div><div class="lbl">Defects</div></div><div class="card"><div class="num">5</div><div class="lbl">Evidence records</div></div></div>
+  <h2>Deliverables</h2>
+  <ul><li><b>excel</b>: <code>/home/user/DataBoss/examples/projects/GOLDEN-DEMO/databossx_output/DataBossX_Report.xlsx</code></li><li><b>pdf</b>: <code>/home/user/DataBoss/examples/projects/GOLDEN-DEMO/databossx_output/DataBossX_Report.pdf</code></li></ul>
+  <h2>Defects &amp; missing evidence</h2>
+  <table><thead><tr><th>Severity</th><th>Category</th><th>Subject</th><th>Detail</th><th>Source</th></tr></thead><tbody><tr class="sev-red"><td>red</td><td>ownership-8/8</td><td>Sec 31 T12N R24W</td><td>Mineral interests sum to 7/8 (0.875000), not 8/8 -- under by 1/8. Do not release until reconciled.</td><td>division of interest</td></tr><tr class="sev-yellow"><td>yellow</td><td>examiner-review</td><td>2020-0003</td><td>Chain break: OGL instrument never referenced in the runsheet; Grantor conveyed 1/2 but only held 1/4 (over-conveyance of 1/4).</td><td>runsheet chain</td></tr><tr class="sev-yellow"><td>yellow</td><td>chain-break</td><td>20200003</td><td>unreferenced_ogl</td><td>OGL/runsheet cross-ref</td></tr><tr class="sev-yellow"><td>yellow</td><td>chain-break</td><td>20999999</td><td>orphan_note</td><td>OGL/runsheet cross-ref</td></tr></tbody></table>
+  <h2>Warnings</h2>
+  <ul><li>none</li></ul>
+  
+</main>
+<footer>
+  Unreviewed output is DRAFT work product &mdash; not a certified abstract or
+  title opinion. Technical verification is not client release; a human approval
+  gate is required.
+</footer>
+</body></html>

@@ -32,6 +32,10 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from .config import DataBossConfig
+from .database import DataBossDatabase
+from .hashing import copy_file_to_vault
+
 # The exact-math (horizon) and document-intelligence (grocery) engines live at
 # the repository root; make them importable regardless of the process CWD.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -39,12 +43,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import grocery_report_pipeline as _grp  # noqa: E402  (document intelligence)
-from horizon.chaining import (  # noqa: E402
-    OGLRecord,
-    RunsheetNote,
-    normalize_instrument,
-    reconcile_chain,
-)
+from horizon.chaining import OGLRecord, RunsheetNote, reconcile_chain  # noqa: E402
 from horizon.interest import (  # noqa: E402
     FULL,
     format_acres,
@@ -55,10 +54,6 @@ from horizon.interest import (  # noqa: E402
 )
 from horizon.pipeline import chain_to_report  # noqa: E402
 from horizon.validation import Requirements, validate_report  # noqa: E402
-
-from .config import DataBossConfig
-from .database import DataBossDatabase
-from .hashing import copy_file_to_vault
 
 RECIPE_VERSION = "title_intelligence/1.0.0"
 
@@ -278,7 +273,6 @@ def _ownership_ledger(
         # Walk to the last cleanly-balanced, tied link to name the current owner.
         current_owner = ""
         current_interest: Optional[Fraction] = None
-        as_of_instrument = ""
         for link in result.links:
             if (
                 link.reconciliation.status == "balanced"
@@ -288,7 +282,6 @@ def _ownership_ledger(
             ):
                 current_owner = link.grantee
                 current_interest = link.holder_after
-                as_of_instrument = link.instrument_number
 
         gross = recs[0].gross_acres
         gross_frac = try_parse_acres(gross) if str(gross).strip() else None

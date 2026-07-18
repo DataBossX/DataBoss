@@ -53,12 +53,12 @@ def render_dashboard(result: "RunResult") -> str:
             f'<td>{_esc(d.get("category",""))}</td>'
             f'<td>{_esc(d.get("subject",""))}</td>'
             f'<td>{_esc(d.get("detail",""))}</td>'
-            f'<td>{_esc(d.get("source",""))}</td></tr>'
+            f'<td>{_esc(d.get("curative",""))}</td></tr>'
             for d in sorted(result.defects,
                             key=lambda x: sev_rank.get(x.get("severity"), 3)))
         defects_table = (
             "<table><thead><tr><th>Severity</th><th>Category</th><th>Subject</th>"
-            "<th>Detail</th><th>Source</th></tr></thead><tbody>"
+            "<th>Detail</th><th>Curative action</th></tr></thead><tbody>"
             f"{defect_rows}</tbody></table>")
     else:
         defects_table = '<p class="ok">No defects detected in this run.</p>'

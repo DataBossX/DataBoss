@@ -226,6 +226,8 @@ def run_project(project_key: str, *, root: Optional[str] = None,
 
     # -- defects & missing evidence -----------------------------------------
     _collect_defects(result, runsheet_rows, chained, tracts, texts)
+    from .curative import enrich_defects
+    enrich_defects(result.defects)  # add a curative action to each defect
 
     # -- counts & RAG --------------------------------------------------------
     result.counts = {

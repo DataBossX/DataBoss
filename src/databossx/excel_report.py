@@ -217,16 +217,18 @@ def _doi_sheet(wb, tracts: List[TractOwnership]) -> None:
 
 def _defects_sheet(wb, defects: Sequence[Dict[str, object]]) -> None:
     ws = wb.create_sheet("Defects")
-    headers = ["Severity", "Category", "Subject", "Detail", "Source"]
-    _banner(ws, "Defects & missing evidence -- resolve before release", len(headers))
+    headers = ["Severity", "Category", "Subject", "Detail", "Curative Action",
+               "Source"]
+    _banner(ws, "Defects & curative worklist -- resolve before release", len(headers))
     ws.append(headers)
     header_row = ws.max_row
     _style_header(ws, header_row, len(headers))
     if not defects:
-        ws.append(["info", "none", "", "No defects detected in this run.", ""])
+        ws.append(["info", "none", "", "No defects detected in this run.", "", ""])
     for d in defects:
         ws.append([d.get("severity", ""), d.get("category", ""),
-                   d.get("subject", ""), d.get("detail", ""), d.get("source", "")])
+                   d.get("subject", ""), d.get("detail", ""),
+                   d.get("curative", ""), d.get("source", "")])
     ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
     _mark_review_rows(ws, header_row, 1)  # severity in col 1
     _autosize(ws)

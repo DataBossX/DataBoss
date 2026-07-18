@@ -223,15 +223,17 @@ def build_client_pdf(
     story.append(_table(doi_headers, doi_rows, [90, 120, 66, 62, 50, 62, 50], ss,
                         review_col=6))
 
-    # -- defects -------------------------------------------------------------
-    story.append(Paragraph("Defects &amp; missing evidence", ss["DBXH2"]))
+    # -- defects & curative worklist ----------------------------------------
+    story.append(Paragraph("Defects &amp; curative worklist", ss["DBXH2"]))
     if defects:
         df_rows = [[d.get("severity", ""), d.get("category", ""),
-                    d.get("subject", ""), d.get("detail", "")] for d in defects]
+                    d.get("subject", ""), d.get("detail", ""),
+                    d.get("curative", "")] for d in defects]
     else:
-        df_rows = [["info", "none", "", "No defects detected in this run."]]
-    story.append(_table(["Severity", "Category", "Subject", "Detail"],
-                        df_rows, [55, 80, 120, 255], ss, review_col=0))
+        df_rows = [["info", "none", "", "No defects detected in this run.", ""]]
+    story.append(_table(["Severity", "Category", "Subject", "Detail",
+                         "Curative Action"],
+                        df_rows, [44, 68, 88, 132, 172], ss, review_col=0))
 
     # -- evidence ------------------------------------------------------------
     story.append(Paragraph("Evidence &amp; audit trail", ss["DBXH2"]))

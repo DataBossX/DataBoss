@@ -77,7 +77,8 @@ def _print_run_result(result) -> None:
 def _cmd_run(args) -> int:
     from .command_center import run_project
     result = run_project(args.project, root=args.root, output_dir=args.output,
-                         make_pdf=not args.no_pdf, base=args.base)
+                         make_pdf=not args.no_pdf, base=args.base,
+                         record_audit=args.audit)
     _print_run_result(result)
     return 0 if result.ok else 1
 
@@ -91,7 +92,8 @@ def _cmd_demo(args) -> int:
     workbook = build_golden_demo(dest)
     print(f"Synthetic golden project ready: {workbook.parent.parent}")
     out = args.output or str(dest / "databossx_output")
-    result = run_project("golden_demo", output_dir=out, make_pdf=not args.no_pdf)
+    result = run_project("golden_demo", output_dir=out, make_pdf=not args.no_pdf,
+                         record_audit=args.audit)
     _print_run_result(result)
     return 0 if result.ok else 1
 
@@ -160,11 +162,15 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--output", default=None, help="override the output folder")
     run.add_argument("--base", default=None, help="reserved: base working dir")
     run.add_argument("--no-pdf", action="store_true", help="skip the PDF report")
+    run.add_argument("--audit", action="store_true",
+                     help="also record the run in a durable SQLite audit store")
     run.set_defaults(func=_cmd_run)
 
     demo = sub.add_parser("demo", help="build + run the synthetic golden project")
     demo.add_argument("--output", default=None, help="override the output folder")
     demo.add_argument("--no-pdf", action="store_true", help="skip the PDF report")
+    demo.add_argument("--audit", action="store_true",
+                      help="also record the run in a durable SQLite audit store")
     demo.set_defaults(func=_cmd_demo)
 
     calc = sub.add_parser("calc", help="ad-hoc mineral / WI / NRI math")

@@ -169,7 +169,7 @@ def ownership_to_tracts(rows: List[Dict[str, str]]) -> List[TractOwnership]:
 # ---------------------------------------------------------------------------
 def run_project(project_key: str, *, root: Optional[str] = None,
                 output_dir: Optional[str] = None, make_pdf: bool = True,
-                base: Optional[str] = None) -> RunResult:
+                base: Optional[str] = None, record_audit: bool = False) -> RunResult:
     """Run the full slice for one project and return a :class:`RunResult`.
 
     Never raises for an expected operational problem (missing folder, missing
@@ -245,6 +245,22 @@ def run_project(project_key: str, *, root: Optional[str] = None,
     _write_deliverables(result, out, runsheet_rows, tracts, chained, abstracts,
                         audit, make_pdf=make_pdf,
                         synthetic=(proj.key == GOLDEN_DEMO_KEY))
+
+    # -- optional durable audit store (foundation SQLite + FTS) -------------
+    if record_audit:
+        from .audit_bridge import record_run
+        db_path = record_run(
+            out, project_name=proj.name, project_key=proj.key,
+            jurisdiction=proj.state or "NA", rag=result.rag,
+            counts=result.counts, defect_count=len(result.defects),
+            deliverables=result.deliverables)
+        if db_path:
+            result.deliverables["audit_db"] = db_path
+            audit("audit_store", db_path)
+        else:
+            result.warnings.append(
+                "Durable audit store not written (foundation DB unavailable); "
+                "the audit log and run manifest remain the evidence trail.")
 
     audit("run_done", f"rag={result.rag} deliverables={len(result.deliverables)} "
                       f"defects={len(result.defects)}")

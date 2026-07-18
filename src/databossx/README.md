@@ -22,6 +22,7 @@ resolve project ─▶ ingest & inventory (sha256 evidence) ─▶ extract text 
 | `excel_report.py` | Client-ready multi-sheet workbook (Summary, Runsheet, Abstract, Mineral Ownership, Division of Interest, Defects, Evidence). |
 | `pdf_report.py` | Client-ready paginated PDF (reportlab) with cover, tables, page numbers, draft/synthetic footer. |
 | `dashboard.py` | Self-contained HTML dashboard (no external assets, theme-aware). |
+| `audit_bridge.py` | **Optional** (`--audit`) bridge that records the run + every deliverable's SHA-256 into the foundation's SQLite `audit_events` store (FTS-searchable), unifying the Command Center with the foundation vault. Best-effort — never breaks a run. |
 | `backup.py` | Timestamped, non-destructive backup of prior deliverables. |
 | `selfcheck.py` | `doctor` — plain-language PASS/WARN/FAIL health check + in-memory exact-math smoke test. |
 | `demo.py` | Generator for the bundled **synthetic** golden project (100% invented; deliberately flawed so the defect machinery has something to catch). |
@@ -33,6 +34,7 @@ resolve project ─▶ ingest & inventory (sha256 evidence) ─▶ extract text 
 python dbx.py doctor                        # health check
 python dbx.py demo                           # build + run synthetic project
 python dbx.py run --project horizon --root /path/to/files
+python dbx.py run --project horizon --root /path/to/files --audit   # + durable audit store
 python dbx.py calc --wi 1/2 --royalty 3/16 --orri 1/32
 ```
 

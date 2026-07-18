@@ -9,11 +9,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from databossx.config import DataBossConfig
 from databossx.database import DataBossDatabase
 from databossx.title_intelligence import (
     SAMPLE_DEEDS,
     build_title_analysis,
+    export_report,
     extract_conveyance,
     seed_demo_project,
 )
@@ -148,3 +151,29 @@ def test_seed_demo_project_persists_auditable_artifact(tmp_path):
         (project_id,),
     )
     assert lineage["n"] >= 6
+
+
+def test_export_report_writes_xlsx_and_worklist(tmp_path):
+    openpyxl = pytest.importorskip("openpyxl", reason="openpyxl not installed")
+    config = DataBossConfig.from_repo_root(tmp_path / "repo")
+    result_seed = seed_demo_project(config)
+    project_id = result_seed["project_id"]
+
+    result = export_report(config, project_id)
+    xlsx = Path(result["xlsx_path"])
+    worklist = Path(result["worklist_path"])
+    assert xlsx.exists() and worklist.exists()
+    # The over-conveyance row lands on the examiner worklist.
+    assert result["worklist_rows"] >= 1
+
+    wb = openpyxl.load_workbook(xlsx)
+    ws = wb["Title Report"]
+    header = [c.value for c in ws[2]]
+    assert "Grantor" in header and "Net Mineral Acres" in header
+    # Every conveyance instrument appears in the exported report body.
+    body = "\n".join(
+        " ".join(str(c.value) for c in row if c.value is not None)
+        for row in ws.iter_rows(min_row=3)
+    )
+    assert "Erin Evans" in body
+    wb.close()

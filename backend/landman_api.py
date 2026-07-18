@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # Make the repo root (grocery + horizon) and src/ (databossx) importable.
@@ -41,6 +42,7 @@ from databossx.database import DataBossDatabase  # noqa: E402
 from databossx.intake import create_project  # noqa: E402
 from databossx.title_intelligence import (  # noqa: E402
     analyze_project,
+    export_report,
     extract_conveyance,
     load_text_from_bytes,
     register_document,
@@ -226,6 +228,34 @@ async def get_landman_analysis(project_id: str) -> Dict[str, Any]:
     if analysis is None:
         raise HTTPException(status_code=404, detail="No analysis yet; run /analyze first")
     return analysis
+
+
+@router.get("/projects/{project_id}/report.xlsx")
+async def download_report_xlsx(project_id: str):
+    _db(project_id)  # existence check
+    try:
+        result = await asyncio.to_thread(export_report, CONFIG, project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return FileResponse(
+        result["xlsx_path"],
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=f"{project_id}_cursory_title_report.xlsx",
+    )
+
+
+@router.get("/projects/{project_id}/worklist.csv")
+async def download_worklist_csv(project_id: str):
+    _db(project_id)  # existence check
+    try:
+        result = await asyncio.to_thread(export_report, CONFIG, project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return FileResponse(
+        result["worklist_path"],
+        media_type="text/csv",
+        filename=f"{project_id}_examiner_worklist.csv",
+    )
 
 
 @router.post("/demo")

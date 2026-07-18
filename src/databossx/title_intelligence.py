@@ -43,6 +43,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import grocery_report_pipeline as _grp  # noqa: E402  (document intelligence)
+from horizon.artifacts import write_review_worklist  # noqa: E402
 from horizon.chaining import OGLRecord, RunsheetNote, reconcile_chain  # noqa: E402
 from horizon.interest import (  # noqa: E402
     FULL,
@@ -52,7 +53,9 @@ from horizon.interest import (  # noqa: E402
     try_parse_acres,
     try_parse_interest,
 )
+from horizon.models import ReportModel, TitleRow  # noqa: E402
 from horizon.pipeline import chain_to_report  # noqa: E402
+from horizon.report_io import write_report  # noqa: E402
 from horizon.validation import Requirements, validate_report  # noqa: E402
 
 RECIPE_VERSION = "title_intelligence/1.0.0"
@@ -666,6 +669,80 @@ def analyze_project(
     analysis["artifact_id"] = artifact_id
     analysis["artifact_path"] = str(out_path)
     return analysis
+
+
+def latest_analysis(config: DataBossConfig, project_id: str) -> Optional[Dict[str, Any]]:
+    """Load the most recent persisted title analysis for a project, or None."""
+    db_path = config.project_db_path(project_id)
+    if not db_path.exists():
+        return None
+    db = DataBossDatabase(db_path)
+    art = db.fetchone(
+        """
+        SELECT id FROM derived_artifacts
+         WHERE project_id = ? AND artifact_type = 'title_analysis'
+         ORDER BY id DESC LIMIT 1
+        """,
+        (project_id,),
+    )
+    if art is None:
+        return None
+    path = config.project_artifacts_root(project_id) / f"title_analysis_{art['id']}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def export_report(config: DataBossConfig, project_id: str) -> Dict[str, Any]:
+    """Render the reconciled analysis into a landman's real deliverables.
+
+    Writes the canonical cursory title report as ``.xlsx`` (via horizon's
+    ``report_io``) and the examiner worklist as ``.csv`` (via horizon's
+    ``artifacts``) into the project's exports/review directories, and records
+    each as an auditable ``derived_artifact``. Raises ``ValueError`` when the
+    project has not been analyzed yet.
+    """
+    analysis = latest_analysis(config, project_id)
+    if analysis is None:
+        raise ValueError("No analysis to export; run analyze first.")
+
+    rows = [TitleRow(**r) for r in analysis.get("chain_rows", [])]
+    report = ReportModel(
+        section=analysis.get("section", "Unspecified"), source="landman", rows=rows
+    )
+
+    exports_dir = config.project_exports_root(project_id)
+    review_dir = config.project_review_root(project_id)
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    review_dir.mkdir(parents=True, exist_ok=True)
+    xlsx_path = exports_dir / "cursory_title_report.xlsx"
+    worklist_path = review_dir / "examiner_worklist.csv"
+
+    write_report(report, xlsx_path)
+    worklist_rows = write_review_worklist(report, worklist_path)
+
+    db = DataBossDatabase(config.project_db_path(project_id))
+    artifact_id = db.execute(
+        """
+        INSERT INTO derived_artifacts (project_id, artifact_type, recipe_version)
+        VALUES (?, 'title_report_export', ?)
+        """,
+        (project_id, RECIPE_VERSION),
+    )
+    db.audit(
+        project_id,
+        "report.exported",
+        "derived_artifact",
+        str(artifact_id),
+        json.dumps(
+            {"xlsx": str(xlsx_path), "worklist_rows": worklist_rows}, sort_keys=True
+        ),
+    )
+    return {
+        "xlsx_path": str(xlsx_path),
+        "worklist_path": str(worklist_path),
+        "worklist_rows": worklist_rows,
+    }
 
 
 def _infer_section(conveyances: Sequence[ConveyanceFact]) -> str:

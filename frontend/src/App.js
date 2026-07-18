@@ -843,7 +843,23 @@ const App = () => {
 
             {/* Generated report */}
             <div className="bg-gray-800 border border-cyan-500 rounded-lg p-6">
-              <h4 className="text-lg font-bold text-cyan-400 mb-3">📝 CURSORY TITLE REPORT (DRAFT)</h4>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <h4 className="text-lg font-bold text-cyan-400">📝 CURSORY TITLE REPORT (DRAFT)</h4>
+                <div className="flex gap-2">
+                  <a
+                    href={`${backendUrl}/api/landman/projects/${proj.project_id}/report.xlsx`}
+                    className="border border-cyan-500 text-cyan-400 text-xs px-3 py-1 rounded hover:bg-gray-700"
+                  >
+                    ⬇️ Excel report
+                  </a>
+                  <a
+                    href={`${backendUrl}/api/landman/projects/${proj.project_id}/worklist.csv`}
+                    className="border border-cyan-500 text-cyan-400 text-xs px-3 py-1 rounded hover:bg-gray-700"
+                  >
+                    ⬇️ Examiner worklist (CSV)
+                  </a>
+                </div>
+              </div>
               <pre className="bg-gray-900 border border-gray-700 rounded p-4 text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap">{analysis.report_markdown}</pre>
             </div>
           </>

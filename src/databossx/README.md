@@ -62,6 +62,10 @@ is flagged `review` — the calculator never fabricates to make 8/8 close.
 - **Graceful degradation.** A missing optional dependency (e.g. `reportlab`) or
   an absent input downgrades a feature with a plain-language note — it does not
   crash the run.
+- **Injection-safe deliverables.** Document-derived text is treated as untrusted:
+  the Excel writer neutralizes spreadsheet **formula injection** (a value like
+  `=HYPERLINK(...)` never becomes a live formula), the PDF writer escapes XML
+  metacharacters (`&`, `<`, `>`), and the dashboard HTML-escapes every value.
 
 ## Tests
 

@@ -14,8 +14,21 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
+from xml.sax.saxutils import escape as _xml_escape
 
 from .ownership import TractOwnership
+
+
+def _x(text: object) -> str:
+    """Escape a value for reportlab's Paragraph markup (&, <, > become entities).
+
+    Document-derived content (party names like "Smith & Sons", legal
+    descriptions containing angle brackets) would otherwise be parsed as
+    Paragraph markup and break PDF generation. Escaping keeps the PDF a faithful,
+    robust rendering of exactly what the engines produced.
+    """
+    return _xml_escape("" if text is None else str(text))
+
 
 _NAVY = "#1F3A5F"
 _DARK = "#13233B"
@@ -56,7 +69,8 @@ def _footer(canvas, doc):
 
 def _cell(text, style) -> "object":
     from reportlab.platypus import Paragraph
-    return Paragraph("" if text is None else str(text), style)
+    # Escape data content so &/</> in names or legals never break Paragraph markup.
+    return Paragraph(_x(text), style)
 
 
 def _table(headers: Sequence[str], rows: Sequence[Sequence[object]],
@@ -125,9 +139,9 @@ def build_client_pdf(
     story.append(Spacer(1, 24))
     for label, key in [("Project", "project"), ("Section", "section"),
                        ("Generated (UTC)", "generated")]:
-        story.append(Paragraph(f"<b>{label}:</b> {meta.get(key, '')}", ss["DBXSub"]))
+        story.append(Paragraph(f"<b>{label}:</b> {_x(meta.get(key, ''))}", ss["DBXSub"]))
     story.append(Spacer(1, 18))
-    story.append(Paragraph(f"<b>Overall status:</b> {rag}", ss["DBXSub"]))
+    story.append(Paragraph(f"<b>Overall status:</b> {_x(rag)}", ss["DBXSub"]))
     if synthetic:
         story.append(Spacer(1, 30))
         story.append(Paragraph(
@@ -151,7 +165,7 @@ def build_client_pdf(
                         [[k, v] for k, v in summary_rows],
                         [220, 90], ss))
     story.append(Spacer(1, 8))
-    story.append(Paragraph(f"Source root: {meta.get('source_root', '')}", ss["DBXNote"]))
+    story.append(Paragraph(f"Source root: {_x(meta.get('source_root', ''))}", ss["DBXNote"]))
 
     # -- runsheet ------------------------------------------------------------
     story.append(Paragraph("Runsheet -- reconciled chain of title", ss["DBXH2"]))
@@ -172,7 +186,7 @@ def build_client_pdf(
                       "Inst.", "Conveyed", "Status"]
         for a in abstracts:
             story.append(Paragraph(
-                f"<b>Tract: {a.legal_description or a.tract}</b>", ss["DBXCell"]))
+                f"<b>Tract: {_x(a.legal_description or a.tract)}</b>", ss["DBXCell"]))
             ab_rows = [[
                 e.seq, e.instrument_date, e.doc_type, e.grantor, e.grantee,
                 e.instrument_number, e.conveyed_interest, e.status,

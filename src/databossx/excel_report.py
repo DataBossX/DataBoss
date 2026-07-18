@@ -21,6 +21,27 @@ from typing import Dict, List, Optional, Sequence
 
 from .ownership import TractOwnership
 
+# Spreadsheet formula-injection guard. openpyxl writes a leading "=" string as a
+# live formula, and Excel/LibreOffice treat "= + - @" (and leading tab/CR) as
+# formula initiators on open or CSV re-export. Document-derived values (a grantor
+# literally named "=HYPERLINK(...)") must never become an executable formula in a
+# client's workbook, so any such value is prefixed with a text-forcing apostrophe.
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _sanitize_workbook(wb) -> None:
+    """Neutralize formula-injection in every cell of every sheet before save."""
+    from openpyxl.cell.cell import MergedCell
+
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell, MergedCell):
+                    continue
+                v = cell.value
+                if isinstance(v, str) and v and v[0] in _FORMULA_TRIGGERS:
+                    cell.value = "'" + v
+
 # Canonical runsheet columns (mirror horizon.models.CANONICAL_COLUMNS order).
 _RUNSHEET_COLS = [
     ("entry_no", "Entry No"),
@@ -275,6 +296,7 @@ def build_client_workbook(
     _doi_sheet(wb, tracts)
     _defects_sheet(wb, defects)
     _evidence_sheet(wb, evidence)
+    _sanitize_workbook(wb)  # formula-injection guard (client-facing deliverable)
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(path)

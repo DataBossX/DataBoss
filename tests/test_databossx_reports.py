@@ -57,6 +57,56 @@ def test_pdf_written_and_valid(tmp_path):
     assert path.stat().st_size > 1000
 
 
+def test_excel_neutralizes_formula_injection(tmp_path):
+    # A malicious grantor named like a formula must NOT become a live formula in
+    # the client's workbook.
+    import openpyxl
+
+    runsheet = [{"instrument_number": "1", "grantor": "=HYPERLINK(\"http://x\")",
+                 "grantee": "@SUM(A1)", "conveyed_interest": "1/2",
+                 "status": "ok", "remarks": "+1+1"}]
+    path = build_client_workbook(
+        tmp_path / "r.xlsx", meta=_META, counts=_COUNTS, rag="RED",
+        runsheet_rows=runsheet, tracts=_sample_tracts(), defects=[], evidence=[])
+    wb = openpyxl.load_workbook(path)
+    ws = wb["Runsheet"]
+    danger = []
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.data_type == "f":  # a live formula cell
+                danger.append(cell.value)
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                danger.append(cell.value)
+    assert not danger, f"formula-injected cells present: {danger}"
+    # The malicious value survives as inert, apostrophe-prefixed text.
+    found = [c.value for r in ws.iter_rows() for c in r
+             if isinstance(c.value, str) and "HYPERLINK" in c.value]
+    assert found and found[0].startswith("'=")
+
+
+def test_pdf_survives_xml_special_chars_in_data(tmp_path):
+    # A party name with & / < / > must not break reportlab Paragraph markup.
+    pytest.importorskip("reportlab")
+    from databossx.pdf_report import build_client_pdf
+
+    runsheet = [{"instrument_number": "1", "grantor": "Smith & Sons <Trust>",
+                 "grantee": "A>B & C", "conveyed_interest": "1/2",
+                 "retained_interest": "1/2", "net_mineral_acres": "80",
+                 "status": "ok", "remarks": "note with <b> & ampersand"}]
+    tracts = [division_of_interest(
+        [MineralOwner("Q & R <LLC>", "1", royalty="1/8", lessee="Op & Co")],
+        "160", tract="Sec 1 <T1N> & R1W")]
+    path = build_client_pdf(
+        tmp_path / "x.pdf", meta={**_META, "source_root": "/a & b/<x>"},
+        counts=_COUNTS, rag="RED", runsheet_rows=runsheet, tracts=tracts,
+        defects=[{"severity": "red", "category": "c", "subject": "s & <t>",
+                  "detail": "d < e & f", "source": "src"}],
+        evidence=[], abstracts=None)
+    assert path.exists()
+    assert path.read_bytes()[:5] == b"%PDF-"
+    assert path.stat().st_size > 1000
+
+
 def test_dashboard_is_self_contained_html(tmp_path):
     from databossx.command_center import RunResult
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import sys
+import hashlib
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -284,6 +285,8 @@ def test_unreviewed_instrument_blocks_approval(tmp_path: Path) -> None:
 
 
 def test_migration_invalidates_pre_provenance_pending_package(tmp_path: Path) -> None:
+    evidence_text = "Recorded mineral deed"
+    evidence_sha256 = hashlib.sha256(evidence_text.encode("utf-8")).hexdigest()
     migrations = tmp_path / "migrations"
     migrations.mkdir()
     for number in range(1, 5):
@@ -341,8 +344,85 @@ def test_migration_invalidates_pre_provenance_pending_package(tmp_path: Path) ->
             ) VALUES ('r', 'c', 'old-hash', 0, 'AWAITING_REVIEW')
             """
         )
-    migration = ROOT / "migrations" / "005_invalidate_pre_provenance_packages.sql"
-    shutil.copy2(migration, migrations / migration.name)
+        connection.execute(
+            """
+            INSERT INTO blobs(sha256, size_bytes, vault_relpath, created_at)
+            VALUES (?, ?, ?, 'now')
+            """,
+            (evidence_sha256, len(evidence_text), evidence_sha256),
+        )
+        connection.execute(
+            """
+            INSERT INTO asset_versions(
+                id, project_id, ingest_run_id, rel_path, extension, size_bytes,
+                source_mtime_ns, blob_sha256, custody_at
+            ) VALUES ('a2', 'p', 'i', 'deed.txt', '.txt', ?, 0, ?, 'now')
+            """,
+            (len(evidence_text), evidence_sha256),
+        )
+        connection.execute(
+            """
+            INSERT INTO text_extractions(
+                id, asset_version_id, status, extractor, extractor_version,
+                text_sha256, text_content, char_count, created_at
+            ) VALUES ('e2', 'a2', 'SUCCEEDED', 'plain_text', '1', ?, ?, ?, 'now')
+            """,
+            (evidence_sha256, evidence_text, len(evidence_text)),
+        )
+        connection.execute(
+            """
+            INSERT INTO pipeline_runs(
+                id, project_id, ingest_run_id, pipeline, pipeline_version,
+                input_manifest_sha256, status, run_dir, started_at
+            ) VALUES (
+                'r2', 'p', 'i', 'title-examiner-packet', '1',
+                'hash', 'WAITING_HUMAN', '/tmp', 'now'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_cases(
+                id, project_id, name, legal_description,
+                gross_acres_num, gross_acres_den, created_at
+            ) VALUES ('c2', 'p', 'Bound', 'Synthetic', 1, 1, 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_instruments(
+                id, title_case_id, sequence_no, instrument_type,
+                recording_reference, grantor_name, grantee_name,
+                conveyed_num, conveyed_den, interest_basis,
+                evidence_asset_version_id, evidence_char_start, evidence_char_end,
+                review_status, recording_reference_key, evidence_ingest_run_id,
+                evidence_source_sha256, evidence_extraction_sha256,
+                evidence_span_sha256, evidence_span_text
+            ) VALUES (
+                'ti2', 'c2', 1, 'Mineral Deed', 'BK1-P1', 'Grantor', 'Grantee',
+                1, 1, 'ABSOLUTE_ESTATE', 'a2', 0, ?, 'REVIEWED', 'bk1p1', 'i',
+                ?, ?, ?, ?
+            )
+            """,
+            (
+                len(evidence_text),
+                evidence_sha256,
+                evidence_sha256,
+                evidence_sha256,
+                evidence_text,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO title_package_details(
+                pipeline_run_id, title_case_id, package_manifest_sha256,
+                blocking_defect_count, review_status
+            ) VALUES ('r2', 'c2', 'bound-hash', 0, 'AWAITING_REVIEW')
+            """
+        )
+    for number in (5, 6):
+        migration = next((ROOT / "migrations").glob(f"00{number}_*.sql"))
+        shutil.copy2(migration, migrations / migration.name)
     upgraded = KernelService(config)
     with upgraded.db.connect() as connection:
         package = connection.execute(
@@ -351,5 +431,13 @@ def test_migration_invalidates_pre_provenance_pending_package(tmp_path: Path) ->
         run = connection.execute(
             "SELECT * FROM pipeline_runs WHERE id='r'"
         ).fetchone()
+        bound_package = connection.execute(
+            "SELECT * FROM title_package_details WHERE pipeline_run_id='r2'"
+        ).fetchone()
+        bound_run = connection.execute(
+            "SELECT * FROM pipeline_runs WHERE id='r2'"
+        ).fetchone()
     assert package["review_status"] == "INVALIDATED_PRE_PROVENANCE"
     assert run["status"] == "FAILED_TERMINAL"
+    assert bound_package["review_status"] == "AWAITING_REVIEW"
+    assert bound_run["status"] == "WAITING_HUMAN"

@@ -41,7 +41,7 @@ th{font:700 11px "Courier New";text-transform:uppercase}.hash{font:11px "Courier
 <button id="ingest" disabled onclick="ingest()">Copy + hash evidence</button><button id="run" disabled onclick="runReport()">Build draft reports</button></div>
 <div class="tabs"><button class="active" data-view="assets">Evidence</button><button data-view="search">Search</button><button data-view="title">Title Case</button><button data-view="runs">Reports</button><button data-view="audit">Audit</button></div>
 <div id="assets" class="view active"></div><div id="search" class="view"><input id="query" placeholder="Search exact OCR/text evidence"><button onclick="search()">Search evidence</button><div id="results"></div></div>
-<div id="title" class="view"><p>Import operator-reviewed records only. Every reviewed instrument must cite an evidence asset ID and exact character range.</p><textarea id="title-json" placeholder='{"name":"Title case","legal_description":"...","gross_acres":{"numerator":160,"denominator":1},"opening_ownership":[],"instruments":[]}'></textarea><button onclick="createTitleCase()">Import reviewed title case</button><div id="title-cases"></div><h2>Reviewer credential</h2><input id="reviewer-name" placeholder="Qualified examiner or attorney name"><input id="reviewer-new-pin" type="password" placeholder="Create PIN (6+ characters)"><button onclick="registerReviewer()">Register qualified examiner</button><div id="reviewers"></div><input id="reviewer-id" placeholder="Reviewer ID for approval"><input id="reviewer-pin" type="password" placeholder="Reviewer PIN for approval"></div>
+<div id="title" class="view"><p>Import operator-reviewed records only. Every reviewed instrument must cite an evidence asset ID and exact character range.</p><textarea id="title-json" placeholder='{"name":"Title case","legal_description":"...","gross_acres":{"numerator":160,"denominator":1},"opening_ownership":[],"instruments":[]}'></textarea><button onclick="createTitleCase()">Import reviewed title case</button><div id="title-cases"></div><h2>Reviewer credential</h2><p>Reviewer enrollment is intentionally unavailable to browser sessions. Run <code>Register_DataBossX_Reviewer.bat</code> from the local machine.</p><div id="reviewers"></div><input id="reviewer-id" placeholder="Reviewer ID for approval"><input id="reviewer-pin" type="password" placeholder="Reviewer PIN for approval"></div>
 <div id="runs" class="view"></div><div id="audit" class="view"></div></section></div></main>
 <script>
 const token=new URLSearchParams(location.hash.slice(1)).get('token')||sessionStorage.getItem('dbx-token')||'';
@@ -61,16 +61,15 @@ async function refresh(){if(!active)return;const [assets,runs,audit,cases,review
  document.getElementById('assets').innerHTML=assets.length?`<table><tr><th>Source</th><th>Hash / custody</th><th>Extraction</th></tr>${assets.map(a=>`<tr><td>${esc(a.rel_path)}<br><span class="badge">${a.size_bytes} bytes</span><br><span class="hash">asset ${a.id}</span></td><td class="hash">${a.blob_sha256}<br>${a.custody_at}</td><td>${a.extraction_status}<br>${esc(a.extractor)} ${a.note?`<span class="warn">${esc(a.note)}</span>`:''}</td></tr>`).join('')}</table>`:'<div class="empty">No evidence ingested. Originals remain untouched.</div>';
  document.getElementById('title-cases').innerHTML=cases.map(c=>`<div class="panel"><b>${esc(c.name)}</b><br>${esc(c.legal_description)} · ${c.status}<br><button onclick="buildTitleCase('${c.id}')">Build exact examiner packet</button></div>`).join('')||'<div class="empty">No structured title case.</div>';
  document.getElementById('reviewers').innerHTML=reviewers.map(r=>`<div>${esc(r.display_name)} · ${r.role}<br><span class="hash">${r.id}</span></div>`).join('')||'<div class="empty">No credentialed reviewer. Approval is disabled.</div>';
- let html='';for(const r of runs){const arts=await api(`/runs/${r.id}/artifacts`).then(x=>x.json());let review='';if(r.pipeline==='title-examiner-packet'&&r.status==='WAITING_HUMAN'){const p=await api(`/title-packages/${r.id}`).then(x=>x.json());review=`<div>${p.blocking_defect_count} blocking defect(s) · manifest <span class="hash">${p.package_manifest_sha256}</span></div>${p.blocking_defect_count===0?`<button onclick="reviewTitle('${r.id}','${p.package_manifest_sha256}')">Approve exact hash</button>`:'<span class="warn">Approval blocked until defects are resolved.</span>'}`}html+=`<h3>${r.pipeline} · ${r.status}</h3>${review}${arts.map(a=>`<div><a href="/api/v1/artifacts/${a.id}/download" data-id="${a.id}" onclick="downloadArtifact(event,this)">${esc(a.rel_path)}</a> <span class="hash">${a.blob_sha256.slice(0,16)}…</span></div>`).join('')}`}document.getElementById('runs').innerHTML=html||'<div class="empty">No report runs yet.</div>';
+ let html='';for(const r of runs){const arts=await api(`/runs/${r.id}/artifacts`).then(x=>x.json());let review='';if(r.pipeline==='title-examiner-packet'&&r.status==='WAITING_HUMAN'){const p=await api(`/title-packages/${r.id}`).then(x=>x.json());review=`<div>${p.blocking_defect_count} blocking defect(s) · manifest <span class="hash">${p.package_manifest_sha256}</span></div>${p.blocking_defect_count===0?`<button onclick="reviewTitle('${r.id}','${p.package_manifest_sha256}')">Approve exact hash</button>`:'<span class="warn">Approval blocked until defects are resolved.</span>'}`}const preview=r.pipeline==='title-examiner-packet'&&r.status!=='SUCCEEDED';html+=`<h3>${r.pipeline} · ${r.status}</h3>${review}${arts.map(a=>`<div><a href="/api/v1/artifacts/${a.id}/${preview?'preview':'download'}" data-id="${a.id}" data-mode="${preview?'preview':'download'}" onclick="downloadArtifact(event,this)">${preview?'REVIEW COPY · ':''}${esc(a.rel_path)}</a> <span class="hash">${a.blob_sha256.slice(0,16)}…</span></div>`).join('')}`}document.getElementById('runs').innerHTML=html||'<div class="empty">No report runs yet.</div>';
  document.getElementById('audit').innerHTML=audit.length?`<table><tr><th>Sequence</th><th>Event</th><th>Object</th><th>Chain</th></tr>${audit.map(e=>`<tr><td>${e.sequence}</td><td>${e.action}<br>${e.occurred_at}</td><td>${e.object_type}<br><span class="hash">${e.object_id}</span></td><td>${e.chain_valid?'VERIFIED':'FAILED'}</td></tr>`).join('')}</table>`:'<div class="empty">No events.</div>'}
 async function ingest(){try{busy('Hashing and copying evidence into immutable vault…');await api(`/projects/${active}/ingests`,{method:'POST'});await refresh();await loadProjects();busy('Ingest complete · originals unchanged')}catch(e){alert(e.message);busy(e.message)}}
 async function runReport(){try{busy('Building draft reports from verified vault copies…');await api(`/projects/${active}/runs/grocery`,{method:'POST'});await refresh();busy('Draft report artifacts verified and vaulted')}catch(e){alert(e.message);busy(e.message)}}
 async function createTitleCase(){try{const payload=JSON.parse(document.getElementById('title-json').value);await api(`/projects/${active}/title-cases`,{method:'POST',body:JSON.stringify(payload)});await refresh();busy('Reviewed title records imported')}catch(e){alert(e.message)}}
 async function buildTitleCase(id){try{busy('Calculating exact ownership and building XLSX/PDF packet…');await api(`/title-cases/${id}/packages`,{method:'POST'});await refresh();busy('Examiner packet built · human review required')}catch(e){alert(e.message);busy(e.message)}}
-async function registerReviewer(){try{const display_name=document.getElementById('reviewer-name').value;const pin=document.getElementById('reviewer-new-pin').value;const reviewer=await (await api('/title-reviewers',{method:'POST',body:JSON.stringify({display_name,role:'QUALIFIED_EXAMINER',pin})})).json();document.getElementById('reviewer-id').value=reviewer.id;document.getElementById('reviewer-new-pin').value='';await refresh();busy('Credentialed reviewer registered')}catch(e){alert(e.message)}}
 async function reviewTitle(id,hash){const reviewer_id=document.getElementById('reviewer-id').value;const reviewer_pin=document.getElementById('reviewer-pin').value;if(!reviewer_id||!reviewer_pin){alert('Enter reviewer ID and PIN on the Title Case tab.');return}if(!confirm('Approve this exact package hash? This does not certify an abstract or title opinion.'))return;try{await api(`/title-packages/${id}/review`,{method:'POST',body:JSON.stringify({package_manifest_sha256:hash,reviewer_id,reviewer_pin,decision:'APPROVE',notes:'Approved in local Command Center'})});document.getElementById('reviewer-pin').value='';await refresh();busy('Exact package hash approved for export')}catch(e){alert(e.message)}}
 async function search(){try{const rows=await (await api(`/projects/${active}/search?q=${encodeURIComponent(query.value)}`)).json();results.innerHTML=rows.map(r=>`<div class="panel"><b>${esc(r.rel_path)}</b><div class="excerpt">${esc(r.excerpt)}</div><div class="hash">${r.source_sha256} · chars ${r.char_start}-${r.char_end}</div></div>`).join('')||'<div class="empty">No source-supported match.</div>'}catch(e){alert(e.message)}}
-async function downloadArtifact(ev,a){ev.preventDefault();const r=await api(`/artifacts/${a.dataset.id}/download`);const blob=await r.blob();const url=URL.createObjectURL(blob);const x=document.createElement('a');x.href=url;x.download=a.textContent.trim();x.click();URL.revokeObjectURL(url)}
+async function downloadArtifact(ev,a){ev.preventDefault();const r=await api(`/artifacts/${a.dataset.id}/${a.dataset.mode||'download'}`);const blob=await r.blob();const url=URL.createObjectURL(blob);const x=document.createElement('a');x.href=url;x.download=a.textContent.trim();x.click();URL.revokeObjectURL(url)}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button,.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.view).classList.add('active')});boot();
 </script></body></html>"""
 
@@ -202,17 +201,6 @@ def create_app(service: KernelService, token: str | None = None):
     def title_reviewers(_: None = Depends(authorize)):
         return service.list_title_reviewers()
 
-    @app.post("/api/v1/title-reviewers")
-    def register_title_reviewer(payload: dict, _: None = Depends(authorize)):
-        try:
-            return service.register_title_reviewer(
-                str(payload.get("display_name", "")),
-                str(payload.get("role", "")),
-                str(payload.get("pin", "")),
-            )
-        except Exception as exc:
-            handle_error(exc)
-
     @app.post("/api/v1/title-packages/{run_id}/review")
     def review_title_package(
         run_id: str, payload: dict, _: None = Depends(authorize)
@@ -246,8 +234,21 @@ def create_app(service: KernelService, token: str | None = None):
     @app.get("/api/v1/artifacts/{artifact_id}/download")
     def download(artifact_id: str, _: None = Depends(authorize)):
         try:
-            artifact, path = service.artifact(artifact_id)
+            artifact, path = service.export_artifact(artifact_id)
             safe_name = Path(artifact["rel_path"]).name
+            return FileResponse(
+                path,
+                media_type=artifact["media_type"],
+                filename=html.escape(safe_name, quote=True),
+            )
+        except Exception as exc:
+            handle_error(exc)
+
+    @app.get("/api/v1/artifacts/{artifact_id}/preview")
+    def preview(artifact_id: str, _: None = Depends(authorize)):
+        try:
+            artifact, path = service.artifact(artifact_id)
+            safe_name = f"REVIEW_ONLY_{Path(artifact['rel_path']).name}"
             return FileResponse(
                 path,
                 media_type=artifact["media_type"],

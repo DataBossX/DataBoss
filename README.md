@@ -60,6 +60,10 @@ cite an ingested asset and exact character range. DataBossX then:
 Approval moves the packet only to `APPROVED_FOR_EXPORT`; it does not call the
 packet a certified abstract or title opinion and never releases it automatically.
 Client-template fidelity must be validated against a private approved template.
+Reviewer enrollment is local-console-only through
+`Register_DataBossX_Reviewer.bat`; a browser session token cannot create an
+approval identity. Pending packets are available only as clearly named review
+copies. Normal artifact export remains blocked until exact-hash approval.
 
 ## Tests
 

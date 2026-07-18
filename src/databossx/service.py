@@ -747,6 +747,32 @@ class KernelService:
             raise KeyError("Artifact not found")
         return artifact, self.vault.object_path(artifact["blob_sha256"])
 
+    def export_artifact(self, artifact_id: str) -> tuple[dict, Path]:
+        with self.db.connect() as connection:
+            artifact = connection.execute(
+                """
+                SELECT a.*, r.pipeline,
+                       d.review_status AS title_review_status
+                  FROM artifacts a
+                  JOIN pipeline_runs r ON r.id=a.pipeline_run_id
+                  LEFT JOIN title_package_details d
+                    ON d.pipeline_run_id=r.id
+                 WHERE a.id=?
+                """,
+                (artifact_id,),
+            ).fetchone()
+        if not artifact:
+            raise KeyError("Artifact not found")
+        result = dict(artifact)
+        if (
+            result["pipeline"] == "title-examiner-packet"
+            and result["title_review_status"] != "APPROVED"
+        ):
+            raise ValueError(
+                "Title artifact export is blocked until exact-hash approval"
+            )
+        return result, self.vault.object_path(result["blob_sha256"])
+
     def create_title_case(self, project_id: str, payload: dict) -> dict:
         with self._write_lock:
             return self.title.create_case(project_id, payload)

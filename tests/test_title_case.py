@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import shutil
 from pathlib import Path
 
 import pytest
@@ -174,6 +175,8 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
         "title_case_summary.json",
         "package_manifest.json",
     } <= artifacts.keys()
+    with pytest.raises(ValueError, match="export is blocked"):
+        service.export_artifact(artifacts["Title_Examiner_Packet.xlsx"]["id"])
 
     _, workbook_path = service.artifact(
         artifacts["Title_Examiner_Packet.xlsx"]["id"]
@@ -224,6 +227,11 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
         "Synthetic test approval only",
     )
     assert approved["review_status"] == "APPROVED"
+    exported, exported_path = service.export_artifact(
+        artifacts["Title_Examiner_Packet.xlsx"]["id"]
+    )
+    assert exported["title_review_status"] == "APPROVED"
+    assert exported_path.is_file()
     assert service.get_title_case(title_case["id"])["status"] == "APPROVED_FOR_EXPORT"
     rebuilt = service.build_title_package(title_case["id"])
     assert rebuilt["review_status"] == "AWAITING_REVIEW"
@@ -273,3 +281,75 @@ def test_unreviewed_instrument_blocks_approval(tmp_path: Path) -> None:
             "183746",
             "APPROVE",
         )
+
+
+def test_migration_invalidates_pre_provenance_pending_package(tmp_path: Path) -> None:
+    migrations = tmp_path / "migrations"
+    migrations.mkdir()
+    for number in range(1, 5):
+        source = next((ROOT / "migrations").glob(f"00{number}_*.sql"))
+        shutil.copy2(source, migrations / source.name)
+    config = config_for(tmp_path)
+    config = KernelConfig(
+        repo_root=config.repo_root,
+        runtime_root=config.runtime_root,
+        database_path=config.database_path,
+        vault_root=config.vault_root,
+        projects_root=config.projects_root,
+        migrations_root=migrations,
+    )
+    service = KernelService(config)
+    with service.db.transaction(immediate=True) as connection:
+        connection.execute(
+            """
+            INSERT INTO projects(
+                id, name, source_root, source_kind, status, created_at
+            ) VALUES ('p', 'Legacy', '/tmp', 'synthetic', 'DRAFT', 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO ingest_runs(
+                id, project_id, status, started_at
+            ) VALUES ('i', 'p', 'SUCCEEDED', 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO pipeline_runs(
+                id, project_id, ingest_run_id, pipeline, pipeline_version,
+                input_manifest_sha256, status, run_dir, started_at
+            ) VALUES (
+                'r', 'p', 'i', 'title-examiner-packet', '1',
+                'hash', 'WAITING_HUMAN', '/tmp', 'now'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_cases(
+                id, project_id, name, legal_description,
+                gross_acres_num, gross_acres_den, created_at
+            ) VALUES ('c', 'p', 'Legacy', 'Synthetic', 1, 1, 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_package_details(
+                pipeline_run_id, title_case_id, package_manifest_sha256,
+                blocking_defect_count, review_status
+            ) VALUES ('r', 'c', 'old-hash', 0, 'AWAITING_REVIEW')
+            """
+        )
+    migration = ROOT / "migrations" / "005_invalidate_pre_provenance_packages.sql"
+    shutil.copy2(migration, migrations / migration.name)
+    upgraded = KernelService(config)
+    with upgraded.db.connect() as connection:
+        package = connection.execute(
+            "SELECT * FROM title_package_details WHERE pipeline_run_id='r'"
+        ).fetchone()
+        run = connection.execute(
+            "SELECT * FROM pipeline_runs WHERE id='r'"
+        ).fetchone()
+    assert package["review_status"] == "INVALIDATED_PRE_PROVENANCE"
+    assert run["status"] == "FAILED_TERMINAL"

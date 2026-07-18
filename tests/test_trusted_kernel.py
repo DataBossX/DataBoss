@@ -246,6 +246,16 @@ def test_api_requires_token_and_rejects_hostile_host(tmp_path: Path) -> None:
         headers={"Authorization": "Bearer test-token", "Host": "evil.example"},
     )
     assert hostile.status_code == 400
+    enrollment = client.post(
+        "/api/v1/title-reviewers",
+        headers={"Authorization": "Bearer test-token"},
+        json={
+            "display_name": "Self-Asserted Reviewer",
+            "role": "QUALIFIED_EXAMINER",
+            "pin": "123456",
+        },
+    )
+    assert enrollment.status_code == 405
     dashboard = client.get("/")
     assert dashboard.status_code == 200
     assert 'onclick="selectProject' not in dashboard.text

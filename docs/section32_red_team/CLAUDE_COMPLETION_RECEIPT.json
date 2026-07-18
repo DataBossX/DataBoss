@@ -42,6 +42,19 @@
     "The two candidate runsheets cannot be located/verified, so any retained row would lack a genuine source citation — failing acceptance test 'Every retained row has a source citation.'",
     "Emitting current-owner conclusions or decimals from unverified inputs would violate 'No unsupported decimals' and 'No false current-owner conclusion.'"
   ],
+  "audit_harness": {
+    "status": "BUILT_AND_VALIDATED_ON_SYNTHETIC_DATA",
+    "tool": "automation/section32_runsheet_red_team.py",
+    "tests": "tests/test_section32_red_team.py",
+    "tests_passing": 6,
+    "capabilities": [
+      "Ingests two candidate runsheet workbooks and reconciles them row-by-row.",
+      "Detects all twelve defect classes; corrects only evidence-proven errors (image > OCR > index > metadata > prior report).",
+      "Keeps unresolved conflicts visible as OPEN; refuses unsupported decimals; reports UNDETERMINED rather than a false current owner.",
+      "Emits the four required artifacts deterministically."
+    ],
+    "note": "Ready to run the moment the security gate is PASS and the two real workbooks are confirmed. Not yet run against real data."
+  },
   "required_actions_to_unblock": [
     "Complete the security remediation (rotate exposed backend/.env credentials; finish client-data containment) and file a SECURITY_REMEDIATION_RECEIPT with status PASS.",
     "Confirm and share the resolved source_folder URL and the exact two candidate workbooks (GEMINI master runsheet + GROK chained runsheet), or the correct current filenames.",

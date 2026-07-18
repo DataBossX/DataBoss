@@ -47,3 +47,30 @@ acceptance tests. No such outputs were produced.
 Once those are in place, re-run this job and the full red-team audit can proceed.
 
 See `CLAUDE_COMPLETION_RECEIPT.json` in this folder for the machine-readable record.
+
+## Machinery is ready (built and validated under HOLD)
+
+While the job itself is on hold, the deterministic red-team audit **tool** has been
+built and validated on synthetic data, so the audit can run end-to-end the moment the
+gate clears and the two real workbooks are confirmed:
+
+- **Tool:** `automation/section32_runsheet_red_team.py`
+- **Tests:** `tests/test_section32_red_team.py` (6 tests, all passing)
+
+It ingests two candidate runsheets and emits exactly the four required artifacts —
+`CLAUDE_SECTION32_RED_TEAM_RUNSHEET.xlsx`, `CLAUDE_RUNSHEET_DEFECT_REGISTER.xlsx`,
+`CLAUDE_CONFLICT_MATRIX.xlsx`, `CLAUDE_COMPLETION_RECEIPT.json` — detecting all twelve
+defect classes, correcting only evidence-proven errors (source image > OCR > index >
+metadata > prior report), keeping unresolved conflicts visible as `OPEN`, refusing
+unsupported decimals, and reporting `UNDETERMINED` rather than a false current owner
+whenever the chain is not image-proven and conflict-free.
+
+```
+python3 -m automation.section32_runsheet_red_team \
+    --gemini <GEMINI_MASTER_RUNSHEET.xlsx> \
+    --grok   <GROK_CHAINED_RUNSHEET.xlsx> \
+    --out    03_CLAUDE_RUNSHEET_RED_TEAM --section 32 --tract <TRACT>
+```
+
+Requires `openpyxl>=3.1` (already used by the `horizon` module). It performs no network
+or Drive access and touches no real title documents until pointed at confirmed inputs.

@@ -171,6 +171,17 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
     assert package["run_status"] == "WAITING_HUMAN"
     assert package["blocking_defect_count"] == 0
     assert service.get_run(package["pipeline_run_id"])["pipeline_version"] == "1"
+    with service.db.connect() as connection:
+        assert {
+            row["recipe_version"]
+            for row in connection.execute(
+                """
+                SELECT recipe_version FROM provenance_edges
+                 WHERE parent_type='pipeline_run' AND parent_id=?
+                """,
+                (package["pipeline_run_id"],),
+            )
+        } == {"1"}
     artifacts = {item["rel_path"]: item for item in package["artifacts"]}
     assert {
         "Title_Examiner_Packet.xlsx",

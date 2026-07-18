@@ -616,6 +616,51 @@ class TitleManager:
                 ],
             }
             if economics:
+                for unit in title_case["economic_units"]:
+                    summary_payload["evidence_citations"].append(
+                        {
+                            "record_type": "ECONOMIC_UNIT",
+                            "recording_reference": unit[
+                                "lease_recording_reference"
+                            ],
+                            "asset_version_id": unit[
+                                "evidence_asset_version_id"
+                            ],
+                            "source_sha256": unit.get(
+                                "evidence_source_sha256"
+                            ),
+                            "extraction_sha256": unit.get(
+                                "evidence_extraction_sha256"
+                            ),
+                            "span_sha256": unit.get("evidence_span_sha256"),
+                            "char_start": unit["evidence_char_start"],
+                            "char_end": unit["evidence_char_end"],
+                        }
+                    )
+                    summary_payload["evidence_citations"].extend(
+                        {
+                            "record_type": f"ECONOMIC_{event['event_kind']}",
+                            "sequence_no": event["sequence_no"],
+                            "recording_reference": event[
+                                "recording_reference"
+                            ],
+                            "asset_version_id": event[
+                                "evidence_asset_version_id"
+                            ],
+                            "source_sha256": event.get(
+                                "evidence_source_sha256"
+                            ),
+                            "extraction_sha256": event.get(
+                                "evidence_extraction_sha256"
+                            ),
+                            "span_sha256": event.get(
+                                "evidence_span_sha256"
+                            ),
+                            "char_start": event["evidence_char_start"],
+                            "char_end": event["evidence_char_end"],
+                        }
+                        for event in unit["events"]
+                    )
                 summary_payload["economics"] = [
                     {
                         "unit_id": result.unit_id,
@@ -681,7 +726,9 @@ class TitleManager:
                             defect.detail, utc_now(),
                         ),
                     )
-                self._register_artifacts(connection, run_id, output_dir)
+                self._register_artifacts(
+                    connection, run_id, output_dir, package_version
+                )
                 connection.execute(
                     """
                     INSERT INTO title_package_details(
@@ -779,7 +826,11 @@ class TitleManager:
                     )
 
     def _register_artifacts(
-        self, connection: sqlite3.Connection, run_id: str, output_dir: Path
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        output_dir: Path,
+        recipe_version: str,
     ) -> None:
         for path in sorted(output_dir.iterdir()):
             if not path.is_file():
@@ -813,9 +864,9 @@ class TitleManager:
                     id, parent_type, parent_id, child_type, child_id,
                     recipe, recipe_version, created_at
                 ) VALUES (?, 'pipeline_run', ?, 'artifact', ?,
-                          'title-examiner-packet', '1', ?)
+                          'title-examiner-packet', ?, ?)
                 """,
-                (uuid4().hex, run_id, artifact_id, utc_now()),
+                (uuid4().hex, run_id, artifact_id, recipe_version, utc_now()),
             )
 
     def package_details(self, run_id: str) -> dict:

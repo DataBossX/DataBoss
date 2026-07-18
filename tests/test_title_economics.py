@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from fractions import Fraction
 from pathlib import Path
@@ -230,6 +231,29 @@ def test_economic_package_v2_outputs_exact_sheets_and_manifest(tmp_path: Path) -
     manifest = json.loads(manifest_path.read_text("utf-8"))
     assert manifest["schema"] == "databossx.title-package.v2"
     assert manifest["blocking_defect_count"] == 0
+    _, summary_path = service.artifact(artifacts["title_case_summary.json"]["id"])
+    summary = json.loads(summary_path.read_text("utf-8"))
+    assert {
+        citation["record_type"]
+        for citation in summary["evidence_citations"]
+        if "record_type" in citation
+    } == {
+        "ECONOMIC_UNIT",
+        "ECONOMIC_OPENING_LEASEHOLD",
+        "ECONOMIC_ASSIGNMENT",
+    }
+    with service.db.connect() as connection:
+        versions = {
+            row["recipe_version"]
+            for row in connection.execute(
+                """
+                SELECT recipe_version FROM provenance_edges
+                 WHERE parent_type='pipeline_run' AND parent_id=?
+                """,
+                (package["pipeline_run_id"],),
+            )
+        }
+    assert versions == {"2"}
 
     with service.db.transaction(immediate=True) as connection:
         connection.execute(
@@ -371,3 +395,123 @@ def test_mixed_evidence_snapshots_are_rejected(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="one evidence snapshot"):
         service.create_title_case(project["id"], payload)
+
+
+def test_migration_invalidates_pre_fix_ambiguous_economic_package(
+    tmp_path: Path,
+) -> None:
+    migrations = tmp_path / "migrations"
+    migrations.mkdir()
+    for number in range(1, 9):
+        source = next((ROOT / "migrations").glob(f"00{number}_*.sql"))
+        shutil.copy2(source, migrations / source.name)
+    base = config_for(tmp_path)
+    config = KernelConfig(
+        repo_root=base.repo_root,
+        runtime_root=base.runtime_root,
+        database_path=base.database_path,
+        vault_root=base.vault_root,
+        projects_root=base.projects_root,
+        migrations_root=migrations,
+    )
+    service = KernelService(config)
+    with service.db.transaction(immediate=True) as connection:
+        connection.execute(
+            """
+            INSERT INTO projects(
+                id, name, source_root, source_kind, status, created_at
+            ) VALUES ('p', 'Legacy Economics', '/tmp', 'synthetic', 'DRAFT', 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO ingest_runs(id, project_id, status, started_at)
+            VALUES ('i', 'p', 'SUCCEEDED', 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO pipeline_runs(
+                id, project_id, ingest_run_id, pipeline, pipeline_version,
+                input_manifest_sha256, status, run_dir, started_at
+            ) VALUES (
+                'r', 'p', 'i', 'title-examiner-packet', '2',
+                'hash', 'SUCCEEDED', '/tmp', 'now'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_cases(
+                id, project_id, name, legal_description,
+                gross_acres_num, gross_acres_den, status, created_at
+            ) VALUES ('c', 'p', 'Legacy', 'Synthetic', 1, 1, 'APPROVED_FOR_EXPORT', 'now')
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_economic_units(
+                id, title_case_id, unit_label, legal_description,
+                lease_recording_reference, recording_reference_key,
+                depth_scope, product_scope, gross_acres_num, gross_acres_den,
+                leased_mineral_num, leased_mineral_den,
+                base_royalty_num, base_royalty_den, wi_basis, review_status
+            ) VALUES (
+                'u', 'c', 'Unit', 'Synthetic', 'L-1', 'l1',
+                'ALL', 'OIL AND GAS', 1, 1, 1, 1, 3, 16,
+                'WI_EQUALS_LEASEHOLD', 'REVIEWED'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_economic_events(
+                id, unit_id, sequence_no, event_kind, recording_reference,
+                recording_reference_key, from_party, to_party,
+                interest_num, interest_den, interest_basis, review_status
+            ) VALUES (
+                'a', 'u', 1, 'ASSIGNMENT', 'A-1', 'a1',
+                'Operator', 'Assignee', 1, 2, 'OF_ASSIGNOR', 'REVIEWED'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_economic_events(
+                id, unit_id, sequence_no, event_kind, recording_reference,
+                recording_reference_key, from_party, to_party,
+                interest_num, interest_den, interest_basis,
+                burden_kind, review_status
+            ) VALUES (
+                'b', 'u', 2, 'REVENUE_BURDEN', 'B-1', 'b1',
+                'Operator', 'ORRI Owner', 1, 32, 'LEASE_8_8',
+                'ORRI', 'REVIEWED'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO title_package_details(
+                pipeline_run_id, title_case_id, package_manifest_sha256,
+                blocking_defect_count, review_status,
+                approved_manifest_sha256
+            ) VALUES ('r', 'c', 'old', 0, 'APPROVED', 'old')
+            """
+        )
+    migration = ROOT / "migrations" / "009_invalidate_ambiguous_economic_packages.sql"
+    shutil.copy2(migration, migrations / migration.name)
+    upgraded = KernelService(config)
+    with upgraded.db.connect() as connection:
+        package = connection.execute(
+            "SELECT * FROM title_package_details WHERE pipeline_run_id='r'"
+        ).fetchone()
+        run = connection.execute(
+            "SELECT * FROM pipeline_runs WHERE id='r'"
+        ).fetchone()
+        title_case = connection.execute(
+            "SELECT * FROM title_cases WHERE id='c'"
+        ).fetchone()
+    assert package["review_status"] == "INVALIDATED_ECONOMIC_SEMANTICS"
+    assert package["approved_manifest_sha256"] is None
+    assert run["status"] == "FAILED_TERMINAL"
+    assert title_case["status"] == "NEEDS_ECONOMIC_REVIEW"

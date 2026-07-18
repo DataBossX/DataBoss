@@ -4,6 +4,9 @@
     python -m core.land_title_os verify-receipts <receipts.jsonl>
     python -m core.land_title_os scan <directory> [--db assets.db] [--project ID]
     python -m core.land_title_os status <project-dir>
+    python -m core.land_title_os dashboard [--projects projects/] [--out dashboard.html]
+    python -m core.land_title_os backup-manifest <root> <manifest.json>
+    python -m core.land_title_os verify-restore <restored-root> <manifest.json>
 """
 
 from __future__ import annotations
@@ -30,6 +33,18 @@ def main(argv: list[str] | None = None) -> int:
 
     p_status = sub.add_parser("status", help="factual project status report")
     p_status.add_argument("project_dir")
+
+    p_dash = sub.add_parser("dashboard", help="generate the HTML control dashboard")
+    p_dash.add_argument("--projects", default="projects")
+    p_dash.add_argument("--out", default="dashboard.html")
+
+    p_bman = sub.add_parser("backup-manifest", help="create a backup hash manifest")
+    p_bman.add_argument("root")
+    p_bman.add_argument("manifest")
+
+    p_vres = sub.add_parser("verify-restore", help="verify a restored copy against a manifest")
+    p_vres.add_argument("restored_root")
+    p_vres.add_argument("manifest")
 
     args = parser.parse_args(argv)
 
@@ -62,6 +77,32 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         from .health import status_report
         print(status_report(args.project_dir))
+        return 0
+
+    if args.command == "dashboard":
+        from datetime import datetime, timezone
+
+        from .dashboard import write_dashboard
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        out = write_dashboard(args.projects, args.out, generated_at=now)
+        print(f"wrote {out}")
+        return 0
+
+    if args.command == "backup-manifest":
+        from .backup import create_manifest
+        manifest = create_manifest(args.root, args.manifest)
+        print(f"hashed {manifest['file_count']} files into {args.manifest}")
+        return 0
+
+    if args.command == "verify-restore":
+        from .backup import verify_restore
+        problems = verify_restore(args.restored_root, args.manifest)
+        if problems:
+            print(f"RESTORE NOT VERIFIED — {len(problems)} problem(s):")
+            for p in problems:
+                print(f"  {p.describe()}")
+            return 1
+        print("restore verified: contents match the manifest exactly")
         return 0
 
     return 2

@@ -64,7 +64,11 @@
   "open_issues": [
     {
       "severity": "high",
-      "description": "Sections 17 and 20 indexes and certification letters are CURSOR_REBUILT versions — diff them against the original verified files (workbook_diff) before any of them is treated as approved."
+      "description": "Section 20 rebuild VERIFIED against original (see verification_20_report.md): instrument set identical (135/135, none lost), but DO NOT APPROVE AS-IS — 3 unconverted Excel date serials (docs 564274, 564275, 962219), 3 dropped header fields (Date Posted Thru / Indexed By / Project), and substantive edits needing examiner sign-off (674876 rec-date change 8/6/1993 -> 12/19/2002; HOLD/review doc-number annotations)."
+    },
+    {
+      "severity": "high",
+      "description": "Section 17: no pre-rebuild original index located in Drive — locate it (or confirm the CURSOR_REBUILT file is the first index) before approving Section 17."
     },
     {
       "severity": "medium",

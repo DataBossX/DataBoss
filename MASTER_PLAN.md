@@ -49,11 +49,11 @@ Discovered via Google Drive inventory (folder
 | 2 | One canonical repository | 🔨 | This repo (`DataBossX/DataBoss`) is canonical — see Governance below; CI now runs on every branch |
 | 3 | Master asset inventory | 🔨 | `core/land_title_os/assets.py` (SQLite; stable IDs, SHA-256, duplicate groups, security class); run `scan_directory()` on local drives 🏠 |
 | 4 | Evidence ledger | 🔨 | `core/land_title_os/evidence.py` — conclusions without evidence are rejected |
-| 5 | Project control dashboard | 📋 | Data layer first (manifests + issues + receipts are queryable now); UI later |
+| 5 | Project control dashboard | 🔨 | `python -m core.land_title_os dashboard` renders a self-contained HTML dashboard from the data layer (health per project + the needs-me queue); no invented numbers |
 | 6 | Canonical-file promotion | 🔨 | `core/land_title_os/promotion.py` — SOURCE→…→DELIVERED, checks gate every step, APPROVED/DELIVERED require a named human |
 | 7 | Title-report QA engine | 🔨 | `core/land_title_os/qa_engine.py` (exact fractions) + `horizon/validation.py` (workbook gates) already ✅ |
 | 8 | Secure & rotate credentials | 🏠🔨 | Committed keys **removed** from tracking, `.gitignore` hardened, gitleaks CI added — **you must rotate the keys per `SECURITY.md` NOW** |
-| 9 | Verified backup & recovery | 📋🏠 | `horizon/foundation.py` snapshots + `versioning.py` exist ✅; restore-test automation is next; backup drives are local |
+| 9 | Verified backup & recovery | 🔨🏠 | `backup.py`: hash manifests + `verify-restore` CLI proves a copy matches (missing/changed/extra); horizon snapshots ✅; physical backup drives are local |
 | 10 | Project manifest per section | 🔨 | `core/land_title_os/manifest.py` + real Beckham 32 manifest with Drive file IDs |
 
 ### Tier 2 — Production engine
@@ -102,9 +102,11 @@ per-file failures; horizon loop is bounded at 5 iterations) · 47 🔨 (receipt
 
 ### Tier 6 — Research automation
 
-51–60 📋/🏠 — search-package generation can start from the manifest's open
-issues (each Beckham open issue is already a research work order). County
-portal access, OKCR pulls, and BLM lookups need credentials/payment 🏠.
+51 🔨 (`research.py` — search packages per unresolved party: exact name,
+initial/index-order/trust/entity-succession variants, instrument types,
+date range, STR; auto-generated from chain breaks and name near-misses) ·
+52–60 📋/🏠 — county portal access, OKCR pulls, and BLM lookups need
+credentials/payment 🏠.
 
 ### Tier 7 — Spreadsheet automation
 
@@ -179,10 +181,12 @@ improvement loop (#100), and they now exist.
 ~~Chain graph (#14) → runsheet (#16) → workbook diff (#23/#67) → coverage
 (#28) → Wyoming generator (#18) → review roles (#20/#49) → legal-description
 normalization (#13) → health scoring / status reports (#77/#84)~~ (all 🔨
-done). Remaining: verify the CURSOR_REBUILT Wyoming 17/20 files against
-originals (workbook_diff, needs the ODS exports), the dashboard UI (#5),
-Wyoming ODS regression wiring, and county-search package generation (#51)
-from manifest open issues.
+done). Section 20 rebuild has been VERIFIED against its original
+(`projects/WY-CAMPBELL-05-47N-75W/verification_20_report.md`): instrument
+set identical, but 3 unconverted Excel date serials, 3 dropped header
+fields, and examiner-gated edits block approval. Remaining: the Section 17
+original (not found in Drive), Wyoming ODS regression wiring, and executing
+the research packages against county portals 🏠.
 
 ### Explicitly not now (per the plan)
 

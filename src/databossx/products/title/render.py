@@ -4,6 +4,7 @@ from fractions import Fraction
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from .economics import EconomicResult
 from .ledger import LedgerResult, fraction_text
 
 DRAFT_NOTICE = "DRAFT — NOT A CERTIFIED ABSTRACT OR TITLE OPINION"
@@ -40,6 +41,7 @@ def render_xlsx(
     opening: list[dict],
     instruments: list[dict],
     ledger: LedgerResult,
+    economics: list[EconomicResult],
 ) -> None:
     from openpyxl import Workbook
     from openpyxl.styles import Font
@@ -128,21 +130,41 @@ def render_xlsx(
                 defect.severity, defect.code, defect.sequence_no or "",
                 defect.recording_reference or "", defect.detail,
             ]
-            for defect in ledger.defects
+            for defect in (
+                *ledger.defects,
+                *(defect for result in economics for defect in result.defects),
+            )
         ],
     )
 
+    evidence_records = [
+        ("Mineral Instrument", item["sequence_no"], item["recording_reference"], item)
+        for item in instruments
+    ]
+    for unit in title_case["economic_units"]:
+        evidence_records.append(
+            ("Economic Unit", "", unit["lease_recording_reference"], unit)
+        )
+        evidence_records.extend(
+            (
+                f"Economic {event['event_kind']}",
+                event["sequence_no"],
+                event["recording_reference"],
+                event,
+            )
+            for event in unit["events"]
+        )
     evidence = workbook.create_sheet("Evidence Index")
     _write_rows(
         evidence,
         [
-            "Sequence", "Recording Reference", "Asset Version ID",
+            "Record Type", "Sequence", "Recording Reference", "Asset Version ID",
             "Source SHA-256", "Extraction SHA-256", "Span SHA-256",
             "Character Start", "Character End", "Cited Source Text",
         ],
         [
             [
-                item["sequence_no"], item["recording_reference"],
+                record_type, sequence, recording,
                 item["evidence_asset_version_id"] or "",
                 item.get("evidence_source_sha256") or "",
                 item.get("evidence_extraction_sha256") or "",
@@ -151,13 +173,157 @@ def render_xlsx(
                 item["evidence_char_end"] if item["evidence_char_end"] is not None else "",
                 item.get("evidence_span_text") or "",
             ]
-            for item in instruments
+            for record_type, sequence, recording, item in evidence_records
         ],
     )
+
+    if economics:
+        units_sheet = workbook.create_sheet("Calculation Units")
+        _write_rows(
+            units_sheet,
+            [
+                "Unit", "Legal Description", "Lease Reference", "As Of",
+                "Depth Scope", "Product Scope", "Gross Acres",
+                "Leased Mineral Fraction", "Base Royalty", "WI Basis",
+                "Review Status", "Unsupported Terms",
+            ],
+            [
+                [
+                    unit["unit_label"], unit["legal_description"],
+                    unit["lease_recording_reference"], unit["effective_as_of"] or "",
+                    unit["depth_scope"], unit["product_scope"],
+                    fraction_text(
+                        Fraction(unit["gross_acres_num"], unit["gross_acres_den"])
+                    ),
+                    fraction_text(
+                        Fraction(
+                            unit["leased_mineral_num"],
+                            unit["leased_mineral_den"],
+                        )
+                    ),
+                    fraction_text(
+                        Fraction(
+                            unit["base_royalty_num"], unit["base_royalty_den"]
+                        )
+                    ),
+                    unit["wi_basis"], unit["review_status"],
+                    unit["unsupported_terms"],
+                ]
+                for unit in title_case["economic_units"]
+            ],
+        )
+        facts_sheet = workbook.create_sheet("Reviewed Lease Facts")
+        _write_rows(
+            facts_sheet,
+            [
+                "Unit", "Evidence Asset", "Source SHA-256",
+                "Span SHA-256", "Cited Source Text",
+            ],
+            [
+                [
+                    unit["unit_label"], unit["evidence_asset_version_id"] or "",
+                    unit["evidence_source_sha256"] or "",
+                    unit["evidence_span_sha256"] or "",
+                    unit["evidence_span_text"] or "",
+                ]
+                for unit in title_case["economic_units"]
+            ],
+        )
+        leasehold_sheet = workbook.create_sheet("Leasehold Ledger")
+        _write_rows(
+            leasehold_sheet,
+            [
+                "Unit", "Sequence", "Recording Reference", "Assignor",
+                "Assignee", "Conveyed", "Assignor Before", "Assignor After",
+                "Assignee After",
+            ],
+            [
+                [
+                    result.unit_label, entry.sequence_no,
+                    entry.recording_reference, entry.from_party, entry.to_party,
+                    fraction_text(entry.conveyed),
+                    fraction_text(entry.from_before),
+                    fraction_text(entry.from_after),
+                    fraction_text(entry.to_after),
+                ]
+                for result in economics
+                for entry in result.entries
+            ],
+        )
+        wi_sheet = workbook.create_sheet("Leasehold and WI")
+        _write_rows(
+            wi_sheet,
+            [
+                "Unit", "Party", "Leasehold", "Working Interest",
+                "Net Leasehold Acres", "Tract-Weighted WI",
+            ],
+            [
+                [
+                    result.unit_label, party,
+                    fraction_text(result.leasehold.get(party, Fraction())),
+                    fraction_text(result.working_interest.get(party, Fraction())),
+                    fraction_text(
+                        result.net_leasehold_acres.get(party, Fraction())
+                    ),
+                    fraction_text(result.tract_weighted_wi.get(party, Fraction())),
+                ]
+                for result in economics
+                for party in sorted(
+                    set(result.leasehold) | set(result.working_interest)
+                )
+            ],
+        )
+        nri_sheet = workbook.create_sheet("Net Revenue Detail")
+        _write_rows(
+            nri_sheet,
+            [
+                "Unit", "Party", "Working Interest", "NRI",
+                "Burden Received", "Tract-Weighted NRI",
+            ],
+            [
+                [
+                    result.unit_label, party,
+                    fraction_text(result.working_interest.get(party, Fraction())),
+                    fraction_text(result.nri.get(party, Fraction())),
+                    fraction_text(result.burdens_received.get(party, Fraction())),
+                    fraction_text(result.tract_weighted_nri.get(party, Fraction())),
+                ]
+                for result in economics
+                for party in sorted(set(result.working_interest) | set(result.nri))
+            ],
+        )
+        conservation = workbook.create_sheet("Revenue Conservation")
+        _write_rows(
+            conservation,
+            [
+                "Unit", "Leased Mineral Fraction", "Royalty Share",
+                "Tract-Weighted NRI Total", "Conserved Total",
+                "Blocking Defects",
+            ],
+            [
+                [
+                    result.unit_label,
+                    fraction_text(result.leased_mineral_fraction),
+                    fraction_text(result.royalty_share),
+                    fraction_text(sum(result.tract_weighted_nri.values(), Fraction())),
+                    fraction_text(
+                        result.royalty_share
+                        + sum(result.tract_weighted_nri.values(), Fraction())
+                    ),
+                    len(result.blocking_defects),
+                ]
+                for result in economics
+            ],
+        )
     workbook.save(destination)
 
 
-def render_pdf(destination: Path, title_case: dict, ledger: LedgerResult) -> None:
+def render_pdf(
+    destination: Path,
+    title_case: dict,
+    ledger: LedgerResult,
+    economics: list[EconomicResult],
+) -> None:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet
@@ -217,12 +383,50 @@ def render_pdf(destination: Path, title_case: dict, ledger: LedgerResult) -> Non
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
     )
-    story.extend(
-        [
-            ownership_table,
-            PageBreak(),
-            Paragraph("Defects and curative", styles["Heading2"]),
+    story.append(ownership_table)
+    if economics:
+        story.extend(
+            [Spacer(1, 14), Paragraph("Leasehold, WI and NRI", styles["Heading2"])]
+        )
+        economic_rows = [
+            ["Unit", "Party", "Leasehold", "WI", "NRI", "Tract NRI"]
         ]
+        for result in economics:
+            for party in sorted(
+                set(result.leasehold)
+                | set(result.working_interest)
+                | set(result.nri)
+            ):
+                economic_rows.append(
+                    [
+                        result.unit_label,
+                        party,
+                        fraction_text(result.leasehold.get(party, Fraction())),
+                        fraction_text(
+                            result.working_interest.get(party, Fraction())
+                        ),
+                        fraction_text(result.nri.get(party, Fraction())),
+                        fraction_text(
+                            result.tract_weighted_nri.get(party, Fraction())
+                        ),
+                    ]
+                )
+        economic_table = Table(
+            economic_rows,
+            repeatRows=1,
+            colWidths=[1.2 * inch, 1.8 * inch, 0.8 * inch, 0.7 * inch, 0.7 * inch, 0.9 * inch],
+        )
+        economic_table.setStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#183C33")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ]
+        )
+        story.append(economic_table)
+    story.extend(
+        [PageBreak(), Paragraph("Defects and curative", styles["Heading2"])]
     )
     defect_rows = [["Severity", "Code", "Recording reference", "Detail"]]
     defect_rows.extend(
@@ -232,7 +436,10 @@ def render_pdf(destination: Path, title_case: dict, ledger: LedgerResult) -> Non
             defect.recording_reference or "",
             defect.detail,
         ]
-        for defect in ledger.defects
+        for defect in (
+            *ledger.defects,
+            *(defect for result in economics for defect in result.defects),
+        )
     )
     if len(defect_rows) == 1:
         defect_rows.append(

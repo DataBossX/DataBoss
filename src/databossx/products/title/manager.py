@@ -15,6 +15,7 @@ from ...audit import AuditWriter, utc_now
 from ...config import KernelConfig
 from ...db import Database
 from ...vault import Vault, sha256_file
+from .economics import calculate_economics
 from .ledger import calculate_ownership, fraction_text, recording_reference_key
 from .render import render_pdf, render_xlsx
 
@@ -69,10 +70,13 @@ class TitleManager:
         gross = _positive_fraction(payload.get("gross_acres", {}), "gross_acres")
         opening = payload.get("opening_ownership")
         instruments = payload.get("instruments")
+        economic_units = payload.get("economic_units", [])
         if not isinstance(opening, list) or not opening:
             raise ValueError("At least one opening owner is required")
         if not isinstance(instruments, list):
             raise ValueError("Instruments must be a list")
+        if not isinstance(economic_units, list):
+            raise ValueError("economic_units must be a list")
         case_id = uuid4().hex
 
         with self.db.transaction(immediate=True) as connection:
@@ -114,6 +118,12 @@ class TitleManager:
                     )
                 )
             }
+            for unit in economic_units:
+                evidence_ingests.update(
+                    self._insert_economic_unit(
+                        connection, case_id, project_id, unit
+                    )
+                )
             if len(evidence_ingests) > 1:
                 raise ValueError(
                     "All reviewed title instruments must cite one evidence snapshot"
@@ -127,6 +137,7 @@ class TitleManager:
                 details={
                     "name": name,
                     "instrument_count": len(instruments),
+                    "economic_unit_count": len(economic_units),
                     "source": "operator-reviewed-structured-records",
                 },
             )
@@ -224,6 +235,204 @@ class TitleManager:
         )
         return evidence_ingest_id
 
+    def _bind_evidence(
+        self,
+        connection: sqlite3.Connection,
+        project_id: str,
+        payload: dict,
+        review_status: str,
+    ) -> dict:
+        evidence_id = payload.get("evidence_asset_version_id")
+        start = payload.get("evidence_char_start")
+        end = payload.get("evidence_char_end")
+        empty = {
+            "asset_id": None,
+            "ingest_id": None,
+            "char_start": None,
+            "char_end": None,
+            "source_sha256": None,
+            "extraction_sha256": None,
+            "span_sha256": None,
+            "span_text": None,
+        }
+        if not evidence_id:
+            if review_status == "REVIEWED":
+                raise ValueError("Reviewed economic records require an evidence span")
+            return empty
+        evidence = connection.execute(
+            """
+            SELECT e.char_count, e.text_content, e.text_sha256,
+                   a.blob_sha256, a.ingest_run_id
+              FROM asset_versions a
+              JOIN text_extractions e ON e.asset_version_id=a.id
+             WHERE a.id=? AND a.project_id=?
+            """,
+            (evidence_id, project_id),
+        ).fetchone()
+        if not evidence:
+            raise ValueError("Economic evidence asset does not belong to this project")
+        if (
+            type(start) is not int
+            or type(end) is not int
+            or start < 0
+            or end <= start
+            or end > evidence["char_count"]
+        ):
+            raise ValueError("Economic evidence range is outside extracted source text")
+        span_text = evidence["text_content"][start:end]
+        return {
+            "asset_id": evidence_id,
+            "ingest_id": evidence["ingest_run_id"],
+            "char_start": start,
+            "char_end": end,
+            "source_sha256": evidence["blob_sha256"],
+            "extraction_sha256": evidence["text_sha256"],
+            "span_sha256": hashlib.sha256(span_text.encode("utf-8")).hexdigest(),
+            "span_text": span_text,
+        }
+
+    def _insert_economic_unit(
+        self,
+        connection: sqlite3.Connection,
+        case_id: str,
+        project_id: str,
+        item: dict,
+    ) -> set[str]:
+        label = str(item.get("unit_label", "")).strip()
+        legal = str(item.get("legal_description", "")).strip()
+        recording = str(item.get("lease_recording_reference", "")).strip()
+        depth_scope = str(item.get("depth_scope", "")).strip()
+        product_scope = str(item.get("product_scope", "")).strip()
+        if not all((label, legal, recording, depth_scope, product_scope)):
+            raise ValueError(
+                "Economic unit label, legal description, lease reference, "
+                "depth scope, and product scope are required"
+            )
+        gross = _positive_fraction(item.get("gross_acres", {}), "unit gross acres")
+        mineral = _positive_fraction(
+            item.get("leased_mineral_interest", {}),
+            "leased mineral interest",
+        )
+        royalty = _positive_fraction(item.get("base_royalty", {}), "base royalty")
+        wi_basis = item.get("wi_basis")
+        if wi_basis not in {"WI_EQUALS_LEASEHOLD", "EXPLICIT_ALLOCATION"}:
+            raise ValueError("Invalid reviewed working-interest basis")
+        review_status = item.get("review_status", "NEEDS_REVIEW")
+        if review_status not in {"REVIEWED", "NEEDS_REVIEW"}:
+            raise ValueError("Invalid economic unit review status")
+        evidence = self._bind_evidence(
+            connection, project_id, item, review_status
+        )
+        unsupported = item.get("unsupported_terms", "")
+        if isinstance(unsupported, list):
+            unsupported = "; ".join(str(value) for value in unsupported)
+        unit_id = uuid4().hex
+        connection.execute(
+            """
+            INSERT INTO title_economic_units(
+                id, title_case_id, unit_label, legal_description,
+                lease_recording_reference, recording_reference_key,
+                effective_as_of, depth_scope, product_scope,
+                gross_acres_num, gross_acres_den,
+                leased_mineral_num, leased_mineral_den,
+                base_royalty_num, base_royalty_den, wi_basis,
+                review_status, unsupported_terms,
+                evidence_asset_version_id, evidence_ingest_run_id,
+                evidence_char_start, evidence_char_end,
+                evidence_source_sha256, evidence_extraction_sha256,
+                evidence_span_sha256, evidence_span_text
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                unit_id, case_id, label, legal, recording,
+                recording_reference_key(recording), item.get("effective_as_of"),
+                depth_scope, product_scope, gross.numerator, gross.denominator,
+                mineral.numerator, mineral.denominator,
+                royalty.numerator, royalty.denominator, wi_basis,
+                review_status, str(unsupported),
+                evidence["asset_id"], evidence["ingest_id"],
+                evidence["char_start"], evidence["char_end"],
+                evidence["source_sha256"], evidence["extraction_sha256"],
+                evidence["span_sha256"], evidence["span_text"],
+            ),
+        )
+        ingest_ids = {evidence["ingest_id"]} if evidence["ingest_id"] else set()
+        events = item.get("events", [])
+        if not isinstance(events, list):
+            raise ValueError("Economic unit events must be a list")
+        for position, event in enumerate(events, start=1):
+            event_ingest = self._insert_economic_event(
+                connection, unit_id, project_id, event, position
+            )
+            if event_ingest:
+                ingest_ids.add(event_ingest)
+        return ingest_ids
+
+    def _insert_economic_event(
+        self,
+        connection: sqlite3.Connection,
+        unit_id: str,
+        project_id: str,
+        item: dict,
+        default_sequence: int,
+    ) -> str | None:
+        event_kind = item.get("event_kind")
+        if event_kind not in {
+            "OPENING_LEASEHOLD",
+            "ASSIGNMENT",
+            "WORKING_INTEREST",
+            "REVENUE_BURDEN",
+        }:
+            raise ValueError("Invalid economic event kind")
+        basis = item.get("interest_basis")
+        if basis not in {"ABSOLUTE_UNIT", "OF_ASSIGNOR", "LEASE_8_8"}:
+            raise ValueError("Invalid economic event interest basis")
+        sequence = item.get("sequence_no", default_sequence)
+        if type(sequence) is not int or sequence < 1:
+            raise ValueError("Economic event sequence must be a positive integer")
+        recording = str(item.get("recording_reference", "")).strip()
+        to_party = str(item.get("to_party", "")).strip()
+        if not recording or not to_party:
+            raise ValueError("Economic event recording reference and recipient are required")
+        interest = _positive_fraction(item.get("interest", {}), "economic interest")
+        review_status = item.get("review_status", "NEEDS_REVIEW")
+        if review_status not in {"REVIEWED", "NEEDS_REVIEW"}:
+            raise ValueError("Invalid economic event review status")
+        evidence = self._bind_evidence(
+            connection, project_id, item, review_status
+        )
+        connection.execute(
+            """
+            INSERT INTO title_economic_events(
+                id, unit_id, sequence_no, event_kind, recording_reference,
+                recording_reference_key, from_party, to_party,
+                interest_num, interest_den, interest_basis, burden_kind,
+                review_status, notes, evidence_asset_version_id,
+                evidence_ingest_run_id, evidence_char_start, evidence_char_end,
+                evidence_source_sha256, evidence_extraction_sha256,
+                evidence_span_sha256, evidence_span_text
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                uuid4().hex, unit_id, sequence, event_kind, recording,
+                recording_reference_key(recording),
+                str(item.get("from_party", "")).strip() or None, to_party,
+                interest.numerator, interest.denominator, basis,
+                str(item.get("burden_kind", "")).strip() or None,
+                review_status, str(item.get("notes", "")),
+                evidence["asset_id"], evidence["ingest_id"],
+                evidence["char_start"], evidence["char_end"],
+                evidence["source_sha256"], evidence["extraction_sha256"],
+                evidence["span_sha256"], evidence["span_text"],
+            ),
+        )
+        return evidence["ingest_id"]
+
     def get_case(self, case_id: str) -> dict:
         with self.db.connect() as connection:
             case = connection.execute(
@@ -243,9 +452,31 @@ class TitleManager:
                 "SELECT * FROM title_instruments WHERE title_case_id=? ORDER BY sequence_no",
                 (case_id,),
             ).fetchall()
+            economic_units = connection.execute(
+                """
+                SELECT * FROM title_economic_units
+                 WHERE title_case_id=? ORDER BY unit_label
+                """,
+                (case_id,),
+            ).fetchall()
+            units = []
+            for unit in economic_units:
+                unit_data = dict(unit)
+                unit_data["events"] = [
+                    dict(row)
+                    for row in connection.execute(
+                        """
+                        SELECT * FROM title_economic_events
+                         WHERE unit_id=? ORDER BY sequence_no
+                        """,
+                        (unit["id"],),
+                    )
+                ]
+                units.append(unit_data)
         result = dict(case)
         result["opening_ownership"] = [dict(row) for row in opening]
         result["instruments"] = [dict(row) for row in instruments]
+        result["economic_units"] = units
         return result
 
     def list_cases(self, project_id: str) -> list[dict]:
@@ -268,6 +499,14 @@ class TitleManager:
                 for item in title_case["instruments"]
                 if item.get("evidence_ingest_run_id")
             }
+            for unit in title_case["economic_units"]:
+                if unit.get("evidence_ingest_run_id"):
+                    evidence_ingests.add(unit["evidence_ingest_run_id"])
+                evidence_ingests.update(
+                    event["evidence_ingest_run_id"]
+                    for event in unit["events"]
+                    if event.get("evidence_ingest_run_id")
+                )
             if len(evidence_ingests) > 1:
                 raise ValueError("Title case cites more than one evidence snapshot")
             if evidence_ingests:
@@ -292,7 +531,16 @@ class TitleManager:
         ledger = calculate_ownership(
             title_case["opening_ownership"], title_case["instruments"]
         )
-        blocking_defect_count = len(ledger.blocking_defects)
+        economics = [
+            calculate_economics(unit, unit["events"])
+            for unit in title_case["economic_units"]
+        ]
+        economic_defects = [
+            defect for result in economics for defect in result.defects
+        ]
+        blocking_defect_count = len(ledger.blocking_defects) + sum(
+            len(result.blocking_defects) for result in economics
+        )
         run_id = uuid4().hex
         output_dir = self.config.projects_root / project_id / "runs" / run_id / "output"
         output_dir.mkdir(parents=True)
@@ -329,8 +577,9 @@ class TitleManager:
                 title_case["opening_ownership"],
                 title_case["instruments"],
                 ledger,
+                economics,
             )
-            render_pdf(pdf, title_case, ledger)
+            render_pdf(pdf, title_case, ledger, economics)
             summary_payload = {
                 "notice": "DRAFT — NOT A CERTIFIED ABSTRACT OR TITLE OPINION",
                 "title_case_id": case_id,
@@ -343,7 +592,36 @@ class TitleManager:
                     }
                     for owner, interest in sorted(ledger.ownership.items())
                 },
-                "defects": [defect.__dict__ for defect in ledger.defects],
+                "defects": [
+                    defect.__dict__
+                    for defect in (*ledger.defects, *economic_defects)
+                ],
+                "economics": [
+                    {
+                        "unit_id": result.unit_id,
+                        "unit_label": result.unit_label,
+                        "leased_mineral_fraction": fraction_text(
+                            result.leased_mineral_fraction
+                        ),
+                        "base_royalty": fraction_text(result.base_royalty),
+                        "leasehold": {
+                            party: fraction_text(value)
+                            for party, value in sorted(result.leasehold.items())
+                        },
+                        "working_interest": {
+                            party: fraction_text(value)
+                            for party, value in sorted(
+                                result.working_interest.items()
+                            )
+                        },
+                        "nri": {
+                            party: fraction_text(value)
+                            for party, value in sorted(result.nri.items())
+                        },
+                        "royalty_share": fraction_text(result.royalty_share),
+                    }
+                    for result in economics
+                ],
                 "evidence_citations": [
                     {
                         "sequence_no": item["sequence_no"],
@@ -368,7 +646,11 @@ class TitleManager:
                 for path in (xlsx, pdf, summary)
             ]
             manifest_payload = {
-                "schema": "databossx.title-package.v1",
+                "schema": (
+                    "databossx.title-package.v2"
+                    if economics
+                    else "databossx.title-package.v1"
+                ),
                 "title_case_id": case_id,
                 "input_sha256": input_hash,
                 "artifacts": artifact_manifest,
@@ -379,7 +661,7 @@ class TitleManager:
             manifest_payload["package_manifest_sha256"] = manifest_hash
             (output_dir / MANIFEST_FILENAME).write_bytes(_canonical(manifest_payload))
             with self.db.transaction(immediate=True) as connection:
-                for defect in ledger.defects:
+                for defect in (*ledger.defects, *economic_defects):
                     connection.execute(
                         """
                         INSERT INTO title_defects(
@@ -449,9 +731,13 @@ class TitleManager:
         return self.package_details(run_id)
 
     def _verify_case_evidence(self, title_case: dict) -> None:
+        records = list(title_case["instruments"])
+        for unit in title_case["economic_units"]:
+            records.append(unit)
+            records.extend(unit["events"])
         with self.db.connect() as connection:
-            for instrument in title_case["instruments"]:
-                asset_id = instrument["evidence_asset_version_id"]
+            for record in records:
+                asset_id = record["evidence_asset_version_id"]
                 if not asset_id:
                     continue
                 evidence = connection.execute(
@@ -467,8 +753,8 @@ class TitleManager:
                 if not evidence:
                     raise ValueError("Cited evidence asset is no longer available")
                 self.vault.object_path(evidence["blob_sha256"])
-                start = instrument["evidence_char_start"]
-                end = instrument["evidence_char_end"]
+                start = record["evidence_char_start"]
+                end = record["evidence_char_end"]
                 span_text = evidence["text_content"][start:end]
                 span_sha256 = hashlib.sha256(span_text.encode("utf-8")).hexdigest()
                 expected = (
@@ -479,11 +765,11 @@ class TitleManager:
                     span_text,
                 )
                 recorded = (
-                    instrument["evidence_ingest_run_id"],
-                    instrument["evidence_source_sha256"],
-                    instrument["evidence_extraction_sha256"],
-                    instrument["evidence_span_sha256"],
-                    instrument["evidence_span_text"],
+                    record["evidence_ingest_run_id"],
+                    record["evidence_source_sha256"],
+                    record["evidence_extraction_sha256"],
+                    record["evidence_span_sha256"],
+                    record["evidence_span_text"],
                 )
                 if recorded != expected:
                     raise ValueError(

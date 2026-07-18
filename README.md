@@ -65,6 +65,14 @@ Reviewer enrollment is local-console-only through
 approval identity. Pending packets are available only as clearly named review
 copies. Normal artifact export remains blocked until exact-hash approval.
 
+Optional reviewed economics from `examples/title_economics_template.json` add
+exact leasehold, working-interest, net-revenue, royalty-burden, assignment, and
+net-leasehold-acre calculations to the same approval package. Every unit and
+event requires a source span. DataBossX does not infer leased mineral ownership,
+royalty, WI basis, HBP, pooling, depth effects, payout reversions, or burdens.
+Unsupported terms remain blocking defects. Economic packages add calculation,
+lease-fact, leasehold-ledger, WI/NRI, and revenue-conservation sheets.
+
 ## Tests
 
 ```bash

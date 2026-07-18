@@ -1,0 +1,47 @@
+{
+  "economic_units": [
+    {
+      "unit_label": "SYNTHETIC LEASE UNIT",
+      "legal_description": "SYNTHETIC LAND ONLY",
+      "lease_recording_reference": "SYNTHETIC-LEASE-100",
+      "effective_as_of": "2026-01-01",
+      "depth_scope": "ALL DEPTHS — OPERATOR REVIEWED",
+      "product_scope": "OIL AND GAS",
+      "gross_acres": {
+        "numerator": 160,
+        "denominator": 1
+      },
+      "leased_mineral_interest": {
+        "numerator": 1,
+        "denominator": 2
+      },
+      "base_royalty": {
+        "numerator": 3,
+        "denominator": 16
+      },
+      "wi_basis": "WI_EQUALS_LEASEHOLD",
+      "review_status": "REVIEWED",
+      "unsupported_terms": [],
+      "evidence_asset_version_id": "REPLACE_WITH_INGESTED_ASSET_ID",
+      "evidence_char_start": 0,
+      "evidence_char_end": 100,
+      "events": [
+        {
+          "sequence_no": 1,
+          "event_kind": "OPENING_LEASEHOLD",
+          "recording_reference": "SYNTHETIC-LEASE-OPENING",
+          "to_party": "FICTIONAL OPERATOR",
+          "interest": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "interest_basis": "ABSOLUTE_UNIT",
+          "review_status": "REVIEWED",
+          "evidence_asset_version_id": "REPLACE_WITH_INGESTED_ASSET_ID",
+          "evidence_char_start": 0,
+          "evidence_char_end": 100
+        }
+      ]
+    }
+  ]
+}

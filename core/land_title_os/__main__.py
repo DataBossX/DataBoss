@@ -3,6 +3,7 @@
     python -m core.land_title_os needs-me [--projects projects/]
     python -m core.land_title_os verify-receipts <receipts.jsonl>
     python -m core.land_title_os scan <directory> [--db assets.db] [--project ID]
+    python -m core.land_title_os status <project-dir>
 """
 
 from __future__ import annotations
@@ -26,6 +27,9 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("directory")
     p_scan.add_argument("--db", default="assets.db")
     p_scan.add_argument("--project", default=None)
+
+    p_status = sub.add_parser("status", help="factual project status report")
+    p_status.add_argument("project_dir")
 
     args = parser.parse_args(argv)
 
@@ -53,6 +57,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"registered {len(registered)} files into {args.db} "
               f"({len(dupes)} duplicate group(s))")
         inv.close()
+        return 0
+
+    if args.command == "status":
+        from .health import status_report
+        print(status_report(args.project_dir))
         return 0
 
     return 2

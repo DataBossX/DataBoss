@@ -1,0 +1,83 @@
+{
+  "project_id": "WY-CAMPBELL-05-47N-75W",
+  "client": "Penterra",
+  "jurisdiction": "Wyoming",
+  "county": "Campbell",
+  "section": "5",
+  "township": "47N",
+  "range": "75W",
+  "source_locations": [
+    {
+      "store": "gdrive",
+      "id": "1FyvQt7f_9SZ6ZJVTWkrLADtNMqotfrJ6",
+      "title": "47N-75W-05_Campbell_Co_Penterra_Abstract_Index.ods",
+      "role": "VERIFIED abstract index for Section 5 (Abstract 4775 Ryder; indexed by Ryan Gille; posted thru 6/1/2026) — regression fixture for the Wyoming generator"
+    },
+    {
+      "store": "gdrive",
+      "id": "1it92GV0DENX-xlmgCnUU5eo2M_05oxyR",
+      "title": "NEW_47N-75W-17_Campbell_Co_Penterra_Abstract_Index_2026-07-15_CURSOR_REBUILT.ods",
+      "role": "Section 17 rebuilt index (same project) — verify against original before treating as approved"
+    },
+    {
+      "store": "gdrive",
+      "id": "1vhd54oAr7IVhaKXOqde4yGuzj08z1z79",
+      "title": "NEW_47N-75W-20_Campbell_Co_Penterra_Abstract_Index_2026-07-15_CURSOR_REBUILT.ods",
+      "role": "Section 20 rebuilt index (same project) — verify against original before treating as approved"
+    },
+    {
+      "store": "gdrive",
+      "id": "1sshapsCC5Qm9XVvRePnR2vyelbmRWoFZ",
+      "title": "New WYW-071537 Campbell Co. Penterra Abstract Index.ods",
+      "role": "Federal lease WYW-071537 abstract index"
+    },
+    {
+      "store": "gdrive",
+      "id": "1EcTe18JKeNTs2KIQVHp1qvrNo28Q3HzW",
+      "title": "enhanced_abstract.py",
+      "role": "Recovered Cursor-built abstract script (Move #35) — evaluate for consolidation into core/land_title_os/wyoming.py"
+    }
+  ],
+  "templates": [
+    {
+      "header_fields": ["Index County:", "Lands:", "Date:", "Starting Date:", "Date Posted Thru:", "Indexed By:", "Project:"],
+      "columns": ["Document Type", "Grantor", "Grantee", "Doc No", "Book-Page", "Date of Doc", "Rec Date", "Legal Description", "Comments"],
+      "note": "Format captured from the verified Section 5 index; implemented in core/land_title_os/wyoming.py. Preserve ODS originals; convert only in staging (Move #62)."
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "NEW_17-47N-75W_Certification_Letter_2026-07-15_CURSOR_REBUILT (pdf/docx) + checklist",
+      "status": "REBUILT — requires verification against originals and human signature"
+    },
+    {
+      "name": "NEW_20-47N-75W_Certification_Letter_2026-07-15_CURSOR_REBUILT (pdf/docx) + checklist",
+      "status": "REBUILT — requires verification against originals and human signature"
+    }
+  ],
+  "required_checks": [
+    "abstract index columns and header match the verified Section 5 format",
+    "entries in recording-date order",
+    "certification letters populated only from verified data; unsigned until human signature",
+    "ODS originals preserved; conversions happen in staging only"
+  ],
+  "open_issues": [
+    {
+      "severity": "high",
+      "description": "Sections 17 and 20 indexes and certification letters are CURSOR_REBUILT versions — diff them against the original verified files (workbook_diff) before any of them is treated as approved."
+    },
+    {
+      "severity": "medium",
+      "description": "Regression fixture: the Wyoming generator (core/land_title_os/wyoming.py) should reproduce the verified Section 5 index structure from its instrument list; wire this as a test once the ODS is exported to staging."
+    },
+    {
+      "severity": "medium",
+      "description": "Evaluate recovered enhanced_abstract.py for reusable logic (federal lease handling, checklist generation) and consolidate or archive it."
+    }
+  ],
+  "approved_facts": [
+    "Verified Section 5 abstract index exists (Abstract 4775 Ryder), indexed by Ryan Gille, county records posted through 6/1/2026, starting at Inception.",
+    "Index format: 7-line header block + 9 columns (Document Type, Grantor, Grantee, Doc No, Book-Page, Date of Doc, Rec Date, Legal Description, Comments)."
+  ],
+  "updated_at": "2026-07-18T00:00:00Z"
+}

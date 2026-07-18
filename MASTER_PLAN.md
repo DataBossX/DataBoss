@@ -62,14 +62,14 @@ Discovered via Google Drive inventory (folder
 |---|---|---|---|
 | 11 | Universal intake engine | ✅🔨 | `grocery_report_pipeline.py` stage A/B + `intake.ingest_inventory_csv()` now lands every inventory run in the master asset DB |
 | 12 | Instrument classification | ✅ | pipeline stage D (deterministic keywords + confidence); LLM hook opt-in |
-| 13 | Legal-description extraction | ✅/📋 | stage E extracts; normalization (aliquot parts, lots) 📋 |
+| 13 | Legal-description extraction | 🔨 | `legal_desc.py` — aliquot parsing with exact Fraction acreage, STR forms, lots/metes flagged OPEN (never guessed), depth limits, `reconcile_acreage()` |
 | 14 | Chain-of-title graph | 🔨 | `core/land_title_os/chain_graph.py` — chain breaks, coverage gaps, repeated conveyances, name near-misses (reported, never merged) |
 | 15 | Ownership-math engine | ✅ | `horizon/interest.py` — Fraction/Decimal only, no floats |
 | 16 | Runsheet generator | 🔨 | `core/land_title_os/runsheet.py` — chronological rows from the chain graph, findings attached per instrument |
 | 17 | Oklahoma report generation | ✅ | `horizon/pipeline.py --build-from` + `roger_mills_title_report_builder.py` |
-| 18 | Wyoming abstract-index generation | 📋 | no Wyoming code yet; use verified Section 5/8 work as regression fixtures |
+| 18 | Wyoming abstract-index generation | 🔨 | `wyoming.py` generates the verified Campbell Co. format (7-line header + 9 columns) + certification letters (unsigned until human signature); `projects/WY-CAMPBELL-05-47N-75W/` manifests the verified Section 5 fixture and the CURSOR_REBUILT 17/20 files pending verification |
 | 19 | Template-locking engine | 🔨/✅ | `qa_engine.check_template_sheets` + horizon validation gates |
-| 20 | Independent final-review agents | 📋 | run as three roles (evidence/math/deliverable) over the QA engine outputs |
+| 20 | Independent final-review agents | 🔨 | `review.py` — evidence/math/deliverable roles; only failures and disagreements surface |
 
 ### Tier 3 — Reliability
 
@@ -176,11 +176,13 @@ improvement loop (#100), and they now exist.
 
 ### Next 30 days
 
-~~Chain graph (#14) → runsheet generator (#16) → workbook diff (#23/#67) →
-coverage analysis (#28)~~ (all 🔨 done) → Wyoming generator (#18) →
-review-agent roles (#20/#49) → legal-description normalization (#13) →
-dashboard (#5) — each lands as a `core/land_title_os` module with tests,
-gated by the same CI.
+~~Chain graph (#14) → runsheet (#16) → workbook diff (#23/#67) → coverage
+(#28) → Wyoming generator (#18) → review roles (#20/#49) → legal-description
+normalization (#13) → health scoring / status reports (#77/#84)~~ (all 🔨
+done). Remaining: verify the CURSOR_REBUILT Wyoming 17/20 files against
+originals (workbook_diff, needs the ODS exports), the dashboard UI (#5),
+Wyoming ODS regression wiring, and county-search package generation (#51)
+from manifest open issues.
 
 ### Explicitly not now (per the plan)
 

@@ -74,18 +74,47 @@ _DOC_SUBTYPES: List[Tuple[str, str]] = [
     ("Affidavit", r"affidavit"),
 ]
 
-# Conveyed mineral interest, e.g. "an undivided 1/2 interest", "undivided 12.5%".
+# Conveyed mineral interest, e.g. "an undivided 1/2 interest", "undivided 12.5%",
+# "an undivided one-half (1/2) interest" (parenthetical numeric form).
 _UNDIVIDED_RX = re.compile(
-    r"undivided\s+(\d+\s*/\s*\d+|\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?)\s*"
-    r"(?:interest|mineral|royalty|of|in\b)",
+    r"undivided\s+(?:[a-z\- ]{0,20}?\()?\s*(\d+\s*/\s*\d+|\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?)\s*"
+    r"\)?\s*(?:interest|mineral|royalty|of|in\b)",
     re.I,
 )
 # Fallback: "conveys ... 1/2" / "grants ... 12.5%".
 _CONVEY_RX = re.compile(
-    r"(?:convey|grant|assign|transfer|sell)s?\b[^.\n]{0,80}?"
+    r"(?:convey|grant|assign|transfer|sell)s?\b[^.\n]{0,90}?"
     r"(\d+\s*/\s*\d+|\d+(?:\.\d+)?\s*%)",
     re.I,
 )
+
+# Public-land-survey legal description, tolerant of both abbreviated
+# ("Section 20, T9N, R22W") and spelled-out ("Section 20, Township 9 North,
+# Range 22 West") and hyphenated ("Sec. 20, T-9-N, R-22-W") real-deed forms.
+# Normalized to a single canonical string so all forms group to one tract.
+_LEGAL_STRUCT_RX = re.compile(
+    r"sec(?:tion)?\.?\s*(\d+[A-Za-z]?)\s*[, ]+\s*"
+    r"t(?:wp|ownship)?\.?\s*-?\s*(\d+)\s*-?\s*(n(?:orth)?|s(?:outh)?)\b\s*[, ]*\s*"
+    r"r(?:ge|ange)?\.?\s*-?\s*(\d+)\s*-?\s*(e(?:ast)?|w(?:est)?)\b",
+    re.I,
+)
+
+
+def _extract_legal(text: str) -> str:
+    """Extract and normalize a PLSS legal description, or "" when none parses.
+
+    Handles common real-deed spellings; never guesses. OCR that mangles a digit
+    into a letter (e.g. "T9N" -> "TON") simply fails to match and the field is
+    left blank for examiner review rather than fabricated.
+    """
+    m = _LEGAL_STRUCT_RX.search(text)
+    if m:
+        sec, twp, twd, rng, rwd = m.groups()
+        return f"Section {sec}, T{twp}{twd[0].upper()}, R{rng}{rwd[0].upper()}"
+    m2 = _grp._LEGAL_RX.search(text)
+    if m2:
+        return _grp.norm_ws(m2.group(0))
+    return ""
 
 
 def _utc_now() -> str:
@@ -117,6 +146,7 @@ class ConveyanceFact:
     county: str = ""
     state: str = ""
     is_conveyance: bool = False
+    ocr_used: bool = False
     confidence: float = 0.0
     review_flags: List[str] = field(default_factory=list)
     snippet: str = ""
@@ -190,9 +220,7 @@ def extract_conveyance(filename: str, text: str) -> ConveyanceFact:
     fact.grantor = _grp._capture_party(text, ["grantor", "assignor", "lessor"]) or ""
     fact.grantee = _grp._capture_party(text, ["grantee", "assignee", "lessee"]) or ""
     fact.conveyed_interest = _extract_conveyed_interest(text)
-
-    legal = _grp._LEGAL_RX.search(text)
-    fact.legal_description = _grp.norm_ws(legal.group(0)) if legal else ""
+    fact.legal_description = _extract_legal(text)
 
     gross = _grp._GROSS_RX.search(text)
     fact.gross_acres = gross.group(1).replace(",", "") if gross else ""
@@ -455,29 +483,46 @@ def _render_report_markdown(analysis: Dict[str, Any]) -> str:
 _TEXT_SUFFIXES = {".txt", ".md", ".csv", ".text", ".log"}
 
 
-def _load_document_text(logical_key: str, vault_path: str) -> str:
-    """Best-effort text extraction from a vaulted asset.
+def _extract_text(path: Path, logical_key: str) -> Tuple[str, bool]:
+    """Best-effort text extraction from a file; returns ``(text, ocr_used)``.
 
-    Plain-text formats are read directly; binary formats (pdf/docx/image) reuse
-    the grocery pipeline's extractors when their optional backends are installed,
-    and otherwise return "" (the document is still recorded, flagged for review).
+    Plain-text formats are read directly; binary formats (pdf/docx/image/xlsx)
+    reuse the grocery pipeline's extractors when their optional backends are
+    installed (pdfplumber/PyMuPDF for PDFs, python-docx for Word, pytesseract +
+    the tesseract binary for images/scanned PDFs). When a backend is missing the
+    document is still recorded and its fields are flagged for review -- never
+    fabricated.
     """
-    p = Path(vault_path)
     suffix = Path(logical_key).suffix.lower()
     try:
         if suffix in _TEXT_SUFFIXES or suffix == "":
-            return p.read_text(encoding="utf-8", errors="replace")
+            return path.read_text(encoding="utf-8", errors="replace"), False
         if suffix in _grp.PDF_EXT:
-            return _grp._extract_pdf(p)[0]
+            text, _method, ocr, _note = _grp._extract_pdf(path)
+            return text, ocr
         if suffix in _grp.WORD_EXT:
-            return _grp._extract_docx(p)[0]
+            text, _method, ocr, _note = _grp._extract_docx(path)
+            return text, ocr
         if suffix in _grp.IMAGE_EXT:
-            return _grp._extract_image(p)[0]
+            text, _method, ocr, _note = _grp._extract_image(path)
+            return text, ocr
         if suffix in _grp.EXCEL_EXT:
-            return _grp._extract_xlsx(p)[0]
-        return p.read_text(encoding="utf-8", errors="replace")
+            text, _method, ocr, _note = _grp._extract_xlsx(path)
+            return text, ocr
+        return path.read_text(encoding="utf-8", errors="replace"), False
     except Exception:
-        return ""
+        return "", False
+
+
+def load_text_from_bytes(filename: str, data: bytes) -> Tuple[str, bool]:
+    """Extract text from raw uploaded bytes (used for the upload preview)."""
+    import tempfile
+
+    suffix = Path(filename).suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+        tmp.write(data)
+        tmp.flush()
+        return _extract_text(Path(tmp.name), filename)
 
 
 def _sanitize_filename(name: str) -> str:
@@ -577,8 +622,10 @@ def analyze_project(
     conveyances: List[ConveyanceFact] = []
     lineage_av_ids: List[int] = []
     for logical_key, vault_path, av_id in docs:
-        text = _load_document_text(logical_key, vault_path)
-        conveyances.append(extract_conveyance(logical_key, text))
+        text, ocr_used = _extract_text(Path(vault_path), logical_key)
+        fact = extract_conveyance(logical_key, text)
+        fact.ocr_used = ocr_used
+        conveyances.append(fact)
         lineage_av_ids.append(av_id)
 
     if section is None:

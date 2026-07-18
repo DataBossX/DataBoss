@@ -650,11 +650,11 @@ const App = () => {
           <h4 className="text-lg font-bold text-cyan-400 mb-4">📥 ADD DOCUMENTS & RECONCILE</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border-2 border-dashed border-cyan-500 rounded-lg p-4 text-center">
-              <input type="file" onChange={uploadLandmanDoc} accept=".txt,.md,.csv,.pdf,.docx" className="hidden" id="landmanUpload" />
+              <input type="file" onChange={uploadLandmanDoc} accept=".txt,.md,.csv,.pdf,.docx,.png,.jpg,.jpeg,.tiff,.tif,.bmp" className="hidden" id="landmanUpload" />
               <label htmlFor="landmanUpload" className="cursor-pointer">
                 <div className="text-3xl text-cyan-400 mb-1">📄</div>
                 <div className="text-sm text-white">UPLOAD TITLE DOCUMENT</div>
-                <div className="text-xs text-gray-400">deed, assignment, lease (.txt/.pdf/.docx)</div>
+                <div className="text-xs text-gray-400">deed, assignment, lease — PDF / Word / scanned image (OCR) / text</div>
               </label>
             </div>
             <div>
@@ -799,7 +799,10 @@ const App = () => {
                   <tbody>
                     {documentsList.map((d, i) => (
                       <tr key={i} className="border-b border-gray-700">
-                        <td className="py-2 pr-3 text-gray-300">{d.filename}</td>
+                        <td className="py-2 pr-3 text-gray-300">
+                          {d.filename}
+                          {d.ocr_used && <span className="ml-2 px-1.5 py-0.5 rounded bg-purple-700 text-purple-100 text-[10px] font-bold">OCR</span>}
+                        </td>
                         <td className="py-2 pr-3 text-gray-300">{d.doc_type || '—'}</td>
                         <td className="py-2 pr-3 text-gray-300">
                           {d.grantor || '?'} → {d.grantee || '?'}

@@ -42,6 +42,7 @@ from databossx.intake import create_project  # noqa: E402
 from databossx.title_intelligence import (  # noqa: E402
     analyze_project,
     extract_conveyance,
+    load_text_from_bytes,
     register_document,
     seed_demo_project,
 )
@@ -193,9 +194,10 @@ async def upload_landman_document(project_id: str, file: UploadFile = File(...))
     stored = await asyncio.to_thread(
         register_document, CONFIG, project_id, file.filename or "document.txt", data
     )
-    text = data.decode("utf-8", errors="replace")
-    preview = extract_conveyance(stored["filename"], text).to_dict()
-    return {"stored": stored, "preview": preview}
+    text, ocr_used = await asyncio.to_thread(load_text_from_bytes, stored["filename"], data)
+    fact = extract_conveyance(stored["filename"], text)
+    fact.ocr_used = ocr_used
+    return {"stored": stored, "preview": fact.to_dict()}
 
 
 @router.post("/projects/{project_id}/documents/text")

@@ -41,6 +41,19 @@ def test_extract_conveyance_reads_grantor_grantee_interest_and_legal():
     assert fact.is_conveyance is True
 
 
+def test_spelled_out_legal_description_normalizes_to_canonical_form():
+    text = (
+        "MINERAL DEED\nGrantor: Ada Brown\nGrantee: Cole Reed\n"
+        "Grantor conveys an undivided 1/4 interest in and to all minerals in "
+        "Section 20, Township 9 North, Range 22 West, containing 480 gross acres. "
+        "Instrument No. 60010001."
+    )
+    fact = extract_conveyance("spelled_out.txt", text)
+    assert fact.legal_description == "Section 20, T9N, R22W"
+    assert fact.conveyed_interest == "1/4"
+    assert fact.is_conveyance is True
+
+
 def test_lease_is_supporting_not_a_conveyance():
     fact = extract_conveyance(
         "05_oil_and_gas_lease_evans_operator.txt",

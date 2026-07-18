@@ -1,0 +1,15 @@
+SYNTHETIC DEMONSTRATION DATA -- NOT A REAL TITLE RECORD
+
+DataBossX Chain-of-Title Abstract -- Golden Demo (synthetic)
+Generated 2026-07-18 15:45:31 UTC
+Unreviewed draft work product; a human release gate is required.
+
+Tract Sec 31 T12N R24W:
+  1. [2018-01-15] Mineral Deed UNITED STATES OF AMERICA → AVERY MINERALS LLC (Inst. 2018-0001) conveys 1/2 = 80.0000 net ac
+  2. [2019-03-02] Mineral Deed AVERY MINERALS LLC → BRAND ROYALTY LP (Inst. 2019-0002) conveys 1/4 = 40.0000 net ac
+  3. [2020-06-10] Assignment BRAND ROYALTY LP → CEDAR OPERATING INC (Inst. 2020-0003) conveys 1/2 = 80.0000 net ac  -- REVIEW: Chain break: OGL instrument never referenced in the runsheet; Grantor conveyed 1/2 but only held 1/4 (over-conveyance of 1/4).
+  (1 link(s) require examiner review before this chain is certified.)
+
+Tract Sec 32 T12N R24W:
+  1. [2017-09-01] Patent STATE OF SYNTHETICA → DELTA FAMILY TRUST (Inst. 2017-0100) conveys 3/4 = 60.0000 net ac
+  2. [2021-11-20] Assignment DELTA FAMILY TRUST → ECHO ENERGY LLC (Inst. 2021-0101) conveys 1/4 = 20.0000 net ac

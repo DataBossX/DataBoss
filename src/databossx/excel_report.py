@@ -225,6 +225,33 @@ def _evidence_sheet(wb, evidence: Sequence[Dict[str, object]]) -> None:
     _autosize(ws)
 
 
+def _abstract_sheet(wb, abstracts) -> None:
+    ws = wb.create_sheet("Abstract")
+    headers = ["Tract", "Seq", "Instrument Date", "Doc Type", "Grantor",
+               "Grantee", "Instrument Number", "Conveyed", "Retained",
+               "Net Mineral Acres", "Status", "Remarks"]
+    _banner(ws, "Chain-of-title abstract -- ownership chain per tract", len(headers))
+    ws.append(headers)
+    header_row = ws.max_row
+    _style_header(ws, header_row, len(headers))
+    from openpyxl.styles import Font
+    for a in abstracts or []:
+        # A tract sub-header row for readability.
+        ws.append([f"TRACT: {a.legal_description or a.tract}"])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True, italic=True)
+        for e in a.entries:
+            ws.append([a.tract, e.seq, e.instrument_date, e.doc_type, e.grantor,
+                       e.grantee, e.instrument_number, e.conveyed_interest,
+                       e.retained_interest, e.net_mineral_acres, e.status,
+                       e.remarks])
+    if not abstracts:
+        ws.append(["", "", "", "", "", "", "", "", "", "",
+                   "info", "No chain to abstract in this run."])
+    ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
+    _mark_review_rows(ws, header_row, 11)  # status in col 11
+    _autosize(ws)
+
+
 def build_client_workbook(
     path: Path,
     *,
@@ -235,6 +262,7 @@ def build_client_workbook(
     tracts: List[TractOwnership],
     defects: Sequence[Dict[str, object]],
     evidence: Sequence[Dict[str, object]],
+    abstracts: Optional[Sequence[object]] = None,
 ) -> Path:
     """Write the full client workbook to ``path`` and return it."""
     import openpyxl  # noqa: F401  (ensures a clear error if openpyxl is absent)
@@ -242,6 +270,7 @@ def build_client_workbook(
     wb = openpyxl.Workbook()
     _summary_sheet(wb, meta, counts, rag)
     _runsheet_sheet(wb, runsheet_rows)
+    _abstract_sheet(wb, abstracts)
     _mineral_sheet(wb, tracts)
     _doi_sheet(wb, tracts)
     _defects_sheet(wb, defects)

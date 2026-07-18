@@ -49,6 +49,7 @@ class RunResult:
     defects: List[Dict[str, object]] = field(default_factory=list)
     evidence: List[Dict[str, object]] = field(default_factory=list)
     tracts: List[TractOwnership] = field(default_factory=list)
+    abstracts: List[object] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
 
@@ -210,6 +211,14 @@ def run_project(project_key: str, *, root: Optional[str] = None,
     # -- chain (Horizon intelligence layer) ---------------------------------
     runsheet_rows, chained = _chain(recs, proj.section, audit, result)
 
+    # -- abstract / ownership chain (chronological chain of title) ----------
+    from .abstract import build_abstract
+    abstracts = build_abstract(runsheet_rows)
+    result.abstracts = abstracts
+    if abstracts:
+        audit("abstract", f"tracts={len(abstracts)} "
+                          f"entries={sum(len(a.entries) for a in abstracts)}")
+
     # -- ownership / WI / NRI ------------------------------------------------
     tracts = _ownership(recs, audit, result)
     result.tracts = tracts
@@ -221,6 +230,7 @@ def run_project(project_key: str, *, root: Optional[str] = None,
     result.counts = {
         "runsheet_rows": len(runsheet_rows),
         "tracts": len(tracts),
+        "abstract_tracts": len(abstracts),
         "mineral_owners": sum(len(t.mineral_rows) for t in tracts),
         "doi_rows": sum(len(t.doi_rows) for t in tracts),
         "chain_breaks": len(chained.chain_breaks) if chained else 0,
@@ -232,8 +242,9 @@ def run_project(project_key: str, *, root: Optional[str] = None,
     result.rag = _rag(result)
 
     # -- deliverables --------------------------------------------------------
-    _write_deliverables(result, out, runsheet_rows, tracts, chained, audit,
-                        make_pdf=make_pdf, synthetic=(proj.key == GOLDEN_DEMO_KEY))
+    _write_deliverables(result, out, runsheet_rows, tracts, chained, abstracts,
+                        audit, make_pdf=make_pdf,
+                        synthetic=(proj.key == GOLDEN_DEMO_KEY))
 
     audit("run_done", f"rag={result.rag} deliverables={len(result.deliverables)} "
                       f"defects={len(result.defects)}")
@@ -368,7 +379,7 @@ def _rag(result: RunResult) -> str:
 
 
 def _write_deliverables(result, out: Path, runsheet_rows, tracts, chained,
-                        audit, *, make_pdf: bool, synthetic: bool):
+                        abstracts, audit, *, make_pdf: bool, synthetic: bool):
     meta = {
         "project": result.project, "section": result.section,
         "generated": result.generated, "source_root": result.source_root,
@@ -379,7 +390,7 @@ def _write_deliverables(result, out: Path, runsheet_rows, tracts, chained,
         xlsx = build_client_workbook(
             out / "DataBossX_Report.xlsx", meta=meta, counts=result.counts,
             rag=result.rag, runsheet_rows=runsheet_rows, tracts=tracts,
-            defects=result.defects, evidence=result.evidence)
+            abstracts=abstracts, defects=result.defects, evidence=result.evidence)
         result.deliverables["excel"] = str(xlsx)
         audit("deliverable_excel", xlsx.name)
     except Exception as exc:
@@ -393,14 +404,31 @@ def _write_deliverables(result, out: Path, runsheet_rows, tracts, chained,
             pdf = build_client_pdf(
                 out / "DataBossX_Report.pdf", meta=meta, counts=result.counts,
                 rag=result.rag, runsheet_rows=runsheet_rows, tracts=tracts,
-                defects=result.defects, evidence=result.evidence,
-                synthetic=synthetic)
+                abstracts=abstracts, defects=result.defects,
+                evidence=result.evidence, synthetic=synthetic)
             result.deliverables["pdf"] = str(pdf)
             audit("deliverable_pdf", pdf.name)
         except Exception as exc:
             result.warnings.append(
                 f"PDF report skipped ({exc}). Install 'reportlab' to enable it.")
             audit("pdf_warn", str(exc), level="WARN")
+
+    # Plain-text chain-of-title abstract (human reading of the ownership chain).
+    if abstracts:
+        try:
+            from .abstract import abstract_narrative
+            txt = out / "DataBossX_Abstract.txt"
+            banner = ("SYNTHETIC DEMONSTRATION DATA -- NOT A REAL TITLE RECORD\n\n"
+                      if synthetic else "")
+            txt.write_text(
+                f"{banner}DataBossX Chain-of-Title Abstract -- {result.project}\n"
+                f"Generated {result.generated}\n"
+                "Unreviewed draft work product; a human release gate is required.\n\n"
+                + abstract_narrative(abstracts) + "\n", encoding="utf-8")
+            result.deliverables["abstract"] = str(txt)
+            audit("deliverable_abstract", txt.name)
+        except Exception as exc:
+            result.warnings.append(f"Abstract text skipped: {exc}")
 
     # Dashboard.
     try:

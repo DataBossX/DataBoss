@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databossx"
+version = "1.0.0"
+description = "Local-first petroleum land & title intelligence: ingest, chain, exact mineral/WI/NRI math, and client-ready Excel/PDF reports."
+readme = "src/databossx/README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "DataBossX" }]
+keywords = ["land", "title", "mineral", "oil-and-gas", "runsheet", "abstract", "working-interest", "net-revenue"]
+
+# Runtime dependencies for the Command Center. The core still degrades
+# gracefully when optional ones are absent (see databossx.selfcheck).
+dependencies = [
+  "pydantic>=2.0",
+  "openpyxl>=3.1",
+  "reportlab>=4.0.0",
+  "python-docx>=1.1.2",
+]
+
+[project.scripts]
+# After `pip install -e .` this exposes a plain `databossx` command.
+databossx = "databossx.cli:main"
+
+[project.optional-dependencies]
+ocr = ["pdfplumber>=0.11.0", "PyMuPDF>=1.24.0", "pytesseract>=0.3.13", "Pillow>=10.4.0"]
+dev = ["pytest>=7.0", "flake8>=7.0"]
+
+[tool.setuptools]
+# src layout: the importable package is src/databossx. The sibling engines
+# (horizon/, grocery_report_pipeline.py) live at the repo root and are resolved
+# at runtime by databossx's package __init__, so an editable install
+# (`pip install -e .`) is the supported mode for a source checkout.
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["databossx*"]

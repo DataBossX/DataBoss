@@ -44,8 +44,9 @@ Every run creates a `databossx_output` folder **inside your project folder**:
 
 | File | What it is |
 | --- | --- |
-| `DataBossX_Report.xlsx` | The full client workbook: Summary, Runsheet, Mineral Ownership, Division of Interest (WI/NRI), Defects, Evidence. |
+| `DataBossX_Report.xlsx` | The full client workbook: Summary, Runsheet, Abstract (chain of title), Mineral Ownership, Division of Interest (WI/NRI), Defects, Evidence. |
 | `DataBossX_Report.pdf` | The same report as a clean, printable PDF. |
+| `DataBossX_Abstract.txt` | Plain-language chain-of-title abstract — each tract's instruments in order, with review flags. |
 | `dashboard.html` | A one-page status dashboard (double-click to open). Green / Yellow / Red. |
 | `examiner_review_worklist_v###.csv` | The punch list — every item a person must resolve before sign-off. |
 | `chain_breaks_v###.csv` | Every instrument that doesn't match across the OGL and the runsheet. |

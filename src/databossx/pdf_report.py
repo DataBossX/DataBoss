@@ -103,6 +103,7 @@ def build_client_pdf(
     tracts: List[TractOwnership],
     defects: Sequence[Dict[str, object]],
     evidence: Sequence[Dict[str, object]],
+    abstracts: Optional[Sequence[object]] = None,
     synthetic: bool = False,
 ) -> Path:
     """Write the client PDF to ``path`` and return it."""
@@ -163,6 +164,22 @@ def build_client_pdf(
     ] for r in runsheet_rows]
     story.append(_table(rs_headers, rs_rows,
                         [58, 92, 92, 42, 42, 38, 55, 85], ss, review_col=6))
+
+    # -- chain-of-title abstract --------------------------------------------
+    if abstracts:
+        story.append(Paragraph("Chain-of-title abstract", ss["DBXH2"]))
+        ab_headers = ["Seq", "Date", "Doc Type", "Grantor", "Grantee",
+                      "Inst.", "Conveyed", "Status"]
+        for a in abstracts:
+            story.append(Paragraph(
+                f"<b>Tract: {a.legal_description or a.tract}</b>", ss["DBXCell"]))
+            ab_rows = [[
+                e.seq, e.instrument_date, e.doc_type, e.grantor, e.grantee,
+                e.instrument_number, e.conveyed_interest, e.status,
+            ] for e in a.entries]
+            story.append(_table(ab_headers, ab_rows,
+                                [26, 62, 70, 96, 96, 55, 55, 46], ss, review_col=7))
+            story.append(Spacer(1, 6))
 
     # -- mineral ownership ---------------------------------------------------
     story.append(Paragraph("Mineral ownership", ss["DBXH2"]))

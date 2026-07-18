@@ -169,7 +169,8 @@ def ownership_to_tracts(rows: List[Dict[str, str]]) -> List[TractOwnership]:
 # ---------------------------------------------------------------------------
 def run_project(project_key: str, *, root: Optional[str] = None,
                 output_dir: Optional[str] = None, make_pdf: bool = True,
-                base: Optional[str] = None, record_audit: bool = False) -> RunResult:
+                base: Optional[str] = None, record_audit: bool = False,
+                template: Optional[str] = None) -> RunResult:
     """Run the full slice for one project and return a :class:`RunResult`.
 
     Never raises for an expected operational problem (missing folder, missing
@@ -244,7 +245,8 @@ def run_project(project_key: str, *, root: Optional[str] = None,
     # -- deliverables --------------------------------------------------------
     _write_deliverables(result, out, runsheet_rows, tracts, chained, abstracts,
                         audit, make_pdf=make_pdf,
-                        synthetic=(proj.key == GOLDEN_DEMO_KEY))
+                        synthetic=(proj.key == GOLDEN_DEMO_KEY),
+                        template=template)
 
     # -- optional durable audit store (foundation SQLite + FTS) -------------
     if record_audit:
@@ -395,11 +397,34 @@ def _rag(result: RunResult) -> str:
 
 
 def _write_deliverables(result, out: Path, runsheet_rows, tracts, chained,
-                        abstracts, audit, *, make_pdf: bool, synthetic: bool):
+                        abstracts, audit, *, make_pdf: bool, synthetic: bool,
+                        template: Optional[str] = None):
     meta = {
         "project": result.project, "section": result.section,
         "generated": result.generated, "source_root": result.source_root,
     }
+    # Template-faithful workbook: write the reconciled runsheet into a copy of an
+    # approved client template, preserving its other sheets and embedded plats
+    # (xl/media) byte-for-byte -- so the deliverable keeps the client's exact
+    # structure and appearance. Requires TitleRow rows from the chain stage.
+    if template and runsheet_rows:
+        tpath = Path(template)
+        if not tpath.exists():
+            result.warnings.append(f"Template not found: {tpath} (template-faithful "
+                                   "workbook skipped).")
+        else:
+            try:
+                from horizon.models import ReportModel
+                from horizon.report_io import write_report
+                rep = ReportModel(section=result.section, source="databossx",
+                                  rows=list(runsheet_rows))
+                dest = write_report(rep, out / "DataBossX_Report_TemplateFaithful.xlsx",
+                                    template=tpath)
+                result.deliverables["template_report"] = str(dest)
+                audit("deliverable_template", f"{dest.name} (from {tpath.name})")
+            except Exception as exc:
+                result.warnings.append(f"Template-faithful workbook skipped: {exc}")
+                audit("template_warn", str(exc), level="WARN")
     # Excel (required deliverable).
     try:
         from .excel_report import build_client_workbook

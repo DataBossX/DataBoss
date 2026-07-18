@@ -78,7 +78,7 @@ def _cmd_run(args) -> int:
     from .command_center import run_project
     result = run_project(args.project, root=args.root, output_dir=args.output,
                          make_pdf=not args.no_pdf, base=args.base,
-                         record_audit=args.audit)
+                         record_audit=args.audit, template=args.template)
     _print_run_result(result)
     return 0 if result.ok else 1
 
@@ -164,6 +164,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--no-pdf", action="store_true", help="skip the PDF report")
     run.add_argument("--audit", action="store_true",
                      help="also record the run in a durable SQLite audit store")
+    run.add_argument("--template", default=None,
+                     help="approved client workbook; also emit a template-faithful "
+                          "report that preserves its structure and embedded plats")
     run.set_defaults(func=_cmd_run)
 
     demo = sub.add_parser("demo", help="build + run the synthetic golden project")

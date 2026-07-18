@@ -88,7 +88,22 @@ To completely reset the tool, delete the `.dbxvenv` folder and double-click
 
 ---
 
-## 5. Projects
+## 5. Advanced options (optional)
+
+Two extra switches on `run`, both safe to ignore for everyday use:
+
+- `--template "C:\path\to\Approved_Client_Report.xlsx"` — also writes a
+  **template-faithful** workbook: your reconciled data placed into a copy of the
+  approved client file, keeping its other sheets and embedded plats exactly as
+  approved.
+- `--audit` — also records the run (and every deliverable's fingerprint) into a
+  durable, searchable audit database, on top of the plain audit log.
+
+```bat
+python dbx.py run --project horizon --root "D:\...\Horizon" --template "D:\...\Approved.xlsx" --audit
+```
+
+## 6. Projects
 
 Built-in project names: `horizon`, `penterra`, `roger_mills`, `beckham`,
 `ryder`, and `golden_demo` (the safe demo). Add more any time — a project is

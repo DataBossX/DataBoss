@@ -124,6 +124,23 @@ def calculate_economics(unit: dict, events: list[dict]) -> EconomicResult:
             continue
         usable_events.append(event)
 
+    has_revenue_burdens = any(
+        event["event_kind"] == "REVENUE_BURDEN" for event in usable_events
+    )
+    if has_revenue_burdens:
+        for assignment in (
+            event for event in usable_events if event["event_kind"] == "ASSIGNMENT"
+        ):
+            if assignment.get("burden_treatment") != "EXPLICIT_EVENT_ALLOCATION":
+                defects.append(
+                    _defect(
+                        "AMBIGUOUS_ASSIGNMENT_BURDEN_TREATMENT",
+                        "Assignment burden carry/retention is not inferred; "
+                        "explicit event allocation is required",
+                        assignment,
+                    )
+                )
+
     leasehold: dict[str, Fraction] = {}
     for event in usable_events:
         if event["event_kind"] != "OPENING_LEASEHOLD":

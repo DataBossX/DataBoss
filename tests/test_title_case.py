@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -169,6 +170,7 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
     assert (source / "deed-2.txt").read_text(encoding="utf-8") == second_text
     assert package["run_status"] == "WAITING_HUMAN"
     assert package["blocking_defect_count"] == 0
+    assert service.get_run(package["pipeline_run_id"])["pipeline_version"] == "1"
     artifacts = {item["rel_path"]: item for item in package["artifacts"]}
     assert {
         "Title_Examiner_Packet.xlsx",
@@ -176,6 +178,8 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
         "title_case_summary.json",
         "package_manifest.json",
     } <= artifacts.keys()
+    _, summary_path = service.artifact(artifacts["title_case_summary.json"]["id"])
+    assert "economics" not in json.loads(summary_path.read_text("utf-8"))
     with pytest.raises(ValueError, match="export is blocked"):
         service.export_artifact(artifacts["Title_Examiner_Packet.xlsx"]["id"])
 
@@ -195,6 +199,7 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
         ownership_rows = list(
             workbook["Current Ownership"].iter_rows(values_only=True)
         )
+        assert workbook["Evidence Index"]["A1"].value == "Sequence"
         workbook.close()
     assert ("Alpha", "1/2", 1, 2, "160", "80") in ownership_rows
     assert ("Beta", "1/4", 1, 4, "160", "40") in ownership_rows

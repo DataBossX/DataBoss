@@ -5,7 +5,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 from .economics import EconomicResult
-from .ledger import LedgerResult, fraction_text
+from .ledger import Defect, LedgerResult, fraction_text
 
 DRAFT_NOTICE = "DRAFT — NOT A CERTIFIED ABSTRACT OR TITLE OPINION"
 
@@ -14,6 +14,15 @@ def safe_cell(value: object) -> object:
     if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
         return "'" + value
     return value
+
+
+def _all_defects(
+    ledger: LedgerResult, economics: list[EconomicResult]
+) -> tuple[Defect, ...]:
+    return (
+        *ledger.defects,
+        *(defect for result in economics for defect in result.defects),
+    )
 
 
 def _write_rows(sheet, headers: list[str], rows: list[list[object]]) -> None:
@@ -55,7 +64,15 @@ def render_xlsx(
     cover.append(["Legal description", safe_cell(title_case["legal_description"])])
     gross = Fraction(title_case["gross_acres_num"], title_case["gross_acres_den"])
     cover.append(["Gross acres (exact)", fraction_text(gross)])
-    cover.append(["Blocking defects", len(ledger.blocking_defects)])
+    cover.append(
+        [
+            "Blocking defects",
+            sum(
+                defect.severity == "BLOCKING"
+                for defect in _all_defects(ledger, economics)
+            ),
+        ]
+    )
     cover.column_dimensions["A"].width = 28
     cover.column_dimensions["B"].width = 70
 
@@ -130,54 +147,64 @@ def render_xlsx(
                 defect.severity, defect.code, defect.sequence_no or "",
                 defect.recording_reference or "", defect.detail,
             ]
-            for defect in (
-                *ledger.defects,
-                *(defect for result in economics for defect in result.defects),
-            )
+            for defect in _all_defects(ledger, economics)
         ],
     )
 
-    evidence_records = [
-        ("Mineral Instrument", item["sequence_no"], item["recording_reference"], item)
-        for item in instruments
-    ]
-    for unit in title_case["economic_units"]:
-        evidence_records.append(
-            ("Economic Unit", "", unit["lease_recording_reference"], unit)
-        )
-        evidence_records.extend(
-            (
-                f"Economic {event['event_kind']}",
-                event["sequence_no"],
-                event["recording_reference"],
-                event,
-            )
-            for event in unit["events"]
-        )
     evidence = workbook.create_sheet("Evidence Index")
-    _write_rows(
-        evidence,
-        [
-            "Record Type", "Sequence", "Recording Reference", "Asset Version ID",
-            "Source SHA-256", "Extraction SHA-256", "Span SHA-256",
-            "Character Start", "Character End", "Cited Source Text",
-        ],
-        [
-            [
-                record_type, sequence, recording,
-                item["evidence_asset_version_id"] or "",
-                item.get("evidence_source_sha256") or "",
-                item.get("evidence_extraction_sha256") or "",
-                item.get("evidence_span_sha256") or "",
-                item["evidence_char_start"] if item["evidence_char_start"] is not None else "",
-                item["evidence_char_end"] if item["evidence_char_end"] is not None else "",
-                item.get("evidence_span_text") or "",
-            ]
-            for record_type, sequence, recording, item in evidence_records
-        ],
-    )
-
     if economics:
+        evidence_records = [
+            (
+                "Mineral Instrument",
+                item["sequence_no"],
+                item["recording_reference"],
+                item,
+            )
+            for item in instruments
+        ]
+        for unit in title_case["economic_units"]:
+            evidence_records.append(
+                ("Economic Unit", "", unit["lease_recording_reference"], unit)
+            )
+            evidence_records.extend(
+                (
+                    f"Economic {event['event_kind']}",
+                    event["sequence_no"],
+                    event["recording_reference"],
+                    event,
+                )
+                for event in unit["events"]
+            )
+        _write_rows(
+            evidence,
+            [
+                "Record Type", "Sequence", "Recording Reference",
+                "Asset Version ID", "Source SHA-256", "Extraction SHA-256",
+                "Span SHA-256", "Character Start", "Character End",
+                "Cited Source Text",
+            ],
+            [
+                [
+                    record_type, sequence, recording,
+                    item["evidence_asset_version_id"] or "",
+                    item.get("evidence_source_sha256") or "",
+                    item.get("evidence_extraction_sha256") or "",
+                    item.get("evidence_span_sha256") or "",
+                    (
+                        item["evidence_char_start"]
+                        if item["evidence_char_start"] is not None
+                        else ""
+                    ),
+                    (
+                        item["evidence_char_end"]
+                        if item["evidence_char_end"] is not None
+                        else ""
+                    ),
+                    item.get("evidence_span_text") or "",
+                ]
+                for record_type, sequence, recording, item in evidence_records
+            ],
+        )
         units_sheet = workbook.create_sheet("Calculation Units")
         _write_rows(
             units_sheet,
@@ -315,6 +342,36 @@ def render_xlsx(
                 for result in economics
             ],
         )
+    else:
+        _write_rows(
+            evidence,
+            [
+                "Sequence", "Recording Reference", "Asset Version ID",
+                "Source SHA-256", "Extraction SHA-256", "Span SHA-256",
+                "Character Start", "Character End", "Cited Source Text",
+            ],
+            [
+                [
+                    item["sequence_no"], item["recording_reference"],
+                    item["evidence_asset_version_id"] or "",
+                    item.get("evidence_source_sha256") or "",
+                    item.get("evidence_extraction_sha256") or "",
+                    item.get("evidence_span_sha256") or "",
+                    (
+                        item["evidence_char_start"]
+                        if item["evidence_char_start"] is not None
+                        else ""
+                    ),
+                    (
+                        item["evidence_char_end"]
+                        if item["evidence_char_end"] is not None
+                        else ""
+                    ),
+                    item.get("evidence_span_text") or "",
+                ]
+                for item in instruments
+            ],
+        )
     workbook.save(destination)
 
 
@@ -436,10 +493,7 @@ def render_pdf(
             defect.recording_reference or "",
             defect.detail,
         ]
-        for defect in (
-            *ledger.defects,
-            *(defect for result in economics for defect in result.defects),
-        )
+        for defect in _all_defects(ledger, economics)
     )
     if len(defect_rows) == 1:
         defect_rows.append(

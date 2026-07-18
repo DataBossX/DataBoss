@@ -72,6 +72,8 @@ event requires a source span. DataBossX does not infer leased mineral ownership,
 royalty, WI basis, HBP, pooling, depth effects, payout reversions, or burdens.
 Unsupported terms remain blocking defects. Economic packages add calculation,
 lease-fact, leasehold-ledger, WI/NRI, and revenue-conservation sheets.
+When assignments and revenue burdens coexist, every assignment must explicitly
+select `EXPLICIT_EVENT_ALLOCATION`; burden carry or retention is never inferred.
 
 ## Tests
 

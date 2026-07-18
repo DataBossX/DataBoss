@@ -13,6 +13,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from databossx.config import KernelConfig  # noqa: E402
 from databossx.products.title.economics import calculate_economics  # noqa: E402
+from databossx.products.title.ledger import calculate_ownership  # noqa: E402
+from databossx.products.title.render import render_xlsx  # noqa: E402
 from databossx.service import KernelService  # noqa: E402
 
 
@@ -55,6 +57,7 @@ def event(
     from_party: str | None = None,
     basis: str = "ABSOLUTE_UNIT",
     burden_kind: str | None = None,
+    burden_treatment: str | None = None,
 ) -> dict:
     return {
         "sequence_no": sequence,
@@ -66,6 +69,7 @@ def event(
         "interest_den": interest.denominator,
         "interest_basis": basis,
         "burden_kind": burden_kind,
+        "burden_treatment": burden_treatment,
         "review_status": "REVIEWED",
         "evidence_span_sha256": "b" * 64,
     }
@@ -94,6 +98,7 @@ def test_partial_assignment_burden_and_tract_conservation() -> None:
             Fraction(1, 2),
             from_party="Operator",
             basis="OF_ASSIGNOR",
+            burden_treatment="EXPLICIT_EVENT_ALLOCATION",
         ),
         event(
             3,
@@ -201,6 +206,7 @@ def test_economic_package_v2_outputs_exact_sheets_and_manifest(tmp_path: Path) -
     )
     package = service.build_title_package(title_case["id"])
     assert package["blocking_defect_count"] == 0
+    assert service.get_run(package["pipeline_run_id"])["pipeline_version"] == "2"
     artifacts = {item["rel_path"]: item for item in package["artifacts"]}
 
     _, workbook_path = service.artifact(artifacts["Title_Examiner_Packet.xlsx"]["id"])
@@ -259,6 +265,85 @@ def test_unsupported_term_and_over_assignment_block_package() -> None:
         "UNSUPPORTED_ECONOMIC_TERM",
         "LEASEHOLD_OVER_ASSIGNMENT",
     }
+
+
+def test_assignment_with_burden_requires_explicit_allocation_treatment() -> None:
+    result = calculate_economics(
+        unit_row(),
+        [
+            event(1, "OPENING_LEASEHOLD", "L-1", "Operator", Fraction(1)),
+            event(
+                2,
+                "ASSIGNMENT",
+                "A-1",
+                "Assignee",
+                Fraction(1, 2),
+                from_party="Operator",
+            ),
+            event(
+                3,
+                "REVENUE_BURDEN",
+                "ORRI-1",
+                "ORRI Owner",
+                Fraction(1, 32),
+                from_party="Operator",
+                basis="LEASE_8_8",
+                burden_kind="ORRI",
+            ),
+        ],
+    )
+    assert "AMBIGUOUS_ASSIGNMENT_BURDEN_TREATMENT" in {
+        defect.code for defect in result.blocking_defects
+    }
+
+
+def test_xlsx_cover_counts_economic_blockers(tmp_path: Path) -> None:
+    unit = {
+        **unit_row(),
+        "legal_description": "SYNTHETIC",
+        "lease_recording_reference": "L-1",
+        "effective_as_of": None,
+        "depth_scope": "ALL DEPTHS",
+        "product_scope": "OIL AND GAS",
+        "unsupported_terms": "Pooling interpretation required",
+        "review_status": "REVIEWED",
+        "evidence_asset_version_id": "asset",
+        "evidence_source_sha256": "a" * 64,
+        "evidence_extraction_sha256": "b" * 64,
+        "evidence_span_sha256": "c" * 64,
+        "evidence_char_start": 0,
+        "evidence_char_end": 9,
+        "evidence_span_text": "synthetic",
+        "events": [],
+    }
+    economics = [
+        calculate_economics(
+            unit,
+            [event(1, "OPENING_LEASEHOLD", "L-OPEN", "Operator", Fraction(1))],
+        )
+    ]
+    ledger = calculate_ownership(
+        [{"owner_name": "Mineral Owner", "interest_num": 1, "interest_den": 1}],
+        [],
+    )
+    destination = tmp_path / "packet.xlsx"
+    render_xlsx(
+        destination,
+        {
+            "name": "Synthetic",
+            "legal_description": "Synthetic",
+            "gross_acres_num": 160,
+            "gross_acres_den": 1,
+            "economic_units": [unit],
+        },
+        [],
+        [],
+        ledger,
+        economics,
+    )
+    workbook = load_workbook(destination, read_only=True)
+    assert workbook["Case Summary"]["B5"].value == 1
+    workbook.close()
 
 
 def test_mixed_evidence_snapshots_are_rejected(tmp_path: Path) -> None:

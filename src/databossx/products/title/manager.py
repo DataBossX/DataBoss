@@ -49,6 +49,14 @@ def _positive_fraction(value: dict, field: str) -> Fraction:
     return result
 
 
+def _evidence_records(title_case: dict) -> list[dict]:
+    records = list(title_case["instruments"])
+    for unit in title_case["economic_units"]:
+        records.append(unit)
+        records.extend(unit["events"])
+    return records
+
+
 class TitleManager:
     def __init__(
         self,
@@ -410,12 +418,12 @@ class TitleManager:
                 id, unit_id, sequence_no, event_kind, recording_reference,
                 recording_reference_key, from_party, to_party,
                 interest_num, interest_den, interest_basis, burden_kind,
-                review_status, notes, evidence_asset_version_id,
+                burden_treatment, review_status, notes, evidence_asset_version_id,
                 evidence_ingest_run_id, evidence_char_start, evidence_char_end,
                 evidence_source_sha256, evidence_extraction_sha256,
                 evidence_span_sha256, evidence_span_text
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """,
             (
@@ -424,6 +432,7 @@ class TitleManager:
                 str(item.get("from_party", "")).strip() or None, to_party,
                 interest.numerator, interest.denominator, basis,
                 str(item.get("burden_kind", "")).strip() or None,
+                str(item.get("burden_treatment", "")).strip() or None,
                 review_status, str(item.get("notes", "")),
                 evidence["asset_id"], evidence["ingest_id"],
                 evidence["char_start"], evidence["char_end"],
@@ -495,18 +504,10 @@ class TitleManager:
         self._verify_case_evidence(title_case)
         with self.db.connect() as connection:
             evidence_ingests = {
-                item["evidence_ingest_run_id"]
-                for item in title_case["instruments"]
-                if item.get("evidence_ingest_run_id")
+                record["evidence_ingest_run_id"]
+                for record in _evidence_records(title_case)
+                if record.get("evidence_ingest_run_id")
             }
-            for unit in title_case["economic_units"]:
-                if unit.get("evidence_ingest_run_id"):
-                    evidence_ingests.add(unit["evidence_ingest_run_id"])
-                evidence_ingests.update(
-                    event["evidence_ingest_run_id"]
-                    for event in unit["events"]
-                    if event.get("evidence_ingest_run_id")
-                )
             if len(evidence_ingests) > 1:
                 raise ValueError("Title case cites more than one evidence snapshot")
             if evidence_ingests:
@@ -544,17 +545,21 @@ class TitleManager:
         run_id = uuid4().hex
         output_dir = self.config.projects_root / project_id / "runs" / run_id / "output"
         output_dir.mkdir(parents=True)
-        input_hash = _canonical_sha256(title_case)
+        input_payload = dict(title_case)
+        if not economics:
+            input_payload.pop("economic_units", None)
+        input_hash = _canonical_sha256(input_payload)
+        package_version = "2" if economics else "1"
         with self.db.transaction(immediate=True) as connection:
             connection.execute(
                 """
                 INSERT INTO pipeline_runs(
                     id, project_id, ingest_run_id, pipeline, pipeline_version,
                     input_manifest_sha256, status, run_dir, started_at, owner_pid
-                ) VALUES (?, ?, ?, 'title-examiner-packet', '1', ?, 'RUNNING', ?, ?, ?)
+                ) VALUES (?, ?, ?, 'title-examiner-packet', ?, ?, 'RUNNING', ?, ?, ?)
                 """,
                 (
-                    run_id, project_id, ingest["id"], input_hash,
+                    run_id, project_id, ingest["id"], package_version, input_hash,
                     str(output_dir.parent), utc_now(), os.getpid(),
                 ),
             )
@@ -596,7 +601,22 @@ class TitleManager:
                     defect.__dict__
                     for defect in (*ledger.defects, *economic_defects)
                 ],
-                "economics": [
+                "evidence_citations": [
+                    {
+                        "sequence_no": item["sequence_no"],
+                        "recording_reference": item["recording_reference"],
+                        "asset_version_id": item["evidence_asset_version_id"],
+                        "source_sha256": item.get("evidence_source_sha256"),
+                        "extraction_sha256": item.get("evidence_extraction_sha256"),
+                        "span_sha256": item.get("evidence_span_sha256"),
+                        "char_start": item["evidence_char_start"],
+                        "char_end": item["evidence_char_end"],
+                    }
+                    for item in title_case["instruments"]
+                ],
+            }
+            if economics:
+                summary_payload["economics"] = [
                     {
                         "unit_id": result.unit_id,
                         "unit_label": result.unit_label,
@@ -621,21 +641,7 @@ class TitleManager:
                         "royalty_share": fraction_text(result.royalty_share),
                     }
                     for result in economics
-                ],
-                "evidence_citations": [
-                    {
-                        "sequence_no": item["sequence_no"],
-                        "recording_reference": item["recording_reference"],
-                        "asset_version_id": item["evidence_asset_version_id"],
-                        "source_sha256": item.get("evidence_source_sha256"),
-                        "extraction_sha256": item.get("evidence_extraction_sha256"),
-                        "span_sha256": item.get("evidence_span_sha256"),
-                        "char_start": item["evidence_char_start"],
-                        "char_end": item["evidence_char_end"],
-                    }
-                    for item in title_case["instruments"]
-                ],
-            }
+                ]
             summary.write_bytes(_canonical(summary_payload))
             artifact_manifest = [
                 {
@@ -731,12 +737,8 @@ class TitleManager:
         return self.package_details(run_id)
 
     def _verify_case_evidence(self, title_case: dict) -> None:
-        records = list(title_case["instruments"])
-        for unit in title_case["economic_units"]:
-            records.append(unit)
-            records.extend(unit["events"])
         with self.db.connect() as connection:
-            for record in records:
+            for record in _evidence_records(title_case):
                 asset_id = record["evidence_asset_version_id"]
                 if not asset_id:
                     continue

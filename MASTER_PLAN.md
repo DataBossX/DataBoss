@@ -60,12 +60,12 @@ Discovered via Google Drive inventory (folder
 
 | # | Move | Status | Notes |
 |---|---|---|---|
-| 11 | Universal intake engine | ✅ | `grocery_report_pipeline.py` stage A/B (inventory, hash, dedup, read-only originals); wire it to `assets.py` 📋 |
+| 11 | Universal intake engine | ✅🔨 | `grocery_report_pipeline.py` stage A/B + `intake.ingest_inventory_csv()` now lands every inventory run in the master asset DB |
 | 12 | Instrument classification | ✅ | pipeline stage D (deterministic keywords + confidence); LLM hook opt-in |
 | 13 | Legal-description extraction | ✅/📋 | stage E extracts; normalization (aliquot parts, lots) 📋 |
-| 14 | Chain-of-title graph | 📋 | `horizon/chaining.py` has the edges (instrument-keyed); graph model next |
+| 14 | Chain-of-title graph | 🔨 | `core/land_title_os/chain_graph.py` — chain breaks, coverage gaps, repeated conveyances, name near-misses (reported, never merged) |
 | 15 | Ownership-math engine | ✅ | `horizon/interest.py` — Fraction/Decimal only, no floats |
-| 16 | Runsheet generator | 📋 | reconciliation tables exist (stage F); dedicated generator next |
+| 16 | Runsheet generator | 🔨 | `core/land_title_os/runsheet.py` — chronological rows from the chain graph, findings attached per instrument |
 | 17 | Oklahoma report generation | ✅ | `horizon/pipeline.py --build-from` + `roger_mills_title_report_builder.py` |
 | 18 | Wyoming abstract-index generation | 📋 | no Wyoming code yet; use verified Section 5/8 work as regression fixtures |
 | 19 | Template-locking engine | 🔨/✅ | `qa_engine.check_template_sheets` + horizon validation gates |
@@ -74,12 +74,13 @@ Discovered via Google Drive inventory (folder
 ### Tier 3 — Reliability
 
 21 🔨 (`evidence.AUTHORITY`) · 22 🔨 (per-axis confidence, enforced) ·
-23 ✅/📋 (`conflicts_and_gaps` stage F; workbook-diff next) · 24 🔨
-(`issues.py`) · 25 🔨 (`evidence.provenance()`) · 26 🔨 (human gates in
-`promotion.py` + issue approval) · 27 ✅ (94+ tests; keep adding approved
-projects as fixtures) · 28 📋 (coverage analysis) · 29 🔨/✅ (SHA-256 groups
-in `assets.py`; perceptual hashing 📋) · 30 🔨 (`receipts.py`, hash-chained,
-tamper-evident — tested).
+23 🔨 (`workbook_diff.py` — sheet/row/cell diffs incl. formula drift, plus
+`conflicts_and_gaps` stage F ✅) · 24 🔨 (`issues.py`) · 25 🔨
+(`evidence.provenance()`) · 26 🔨 (human gates in `promotion.py` + issue
+approval) · 27 ✅ (180+ tests; keep adding approved projects as fixtures) ·
+28 🔨 (`chain_graph.py` coverage gaps + missing-period analysis) · 29 🔨/✅
+(SHA-256 groups in `assets.py`; perceptual hashing 📋) · 30 🔨
+(`receipts.py`, hash-chained, tamper-evident — tested).
 
 ### Tier 4 — Recover what exists
 
@@ -116,11 +117,12 @@ keeps client workbooks clean) · 67–70 📋.
 
 ### Tier 8 — Operating interface
 
-71–80 📋/⏸ — build on the data layer (manifests, issues, receipts). The
-"What needs me?" queue (#74) is already computable:
-`IssueRegister.open_items()` + unverified conclusions + promotions awaiting
-`human_approved=True`. A dashboard is worth building only after the data
-layer is populated with real projects.
+74 🔨 — the "What needs me?" queue is live:
+`python -m core.land_title_os needs-me` aggregates manifest open issues,
+register items, unverified conclusions, and promotions awaiting a human
+across every project (currently 20 items for Beckham 32). 71–73, 75–80 📋/⏸
+— build the rest of the interface only after the data layer holds more real
+projects.
 
 ### Tier 9 — Business leverage
 
@@ -165,17 +167,20 @@ improvement loop (#100), and they now exist.
 3. 🏠 Run `grocery_report_pipeline.py` / `horizon` against the real local
    folders (cloud can't see `D:\`), then `AssetInventory.scan_directory()`
    over `D:\Desktop\DataBossX`, `D:\Desktop\Horizon`, `D:\Desktop\Penterra`.
-4. 📋 Wire the grocery pipeline's stage A/B output into `assets.py` so every
-   inventory run lands in the master database.
-5. 📋 Backfill the Beckham evidence register into `evidence.py` format so the
-   FINAL_VERIFIED report's 51 runsheet rows each carry ledger entries.
+4. 🔨 DONE — `intake.ingest_inventory_csv()` wires stage-A inventories into
+   the master asset database.
+5. 🔨 DONE — `scripts/backfill_beckham_evidence.py` converted the verified
+   evidence register into `projects/OK-BECKHAM-32-11N-25W/evidence.jsonl`
+   (27 authority-ranked entries, 8 cited conclusions) and `issues.json`
+   (the register's 12 prioritized requirements).
 
 ### Next 30 days
 
-Chain graph (#14) → runsheet generator (#16) → workbook diff (#23/#67) →
-coverage analysis (#28) → Wyoming generator (#18) → review-agent roles
-(#20/#49) → dashboard (#5/#74) — each lands as a `core/land_title_os` module
-with tests, gated by the same CI.
+~~Chain graph (#14) → runsheet generator (#16) → workbook diff (#23/#67) →
+coverage analysis (#28)~~ (all 🔨 done) → Wyoming generator (#18) →
+review-agent roles (#20/#49) → legal-description normalization (#13) →
+dashboard (#5) — each lands as a `core/land_title_os` module with tests,
+gated by the same CI.
 
 ### Explicitly not now (per the plan)
 

@@ -12,15 +12,24 @@ from uuid import uuid4
 from ...audit import AuditWriter, utc_now
 from ...config import KernelConfig
 from ...db import Database
-from ...vault import Vault
+from ...vault import Vault, sha256_file
 from .ledger import calculate_ownership, fraction_text
 from .render import render_pdf, render_xlsx
+
+XLSX_FILENAME = "Title_Examiner_Packet.xlsx"
+PDF_FILENAME = "Draft_Abstract_Aid.pdf"
+SUMMARY_FILENAME = "title_case_summary.json"
+MANIFEST_FILENAME = "package_manifest.json"
 
 
 def _canonical(value: object) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
+
+
+def _canonical_sha256(value: object) -> str:
+    return hashlib.sha256(_canonical(value)).hexdigest()
 
 
 def _positive_fraction(value: dict, field: str) -> Fraction:
@@ -229,10 +238,11 @@ class TitleManager:
         ledger = calculate_ownership(
             title_case["opening_ownership"], title_case["instruments"]
         )
+        blocking_defect_count = len(ledger.blocking_defects)
         run_id = uuid4().hex
         output_dir = self.config.projects_root / project_id / "runs" / run_id / "output"
         output_dir.mkdir(parents=True)
-        input_hash = hashlib.sha256(_canonical(title_case)).hexdigest()
+        input_hash = _canonical_sha256(title_case)
         with self.db.transaction(immediate=True) as connection:
             connection.execute(
                 """
@@ -256,9 +266,9 @@ class TitleManager:
                 details={"title_case_id": case_id, "input_sha256": input_hash},
             )
         try:
-            xlsx = output_dir / "Title_Examiner_Packet.xlsx"
-            pdf = output_dir / "Draft_Abstract_Aid.pdf"
-            summary = output_dir / "title_case_summary.json"
+            xlsx = output_dir / XLSX_FILENAME
+            pdf = output_dir / PDF_FILENAME
+            summary = output_dir / SUMMARY_FILENAME
             render_xlsx(
                 xlsx,
                 title_case,
@@ -285,7 +295,7 @@ class TitleManager:
             artifact_manifest = [
                 {
                     "rel_path": path.name,
-                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "sha256": sha256_file(path),
                     "size_bytes": path.stat().st_size,
                 }
                 for path in (xlsx, pdf, summary)
@@ -295,12 +305,12 @@ class TitleManager:
                 "title_case_id": case_id,
                 "input_sha256": input_hash,
                 "artifacts": artifact_manifest,
-                "blocking_defect_count": len(ledger.blocking_defects),
+                "blocking_defect_count": blocking_defect_count,
                 "human_approval_required": True,
             }
-            manifest_hash = hashlib.sha256(_canonical(manifest_payload)).hexdigest()
+            manifest_hash = _canonical_sha256(manifest_payload)
             manifest_payload["package_manifest_sha256"] = manifest_hash
-            (output_dir / "package_manifest.json").write_bytes(_canonical(manifest_payload))
+            (output_dir / MANIFEST_FILENAME).write_bytes(_canonical(manifest_payload))
             with self.db.transaction(immediate=True) as connection:
                 for defect in ledger.defects:
                     connection.execute(
@@ -324,7 +334,7 @@ class TitleManager:
                         blocking_defect_count, review_status
                     ) VALUES (?, ?, ?, ?, 'AWAITING_REVIEW')
                     """,
-                    (run_id, case_id, manifest_hash, len(ledger.blocking_defects)),
+                    (run_id, case_id, manifest_hash, blocking_defect_count),
                 )
                 connection.execute(
                     """
@@ -347,7 +357,7 @@ class TitleManager:
                     run_id=run_id,
                     details={
                         "manifest_sha256": manifest_hash,
-                        "blocking_defect_count": len(ledger.blocking_defects),
+                        "blocking_defect_count": blocking_defect_count,
                     },
                 )
         except Exception as exc:
@@ -540,14 +550,14 @@ class TitleManager:
             (run_id,),
         ).fetchall()
         by_name = {row["rel_path"]: row["blob_sha256"] for row in artifacts}
-        manifest_blob = by_name.get("package_manifest.json")
+        manifest_blob = by_name.get(MANIFEST_FILENAME)
         if not manifest_blob:
             raise ValueError("Package manifest artifact is missing")
         for checksum in by_name.values():
             self.vault.object_path(checksum)
         manifest = json.loads(self.vault.object_path(manifest_blob).read_text("utf-8"))
         embedded_hash = manifest.pop("package_manifest_sha256", None)
-        actual_hash = hashlib.sha256(_canonical(manifest)).hexdigest()
+        actual_hash = _canonical_sha256(manifest)
         if embedded_hash != expected_manifest_hash or actual_hash != expected_manifest_hash:
             raise ValueError("Package manifest failed hash verification")
         listed = {
@@ -555,7 +565,7 @@ class TitleManager:
         }
         registered = {
             name: checksum for name, checksum in by_name.items()
-            if name != "package_manifest.json"
+            if name != MANIFEST_FILENAME
         }
         if listed != registered:
             raise ValueError("Registered package artifacts do not match the manifest")

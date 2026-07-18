@@ -29,10 +29,10 @@ resolve project ─▶ ingest & inventory (sha256 evidence) ─▶ extract text 
 ## Run
 
 ```bash
-python -m databossx doctor                        # health check
-python -m databossx demo                           # build + run synthetic project
-python -m databossx run --project horizon --root /path/to/files
-python -m databossx calc --wi 1/2 --royalty 3/16 --orri 1/32
+python dbx.py doctor                        # health check
+python dbx.py demo                           # build + run synthetic project
+python dbx.py run --project horizon --root /path/to/files
+python dbx.py calc --wi 1/2 --royalty 3/16 --orri 1/32
 ```
 
 Or use the launchers: `DataBossX.bat` (Windows, menu-driven) / `run_databossx.sh`.

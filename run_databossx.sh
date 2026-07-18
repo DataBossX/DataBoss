@@ -26,10 +26,10 @@ fi
   }
 
 if [ "$#" -eq 0 ]; then
-  "$VPY" -m databossx doctor
+  "$VPY" dbx.py doctor
   echo
   echo "Usage: ./run_databossx.sh [doctor|demo|list|run|calc] ..."
   exit 0
 fi
 
-exec "$VPY" -m databossx "$@"
+exec "$VPY" dbx.py "$@"

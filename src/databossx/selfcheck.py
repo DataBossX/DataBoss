@@ -100,7 +100,7 @@ def run_doctor() -> DoctorReport:
 
     # Output writability (scratch under the repo).
     try:
-        probe = Path(__file__).resolve().parent.parent / ".dbx_doctor_probe"
+        probe = Path(__file__).resolve().parents[2] / ".dbx_doctor_probe"
         probe.write_text("ok", encoding="utf-8")
         probe.unlink()
         report.add("output writable", PASS, "working directory is writable")

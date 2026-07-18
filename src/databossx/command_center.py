@@ -245,7 +245,9 @@ def _ingest(src: Path, out: Path, audit, result: RunResult):
     """Inventory + text extraction (reuses the grocery pipeline stages)."""
     recs, texts = [], {}
     try:
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        # The root-level engines are already put on sys.path by databossx's
+        # package __init__; keep this belt-and-suspenders insert for direct use.
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
         import grocery_report_pipeline as g
 
         log = g.BuildLog()

@@ -8,9 +8,9 @@ DataBossX is a local-first toolkit for evidence-grounded land and mineral title 
 project-based command** producing client-ready **Excel + PDF + a dashboard**:
 
 ```bash
-python -m databossx doctor    # self-check
-python -m databossx demo      # build + run a synthetic project end to end
-python -m databossx run --project horizon --root /path/to/files
+python dbx.py doctor    # self-check
+python dbx.py demo      # build + run a synthetic project end to end
+python dbx.py run --project horizon --root /path/to/files
 ```
 
 One-click launchers: **`DataBossX.bat`** (Windows, menu-driven) / `run_databossx.sh`.

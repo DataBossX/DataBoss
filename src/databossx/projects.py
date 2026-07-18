@@ -92,7 +92,8 @@ GOLDEN_DEMO_KEY = "golden_demo"
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    # src/databossx/projects.py -> parents[2] is the repository root.
+    return Path(__file__).resolve().parents[2]
 
 
 def golden_demo_root() -> Path:

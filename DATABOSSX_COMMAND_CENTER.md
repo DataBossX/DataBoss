@@ -91,7 +91,7 @@ To completely reset the tool, delete the `.dbxvenv` folder and double-click
 
 Built-in project names: `horizon`, `penterra`, `roger_mills`, `beckham`,
 `ryder`, and `golden_demo` (the safe demo). Add more any time — a project is
-just a name plus the folder its files live in. See `databossx list` for the
+just a name plus the folder its files live in. See `python dbx.py list` for the
 current list and where each one points.
 
 Full technical details are in [`databossx/README.md`](databossx/README.md).

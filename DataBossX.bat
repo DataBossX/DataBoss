@@ -60,7 +60,7 @@ if errorlevel 1 (
 
 REM --- 4. Self-check ---------------------------------------------------
 echo(
-"%VPY%" -m databossx doctor
+"%VPY%" dbx.py doctor
 echo(
 
 :menu
@@ -89,7 +89,7 @@ goto menu
 
 :do_demo
 echo(
-"%VPY%" -m databossx demo
+"%VPY%" dbx.py demo
 set "LAST=examples\projects\GOLDEN-DEMO\databossx_output"
 echo(
 pause
@@ -98,7 +98,7 @@ goto menu
 :do_project
 echo(
 echo Registered projects:
-"%VPY%" -m databossx list
+"%VPY%" dbx.py list
 set "proj="
 set /p "proj=Project key (e.g. horizon), or blank to cancel: "
 if "%proj%"=="" goto menu
@@ -106,9 +106,9 @@ set "folder="
 set /p "folder=Folder with the files (blank = use the default): "
 echo(
 if "%folder%"=="" (
-    "%VPY%" -m databossx run --project "%proj%"
+    "%VPY%" dbx.py run --project "%proj%"
 ) else (
-    "%VPY%" -m databossx run --project "%proj%" --root "%folder%"
+    "%VPY%" dbx.py run --project "%proj%" --root "%folder%"
     set "LAST=%folder%\databossx_output"
 )
 echo(
@@ -132,14 +132,14 @@ if not "%gr%"=="" set "ARGS=!ARGS! --gross %gr%"
 if not "%wi%"=="" set "ARGS=!ARGS! --wi %wi%"
 if not "%ry%"=="" set "ARGS=!ARGS! --royalty %ry%"
 echo(
-"%VPY%" -m databossx calc !ARGS!
+"%VPY%" dbx.py calc !ARGS!
 echo(
 pause
 goto menu
 
 :do_doctor
 echo(
-"%VPY%" -m databossx doctor
+"%VPY%" dbx.py doctor
 echo(
 pause
 goto menu

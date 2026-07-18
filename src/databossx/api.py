@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 from __future__ import annotations
 
 import html
@@ -50,7 +51,7 @@ async function api(path,options={}){const r=await fetch('/api/v1'+path,{...optio
 function busy(message){document.getElementById('health').textContent=message}
 async function boot(){try{const h=await (await api('/health')).json();document.getElementById('lamp').className='lamp '+(h.status==='ok'?'ok':'');
  document.getElementById('health').textContent=`Kernel ${h.status} · audit ${h.audit_chain_valid?'verified':'FAILED'} · local only`;await loadProjects()}catch(e){busy(e.message)}}
-async function loadProjects(){const items=await (await api('/projects')).json();document.getElementById('projects').innerHTML=items.map(p=>`<div class="project ${active===p.id?'active':''}" onclick="selectProject('${p.id}','${esc(p.name)}')">${esc(p.name)}<br><span class="hash">${p.asset_count} evidence records · ${p.status}</span></div>`).join('')}
+async function loadProjects(){const items=await (await api('/projects')).json();const box=document.getElementById('projects');box.replaceChildren();for(const p of items){const item=document.createElement('div');item.className='project '+(active===p.id?'active':'');item.append(document.createTextNode(p.name),document.createElement('br'));const meta=document.createElement('span');meta.className='hash';meta.textContent=`${p.asset_count} evidence records · ${p.status}`;item.append(meta);item.addEventListener('click',()=>selectProject(p.id,p.name));box.append(item)}}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function createDemo(){try{busy('Creating labeled synthetic project…');const p=await (await api('/projects/synthetic',{method:'POST'})).json();await loadProjects();await selectProject(p.id,p.name)}catch(e){alert(e.message)}}
 async function addProject(){try{const p=await (await api('/projects',{method:'POST',body:JSON.stringify({name:name.value,source_root:path.value})})).json();await loadProjects();await selectProject(p.id,p.name)}catch(e){alert(e.message)}}
@@ -69,7 +70,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.que
 
 def create_app(service: KernelService, token: str | None = None):
     try:
-        from fastapi import FastAPI, Header, HTTPException, Request
+        from fastapi import Depends, FastAPI, Header, HTTPException
         from fastapi.responses import FileResponse, HTMLResponse
         from starlette.middleware.trustedhost import TrustedHostMiddleware
     except ImportError as exc:
@@ -100,75 +101,75 @@ def create_app(service: KernelService, token: str | None = None):
         return _dashboard()
 
     @app.get("/api/v1/health")
-    def health(_: None = __import__("fastapi").Depends(authorize)):
+    def health(_: None = Depends(authorize)):
         return service.health()
 
     @app.get("/api/v1/projects")
-    def projects(_: None = __import__("fastapi").Depends(authorize)):
+    def projects(_: None = Depends(authorize)):
         return service.list_projects()
 
     @app.post("/api/v1/projects")
-    def create_project(payload: dict, _: None = __import__("fastapi").Depends(authorize)):
+    def create_project(payload: dict, _: None = Depends(authorize)):
         try:
             return service.create_project(payload.get("name", ""), payload.get("source_root", ""))
         except Exception as exc:
             handle_error(exc)
 
     @app.post("/api/v1/projects/synthetic")
-    def create_synthetic(_: None = __import__("fastapi").Depends(authorize)):
+    def create_synthetic(_: None = Depends(authorize)):
         return service.create_synthetic_project()
 
     @app.post("/api/v1/projects/{project_id}/ingests")
-    def ingest(project_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def ingest(project_id: str, _: None = Depends(authorize)):
         try:
             return service.ingest_project(project_id)
         except Exception as exc:
             handle_error(exc)
 
     @app.get("/api/v1/projects/{project_id}/assets")
-    def assets(project_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def assets(project_id: str, _: None = Depends(authorize)):
         try:
             return service.list_assets(project_id)
         except Exception as exc:
             handle_error(exc)
 
     @app.get("/api/v1/projects/{project_id}/search")
-    def search(project_id: str, q: str, _: None = __import__("fastapi").Depends(authorize)):
+    def search(project_id: str, q: str, _: None = Depends(authorize)):
         try:
             return service.search(project_id, q)
         except Exception as exc:
             handle_error(exc)
 
     @app.post("/api/v1/projects/{project_id}/runs/grocery")
-    def run_grocery(project_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def run_grocery(project_id: str, _: None = Depends(authorize)):
         try:
             return service.run_grocery(project_id)
         except Exception as exc:
             handle_error(exc)
 
     @app.get("/api/v1/projects/{project_id}/runs")
-    def runs(project_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def runs(project_id: str, _: None = Depends(authorize)):
         try:
             return service.list_runs(project_id)
         except Exception as exc:
             handle_error(exc)
 
     @app.get("/api/v1/runs/{run_id}/artifacts")
-    def artifacts(run_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def artifacts(run_id: str, _: None = Depends(authorize)):
         try:
             return service.list_artifacts(run_id)
         except Exception as exc:
             handle_error(exc)
 
     @app.get("/api/v1/projects/{project_id}/audit")
-    def audit(project_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def audit(project_id: str, _: None = Depends(authorize)):
         try:
             return service.audit_events(project_id)
         except Exception as exc:
             handle_error(exc)
 
     @app.get("/api/v1/artifacts/{artifact_id}/download")
-    def download(artifact_id: str, _: None = __import__("fastapi").Depends(authorize)):
+    def download(artifact_id: str, _: None = Depends(authorize)):
         try:
             artifact, path = service.artifact(artifact_id)
             safe_name = Path(artifact["rel_path"]).name

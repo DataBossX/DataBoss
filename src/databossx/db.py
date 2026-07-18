@@ -40,15 +40,6 @@ class Database:
             )
             for migration in sorted(self.config.migrations_root.glob("*.sql")):
                 self._apply_migration(connection, migration)
-            connection.execute(
-                """
-                UPDATE ingest_runs
-                   SET status = 'INTERRUPTED',
-                       completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
-                       error = COALESCE(error, 'Process stopped before completion')
-                 WHERE status = 'RUNNING'
-                """
-            )
 
     def _apply_migration(
         self, connection: sqlite3.Connection, migration: Path
@@ -66,12 +57,14 @@ class Database:
                 )
             return
         try:
-            connection.executescript(content.decode("utf-8"))
+            connection.executescript("BEGIN IMMEDIATE;\n" + content.decode("utf-8"))
             connection.execute(
                 "INSERT INTO schema_migrations(filename, sha256) VALUES (?, ?)",
                 (migration.name, checksum),
             )
+            connection.commit()
         except sqlite3.DatabaseError as exc:
+            connection.rollback()
             raise MigrationError(f"Migration {migration.name} failed: {exc}") from exc
 
     @contextmanager

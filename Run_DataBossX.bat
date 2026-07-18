@@ -33,7 +33,7 @@ echo Starting DataBossX. Your browser will open automatically.
 echo Keep this window open while DataBossX is running.
 echo Source documents and approved templates are never overwritten.
 echo.
-".venv-kernel\Scripts\python.exe" databossx.py serve --open
+".venv-kernel\Scripts\python.exe" run_databossx.py serve --open
 if errorlevel 1 goto :failed
 exit /b 0
 

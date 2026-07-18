@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import sqlite3
+import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT))
 
-from databossx.config import KernelConfig
-from databossx.service import KernelService
-from databossx.vault import VaultError, sha256_file
+from databossx.config import KernelConfig  # noqa: E402
+from databossx.db import Database, MigrationError  # noqa: E402
+from databossx.service import KernelService  # noqa: E402
+from databossx.vault import VaultError, sha256_file  # noqa: E402
 
 
 def config_for(tmp_path: Path) -> KernelConfig:
@@ -82,6 +84,57 @@ def test_vault_refuses_overwrite_and_detects_corruption(tmp_path: Path) -> None:
         service.vault.materialize(receipt.sha256, destination)
 
 
+def test_oversized_evidence_fails_ingest_with_named_issue(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    evidence = source / "oversized.pdf"
+    evidence.write_bytes(b"0123456789")
+    config = replace(config_for(tmp_path), max_file_bytes=4)
+    service = KernelService(config)
+    project = service.create_project("Strict Ingest", source)
+
+    with pytest.raises(RuntimeError, match="oversized.pdf"):
+        service.ingest_project(project["id"])
+
+    with service.db.connect() as connection:
+        run = connection.execute("SELECT * FROM ingest_runs").fetchone()
+        issue = connection.execute("SELECT * FROM ingest_issues").fetchone()
+    assert run["status"] == "FAILED"
+    assert run["issue_count"] == 1
+    assert issue["rel_path"] == "oversized.pdf"
+    assert issue["code"] == "VAULT_COPY_FAILED"
+    assert evidence.read_bytes() == b"0123456789"
+
+
+def test_migration_failure_rolls_back_all_schema_changes(tmp_path: Path) -> None:
+    migrations = tmp_path / "migrations"
+    migrations.mkdir()
+    migration = migrations / "001_bad.sql"
+    migration.write_text(
+        "CREATE TABLE should_rollback(id INTEGER);\nTHIS IS INVALID SQL;",
+        encoding="utf-8",
+    )
+    config = replace(config_for(tmp_path), migrations_root=migrations)
+    database = Database(config)
+    config.initialize_directories()
+    with pytest.raises(MigrationError):
+        database.initialize()
+    with database.connect() as connection:
+        table = connection.execute(
+            "SELECT name FROM sqlite_master WHERE name='should_rollback'"
+        ).fetchone()
+    assert table is None
+
+    migration.write_text(
+        "CREATE TABLE should_rollback(id INTEGER);", encoding="utf-8"
+    )
+    database.initialize()
+    with database.connect() as connection:
+        assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE name='should_rollback'"
+        ).fetchone()
+
+
 def test_audit_chain_is_verified_and_append_only(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()
@@ -128,6 +181,47 @@ def test_synthetic_project_runs_end_to_end_from_vault(tmp_path: Path) -> None:
     assert second["run_dir"] != run["run_dir"]
 
 
+def test_pipeline_timeout_is_finalized_and_audited(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = KernelService(config_for(tmp_path))
+    project = service.create_synthetic_project()
+    service.ingest_project(project["id"])
+
+    def timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], timeout=1)
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+    with pytest.raises(subprocess.TimeoutExpired):
+        service.run_grocery(project["id"])
+    runs = service.list_runs(project["id"])
+    assert runs[0]["status"] == "FAILED"
+    assert "timed out" in runs[0]["error"]
+    assert service.health()["audit_chain_valid"] is True
+
+
+def test_dead_owner_recovery_is_audited(tmp_path: Path) -> None:
+    config = config_for(tmp_path)
+    service = KernelService(config)
+    source = tmp_path / "source"
+    source.mkdir()
+    project = service.create_project("Recovery", source)
+    with service.db.transaction(immediate=True) as connection:
+        connection.execute(
+            """
+            INSERT INTO ingest_runs(
+                id, project_id, status, started_at, owner_pid
+            ) VALUES ('abandoned', ?, 'RUNNING', '2026-01-01T00:00:00Z', 99999999)
+            """,
+            (project["id"],),
+        )
+    recovered = KernelService(config)
+    assert recovered.get_ingest("abandoned")["status"] == "INTERRUPTED"
+    events = recovered.audit_events(project["id"])
+    assert any(event["action"] == "ingest_run.interrupted" for event in events)
+    assert recovered.health()["audit_chain_valid"] is True
+
+
 def test_api_requires_token_and_rejects_hostile_host(tmp_path: Path) -> None:
     pytest.importorskip("fastapi")
     try:
@@ -152,3 +246,6 @@ def test_api_requires_token_and_rejects_hostile_host(tmp_path: Path) -> None:
         headers={"Authorization": "Bearer test-token", "Host": "evil.example"},
     )
     assert hostile.status_code == 400
+    dashboard = client.get("/")
+    assert dashboard.status_code == 200
+    assert 'onclick="selectProject' not in dashboard.text

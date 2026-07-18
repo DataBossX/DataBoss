@@ -34,7 +34,7 @@ environment and opens the local Command Center. Data remains under the ignored
 For a safe end-to-end verification without client data:
 
 ```bash
-python databossx.py --runtime ./runtime demo
+python run_databossx.py --runtime ./runtime demo
 ```
 
 The demo registers a labeled synthetic project, copies and verifies evidence in

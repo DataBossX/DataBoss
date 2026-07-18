@@ -19,8 +19,11 @@ from .extractors import extract_vault_object
 from .vault import Vault, VaultError
 
 SKIP_DIRECTORIES = {
-    ".git", ".venv", ".venv-kernel", "__pycache__", "node_modules",
-    "runtime", "output", "dist", "build",
+    ".git",
+    ".venv",
+    ".venv-kernel",
+    "__pycache__",
+    "node_modules",
 }
 
 
@@ -36,6 +39,16 @@ def _row(row: sqlite3.Row | None) -> dict | None:
     return dict(row) if row is not None else None
 
 
+def _pid_is_alive(pid: int | None) -> bool:
+    if not pid:
+        return False
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        return False
+    return True
+
+
 class KernelService:
     def __init__(self, config: KernelConfig) -> None:
         self.config = config
@@ -44,6 +57,40 @@ class KernelService:
         self.vault = Vault(config)
         self.audit = AuditWriter()
         self._write_lock = threading.RLock()
+        self._recover_abandoned_runs()
+
+    def _recover_abandoned_runs(self) -> None:
+        with self._write_lock, self.db.transaction(immediate=True) as connection:
+            for table, object_type in (
+                ("ingest_runs", "ingest_run"),
+                ("pipeline_runs", "pipeline_run"),
+            ):
+                running = connection.execute(
+                    f"SELECT id, project_id, owner_pid FROM {table} "
+                    "WHERE status='RUNNING'"
+                ).fetchall()
+                for row in running:
+                    if _pid_is_alive(row["owner_pid"]):
+                        continue
+                    connection.execute(
+                        f"""
+                        UPDATE {table}
+                           SET status='INTERRUPTED', completed_at=?,
+                               error='Owning process stopped before completion'
+                         WHERE id=? AND status='RUNNING'
+                        """,
+                        (utc_now(), row["id"]),
+                    )
+                    self.audit.append(
+                        connection,
+                        action=f"{object_type}.interrupted",
+                        object_type=object_type,
+                        object_id=row["id"],
+                        project_id=row["project_id"],
+                        run_id=row["id"],
+                        details={"reason": "owner process is no longer running"},
+                        actor="kernel-recovery",
+                    )
 
     def create_project(
         self, name: str, source_root: str | Path, source_kind: str = "local"
@@ -51,7 +98,10 @@ class KernelService:
         name = name.strip()
         if not name or len(name) > 120:
             raise ValueError("Project name must contain 1–120 characters")
-        source = Path(source_root).expanduser().resolve(strict=True)
+        try:
+            source = Path(source_root).expanduser().resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise ValueError(f"Project folder is unavailable: {source_root}") from exc
         if not source.is_dir():
             raise ValueError("Project source must be an existing folder")
         if source_kind not in {"local", "synthetic"}:
@@ -93,8 +143,10 @@ class KernelService:
                 for row in connection.execute(
                     """
                     SELECT p.*,
-                           (SELECT count(*) FROM ingest_runs i WHERE i.project_id=p.id) AS ingest_count,
-                           (SELECT count(*) FROM asset_versions a WHERE a.project_id=p.id) AS asset_count
+                           (SELECT count(*) FROM ingest_runs i
+                             WHERE i.project_id=p.id) AS ingest_count,
+                           (SELECT count(*) FROM asset_versions a
+                             WHERE a.project_id=p.id) AS asset_count
                       FROM projects p ORDER BY p.created_at DESC
                     """
                 )
@@ -119,10 +171,11 @@ class KernelService:
             with self.db.transaction(immediate=True) as connection:
                 connection.execute(
                     """
-                    INSERT INTO ingest_runs(id, project_id, status, started_at)
-                    VALUES (?, ?, 'RUNNING', ?)
+                    INSERT INTO ingest_runs(
+                        id, project_id, status, started_at, owner_pid
+                    ) VALUES (?, ?, 'RUNNING', ?, ?)
                     """,
-                    (run_id, project_id, utc_now()),
+                    (run_id, project_id, utc_now(), os.getpid()),
                 )
                 self.audit.append(
                     connection,
@@ -180,10 +233,14 @@ class KernelService:
                     connection.execute(
                         """
                         UPDATE ingest_runs
-                           SET status='FAILED', completed_at=?, error=?
+                           SET status='FAILED', completed_at=?, error=?,
+                               issue_count=(
+                                   SELECT count(*) FROM ingest_issues
+                                    WHERE ingest_run_id=?
+                               )
                          WHERE id=?
                         """,
-                        (utc_now(), str(exc), run_id),
+                        (utc_now(), str(exc), run_id, run_id),
                     )
                     self.audit.append(
                         connection,
@@ -202,30 +259,91 @@ class KernelService:
     ) -> tuple[list[dict], int]:
         entries: list[dict] = []
         issues = 0
+
+        def walk_error(error: OSError) -> None:
+            failed_path = Path(error.filename) if error.filename else source_root
+            try:
+                relative = failed_path.relative_to(source_root).as_posix()
+            except ValueError:
+                relative = str(failed_path)
+            self._record_ingest_issue(
+                project_id,
+                run_id,
+                relative,
+                "ERROR",
+                "DIRECTORY_READ_FAILED",
+                str(error),
+            )
+            raise RuntimeError(f"Unable to inventory source directory {relative}") from error
+
         for current, directories, filenames in os.walk(
-            source_root, topdown=True, followlinks=False
+            source_root, topdown=True, followlinks=False, onerror=walk_error
         ):
             current_path = Path(current)
+            for name in directories:
+                candidate = current_path / name
+                if candidate.is_symlink():
+                    issues += 1
+                    self._record_ingest_issue(
+                        project_id,
+                        run_id,
+                        candidate.relative_to(source_root).as_posix(),
+                        "WARNING",
+                        "SYMLINK_SKIPPED",
+                        "Symbolic-link directories are never followed",
+                    )
+                elif name in SKIP_DIRECTORIES or _is_relative_to(
+                    candidate.resolve(), self.config.runtime_root
+                ):
+                    issues += 1
+                    self._record_ingest_issue(
+                        project_id,
+                        run_id,
+                        candidate.relative_to(source_root).as_posix(),
+                        "WARNING",
+                        "POLICY_DIRECTORY_SKIPPED",
+                        "Tooling or DataBossX runtime directory excluded by policy",
+                    )
             directories[:] = sorted(
                 name
                 for name in directories
                 if name not in SKIP_DIRECTORIES
                 and not (current_path / name).is_symlink()
+                and not _is_relative_to(
+                    (current_path / name).resolve(), self.config.runtime_root
+                )
             )
             for filename in sorted(filenames):
                 source = current_path / filename
                 if source.is_symlink() or not source.is_file():
                     issues += 1
+                    self._record_ingest_issue(
+                        project_id,
+                        run_id,
+                        source.relative_to(source_root).as_posix(),
+                        "WARNING",
+                        "NON_REGULAR_FILE_SKIPPED",
+                        "Symbolic links and non-regular files are never ingested",
+                    )
                     continue
                 relative = source.relative_to(source_root)
                 if ".." in relative.parts:
-                    issues += 1
-                    continue
+                    raise RuntimeError(f"Unsafe source path encountered: {relative}")
                 try:
                     receipt = self.vault.put_file(source)
-                except VaultError:
+                except VaultError as exc:
                     issues += 1
-                    continue
+                    self._record_ingest_issue(
+                        project_id,
+                        run_id,
+                        relative.as_posix(),
+                        "ERROR",
+                        "VAULT_COPY_FAILED",
+                        str(exc),
+                    )
+                    raise RuntimeError(
+                        f"Evidence copy failed for {relative.as_posix()}: {exc}"
+                    ) from exc
                 asset_id = uuid4().hex
                 extraction = extract_vault_object(receipt.destination, source.suffix)
                 if extraction.status != "COMPLETE":
@@ -296,6 +414,21 @@ class KernelService:
                             "extraction_status": extraction.status,
                         },
                     )
+                    if extraction.status != "COMPLETE":
+                        connection.execute(
+                            """
+                            INSERT INTO ingest_issues(
+                                id, ingest_run_id, rel_path, severity,
+                                code, detail, created_at
+                            ) VALUES (?, ?, ?, 'WARNING', ?, ?, ?)
+                            """,
+                            (
+                                uuid4().hex, run_id, relative.as_posix(),
+                                f"EXTRACTION_{extraction.status}",
+                                extraction.note or "No searchable text extracted",
+                                utc_now(),
+                            ),
+                        )
                 entries.append(
                     {
                         "rel_path": relative.as_posix(),
@@ -304,6 +437,40 @@ class KernelService:
                     }
                 )
         return entries, issues
+
+    def _record_ingest_issue(
+        self,
+        project_id: str,
+        run_id: str,
+        rel_path: str,
+        severity: str,
+        code: str,
+        detail: str,
+    ) -> None:
+        with self.db.transaction(immediate=True) as connection:
+            issue_id = uuid4().hex
+            connection.execute(
+                """
+                INSERT INTO ingest_issues(
+                    id, ingest_run_id, rel_path, severity, code, detail, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (issue_id, run_id, rel_path, severity, code, detail, utc_now()),
+            )
+            self.audit.append(
+                connection,
+                action="ingest.issue_recorded",
+                object_type="ingest_issue",
+                object_id=issue_id,
+                project_id=project_id,
+                run_id=run_id,
+                details={
+                    "rel_path": rel_path,
+                    "severity": severity,
+                    "code": code,
+                    "detail": detail,
+                },
+            )
 
     def get_ingest(self, run_id: str) -> dict:
         with self.db.connect() as connection:
@@ -407,12 +574,12 @@ class KernelService:
                 """
                 INSERT INTO pipeline_runs(
                     id, project_id, ingest_run_id, pipeline, pipeline_version,
-                    input_manifest_sha256, status, run_dir, started_at
-                ) VALUES (?, ?, ?, 'grocery-report', '1', ?, 'RUNNING', ?, ?)
+                    input_manifest_sha256, status, run_dir, started_at, owner_pid
+                ) VALUES (?, ?, ?, 'grocery-report', '1', ?, 'RUNNING', ?, ?, ?)
                 """,
                 (
                     run_id, project_id, ingest["id"],
-                    ingest["manifest_sha256"], str(run_dir), utc_now(),
+                    ingest["manifest_sha256"], str(run_dir), utc_now(), os.getpid(),
                 ),
             )
             self.audit.append(
@@ -432,83 +599,107 @@ class KernelService:
             "--output-dir", str(output_dir),
             "--report-name", "Grocery_Report",
         ]
-        completed = subprocess.run(
-            command,
-            cwd=self.config.repo_root,
-            capture_output=True,
-            text=True,
-            timeout=1800,
-            check=False,
-        )
-        (run_dir / "stdout.log").write_text(completed.stdout, encoding="utf-8")
-        (run_dir / "stderr.log").write_text(completed.stderr, encoding="utf-8")
-        status = "SUCCEEDED" if completed.returncode == 0 else "FAILED"
-        with self._write_lock, self.db.transaction(immediate=True) as connection:
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=self.config.repo_root,
+                capture_output=True,
+                text=True,
+                timeout=1800,
+                check=False,
+            )
+            (run_dir / "stdout.log").write_text(completed.stdout, encoding="utf-8")
+            (run_dir / "stderr.log").write_text(completed.stderr, encoding="utf-8")
+            if completed.returncode:
+                raise RuntimeError(
+                    f"Report pipeline exited {completed.returncode}: "
+                    f"{completed.stderr[-500:]}"
+                )
+            with self._write_lock, self.db.transaction(immediate=True) as connection:
+                self._register_pipeline_artifacts(connection, run_id, output_dir)
+                connection.execute(
+                    """
+                    UPDATE pipeline_runs
+                       SET status='SUCCEEDED', completed_at=?, exit_code=0
+                     WHERE id=?
+                    """,
+                    (utc_now(), run_id),
+                )
+                self.audit.append(
+                    connection,
+                    action="pipeline.succeeded",
+                    object_type="pipeline_run",
+                    object_id=run_id,
+                    project_id=project_id,
+                    run_id=run_id,
+                    details={"exit_code": 0},
+                )
+        except Exception as exc:
+            with self._write_lock, self.db.transaction(immediate=True) as connection:
+                connection.execute(
+                    """
+                    UPDATE pipeline_runs
+                       SET status='FAILED', completed_at=?, error=?
+                     WHERE id=? AND status='RUNNING'
+                    """,
+                    (utc_now(), str(exc)[-2000:], run_id),
+                )
+                self.audit.append(
+                    connection,
+                    action="pipeline.failed",
+                    object_type="pipeline_run",
+                    object_id=run_id,
+                    project_id=project_id,
+                    run_id=run_id,
+                    details={"error": str(exc)[-2000:]},
+                )
+            raise
+        return self.get_run(run_id)
+
+    def _register_pipeline_artifacts(
+        self, connection: sqlite3.Connection, run_id: str, output_dir: Path
+    ) -> None:
+        for artifact_path in sorted(output_dir.rglob("*")):
+            if not artifact_path.is_file():
+                continue
+            receipt = self.vault.put_file(artifact_path)
+            artifact_id = uuid4().hex
+            rel_path = artifact_path.relative_to(output_dir).as_posix()
             connection.execute(
                 """
-                UPDATE pipeline_runs
-                   SET status=?, completed_at=?, exit_code=?, error=?
-                 WHERE id=?
+                INSERT OR IGNORE INTO blobs(
+                    sha256, size_bytes, vault_relpath, created_at
+                ) VALUES (?, ?, ?, ?)
                 """,
                 (
-                    status, utc_now(), completed.returncode,
-                    completed.stderr[-2000:] if completed.returncode else None, run_id,
+                    receipt.sha256, receipt.size_bytes,
+                    receipt.relative_path, utc_now(),
                 ),
             )
-            if completed.returncode == 0:
-                for artifact_path in sorted(output_dir.rglob("*")):
-                    if not artifact_path.is_file():
-                        continue
-                    receipt = self.vault.put_file(artifact_path)
-                    artifact_id = uuid4().hex
-                    rel_path = artifact_path.relative_to(output_dir).as_posix()
-                    connection.execute(
-                        """
-                        INSERT OR IGNORE INTO blobs(
-                            sha256, size_bytes, vault_relpath, created_at
-                        ) VALUES (?, ?, ?, ?)
-                        """,
-                        (
-                            receipt.sha256, receipt.size_bytes,
-                            receipt.relative_path, utc_now(),
-                        ),
-                    )
-                    connection.execute(
-                        """
-                        INSERT INTO artifacts(
-                            id, pipeline_run_id, rel_path, blob_sha256,
-                            size_bytes, media_type, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            artifact_id, run_id, rel_path, receipt.sha256,
-                            receipt.size_bytes,
-                            mimetypes.guess_type(rel_path)[0] or "application/octet-stream",
-                            utc_now(),
-                        ),
-                    )
-                    connection.execute(
-                        """
-                        INSERT INTO provenance_edges(
-                            id, parent_type, parent_id, child_type, child_id,
-                            recipe, recipe_version, created_at
-                        ) VALUES (?, 'pipeline_run', ?, 'artifact', ?,
-                                  'grocery-report', '1', ?)
-                        """,
-                        (uuid4().hex, run_id, artifact_id, utc_now()),
-                    )
-            self.audit.append(
-                connection,
-                action=f"pipeline.{status.lower()}",
-                object_type="pipeline_run",
-                object_id=run_id,
-                project_id=project_id,
-                run_id=run_id,
-                details={"exit_code": completed.returncode},
+            connection.execute(
+                """
+                INSERT INTO artifacts(
+                    id, pipeline_run_id, rel_path, blob_sha256,
+                    size_bytes, media_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    artifact_id, run_id, rel_path, receipt.sha256,
+                    receipt.size_bytes,
+                    mimetypes.guess_type(rel_path)[0] or "application/octet-stream",
+                    utc_now(),
+                ),
             )
-        if completed.returncode:
-            raise RuntimeError(f"Report pipeline failed: {completed.stderr[-500:]}")
-        return self.get_run(run_id)
+            connection.execute(
+                """
+                INSERT INTO provenance_edges(
+                    id, parent_type, parent_id, child_type, child_id,
+                    recipe, recipe_version, created_at
+                ) VALUES (?, 'pipeline_run', ?, 'artifact', ?,
+                          'grocery-report', '1', ?)
+                """,
+                (uuid4().hex, run_id, artifact_id, utc_now()),
+            )
 
     def get_run(self, run_id: str) -> dict:
         with self.db.connect() as connection:

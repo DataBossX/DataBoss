@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import ipaddress
 import json
 import secrets
@@ -52,9 +53,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     title_review.add_argument("run_id")
     title_review.add_argument("manifest_sha256")
-    title_review.add_argument("--reviewer", required=True)
+    title_review.add_argument("--reviewer-id", required=True)
     title_review.add_argument("--decision", choices=("APPROVE", "REJECT"), required=True)
     title_review.add_argument("--notes", default="")
+    reviewer_add = commands.add_parser(
+        "reviewer-add", help="Register a credentialed title reviewer"
+    )
+    reviewer_add.add_argument("--name", required=True)
+    reviewer_add.add_argument(
+        "--role", choices=("QUALIFIED_EXAMINER", "ATTORNEY"), required=True
+    )
     serve = commands.add_parser("serve", help="Start loopback Command Center")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
@@ -96,15 +104,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "title-build":
         _print(service.build_title_package(args.title_case_id))
     elif args.command == "title-review":
+        reviewer_pin = getpass.getpass("Reviewer PIN: ")
         _print(
             service.review_title_package(
                 args.run_id,
                 args.manifest_sha256,
-                args.reviewer,
+                args.reviewer_id,
+                reviewer_pin,
                 args.decision,
                 args.notes,
             )
         )
+    elif args.command == "reviewer-add":
+        pin = getpass.getpass("Create reviewer PIN (6+ characters): ")
+        confirmation = getpass.getpass("Confirm reviewer PIN: ")
+        if pin != confirmation:
+            raise SystemExit("Reviewer PINs did not match")
+        _print(service.register_title_reviewer(args.name, args.role, pin))
     elif args.command == "serve":
         try:
             address = ipaddress.ip_address(args.host)

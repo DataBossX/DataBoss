@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import mimetypes
 import os
+import secrets
 import sqlite3
 from fractions import Fraction
 from pathlib import Path
@@ -13,7 +15,7 @@ from ...audit import AuditWriter, utc_now
 from ...config import KernelConfig
 from ...db import Database
 from ...vault import Vault, sha256_file
-from .ledger import calculate_ownership, fraction_text
+from .ledger import calculate_ownership, fraction_text, recording_reference_key
 from .render import render_pdf, render_xlsx
 
 XLSX_FILENAME = "Title_Examiner_Packet.xlsx"
@@ -34,7 +36,11 @@ def _canonical_sha256(value: object) -> str:
 
 def _positive_fraction(value: dict, field: str) -> Fraction:
     try:
-        result = Fraction(int(value["numerator"]), int(value["denominator"]))
+        numerator = value["numerator"]
+        denominator = value["denominator"]
+        if type(numerator) is not int or type(denominator) is not int:
+            raise TypeError
+        result = Fraction(numerator, denominator)
     except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
         raise ValueError(f"{field} must provide an exact numerator and denominator") from exc
     if result < 0:
@@ -99,8 +105,19 @@ class TitleManager:
                     """,
                     (uuid4().hex, case_id, owner, interest.numerator, interest.denominator),
                 )
-            for position, item in enumerate(instruments, start=1):
-                self._insert_instrument(connection, case_id, project_id, item, position)
+            evidence_ingests = {
+                ingest_id
+                for position, item in enumerate(instruments, start=1)
+                if (
+                    ingest_id := self._insert_instrument(
+                        connection, case_id, project_id, item, position
+                    )
+                )
+            }
+            if len(evidence_ingests) > 1:
+                raise ValueError(
+                    "All reviewed title instruments must cite one evidence snapshot"
+                )
             self.audit.append(
                 connection,
                 action="title_case.created",
@@ -122,7 +139,7 @@ class TitleManager:
         project_id: str,
         item: dict,
         default_sequence: int,
-    ) -> None:
+    ) -> str | None:
         interest = _positive_fraction(item.get("conveyed_interest", {}), "conveyed interest")
         basis = item.get("interest_basis")
         if basis not in {"ABSOLUTE_ESTATE", "OF_GRANTOR"}:
@@ -133,10 +150,16 @@ class TitleManager:
         evidence_id = item.get("evidence_asset_version_id")
         char_start = item.get("evidence_char_start")
         char_end = item.get("evidence_char_end")
+        evidence_ingest_id = None
+        source_sha256 = None
+        extraction_sha256 = None
+        span_sha256 = None
+        span_text = None
         if evidence_id:
             evidence = connection.execute(
                 """
-                SELECT e.char_count
+                SELECT e.char_count, e.text_content, e.text_sha256,
+                       a.blob_sha256, a.ingest_run_id
                   FROM asset_versions a
                   JOIN text_extractions e ON e.asset_version_id=a.id
                  WHERE a.id=? AND a.project_id=?
@@ -146,13 +169,18 @@ class TitleManager:
             if not evidence:
                 raise ValueError("Evidence asset does not belong to this project")
             if (
-                not isinstance(char_start, int)
-                or not isinstance(char_end, int)
+                type(char_start) is not int
+                or type(char_end) is not int
                 or char_start < 0
                 or char_end <= char_start
                 or char_end > evidence["char_count"]
             ):
                 raise ValueError("Evidence character range is outside extracted source text")
+            evidence_ingest_id = evidence["ingest_run_id"]
+            source_sha256 = evidence["blob_sha256"]
+            extraction_sha256 = evidence["text_sha256"]
+            span_text = evidence["text_content"][char_start:char_end]
+            span_sha256 = hashlib.sha256(span_text.encode("utf-8")).hexdigest()
         elif review_status == "REVIEWED":
             raise ValueError("A reviewed instrument must cite an ingested evidence span")
         required = {
@@ -165,6 +193,10 @@ class TitleManager:
             raise ValueError(
                 "Instrument type, recording reference, grantor and grantee are required"
             )
+        sequence = item.get("sequence_no", default_sequence)
+        if type(sequence) is not int or sequence < 1:
+            raise ValueError("Instrument sequence_no must be a positive integer")
+        recording = str(required["recording_reference"]).strip()
         connection.execute(
             """
             INSERT INTO title_instruments(
@@ -172,20 +204,25 @@ class TitleManager:
                 recording_reference, effective_date, grantor_name, grantee_name,
                 conveyed_num, conveyed_den, interest_basis,
                 evidence_asset_version_id, evidence_char_start, evidence_char_end,
-                review_status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                review_status, notes, recording_reference_key,
+                evidence_ingest_run_id, evidence_source_sha256,
+                evidence_extraction_sha256, evidence_span_sha256, evidence_span_text
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                uuid4().hex, case_id, int(item.get("sequence_no", default_sequence)),
+                uuid4().hex, case_id, sequence,
                 str(required["instrument_type"]).strip(),
-                str(required["recording_reference"]).strip(),
+                recording,
                 item.get("effective_date"),
                 str(required["grantor_name"]).strip(),
                 str(required["grantee_name"]).strip(),
                 interest.numerator, interest.denominator, basis, evidence_id,
                 char_start, char_end, review_status, str(item.get("notes", "")),
+                recording_reference_key(recording), evidence_ingest_id,
+                source_sha256, extraction_sha256, span_sha256, span_text,
             ),
         )
+        return evidence_ingest_id
 
     def get_case(self, case_id: str) -> dict:
         with self.db.connect() as connection:
@@ -224,15 +261,32 @@ class TitleManager:
     def build_package(self, case_id: str) -> dict:
         title_case = self.get_case(case_id)
         project_id = title_case["project_id"]
+        self._verify_case_evidence(title_case)
         with self.db.connect() as connection:
-            ingest = connection.execute(
-                """
-                SELECT * FROM ingest_runs
-                 WHERE project_id=? AND status='SUCCEEDED'
-                 ORDER BY completed_at DESC LIMIT 1
-                """,
-                (project_id,),
-            ).fetchone()
+            evidence_ingests = {
+                item["evidence_ingest_run_id"]
+                for item in title_case["instruments"]
+                if item.get("evidence_ingest_run_id")
+            }
+            if len(evidence_ingests) > 1:
+                raise ValueError("Title case cites more than one evidence snapshot")
+            if evidence_ingests:
+                ingest = connection.execute(
+                    """
+                    SELECT * FROM ingest_runs
+                     WHERE id=? AND project_id=? AND status='SUCCEEDED'
+                    """,
+                    (next(iter(evidence_ingests)), project_id),
+                ).fetchone()
+            else:
+                ingest = connection.execute(
+                    """
+                    SELECT * FROM ingest_runs
+                     WHERE project_id=? AND status='SUCCEEDED'
+                     ORDER BY completed_at DESC LIMIT 1
+                    """,
+                    (project_id,),
+                ).fetchone()
         if not ingest:
             raise ValueError("A completed evidence ingest is required")
         ledger = calculate_ownership(
@@ -290,6 +344,19 @@ class TitleManager:
                     for owner, interest in sorted(ledger.ownership.items())
                 },
                 "defects": [defect.__dict__ for defect in ledger.defects],
+                "evidence_citations": [
+                    {
+                        "sequence_no": item["sequence_no"],
+                        "recording_reference": item["recording_reference"],
+                        "asset_version_id": item["evidence_asset_version_id"],
+                        "source_sha256": item.get("evidence_source_sha256"),
+                        "extraction_sha256": item.get("evidence_extraction_sha256"),
+                        "span_sha256": item.get("evidence_span_sha256"),
+                        "char_start": item["evidence_char_start"],
+                        "char_end": item["evidence_char_end"],
+                    }
+                    for item in title_case["instruments"]
+                ],
             }
             summary.write_bytes(_canonical(summary_payload))
             artifact_manifest = [
@@ -381,6 +448,48 @@ class TitleManager:
             raise
         return self.package_details(run_id)
 
+    def _verify_case_evidence(self, title_case: dict) -> None:
+        with self.db.connect() as connection:
+            for instrument in title_case["instruments"]:
+                asset_id = instrument["evidence_asset_version_id"]
+                if not asset_id:
+                    continue
+                evidence = connection.execute(
+                    """
+                    SELECT a.blob_sha256, a.ingest_run_id,
+                           e.text_sha256, e.text_content
+                      FROM asset_versions a
+                      JOIN text_extractions e ON e.asset_version_id=a.id
+                     WHERE a.id=? AND a.project_id=?
+                    """,
+                    (asset_id, title_case["project_id"]),
+                ).fetchone()
+                if not evidence:
+                    raise ValueError("Cited evidence asset is no longer available")
+                self.vault.object_path(evidence["blob_sha256"])
+                start = instrument["evidence_char_start"]
+                end = instrument["evidence_char_end"]
+                span_text = evidence["text_content"][start:end]
+                span_sha256 = hashlib.sha256(span_text.encode("utf-8")).hexdigest()
+                expected = (
+                    evidence["ingest_run_id"],
+                    evidence["blob_sha256"],
+                    evidence["text_sha256"],
+                    span_sha256,
+                    span_text,
+                )
+                recorded = (
+                    instrument["evidence_ingest_run_id"],
+                    instrument["evidence_source_sha256"],
+                    instrument["evidence_extraction_sha256"],
+                    instrument["evidence_span_sha256"],
+                    instrument["evidence_span_text"],
+                )
+                if recorded != expected:
+                    raise ValueError(
+                        "Cited evidence hashes or source span changed after review"
+                    )
+
     def _register_artifacts(
         self, connection: sqlite3.Connection, run_id: str, output_dir: Path
     ) -> None:
@@ -447,21 +556,90 @@ class TitleManager:
         result["artifacts"] = [dict(row) for row in artifacts]
         return result
 
+    def register_reviewer(self, display_name: str, role: str, pin: str) -> dict:
+        display_name = display_name.strip()
+        role = role.upper()
+        if not display_name:
+            raise ValueError("Reviewer display name is required")
+        if role not in {"QUALIFIED_EXAMINER", "ATTORNEY"}:
+            raise ValueError("Reviewer role must be QUALIFIED_EXAMINER or ATTORNEY")
+        if len(pin) < 6:
+            raise ValueError("Reviewer PIN must contain at least 6 characters")
+        salt = secrets.token_bytes(16)
+        pin_hash = hashlib.scrypt(
+            pin.encode("utf-8"), salt=salt, n=2**14, r=8, p=1
+        ).hex()
+        reviewer_id = uuid4().hex
+        with self.db.transaction(immediate=True) as connection:
+            connection.execute(
+                """
+                INSERT INTO title_reviewers(
+                    id, display_name, role, pin_salt, pin_hash, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    reviewer_id,
+                    display_name,
+                    role,
+                    salt.hex(),
+                    pin_hash,
+                    utc_now(),
+                ),
+            )
+            self.audit.append(
+                connection,
+                action="title_reviewer.registered",
+                object_type="title_reviewer",
+                object_id=reviewer_id,
+                details={"display_name": display_name, "role": role},
+            )
+        return {"id": reviewer_id, "display_name": display_name, "role": role}
+
+    def list_reviewers(self) -> list[dict]:
+        with self.db.connect() as connection:
+            return [
+                dict(row)
+                for row in connection.execute(
+                    "SELECT id, display_name, role, created_at FROM title_reviewers "
+                    "ORDER BY display_name"
+                )
+            ]
+
+    def _authenticate_reviewer(
+        self, connection: sqlite3.Connection, reviewer_id: str, pin: str
+    ) -> sqlite3.Row:
+        reviewer = connection.execute(
+            "SELECT * FROM title_reviewers WHERE id=?", (reviewer_id,)
+        ).fetchone()
+        if not reviewer:
+            raise ValueError("Reviewer credential not found")
+        actual = hashlib.scrypt(
+            pin.encode("utf-8"),
+            salt=bytes.fromhex(reviewer["pin_salt"]),
+            n=2**14,
+            r=8,
+            p=1,
+        ).hex()
+        if not hmac.compare_digest(actual, reviewer["pin_hash"]):
+            raise ValueError("Reviewer credential is invalid")
+        return reviewer
+
     def review_package(
         self,
         run_id: str,
         manifest_sha256: str,
-        reviewer: str,
+        reviewer_id: str,
+        reviewer_pin: str,
         decision: str,
         notes: str = "",
     ) -> dict:
-        reviewer = reviewer.strip()
         decision = decision.upper()
-        if not reviewer:
-            raise ValueError("Reviewer name is required")
         if decision not in {"APPROVE", "REJECT"}:
             raise ValueError("Decision must be APPROVE or REJECT")
         with self.db.transaction(immediate=True) as connection:
+            reviewer = self._authenticate_reviewer(
+                connection, reviewer_id, reviewer_pin
+            )
             package = connection.execute(
                 """
                 SELECT d.*, r.project_id
@@ -487,12 +665,13 @@ class TitleManager:
                 """
                 INSERT INTO title_review_decisions(
                     id, pipeline_run_id, package_manifest_sha256,
-                    reviewer, decision, notes, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    reviewer, decision, notes, created_at, reviewer_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    uuid4().hex, run_id, manifest_sha256, reviewer,
-                    decision, notes, utc_now(),
+                    uuid4().hex, run_id, manifest_sha256,
+                    reviewer["display_name"], decision, notes, utc_now(),
+                    reviewer_id,
                 ),
             )
             review_status = "APPROVED" if decision == "APPROVE" else "REJECTED"
@@ -507,7 +686,7 @@ class TitleManager:
                 (
                     review_status,
                     manifest_sha256 if decision == "APPROVE" else None,
-                    reviewer,
+                    reviewer["display_name"],
                     utc_now(),
                     run_id,
                 ),
@@ -532,7 +711,9 @@ class TitleManager:
                 run_id=run_id,
                 details={
                     "manifest_sha256": manifest_sha256,
-                    "reviewer": reviewer,
+                    "reviewer_id": reviewer_id,
+                    "reviewer": reviewer["display_name"],
+                    "reviewer_role": reviewer["role"],
                     "decision": decision,
                     "notes": notes,
                 },

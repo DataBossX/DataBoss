@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+import re
 from typing import Iterable
+import unicodedata
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,11 @@ def fraction_text(value: Fraction) -> str:
     )
 
 
+def recording_reference_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    return re.sub(r"[^a-z0-9]+", "", normalized)
+
+
 def calculate_ownership(
     opening: Iterable[dict], instruments: Iterable[dict]
 ) -> LedgerResult:
@@ -77,11 +84,13 @@ def calculate_ownership(
     for instrument in sorted(instruments, key=lambda item: int(item["sequence_no"])):
         sequence = int(instrument["sequence_no"])
         recording = str(instrument["recording_reference"]).strip()
+        recording_key = instrument.get("recording_reference_key")
+        recording_key = recording_key or recording_reference_key(recording)
         grantor = str(instrument["grantor_name"]).strip()
         grantee = str(instrument["grantee_name"]).strip()
         context = {"sequence_no": sequence, "recording_reference": recording}
 
-        if recording in seen_recordings:
+        if recording_key in seen_recordings:
             defects.append(
                 Defect(
                     "DUPLICATE_INSTRUMENT",
@@ -91,7 +100,7 @@ def calculate_ownership(
                 )
             )
             continue
-        seen_recordings.add(recording)
+        seen_recordings.add(recording_key)
         if instrument["review_status"] != "REVIEWED":
             defects.append(
                 Defect(

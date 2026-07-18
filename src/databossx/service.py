@@ -765,17 +765,32 @@ class KernelService:
     def get_title_package(self, run_id: str) -> dict:
         return self.title.package_details(run_id)
 
+    def register_title_reviewer(
+        self, display_name: str, role: str, pin: str
+    ) -> dict:
+        with self._write_lock:
+            return self.title.register_reviewer(display_name, role, pin)
+
+    def list_title_reviewers(self) -> list[dict]:
+        return self.title.list_reviewers()
+
     def review_title_package(
         self,
         run_id: str,
         manifest_sha256: str,
-        reviewer: str,
+        reviewer_id: str,
+        reviewer_pin: str,
         decision: str,
         notes: str = "",
     ) -> dict:
         with self._write_lock:
             return self.title.review_package(
-                run_id, manifest_sha256, reviewer, decision, notes
+                run_id,
+                manifest_sha256,
+                reviewer_id,
+                reviewer_pin,
+                decision,
+                notes,
             )
 
     def audit_events(self, project_id: str) -> list[dict]:

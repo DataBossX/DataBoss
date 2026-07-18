@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from .ledger import LedgerResult, fraction_text
 
@@ -136,14 +137,19 @@ def render_xlsx(
         evidence,
         [
             "Sequence", "Recording Reference", "Asset Version ID",
-            "Character Start", "Character End",
+            "Source SHA-256", "Extraction SHA-256", "Span SHA-256",
+            "Character Start", "Character End", "Cited Source Text",
         ],
         [
             [
                 item["sequence_no"], item["recording_reference"],
                 item["evidence_asset_version_id"] or "",
+                item.get("evidence_source_sha256") or "",
+                item.get("evidence_extraction_sha256") or "",
+                item.get("evidence_span_sha256") or "",
                 item["evidence_char_start"] if item["evidence_char_start"] is not None else "",
                 item["evidence_char_end"] if item["evidence_char_end"] is not None else "",
+                item.get("evidence_span_text") or "",
             ]
             for item in instruments
         ],
@@ -171,9 +177,13 @@ def render_pdf(destination: Path, title_case: dict, ledger: LedgerResult) -> Non
     story = [
         Paragraph(DRAFT_NOTICE, styles["Title"]),
         Spacer(1, 12),
-        Paragraph(f"<b>Title case:</b> {title_case['name']}", styles["BodyText"]),
         Paragraph(
-            f"<b>Legal description:</b> {title_case['legal_description']}",
+            f"<b>Title case:</b> {escape(str(title_case['name']))}",
+            styles["BodyText"],
+        ),
+        Paragraph(
+            f"<b>Legal description:</b> "
+            f"{escape(str(title_case['legal_description']))}",
             styles["BodyText"],
         ),
         Paragraph(

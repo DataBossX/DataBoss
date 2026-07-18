@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from databossx.config import KernelConfig  # noqa: E402
 from databossx.products.title.ledger import calculate_ownership  # noqa: E402
+from databossx.products.title.manager import _positive_fraction  # noqa: E402
 from databossx.products.title.render import safe_cell  # noqa: E402
 from databossx.service import KernelService  # noqa: E402
 
@@ -91,7 +92,7 @@ def test_duplicate_and_overconveyance_are_blocking_and_not_applied() -> None:
         "conveyed_den": 2,
     }
     duplicate = {
-        **reviewed_instrument(2, "DUP-1", "Alpha", "Gamma", 1, 2, "asset", 1),
+        **reviewed_instrument(2, " dup 1 ", "Alpha", "Gamma", 1, 2, "asset", 1),
         "conveyed_num": 1,
         "conveyed_den": 2,
     }
@@ -102,6 +103,10 @@ def test_duplicate_and_overconveyance_are_blocking_and_not_applied() -> None:
         "DUPLICATE_INSTRUMENT",
     }
     assert safe_cell("=HYPERLINK(\"https://evil.example\")").startswith("'=")
+    with pytest.raises(ValueError, match="exact numerator"):
+        _positive_fraction({"numerator": 1.9, "denominator": 2}, "interest")
+    with pytest.raises(ValueError, match="exact numerator"):
+        _positive_fraction({"numerator": True, "denominator": 2}, "interest")
 
 
 def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
@@ -116,7 +121,7 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
     service.ingest_project(project["id"])
     assets = {asset["rel_path"]: asset for asset in service.list_assets(project["id"])}
     payload = {
-        "name": "Synthetic Branching Ownership",
+        "name": "Synthetic <b> Branching & Ownership",
         "legal_description": "SYNTHETIC Section 1, T1N, R1W",
         "gross_acres": {"numerator": 160, "denominator": 1},
         "opening_ownership": [
@@ -150,6 +155,13 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
         ],
     }
     title_case = service.create_title_case(project["id"], payload)
+    assert all(
+        len(instrument["evidence_source_sha256"]) == 64
+        and len(instrument["evidence_extraction_sha256"]) == 64
+        and len(instrument["evidence_span_sha256"]) == 64
+        and instrument["evidence_span_text"]
+        for instrument in title_case["instruments"]
+    )
     package = service.build_title_package(title_case["id"])
     assert (source / "deed-1.txt").read_text(encoding="utf-8") == first_text
     assert (source / "deed-2.txt").read_text(encoding="utf-8") == second_text
@@ -184,14 +196,30 @@ def test_title_package_xlsx_pdf_hash_review_end_to_end(tmp_path: Path) -> None:
     assert ("Beta", "1/4", 1, 4, "160", "40") in ownership_rows
     assert ("Gamma", "1/4", 1, 4, "160", "40") in ownership_rows
 
+    reviewer = service.register_title_reviewer(
+        "Qualified Examiner", "QUALIFIED_EXAMINER", "629104"
+    )
     with pytest.raises(ValueError, match="does not match"):
         service.review_title_package(
-            package["pipeline_run_id"], "0" * 64, "Qualified Examiner", "APPROVE"
+            package["pipeline_run_id"],
+            "0" * 64,
+            reviewer["id"],
+            "629104",
+            "APPROVE",
+        )
+    with pytest.raises(ValueError, match="credential is invalid"):
+        service.review_title_package(
+            package["pipeline_run_id"],
+            package["package_manifest_sha256"],
+            reviewer["id"],
+            "wrong-pin",
+            "APPROVE",
         )
     approved = service.review_title_package(
         package["pipeline_run_id"],
         package["package_manifest_sha256"],
-        "Qualified Examiner",
+        reviewer["id"],
+        "629104",
         "APPROVE",
         "Synthetic test approval only",
     )
@@ -235,9 +263,13 @@ def test_unreviewed_instrument_blocks_approval(tmp_path: Path) -> None:
     assert package["blocking_defect_count"] == 1
     assert package["defects"][0]["code"] == "INSTRUMENT_NEEDS_REVIEW"
     with pytest.raises(ValueError, match="Blocking defects"):
+        reviewer = service.register_title_reviewer(
+            "Defect Examiner", "QUALIFIED_EXAMINER", "183746"
+        )
         service.review_title_package(
             package["pipeline_run_id"],
             package["package_manifest_sha256"],
-            "Examiner",
+            reviewer["id"],
+            "183746",
             "APPROVE",
         )

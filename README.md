@@ -54,7 +54,8 @@ cite an ingested asset and exact character range. DataBossX then:
 - creates a runsheet, current ownership, ownership ledger, defects/curative list,
   and evidence index in `Title_Examiner_Packet.xlsx`,
 - creates `Draft_Abstract_Aid.pdf` and a hash-bound package manifest, and
-- requires a qualified reviewer to approve the exact manifest hash.
+- requires a separately credentialed qualified examiner or attorney to approve
+  the exact manifest hash; PINs are stored only as salted scrypt hashes.
 
 Approval moves the packet only to `APPROVED_FOR_EXPORT`; it does not call the
 packet a certified abstract or title opinion and never releases it automatically.

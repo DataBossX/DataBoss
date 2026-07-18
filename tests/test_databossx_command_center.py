@@ -26,13 +26,20 @@ def test_end_to_end_produces_all_deliverables(golden, tmp_path):
     result = run_project("golden_demo", root=str(golden), output_dir=str(out))
 
     assert result.ok  # ran without a hard error
-    # Every headline deliverable exists on disk and is non-empty.
-    for key in ("excel", "dashboard", "pdf"):
+    # Every core deliverable exists on disk and is non-empty.
+    for key in ("excel", "dashboard"):
         p = Path(result.deliverables[key])
         assert p.exists() and p.stat().st_size > 0, key
     assert (out / "run_manifest.json").exists()
     assert Path(result.deliverables["excel"]).suffix == ".xlsx"
-    assert Path(result.deliverables["pdf"]).read_bytes()[:5] == b"%PDF-"
+    # The PDF is a required deliverable when reportlab is installed; if it is
+    # not (a degraded environment), the run must still succeed with a warning.
+    try:
+        import reportlab  # noqa: F401
+        assert "pdf" in result.deliverables, result.warnings
+        assert Path(result.deliverables["pdf"]).read_bytes()[:5] == b"%PDF-"
+    except ImportError:
+        assert any("pdf" in w.lower() for w in result.warnings)
 
 
 def test_end_to_end_catches_planted_defects(golden, tmp_path):

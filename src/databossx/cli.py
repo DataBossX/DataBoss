@@ -38,6 +38,23 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("query")
     run = commands.add_parser("run-grocery", help="Build draft report artifacts")
     run.add_argument("project_id")
+    title_import = commands.add_parser(
+        "title-import", help="Import operator-reviewed title records from JSON"
+    )
+    title_import.add_argument("project_id")
+    title_import.add_argument("json_file", type=Path)
+    title_build = commands.add_parser(
+        "title-build", help="Build exact XLSX/PDF examiner packet"
+    )
+    title_build.add_argument("title_case_id")
+    title_review = commands.add_parser(
+        "title-review", help="Approve or reject an exact package hash"
+    )
+    title_review.add_argument("run_id")
+    title_review.add_argument("manifest_sha256")
+    title_review.add_argument("--reviewer", required=True)
+    title_review.add_argument("--decision", choices=("APPROVE", "REJECT"), required=True)
+    title_review.add_argument("--notes", default="")
     serve = commands.add_parser("serve", help="Start loopback Command Center")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
@@ -73,6 +90,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "run-grocery":
         run = service.run_grocery(args.project_id)
         _print({"run": run, "artifacts": service.list_artifacts(run["id"])})
+    elif args.command == "title-import":
+        payload = json.loads(args.json_file.read_text(encoding="utf-8"))
+        _print(service.create_title_case(args.project_id, payload))
+    elif args.command == "title-build":
+        _print(service.build_title_package(args.title_case_id))
+    elif args.command == "title-review":
+        _print(
+            service.review_title_package(
+                args.run_id,
+                args.manifest_sha256,
+                args.reviewer,
+                args.decision,
+                args.notes,
+            )
+        )
     elif args.command == "serve":
         try:
             address = ipaddress.ip_address(args.host)

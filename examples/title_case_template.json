@@ -1,0 +1,37 @@
+{
+  "name": "SYNTHETIC REVIEWED TITLE CASE",
+  "legal_description": "SYNTHETIC LAND ONLY",
+  "gross_acres": {
+    "numerator": 160,
+    "denominator": 1
+  },
+  "opening_ownership": [
+    {
+      "owner_name": "FICTIONAL OPENING OWNER",
+      "interest": {
+        "numerator": 1,
+        "denominator": 1
+      }
+    }
+  ],
+  "instruments": [
+    {
+      "sequence_no": 1,
+      "instrument_type": "Mineral Deed",
+      "recording_reference": "SYNTHETIC-BOOK-1-PAGE-1",
+      "effective_date": "2020-01-01",
+      "grantor_name": "FICTIONAL OPENING OWNER",
+      "grantee_name": "FICTIONAL GRANTEE",
+      "conveyed_interest": {
+        "numerator": 1,
+        "denominator": 2
+      },
+      "interest_basis": "ABSOLUTE_ESTATE",
+      "evidence_asset_version_id": "REPLACE_WITH_INGESTED_ASSET_ID",
+      "evidence_char_start": 0,
+      "evidence_char_end": 100,
+      "review_status": "REVIEWED",
+      "notes": "Synthetic schema example only"
+    }
+  ]
+}

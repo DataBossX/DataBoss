@@ -1,2 +1,4 @@
 fastapi
+openpyxl
+reportlab
 uvicorn

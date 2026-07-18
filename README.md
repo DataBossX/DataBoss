@@ -42,6 +42,24 @@ the content-addressed vault, extracts searchable source text, builds draft
 reports from vault copies, registers every artifact, and verifies the audit
 hash chain. Project source files are never moved, renamed, or overwritten.
 
+## Exact title examiner packets
+
+After evidence ingestion, the Command Center can import operator-reviewed title
+records using `examples/title_case_template.json`. Each reviewed instrument must
+cite an ingested asset and exact character range. DataBossX then:
+
+- preserves every ownership branch using exact numerator/denominator arithmetic,
+- blocks duplicate instruments, chain gaps, over-conveyances, missing evidence,
+  unreviewed instruments, and unbalanced opening estates,
+- creates a runsheet, current ownership, ownership ledger, defects/curative list,
+  and evidence index in `Title_Examiner_Packet.xlsx`,
+- creates `Draft_Abstract_Aid.pdf` and a hash-bound package manifest, and
+- requires a qualified reviewer to approve the exact manifest hash.
+
+Approval moves the packet only to `APPROVED_FOR_EXPORT`; it does not call the
+packet a certified abstract or title opinion and never releases it automatically.
+Client-template fidelity must be validated against a private approved template.
+
 ## Tests
 
 ```bash

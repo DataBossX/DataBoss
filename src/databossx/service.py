@@ -16,6 +16,7 @@ from .audit import AuditWriter, utc_now
 from .config import KernelConfig
 from .db import Database
 from .extractors import extract_vault_object
+from .products.title.manager import TitleManager
 from .vault import Vault, VaultError
 
 SKIP_DIRECTORIES = {
@@ -57,6 +58,7 @@ class KernelService:
         self.vault = Vault(config)
         self.audit = AuditWriter()
         self._write_lock = threading.RLock()
+        self.title = TitleManager(config, self.db, self.vault, self.audit)
         self._recover_abandoned_runs()
 
     def _recover_abandoned_runs(self) -> None:
@@ -744,6 +746,37 @@ class KernelService:
         if not artifact:
             raise KeyError("Artifact not found")
         return artifact, self.vault.object_path(artifact["blob_sha256"])
+
+    def create_title_case(self, project_id: str, payload: dict) -> dict:
+        with self._write_lock:
+            return self.title.create_case(project_id, payload)
+
+    def list_title_cases(self, project_id: str) -> list[dict]:
+        self.get_project(project_id)
+        return self.title.list_cases(project_id)
+
+    def get_title_case(self, case_id: str) -> dict:
+        return self.title.get_case(case_id)
+
+    def build_title_package(self, case_id: str) -> dict:
+        with self._write_lock:
+            return self.title.build_package(case_id)
+
+    def get_title_package(self, run_id: str) -> dict:
+        return self.title.package_details(run_id)
+
+    def review_title_package(
+        self,
+        run_id: str,
+        manifest_sha256: str,
+        reviewer: str,
+        decision: str,
+        notes: str = "",
+    ) -> dict:
+        with self._write_lock:
+            return self.title.review_package(
+                run_id, manifest_sha256, reviewer, decision, notes
+            )
 
     def audit_events(self, project_id: str) -> list[dict]:
         self.get_project(project_id)

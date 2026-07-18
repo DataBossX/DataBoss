@@ -37,7 +37,10 @@ restart it so the extractors are re-detected.
 Try it locally (backend on `:8001`, frontend on `:3000`), then open the Landman
 tab and click **Load Demo Project** for a synthetic, public-safe walkthrough, or
 `curl -X POST localhost:8001/api/landman/demo`. You can also upload real
-`.pdf`/`.docx`/image deeds. Tests: `python -m pytest tests/test_title_intelligence.py
+`.pdf`/`.docx`/image deeds. The reconciled analysis exports to a canonical
+cursory-title-report `.xlsx` and an examiner-worklist `.csv` (the "⬇️" buttons in
+the report panel, or `GET /api/landman/projects/{id}/report.xlsx` and
+`/worklist.csv`). Tests: `python -m pytest tests/test_title_intelligence.py
 tests/test_landman_document_formats.py -q`.
 
 Core controls:

@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "generated_date": "2026-07-19",
+  "status": "HOLD_GOVERNANCE_ONLY",
+  "repository": "DataBossX/DataBoss",
+  "public_boundary": "code_and_synthetic_fixtures_only",
+  "baseline": {
+    "branch": "main",
+    "commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "foundation_pr": 50
+  },
+  "integration": {
+    "branch": "integration/canonical-release-train-20260719",
+    "controlling_issue": 56,
+    "parent_issue": 28,
+    "direct_merge_allowed": false
+  },
+  "candidates": [
+    {
+      "rank": 1,
+      "pr": 52,
+      "role": "primary_functional_candidate",
+      "disposition": "draft_bounded_port_after_private_truth_gate"
+    },
+    {
+      "rank": 2,
+      "pr": 54,
+      "role": "additive_feature_candidate",
+      "disposition": "rebase_or_selective_port_after_primary_slice"
+    },
+    {
+      "rank": 3,
+      "pr": 51,
+      "role": "security_economics_provenance_donor",
+      "disposition": "donor_only_pending_schema_api_migration_diff"
+    },
+    {
+      "rank": 4,
+      "pr": 55,
+      "role": "audit_artifact_donor",
+      "disposition": "donor_only_pending_green_ci_and_canonical_destination"
+    },
+    {
+      "rank": 5,
+      "pr": 35,
+      "role": "watcher_schema_validation_donor",
+      "disposition": "phase0_donor_only"
+    }
+  ],
+  "required_gates": [
+    "private_windows_repository_lineage_and_preservation",
+    "active_writer_and_dirty_state_proof",
+    "single_persistence_model_with_migration_and_rollback",
+    "single_task_lease_approval_artifact_and_audit_kernel",
+    "full_tests_security_publication_and_dependency_gates",
+    "path_reparse_formula_injection_replay_and_recovery_tests",
+    "public_synthetic_end_to_end_pipeline",
+    "private_windows_terminal_returned_receipt_canary",
+    "human_client_release_gate"
+  ],
+  "prohibited": [
+    "direct_merge_from_parallel_candidate_branches",
+    "private_or_client_material_in_public_git_history",
+    "parallel_command_centers_or_task_databases",
+    "raw_document_as_executable_command",
+    "automatic_client_release",
+    "unsupported_title_or_ownership_conclusions"
+  ]
+}

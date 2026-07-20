@@ -13,13 +13,10 @@ balanced or invented to make a chain read cleanly.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-
-def _tract_key(legal: str) -> str:
-    return re.sub(r"[^A-Za-z0-9]+", "", str(legal or "")).upper()
+from .legal import tract_key as _tract_key
 
 
 @dataclass

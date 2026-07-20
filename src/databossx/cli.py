@@ -142,6 +142,17 @@ def _cmd_calc(args) -> int:
     return 0
 
 
+def _cmd_legal(args) -> int:
+    from .legal import parse_legal
+    ld = parse_legal(args.text)
+    print(f"Input:     {args.text}")
+    print(f"Section:   {ld.section or '(unparsed)'}")
+    print(f"Township:  {ld.township or '(unparsed)'}")
+    print(f"Range:     {ld.range or '(unparsed)'}")
+    print(f"Canonical: {ld.key or '(incomplete -- needs examiner review)'}")
+    return 0 if ld.complete else 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="databossx",
@@ -183,6 +194,10 @@ def build_parser() -> argparse.ArgumentParser:
     calc.add_argument("--royalty", default=None, help="royalty rate, e.g. 1/8")
     calc.add_argument("--orri", default=None, help="overriding royalty (optional)")
     calc.set_defaults(func=_cmd_calc)
+
+    legal = sub.add_parser("legal", help="normalize a legal description (S/T/R)")
+    legal.add_argument("text", help="e.g. \"Section 31, Township 12 North, Range 24 West\"")
+    legal.set_defaults(func=_cmd_legal)
 
     return ap
 

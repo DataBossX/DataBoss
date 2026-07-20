@@ -79,6 +79,21 @@ before the next. This ordering keeps one schema and one kernel throughout.
 Any slice that would require a schema change ships an explicit migration **and**
 a rollback + a schema/migration compatibility report (#56 step 2).
 
+### Status update (implemented natively in #52, not ported from #51/#54)
+
+To de-risk the S2/S4 slices, the *capabilities* (not the other branches' code)
+were built directly in the canonical package from the described boundaries, so
+they arrive already tested and on the #50 schema:
+
+- **S2 (partial):** `legal.py` — PLSS Section/Township/Range normalization across
+  abbreviated / spelled-out / compact-hyphenated forms → one canonical tract key
+  (`dbx.py legal`), now used for chain-of-title grouping. Remaining S2 work: real
+  PDF/DOCX/OCR conveyance extraction (port from #54).
+- **S4 (partial):** `ownership.py` — duplicate-owner detection and
+  excessive-burden (royalty+ORRI ≥ 8/8) checks added to the exact-fraction
+  engine. Remaining S4 work: #51's lease-unit/event model, assignment burden
+  carry with `EXPLICIT_EVENT_ALLOCATION`, and provenance invalidation.
+
 ## 4. Gates every slice must pass (from #56 §5)
 
 Secret scan · publication-policy gate · dependency review · path-traversal /

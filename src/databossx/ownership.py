@@ -31,6 +31,7 @@ forced:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import List, Optional
@@ -226,7 +227,27 @@ def mineral_summary(owners: List[MineralOwner], gross_acres,
     _check_eighths(out, out.total_mineral, "Mineral interests",
                    only_if_all_known=all(r.mineral_interest is not None
                                          for r in out.mineral_rows) and bool(out.mineral_rows))
+    _check_duplicate_owners(out, owners)
     return out
+
+
+def _norm_owner(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(name or "").lower()).strip()
+
+
+def _check_duplicate_owners(out: TractOwnership, owners: List[MineralOwner]) -> None:
+    """Flag the same owner listed more than once in a tract (possible double count)."""
+    seen: dict = {}
+    for o in owners:
+        key = _norm_owner(o.name)
+        if not key:
+            continue
+        seen[key] = seen.get(key, 0) + 1
+    for key, n in seen.items():
+        if n > 1:
+            out.defects.append(
+                f"Owner {key!r} is listed {n} times in tract {out.tract!r}; "
+                "verify this is intentional and not a double-counted interest.")
 
 
 def division_of_interest(owners: List[MineralOwner], gross_acres,
@@ -311,8 +332,26 @@ def division_of_interest(owners: List[MineralOwner], gross_acres,
                 or_row.remarks = "ORRI NRI undetermined"
             out.doi_rows.append(or_row)
 
+    _check_excessive_burdens(out, owners)
     _rollup_checks(out)
     return out
+
+
+def _check_excessive_burdens(out: TractOwnership, owners: List[MineralOwner]) -> None:
+    """Flag any lease whose royalty + ORRI equals or exceeds 8/8 (impossible)."""
+    for o in owners:
+        if not str(o.lessee).strip():
+            continue
+        r = try_parse_interest(o.royalty) if str(o.royalty).strip() else Fraction(0)
+        orri = try_parse_interest(o.orri) if str(o.orri).strip() else Fraction(0)
+        if r is None or orri is None:
+            continue  # unparseable already flagged on the row
+        if r + orri >= FULL:
+            out.defects.append(
+                f"Lease burdens for {o.name!r} in tract {out.tract!r} "
+                f"(royalty {format_fraction(r)} + ORRI {format_fraction(orri)} "
+                f"= {format_fraction(r + orri)}) equal or exceed 8/8, leaving the "
+                "working interest no net revenue. Verify the lease terms.")
 
 
 # ---------------------------------------------------------------------------

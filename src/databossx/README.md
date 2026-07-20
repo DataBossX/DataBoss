@@ -18,7 +18,8 @@ resolve project ─▶ ingest & inventory (sha256 evidence) ─▶ extract text 
 | `ownership.py` | **Exact-fraction** mineral / leasehold / working-interest / NRI calculator built on `horizon.interest`. The two governing identities (Σ mineral = 8/8, Σ WI = Σ NRI = leased fraction) are *checked and reported*, never forced. |
 | `projects.py` | Registry of named projects (Horizon, Penterra, Roger Mills, Beckham, Ryder, + future) with layered root resolution (`--root` › `DATABOSSX_<KEY>_ROOT` › `DATABOSSX_ROOT` › default). |
 | `command_center.py` | The end-to-end `run_project()` orchestrator + the ownership-sheet reader. Never raises for expected operational problems — they become a plain-language message on the result. |
-| `abstract.py` | Chain-of-title **abstract / ownership-chain** builder: groups the reconciled runsheet into per-tract chains, in order, with running examiner status and a plain-language narrative. Presentation only — introduces no new numbers. |
+| `legal.py` | PLSS **Section/Township/Range normalization** — collapses abbreviated (`T12N R24W`), spelled-out (`Township 12 North…`), and compact (`31-12N-24W`) forms to one canonical tract key (or `None` if unparseable — never guessed). Used for chain grouping; exposed as `dbx.py legal`. |
+| `abstract.py` | Chain-of-title **abstract / ownership-chain** builder: groups the reconciled runsheet into per-tract chains (via `legal.py`), in order, with running examiner status and a plain-language narrative. Presentation only — introduces no new numbers. |
 | `excel_report.py` | Client-ready multi-sheet workbook (Summary, Runsheet, Abstract, Mineral Ownership, Division of Interest, Defects, Evidence). |
 | `pdf_report.py` | Client-ready paginated PDF (reportlab) with cover, tables, page numbers, draft/synthetic footer. |
 | `dashboard.py` | Self-contained HTML dashboard (no external assets, theme-aware). |

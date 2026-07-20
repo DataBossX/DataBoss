@@ -85,10 +85,15 @@ To de-risk the S2/S4 slices, the *capabilities* (not the other branches' code)
 were built directly in the canonical package from the described boundaries, so
 they arrive already tested and on the #50 schema:
 
-- **S2 (partial):** `legal.py` — PLSS Section/Township/Range normalization across
-  abbreviated / spelled-out / compact-hyphenated forms → one canonical tract key
-  (`dbx.py legal`), now used for chain-of-title grouping. Remaining S2 work: real
-  PDF/DOCX/OCR conveyance extraction (port from #54).
+- **S2 (mostly done):** `legal.py` — PLSS Section/Township/Range normalization
+  across abbreviated / spelled-out / compact-hyphenated forms → one canonical
+  tract key (`dbx.py legal`), used for chain-of-title grouping.
+  `title_extraction.py` — cursory conveyance extraction (grantor/grantee,
+  instrument, interest, legal, acres) from raw document text, wired as the chain
+  fallback so a folder of loose **deeds/assignments** (no OGL workbook) still
+  yields a reconciled chain; text comes from the grocery extractor (PDF/DOCX/OCR
+  when backends are installed). Remaining: richer real-world deed parsing and
+  #54's HTTP/UI surface.
 - **S4 (partial):** `ownership.py` — duplicate-owner detection and
   excessive-burden (royalty+ORRI ≥ 8/8) checks added to the exact-fraction
   engine. Remaining S4 work: #51's lease-unit/event model, assignment burden

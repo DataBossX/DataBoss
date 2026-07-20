@@ -210,7 +210,7 @@ def run_project(project_key: str, *, root: Optional[str] = None,
     recs, texts = _ingest(src, out, audit, result)
 
     # -- chain (Horizon intelligence layer) ---------------------------------
-    runsheet_rows, chained = _chain(recs, proj.section, audit, result)
+    runsheet_rows, chained = _chain(recs, proj.section, audit, result, texts, out)
 
     # -- abstract / ownership chain (chronological chain of title) ----------
     from .abstract import build_abstract
@@ -308,26 +308,68 @@ def _ingest(src: Path, out: Path, audit, result: RunResult):
     return recs, texts
 
 
-def _chain(recs, section: str, audit, result: RunResult):
-    """Build the reconciled runsheet from the best OGL+runsheet workbook."""
+def _chain(recs, section: str, audit, result: RunResult, texts=None, out=None):
+    """Build the reconciled runsheet.
+
+    Prefers a pre-structured OGL+runsheet workbook. When none is present, falls
+    back to extracting conveyance facts from the document text (deeds,
+    assignments, ...) so the pipeline works on loose documents too.
+    """
     from horizon.pipeline import build_from_workbook, find_reference_workbook
 
     candidates = [Path(r.path) for r in recs] if recs else []
     wb = find_reference_workbook(candidates) if candidates else None
-    if wb is None:
-        result.warnings.append(
-            "No OGL+runsheet workbook found -- runsheet/chain stage skipped.")
-        audit("chain_skip", "no reference workbook", level="WARN")
-        return [], None
+    if wb is not None:
+        try:
+            build = build_from_workbook(wb, section=section)
+            audit("chain", f"workbook={wb.name} rows={len(build.report.rows)} "
+                           f"breaks={len(build.chain_breaks)}")
+            return build.report.rows, build
+        except Exception as exc:
+            result.errors.append(f"Chain stage failed on {wb.name}: {exc}")
+            audit("chain_error", str(exc), level="ERROR")
+            return [], None
+
+    # Fallback: chain conveyances extracted from raw document text.
+    built = _chain_from_documents(section, audit, result, texts, out)
+    if built is not None:
+        return built.report.rows, built
+
+    result.warnings.append(
+        "No OGL+runsheet workbook and no extractable conveyances -- chain skipped.")
+    audit("chain_skip", "no reference workbook or documents", level="WARN")
+    return [], None
+
+
+def _chain_from_documents(section, audit, result, texts, out):
+    """Extract conveyances from document text and chain them (or ``None``)."""
+    if not texts or out is None:
+        return None
     try:
-        build = build_from_workbook(wb, section=section)
-        audit("chain", f"workbook={wb.name} rows={len(build.report.rows)} "
-                       f"breaks={len(build.chain_breaks)}")
-        return build.report.rows, build
-    except Exception as exc:
-        result.errors.append(f"Chain stage failed on {wb.name}: {exc}")
-        audit("chain_error", str(exc), level="ERROR")
-        return [], None
+        from horizon.pipeline import chain_to_report
+
+        from .title_extraction import conveyance_notes, extract_conveyances
+        import grocery_report_pipeline as g
+
+        doc_texts = {}
+        for _path, tr in texts.items():
+            txt = g.load_text(tr, out)
+            if txt.strip():
+                doc_texts[getattr(tr, "rel_path", _path)] = txt
+        ogl = extract_conveyances(doc_texts)
+        if not ogl:
+            return None
+        build = chain_to_report(ogl, conveyance_notes(ogl), section=section)
+        audit("chain_from_docs",
+              f"docs={len(doc_texts)} conveyances={len(ogl)} "
+              f"rows={len(build.report.rows)}")
+        result.warnings.append(
+            f"No OGL workbook found; chained {len(ogl)} conveyance(s) extracted "
+            "from documents (cursory regex pass -- verify against the sources).")
+        return build
+    except Exception as exc:  # pragma: no cover - defensive
+        audit("chain_docs_warn", str(exc), level="WARN")
+        return None
 
 
 def _ownership(recs, audit, result: RunResult) -> List[TractOwnership]:

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_date": "2026-07-19",
+  "generated_date": "2026-07-22",
   "repository": "DataBossX/DataBoss",
   "controlling_issue": 56,
   "integration_branch": "integration/canonical-release-train-20260719",
@@ -13,6 +13,7 @@
   },
   "pull_requests": [
     {"pr": 57, "classification": "CANONICAL_GOVERNANCE", "disposition": "KEEP_DRAFT_REVIEW_SURFACE"},
+    {"pr": 59, "classification": "PUBLICATION_SECURITY_FIX", "disposition": "KEEP_DRAFT_REVIEW_SEPARATELY_AFTER_GREEN_CI"},
     {"pr": 52, "classification": "PRIMARY_FUNCTIONAL_CANDIDATE", "disposition": "BOUNDED_PORT_AFTER_PRIVATE_TRUTH_GATE"},
     {"pr": 54, "classification": "ADDITIVE_FEATURE_CANDIDATE", "disposition": "REBASE_OR_SELECTIVE_PORT_AFTER_PRIMARY_SLICE"},
     {"pr": 51, "classification": "DONOR_SECURITY_ECONOMICS_PROVENANCE", "disposition": "DONOR_ONLY_PENDING_SCHEMA_API_MIGRATION_DIFF"},

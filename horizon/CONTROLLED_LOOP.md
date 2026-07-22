@@ -24,19 +24,23 @@ to run a bounded **Inspect → Plan → Execute → Verify → Score → Repair 
 
 ## Work order
 
+The example below is synthetic. Public documentation and fixtures must never
+contain real client names, project identifiers, legal descriptions, private
+paths, private hashes, cloud object IDs, or release receipts.
+
 Create a `dbx.work_order` JSON object next to the project controls:
 
 ```json
 {
   "schema_id": "dbx.work_order",
   "schema_version": "1.0",
-  "work_order_id": "WO-SECTION32-QA-001",
-  "project_id": "DBX-OK-BECKHAM-32-11N-25W",
-  "objective": "Verify and repair the Section 32 workbook in staging",
-  "candidate_path": "beckham32/final_delivery/example.xlsx",
-  "candidate_local_path": "D:/DataBossX/beckham32/final_delivery/example.xlsx",
+  "work_order_id": "WO-SYNTHETIC-QA-001",
+  "project_id": "SYNTHETIC-DEMO",
+  "objective": "Verify and repair a synthetic demo workbook in staging",
+  "candidate_path": "examples/projects/SYNTHETIC-DEMO/input/example.xlsx",
+  "candidate_local_path": "D:/DataBossX/examples/SYNTHETIC-DEMO/input/example.xlsx",
   "expected_sha256": "<same hash declared by the project manifest>",
-  "template_path": "D:/DataBossX/templates/section32-template.xlsx",
+  "template_path": "D:/DataBossX/examples/SYNTHETIC-DEMO/template.xlsx",
   "template_expected_sha256": "<verified template hash>",
   "profile_path": "workbook_profile.json",
   "profile_expected_sha256": "<verified profile hash>",
@@ -45,7 +49,7 @@ Create a `dbx.work_order` JSON object next to the project controls:
     "<every required_checks value from the project manifest>"
   ],
   "allowed_repairs": ["restore_formula_from_template"],
-  "prohibited_paths": ["D:/DataBossX/authoritative"],
+  "prohibited_paths": ["D:/DataBossX/private/authoritative"],
   "constraints": {"edit_originals": false},
   "retry_policy": {
     "max_attempts_per_defect": 3,
@@ -82,7 +86,7 @@ The deterministic profile identifies the workbook locations to check:
       "tolerance": 0.01
     }
   ],
-  "evidence_root": "D:/DataBossX/authoritative"
+  "evidence_root": "D:/DataBossX/private/authoritative"
 }
 ```
 
@@ -95,8 +99,8 @@ that an uncalculated formula is valid.
 
 ```bash
 python -m horizon.controlled_loop \
-  --manifest projects/OK-BECKHAM-32-11N-25W/project_manifest.json \
-  --work-order projects/OK-BECKHAM-32-11N-25W/work_orders/WO-SECTION32-QA-001.json
+  --manifest examples/projects/SYNTHETIC-DEMO/project_manifest.json \
+  --work-order examples/projects/SYNTHETIC-DEMO/work_orders/WO-SYNTHETIC-QA-001.json
 ```
 
 Each run directory contains:
@@ -109,6 +113,6 @@ Each run directory contains:
 - `promotion_package.json` only when every technical gate passes.
 
 Checks without a deterministic validator return `not_evaluated` and block
-technical verification. In particular, the current Section 32 manifest will
-remain blocked until its source manifest, evidence crosswalk, and print-rendering
-receipts are available. That is intentional: absence of evidence is not a pass.
+technical verification. A project manifest remains blocked until its source
+manifest, evidence crosswalk, and print-rendering receipts are available. That
+is intentional: absence of evidence is not a pass.

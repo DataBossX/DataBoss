@@ -38,10 +38,12 @@ and nothing runnable remains.
 
 from __future__ import annotations
 
+import contextlib
 import json
+import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Mapping
+from typing import Callable, Iterator, Mapping
 
 from .database import DataBossDatabase
 
@@ -97,6 +99,7 @@ class TaskContext:
     payload: Mapping[str, object]
     attempt_number: int
     worker_id: str
+    attempt_id: int = 0
 
 
 @dataclass(frozen=True)
@@ -205,6 +208,28 @@ class Orchestrator:
         self.lease_seconds = lease_seconds
         self._clock = clock
 
+    @contextlib.contextmanager
+    def _txn(self) -> Iterator["sqlite3.Connection"]:
+        """One write transaction: ``BEGIN IMMEDIATE`` → commit, or roll back on
+        any error, and always close the connection.
+
+        Centralizes the single-transaction + rollback-on-crash + no-leak
+        contract every state transition depends on. The whole body of a
+        transition (state change, attempt/lease writes, audit + outbox emit)
+        runs inside one of these; a failure anywhere rolls the entire
+        transition back so nothing partial can survive.
+        """
+        conn = self.db.connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            yield conn
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     # -- public API ---------------------------------------------------------
 
     def promote_ready_tasks(self, run_id: int | None = None) -> list[int]:
@@ -213,8 +238,7 @@ class Orchestrator:
         Returns the ids of the tasks promoted. Idempotent.
         """
         promoted: list[int] = []
-        with self.db.connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with self._txn() as conn:
             rows = conn.execute(
                 f"""
                 SELECT t.id AS id, r.project_id AS project_id
@@ -239,7 +263,6 @@ class Orchestrator:
                 # without its audit and outbox record, and none can survive alone.
                 self._emit_in_conn(conn, task_id, "task.promoted", {"to": STATE_READY}, row["project_id"])
                 promoted.append(task_id)
-            conn.commit()
         return promoted
 
     def claim_next_task(self, run_id: int | None = None) -> TaskContext | None:
@@ -249,8 +272,7 @@ class Orchestrator:
         Lower ``priority`` numbers are leased first. Returns ``None`` when no
         task is currently claimable.
         """
-        with self.db.connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with self._txn() as conn:
             row = conn.execute(
                 f"""
                 SELECT t.id, t.run_id, t.task_type, t.payload_json, r.project_id
@@ -270,7 +292,6 @@ class Orchestrator:
                 (run_id,) if run_id is not None else (),
             ).fetchone()
             if row is None:
-                conn.rollback()
                 return None
 
             task_id = int(row["id"])
@@ -296,13 +317,13 @@ class Orchestrator:
                     _iso(now),
                 ),
             )
-            conn.execute(
+            attempt_id = conn.execute(
                 """
                 INSERT INTO task_attempts (task_id, worker_name, started_at, status)
                 VALUES (?, ?, ?, ?)
                 """,
                 (task_id, self.worker_id, _iso(now), ATTEMPT_RUNNING),
-            )
+            ).lastrowid
             # State + lease + attempt + audit + outbox commit as one unit: a
             # crash before commit rolls the lease back to READY with no orphan
             # audit/outbox row.
@@ -313,7 +334,6 @@ class Orchestrator:
                 {"worker_id": self.worker_id, "attempt": int(attempt_number)},
                 row["project_id"],
             )
-            conn.commit()
             payload = json.loads(row["payload_json"]) if row["payload_json"] else {}
             context = TaskContext(
                 task_id=task_id,
@@ -323,6 +343,7 @@ class Orchestrator:
                 payload=payload,
                 attempt_number=int(attempt_number),
                 worker_id=self.worker_id,
+                attempt_id=int(attempt_id),
             )
         return context
 
@@ -352,28 +373,47 @@ class Orchestrator:
         self._finalize(context, outcome)
         return outcome
 
-    def run_until_idle(self, run_id: int | None = None, *, max_iterations: int = 10_000) -> RunSummary:
+    def run_until_idle(self, run_id: int | None = None, *, max_iterations: int = 1_000_000) -> RunSummary:
         """Promote, claim, and execute tasks until nothing is runnable.
 
-        Bounded by ``max_iterations`` as a safety valve against a handler that
-        endlessly re-creates work.
+        Progress, not a low fixed count, is the primary livelock guard: a single
+        task can be claimed at most ``max_attempts`` times before it reaches a
+        terminal state, so claiming the *same* task more than that many times in
+        a row means the state machine is stuck (a bug) and is raised
+        immediately. ``max_iterations`` is only a generous absolute backstop for
+        an unbounded run (for example a handler that endlessly re-creates work);
+        legitimately large runs never trip it — raise it if one somehow does.
         """
         processed = succeeded = failed = 0
+        last_task_id: int | None = None
+        same_task_streak = 0
         for _ in range(max_iterations):
             self.recover_expired_leases(run_id)
             self.promote_ready_tasks(run_id)
             context = self.claim_next_task(run_id)
             if context is None:
                 break
+            if context.task_id == last_task_id:
+                same_task_streak += 1
+            else:
+                same_task_streak = 0
+                last_task_id = context.task_id
+            if same_task_streak > self.max_attempts:
+                raise TaskExecutionError(
+                    f"task {context.task_id} ({context.task_type}) claimed "
+                    f"{same_task_streak + 1} times without terminating; stuck state machine"
+                )
             outcome = self.execute_task(context)
             processed += 1
             if outcome.success:
                 succeeded += 1
             else:
                 failed += 1
-        else:  # pragma: no cover - defensive iteration cap
+        else:  # pragma: no cover - defensive absolute backstop
             raise TaskExecutionError(
-                f"run_until_idle exceeded {max_iterations} iterations; possible task loop"
+                f"run_until_idle hit its {max_iterations}-iteration safety backstop without "
+                "draining; raise max_iterations for a very large run or investigate unbounded "
+                "follow-up task creation"
             )
 
         run_status = self._refresh_run_status(run_id) if run_id is not None else None
@@ -395,8 +435,7 @@ class Orchestrator:
         """
         now_iso = _iso(self._clock())
         recovered: list[tuple[int, str]] = []
-        with self.db.connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with self._txn() as conn:
             rows = conn.execute(
                 f"""
                 SELECT t.id AS task_id, r.project_id AS project_id, l.id AS lease_id
@@ -430,24 +469,52 @@ class Orchestrator:
                     conn, task_id, "task.lease_expired", {"requeued_to": next_state}, row["project_id"]
                 )
                 recovered.append((task_id, next_state))
-            conn.commit()
         return [task_id for task_id, _ in recovered]
 
     # -- internal helpers ---------------------------------------------------
 
-    def _finalize(self, context: TaskContext, outcome: TaskOutcome, *, unrecoverable: bool = False) -> None:
-        """Commit the terminal or retry transition for a just-run task."""
+    def _finalize(self, context: TaskContext, outcome: TaskOutcome, *, unrecoverable: bool = False) -> bool:
+        """Commit the terminal or retry transition for a just-run task.
+
+        Ownership guard: the transition is applied only if *this* attempt
+        (``context.attempt_id``) is still ``RUNNING``. If the lease expired and
+        ``recover_expired_leases`` already closed the attempt (``LEASE_EXPIRED``)
+        and requeued the task — or another worker re-leased it — the guarded
+        attempt update matches zero rows, the whole transition is rolled back,
+        and the outcome is dropped. This prevents a slow/crashed worker's late
+        finalize from double-applying a side effect or clobbering a fresh lease.
+
+        Returns ``True`` if the outcome was committed, ``False`` if it was
+        dropped because the lease was no longer held.
+        """
         now_iso = _iso(self._clock())
         task_id = context.task_id
         created_children: list[int] = []
-        with self.db.connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with self._txn() as conn:
+            # Claim ownership of the attempt atomically. A zero-row result means
+            # the lease was lost (recovered or re-leased); drop the outcome.
+            attempt_status = ATTEMPT_SUCCEEDED if outcome.success else ATTEMPT_FAILED
+            owned = conn.execute(
+                """
+                UPDATE task_attempts
+                   SET status = ?, completed_at = ?, error_code = ?
+                 WHERE id = ? AND status = ?
+                """,
+                (
+                    attempt_status,
+                    now_iso,
+                    None if outcome.success else outcome.error_code,
+                    context.attempt_id,
+                    ATTEMPT_RUNNING,
+                ),
+            ).rowcount
+            if owned == 0:
+                # Nothing written by this call is kept; _txn commits an empty
+                # transaction (the guarded UPDATE matched nothing).
+                return False
+
             conn.execute("DELETE FROM task_leases WHERE task_id = ?", (task_id,))
             if outcome.success:
-                conn.execute(
-                    "UPDATE task_attempts SET status = ?, completed_at = ? WHERE task_id = ? AND status = ?",
-                    (ATTEMPT_SUCCEEDED, now_iso, task_id, ATTEMPT_RUNNING),
-                )
                 conn.execute("UPDATE tasks SET state = ? WHERE id = ?", (STATE_DONE, task_id))
                 for spec in outcome.follow_up:
                     child_id = conn.execute(
@@ -479,14 +546,8 @@ class Orchestrator:
                     context.project_id,
                 )
             else:
-                conn.execute(
-                    """
-                    UPDATE task_attempts
-                       SET status = ?, completed_at = ?, error_code = ?
-                     WHERE task_id = ? AND status = ?
-                    """,
-                    (ATTEMPT_FAILED, now_iso, outcome.error_code, task_id, ATTEMPT_RUNNING),
-                )
+                # The guarded UPDATE above already recorded this attempt as
+                # FAILED; count attempts to decide retry vs. terminal failure.
                 attempts = conn.execute(
                     "SELECT COUNT(*) AS n FROM task_attempts WHERE task_id = ?",
                     (task_id,),
@@ -506,13 +567,13 @@ class Orchestrator:
                     },
                     context.project_id,
                 )
-            conn.commit()
 
         # Promotion of just-created children runs in its own atomic transaction
         # (see promote_ready_tasks); it is idempotent and safely re-derivable if
         # a crash happens after the finalize commit but before promotion.
         if outcome.success and created_children:
             self.promote_ready_tasks(context.run_id)
+        return True
 
     def _emit_in_conn(self, conn, task_id: int, event_type: str, payload: dict, project_id: str) -> None:
         """Write the audit and outbox rows for a transition on an open connection.

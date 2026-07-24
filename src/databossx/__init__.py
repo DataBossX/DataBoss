@@ -18,6 +18,7 @@ from .intake import (
     register_workbook_template,
 )
 from .orchestrator import seed_project_intake_run
+from .workers import register_intake_workers, run_project_intake
 
 __all__ = [
     "DataBossConfig",
@@ -31,8 +32,10 @@ __all__ = [
     "WorkerRegistry",
     "create_project",
     "inventory_source",
+    "register_intake_workers",
     "register_source_connection",
     "register_workbook_template",
+    "run_project_intake",
     "seed_project_intake_run",
 ]
 

@@ -25,6 +25,8 @@ def create_project(
     jurisdiction_code: str,
     policy_profile: str = "default",
     project_id: str | None = None,
+    source_roots: list[str] | None = None,
+    template_path: str | Path | None = None,
 ) -> ProjectRecord:
     project_id = project_id or uuid.uuid4().hex[:12]
     config.ensure_runtime_dirs(project_id)
@@ -56,7 +58,12 @@ def create_project(
             (project_id,),
         )
         conn.commit()
-    seed_project_intake_run(db, project_id)
+    seed_project_intake_run(
+        db,
+        project_id,
+        source_roots=source_roots,
+        template_path=str(template_path) if template_path is not None else None,
+    )
     db.audit(
         project_id,
         "project.created",

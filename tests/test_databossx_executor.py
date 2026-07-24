@@ -19,6 +19,7 @@ from databossx.executor import (
     WorkerRegistry,
 )
 from databossx.intake import create_project
+from databossx.orchestrator import seed_project_intake_run
 
 
 class FakeClock:
@@ -454,6 +455,155 @@ def test_lease_recovery_transition_is_atomic_under_injected_crash(tmp_path):
     recovered = orch.recover_expired_leases(run_id)
     assert recovered == [ctx.task_id]
     assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == STATE_READY
+
+
+def test_promote_transition_is_atomic_under_injected_crash(tmp_path):
+    _, db, _ = _project(tmp_path)
+    registry = WorkerRegistry()
+    registry.register("REGISTER_SOURCES", lambda ctx: TaskOutcome.ok())
+    orch = Orchestrator(db, registry)
+    run_id = _run_id(db)
+
+    # Complete REGISTER_SOURCES so INVENTORY_AND_LOCK becomes promotable.
+    while True:
+        ctx = orch.claim_next_task(run_id)
+        if ctx.task_type == "REGISTER_SOURCES":
+            orch.execute_task(ctx)
+            break
+        orch.execute_task(ctx)
+
+    before = _counts(db)
+    inv_state = db.fetchone("SELECT state FROM tasks WHERE task_type = 'INVENTORY_AND_LOCK'")["state"]
+    assert inv_state == STATE_BLOCKED
+
+    _explode_emit(orch, "task.promoted")
+    with pytest.raises(RuntimeError, match="injected crash during task.promoted"):
+        orch.promote_ready_tasks(run_id)
+
+    # The promotion rolled back: task still BLOCKED, no promoted audit/outbox.
+    assert db.fetchone("SELECT state FROM tasks WHERE task_type = 'INVENTORY_AND_LOCK'")["state"] == STATE_BLOCKED
+    assert _counts(db) == before
+
+
+def test_terminal_failure_transition_is_atomic_under_injected_crash(tmp_path):
+    _, db, _ = _project(tmp_path)
+    registry = WorkerRegistry()
+    registry.register("REGISTER_SOURCES", lambda ctx: TaskOutcome.fail("hard", "terminal"))
+    orch = Orchestrator(db, registry, max_attempts=1)  # first failure is terminal
+    run_id = _run_id(db)
+    ctx = orch.claim_next_task(run_id)
+    after_claim = _counts(db)
+
+    _explode_emit(orch, "task.failed")
+    with pytest.raises(RuntimeError, match="injected crash during task.failed"):
+        orch.execute_task(ctx)
+
+    # Terminal-failure transition rolled back: still LEASED, no FAILED attempt,
+    # no audit/outbox leaked.
+    assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == "LEASED"
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM task_attempts WHERE task_id = ? AND status = 'FAILED'",
+            (ctx.task_id,),
+        )["n"]
+        == 0
+    )
+    assert _counts(db)["outbox"] == after_claim["outbox"]
+    assert _counts(db)["audit_task"] == after_claim["audit_task"]
+
+
+def test_finalize_drops_outcome_when_lease_was_recovered(tmp_path):
+    """H2: a slow worker whose lease expired and was recovered must not
+    double-apply its outcome onto a re-queued task."""
+    _, db, _ = _project(tmp_path)
+    clock = FakeClock()
+    orch = Orchestrator(db, WorkerRegistry(), lease_seconds=60, max_attempts=3, clock=clock)
+    run_id = _run_id(db)
+
+    ctx = orch.claim_next_task(run_id)
+    assert ctx.attempt_id > 0
+
+    # Lease expires; recovery closes this attempt and requeues the task.
+    clock.advance(120)
+    assert orch.recover_expired_leases(run_id) == [ctx.task_id]
+    assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == STATE_READY
+
+    # The slow worker finally finishes and finalizes with success. The ownership
+    # guard must drop it: the task stays READY, not DONE, and no SUCCEEDED
+    # attempt or success event is written.
+    committed = orch._finalize(ctx, TaskOutcome.ok({"late": True}))
+    assert committed is False
+    assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == STATE_READY
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM task_attempts WHERE id = ? AND status = 'SUCCEEDED'",
+            (ctx.attempt_id,),
+        )["n"]
+        == 0
+    )
+    # The recovered attempt remains LEASE_EXPIRED, untouched by the late finalize.
+    assert (
+        db.fetchone("SELECT status FROM task_attempts WHERE id = ?", (ctx.attempt_id,))["status"]
+        == "LEASE_EXPIRED"
+    )
+    # No orphan success outbox event for this task.
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM outbox_events WHERE aggregate_id = ? AND event_type = 'task.succeeded'",
+            (str(ctx.task_id),),
+        )["n"]
+        == 0
+    )
+
+
+def test_seed_is_atomic_a_mid_seed_crash_leaves_no_partial_run(tmp_path, monkeypatch):
+    """H1: seeding the run+tasks+dependency+audit is one transaction, so a crash
+    partway through leaves nothing — never a task with a missing dependency edge."""
+    import databossx.orchestrator as orch_mod
+    from databossx import seed_project_intake_run
+
+    config = DataBossConfig.from_repo_root(tmp_path / "repo")
+    # Create the project WITHOUT the auto-seed by making the seed inside
+    # create_project a no-op is overkill; instead use a fresh project db and
+    # seed directly, injecting a fault at the final (audit) json.dumps call.
+    project = create_project(config, name="Atomic", jurisdiction_code="OK", project_id="proj_atomic")
+    db = DataBossDatabase(config.project_db_path(project.project_id))
+
+    runs_before = db.fetchone("SELECT COUNT(*) AS n FROM runs")["n"]
+    tasks_before = db.fetchone("SELECT COUNT(*) AS n FROM tasks")["n"]
+
+    real_dumps = orch_mod.json.dumps
+    calls = {"n": 0}
+
+    def flaky_dumps(*args, **kwargs):
+        calls["n"] += 1
+        # The audit payload is the last json.dumps in the seed (after the three
+        # task payloads); fail there, after all task/dep inserts but before commit.
+        if calls["n"] == 4:
+            raise RuntimeError("injected crash before seed commit")
+        return real_dumps(*args, **kwargs)
+
+    monkeypatch.setattr(orch_mod.json, "dumps", flaky_dumps)
+    with pytest.raises(RuntimeError, match="injected crash before seed commit"):
+        seed_project_intake_run(db, project.project_id)
+
+    # Nothing from the failed seed survived — no new run, no new tasks, and no
+    # orphaned dependency edges.
+    assert db.fetchone("SELECT COUNT(*) AS n FROM runs")["n"] == runs_before
+    assert db.fetchone("SELECT COUNT(*) AS n FROM tasks")["n"] == tasks_before
+
+
+def test_seed_accepts_inputs_and_embeds_them_in_payloads(tmp_path):
+    _, db, project_id = _project(tmp_path)
+    run_id, task_ids = seed_project_intake_run(
+        db, project_id, source_roots=["/data/roots/a", "/data/roots/b"], template_path="/tpl/x.xlsx"
+    )
+    rows = {
+        r["task_type"]: json.loads(r["payload_json"])
+        for r in db.fetchall("SELECT task_type, payload_json FROM tasks WHERE run_id = ?", (run_id,))
+    }
+    assert rows["REGISTER_SOURCES"]["source_roots"] == ["/data/roots/a", "/data/roots/b"]
+    assert rows["REGISTER_TEMPLATE"]["template_path"] == "/tpl/x.xlsx"
 
 
 def test_audit_and_outbox_are_paired_one_to_one_per_transition(tmp_path):

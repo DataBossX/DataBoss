@@ -15,6 +15,7 @@ covered by `tests/test_databossx_executor.py`.
 | **Atomic leasing** | `claim_next_task` selects the highest-priority runnable task and leases it inside a single `BEGIN IMMEDIATE` transaction, recording a `task_leases` row and a `RUNNING` `task_attempts` row. |
 | **Bounded retries** | A worker exception or `TaskOutcome.fail(...)` reschedules the task to `READY` until `max_attempts` is exhausted, then `FAILED`. A missing handler fails once, unrecoverably (`no_handler`). |
 | **Lease recovery** | `recover_expired_leases` requeues tasks whose lease expired while still `LEASED` (a crashed worker), closing the open attempt as `LEASE_EXPIRED`. Time is injected via a `clock` callable so this is testable without sleeping. |
+| **Ownership guard** | `_finalize` commits only if *this* attempt is still `RUNNING`. If the lease expired and the task was recovered/re-leased, the late finalize matches zero rows, rolls back, and the outcome is dropped — a slow or crashed worker cannot double-apply a side effect or clobber a fresh lease. |
 | **Follow-up work** | A handler may return `follow_up=[FollowUpTask(...)]`; the orchestrator — as the single writer — creates each child task and wires the dependency edge to the just-completed parent. |
 | **Atomic transitions** | The task-state change, the attempt/lease writes, and the paired append-only `audit_events` + reliable `outbox_events` rows are committed in **one** SQLite transaction. A crash before `COMMIT` rolls back the entire transition — no state change can survive without its audit and outbox record, and none can leak without its state change. Proven by failure-injection tests. |
 
@@ -45,6 +46,40 @@ summary = Orchestrator(db, registry).run_until_idle(run_id)
 `create_project` seeds a `title_project_intake` run with `REGISTER_SOURCES`,
 `INVENTORY_AND_LOCK` (blocked on `REGISTER_SOURCES`), and `REGISTER_TEMPLATE`.
 Register a handler per `task_type` and call `run_until_idle`.
+
+## Running the real intake workflow
+
+`databossx.workers` provides concrete handlers wrapping the intake operations,
+plus a one-call runner:
+
+```python
+from databossx import DataBossConfig, run_project_intake
+
+config = DataBossConfig.from_repo_root("/path/to/repo")
+project, summary = run_project_intake(
+    config,
+    name="Section 32",
+    jurisdiction_code="OK",
+    source_roots=["/path/to/source_docs"],   # read-only; bytes are hashed + vaulted
+    template_path="/path/to/control_template.xlsx",
+)
+assert summary.run_status == "COMPLETED"
+```
+
+Or from the command line:
+
+```bash
+python -m databossx run-intake --repo-root . --name "Section 32" \
+    --jurisdiction OK --source /path/to/source_docs --template /path/to/template.xlsx
+```
+
+The CLI prints a JSON run report and exits non-zero if the run did not complete.
+
+**Delivery is at-least-once.** A task whose first attempt fails partway is
+retried, so handlers should be idempotent. The intake operations copy bytes
+idempotently (the content-addressed vault skips existing hashes) but append new
+bookkeeping rows per run; run a single attempt per task where exactly-once
+bookkeeping matters.
 
 ## Worker contract
 

@@ -4,7 +4,7 @@ DataBossX is a local-first toolkit for evidence-grounded land and mineral title 
 
 The repository contains public-safe code and synthetic fixtures for:
 
-- `src/databossx/` — canonical local-first foundation: project intake, content-addressed vault, and the durable task-graph execution framework (single-writer orchestrator, worker leases, retries, lease recovery, audit/outbox)
+- `src/databossx/` — canonical local-first foundation: project intake, content-addressed vault, the durable task-graph execution framework (single-writer orchestrator, worker leases, retries, lease recovery, ownership guard, atomic audit/outbox), concrete intake workers, and a `python -m databossx run-intake` CLI
 - `horizon/` — exact interest math, instrument chaining, validation, repair, versioning, and examiner worklists
 - `grocery_report_pipeline.py` — deterministic inventory-to-report stages
 - `doto_image_commander/` — county image acquisition, OCR/vision, queue, costs, and audit

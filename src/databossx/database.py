@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 from pathlib import Path
 
@@ -24,26 +25,26 @@ class DataBossDatabase:
 
     def initialize(self) -> None:
         schema_sql = self.schema_path().read_text(encoding="utf-8")
-        with self.connect() as conn:
+        with contextlib.closing(self.connect()) as conn:
             conn.executescript(schema_sql)
             conn.commit()
 
     def fetchone(self, query: str, params: tuple = ()) -> sqlite3.Row | None:
-        with self.connect() as conn:
+        with contextlib.closing(self.connect()) as conn:
             return conn.execute(query, params).fetchone()
 
     def fetchall(self, query: str, params: tuple = ()) -> list[sqlite3.Row]:
-        with self.connect() as conn:
+        with contextlib.closing(self.connect()) as conn:
             return conn.execute(query, params).fetchall()
 
     def execute(self, query: str, params: tuple = ()) -> int:
-        with self.connect() as conn:
+        with contextlib.closing(self.connect()) as conn:
             cursor = conn.execute(query, params)
             conn.commit()
             return cursor.lastrowid
 
     def executescript(self, script: str) -> None:
-        with self.connect() as conn:
+        with contextlib.closing(self.connect()) as conn:
             conn.executescript(script)
             conn.commit()
 

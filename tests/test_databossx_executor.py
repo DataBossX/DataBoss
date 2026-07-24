@@ -308,6 +308,181 @@ def test_orchestrator_validates_construction(tmp_path):
         Orchestrator(db, WorkerRegistry(), lease_seconds=0)
 
 
+def _counts(db: DataBossDatabase) -> dict[str, int]:
+    return {
+        "outbox": db.fetchone("SELECT COUNT(*) AS n FROM outbox_events")["n"],
+        "audit_task": db.fetchone(
+            "SELECT COUNT(*) AS n FROM audit_events WHERE entity_type = 'task'"
+        )["n"],
+        "attempts": db.fetchone("SELECT COUNT(*) AS n FROM task_attempts")["n"],
+        "leases": db.fetchone("SELECT COUNT(*) AS n FROM task_leases")["n"],
+    }
+
+
+def _explode_emit(orch: Orchestrator, on_event: str):
+    """Wrap _emit_in_conn so it raises for one event type, after doing the
+    in-transaction inserts, to prove the whole transaction rolls back."""
+    original = orch._emit_in_conn
+
+    def _boom(conn, task_id, event_type, payload, project_id):
+        original(conn, task_id, event_type, payload, project_id)
+        if event_type == on_event:
+            raise RuntimeError(f"injected crash during {event_type}")
+
+    orch._emit_in_conn = _boom  # type: ignore[assignment]
+
+
+def test_claim_transition_is_atomic_under_injected_crash(tmp_path):
+    _, db, _ = _project(tmp_path)
+    orch = Orchestrator(db, WorkerRegistry())
+    before = _counts(db)
+    states_before = _task_states(db)
+
+    _explode_emit(orch, "task.leased")
+    with pytest.raises(RuntimeError, match="injected crash during task.leased"):
+        orch.claim_next_task(_run_id(db))
+
+    # Nothing from the failed lease transaction survived: no state flip to
+    # LEASED, no attempt, no lease row, no audit, no outbox.
+    assert _task_states(db) == states_before
+    assert _counts(db) == before
+    assert db.fetchone("SELECT COUNT(*) AS n FROM tasks WHERE state = 'LEASED'")["n"] == 0
+
+
+def test_success_transition_is_atomic_under_injected_crash(tmp_path):
+    _, db, _ = _project(tmp_path)
+    registry = WorkerRegistry()
+    registry.register(
+        "REGISTER_SOURCES",
+        lambda ctx: TaskOutcome.ok(follow_up=[FollowUpTask("RENDER_PAGES", {"stage": "C"})]),
+    )
+    orch = Orchestrator(db, registry)
+    run_id = _run_id(db)
+
+    ctx = orch.claim_next_task(run_id)
+    assert ctx.task_type == "REGISTER_SOURCES"
+    after_claim = _counts(db)
+
+    _explode_emit(orch, "task.succeeded")
+    with pytest.raises(RuntimeError, match="injected crash during task.succeeded"):
+        orch.execute_task(ctx)
+
+    # The success transition (DONE + succeeded attempt + follow-up child +
+    # dependency + audit + outbox) is all-or-nothing. It rolled back entirely:
+    task = db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))
+    assert task["state"] == "LEASED"  # still leased, not DONE
+    assert db.fetchone("SELECT COUNT(*) AS n FROM tasks WHERE task_type = 'RENDER_PAGES'")["n"] == 0
+    assert db.fetchone("SELECT COUNT(*) AS n FROM task_dependencies")["n"] == 1  # only the seed edge
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM task_attempts WHERE task_id = ? AND status = 'SUCCEEDED'",
+            (ctx.task_id,),
+        )["n"]
+        == 0
+    )
+    # Outbox/audit unchanged since the claim; no partial success record leaked.
+    assert _counts(db)["outbox"] == after_claim["outbox"]
+    assert _counts(db)["audit_task"] == after_claim["audit_task"]
+    # The still-open RUNNING attempt from the claim remains (its lease too),
+    # so lease recovery can later requeue the task cleanly.
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM task_attempts WHERE task_id = ? AND status = 'RUNNING'",
+            (ctx.task_id,),
+        )["n"]
+        == 1
+    )
+
+
+def test_failure_transition_is_atomic_under_injected_crash(tmp_path):
+    _, db, _ = _project(tmp_path)
+    registry = WorkerRegistry()
+    registry.register("REGISTER_SOURCES", lambda ctx: TaskOutcome.fail("boom", "worker failed"))
+    orch = Orchestrator(db, registry, max_attempts=3)
+    run_id = _run_id(db)
+
+    ctx = orch.claim_next_task(run_id)
+    after_claim = _counts(db)
+
+    _explode_emit(orch, "task.retry_scheduled")
+    with pytest.raises(RuntimeError, match="injected crash during task.retry_scheduled"):
+        orch.execute_task(ctx)
+
+    # The failed-attempt transition rolled back: task not requeued to READY,
+    # no FAILED attempt recorded, no audit/outbox leaked.
+    assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == "LEASED"
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM task_attempts WHERE task_id = ? AND status = 'FAILED'",
+            (ctx.task_id,),
+        )["n"]
+        == 0
+    )
+    assert _counts(db)["outbox"] == after_claim["outbox"]
+    assert _counts(db)["audit_task"] == after_claim["audit_task"]
+
+
+def test_lease_recovery_transition_is_atomic_under_injected_crash(tmp_path):
+    _, db, _ = _project(tmp_path)
+    clock = FakeClock()
+    orch = Orchestrator(db, WorkerRegistry(), lease_seconds=60, clock=clock)
+    run_id = _run_id(db)
+    ctx = orch.claim_next_task(run_id)
+    clock.advance(120)
+    after_claim = _counts(db)
+
+    _explode_emit(orch, "task.lease_expired")
+    with pytest.raises(RuntimeError, match="injected crash during task.lease_expired"):
+        orch.recover_expired_leases(run_id)
+
+    # Recovery is atomic: the lease still exists, the task is still LEASED, the
+    # attempt is still RUNNING (not LEASE_EXPIRED), and no event leaked.
+    assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == "LEASED"
+    assert db.fetchone("SELECT COUNT(*) AS n FROM task_leases WHERE task_id = ?", (ctx.task_id,))["n"] == 1
+    assert (
+        db.fetchone(
+            "SELECT COUNT(*) AS n FROM task_attempts WHERE task_id = ? AND status = 'LEASE_EXPIRED'",
+            (ctx.task_id,),
+        )["n"]
+        == 0
+    )
+    assert _counts(db)["outbox"] == after_claim["outbox"]
+    assert _counts(db)["audit_task"] == after_claim["audit_task"]
+
+    # And after removing the fault, a clean recovery fully succeeds.
+    orch._emit_in_conn = Orchestrator._emit_in_conn.__get__(orch)  # restore
+    recovered = orch.recover_expired_leases(run_id)
+    assert recovered == [ctx.task_id]
+    assert db.fetchone("SELECT state FROM tasks WHERE id = ?", (ctx.task_id,))["state"] == STATE_READY
+
+
+def test_audit_and_outbox_are_paired_one_to_one_per_transition(tmp_path):
+    _, db, project_id = _project(tmp_path)
+    registry = WorkerRegistry()
+    for task_type in ("REGISTER_SOURCES", "INVENTORY_AND_LOCK", "REGISTER_TEMPLATE"):
+        registry.register(task_type, lambda ctx: TaskOutcome.ok())
+    orch = Orchestrator(db, registry)
+    orch.run_until_idle(_run_id(db))
+
+    # Every outbox row has exactly one matching task audit row (same event on
+    # the same task), because both are written in the same transaction.
+    outbox = db.fetchall("SELECT event_type, aggregate_id FROM outbox_events WHERE aggregate_type = 'task'")
+    for row in outbox:
+        n = db.fetchone(
+            """
+            SELECT COUNT(*) AS n FROM audit_events
+             WHERE entity_type = 'task' AND event_type = ? AND entity_id = ? AND project_id = ?
+            """,
+            (row["event_type"], row["aggregate_id"], project_id),
+        )["n"]
+        assert n == 1
+    total_audit = db.fetchone(
+        "SELECT COUNT(*) AS n FROM audit_events WHERE entity_type = 'task' AND project_id = ?",
+        (project_id,),
+    )["n"]
+    assert total_audit == len(outbox)
+
+
 def test_context_payload_round_trips_json(tmp_path):
     _, db, _ = _project(tmp_path)
     registry = WorkerRegistry()

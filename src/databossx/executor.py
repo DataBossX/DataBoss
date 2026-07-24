@@ -9,7 +9,12 @@ This module implements the execution contract described in
   state or create downstream tasks directly. The orchestrator does that after a
   worker returns, which keeps state transitions single-writer and auditable.
 * Every transition emits an append-only ``audit_events`` row and an
-  ``outbox_events`` row for reliable downstream delivery.
+  ``outbox_events`` row for reliable downstream delivery. **The task-state
+  change, the attempt/lease writes, and both event rows are committed in one
+  SQLite transaction** — a crash before ``COMMIT`` rolls the whole thing back,
+  so no state transition can ever survive without its audit and outbox record
+  (and vice versa). This is proven by the failure-injection tests in
+  ``tests/test_databossx_executor.py``.
 * Attempts are bounded and retryable; abandoned leases are recovered so a
   crashed worker never strands a task.
 
@@ -212,28 +217,29 @@ class Orchestrator:
             conn.execute("BEGIN IMMEDIATE")
             rows = conn.execute(
                 f"""
-                SELECT id FROM tasks
-                 WHERE state = '{STATE_BLOCKED}'
-                   {"AND run_id = ?" if run_id is not None else ""}
+                SELECT t.id AS id, r.project_id AS project_id
+                  FROM tasks t
+                  JOIN runs r ON r.id = t.run_id
+                 WHERE t.state = '{STATE_BLOCKED}'
+                   {"AND t.run_id = ?" if run_id is not None else ""}
                    AND NOT EXISTS (
                        SELECT 1 FROM task_dependencies d
                          JOIN tasks p ON p.id = d.parent_task_id
-                        WHERE d.child_task_id = tasks.id
+                        WHERE d.child_task_id = t.id
                           AND p.state <> '{STATE_DONE}'
                    )
-                 ORDER BY id
+                 ORDER BY t.id
                 """,
                 (run_id,) if run_id is not None else (),
             ).fetchall()
             for row in rows:
-                conn.execute(
-                    "UPDATE tasks SET state = ? WHERE id = ?",
-                    (STATE_READY, row["id"]),
-                )
-                promoted.append(int(row["id"]))
+                task_id = int(row["id"])
+                conn.execute("UPDATE tasks SET state = ? WHERE id = ?", (STATE_READY, task_id))
+                # Same transaction as the state change: no promotion can commit
+                # without its audit and outbox record, and none can survive alone.
+                self._emit_in_conn(conn, task_id, "task.promoted", {"to": STATE_READY}, row["project_id"])
+                promoted.append(task_id)
             conn.commit()
-        for task_id in promoted:
-            self._emit(task_id, "task.promoted", {"to": STATE_READY})
         return promoted
 
     def claim_next_task(self, run_id: int | None = None) -> TaskContext | None:
@@ -297,6 +303,16 @@ class Orchestrator:
                 """,
                 (task_id, self.worker_id, _iso(now), ATTEMPT_RUNNING),
             )
+            # State + lease + attempt + audit + outbox commit as one unit: a
+            # crash before commit rolls the lease back to READY with no orphan
+            # audit/outbox row.
+            self._emit_in_conn(
+                conn,
+                task_id,
+                "task.leased",
+                {"worker_id": self.worker_id, "attempt": int(attempt_number)},
+                row["project_id"],
+            )
             conn.commit()
             payload = json.loads(row["payload_json"]) if row["payload_json"] else {}
             context = TaskContext(
@@ -308,7 +324,6 @@ class Orchestrator:
                 attempt_number=int(attempt_number),
                 worker_id=self.worker_id,
             )
-        self._emit(task_id, "task.leased", {"worker_id": self.worker_id, "attempt": context.attempt_number})
         return context
 
     def execute_task(self, context: TaskContext) -> TaskOutcome:
@@ -411,14 +426,11 @@ class Orchestrator:
                 conn.execute("DELETE FROM task_leases WHERE task_id = ?", (task_id,))
                 next_state = STATE_READY if attempts < self.max_attempts else STATE_FAILED
                 conn.execute("UPDATE tasks SET state = ? WHERE id = ?", (next_state, task_id))
+                self._emit_in_conn(
+                    conn, task_id, "task.lease_expired", {"requeued_to": next_state}, row["project_id"]
+                )
                 recovered.append((task_id, next_state))
             conn.commit()
-        for task_id, next_state in recovered:
-            self._emit(
-                task_id,
-                "task.lease_expired",
-                {"requeued_to": next_state},
-            )
         return [task_id for task_id, _ in recovered]
 
     # -- internal helpers ---------------------------------------------------
@@ -457,6 +469,15 @@ class Orchestrator:
                     )
                     created_children.append(int(child_id))
                 final_state = STATE_DONE
+                # State + attempt + follow-up + audit + outbox as one atomic
+                # unit. No DONE task can survive without its success record.
+                self._emit_in_conn(
+                    conn,
+                    task_id,
+                    "task.succeeded",
+                    {"result": dict(outcome.result), "children": created_children},
+                    context.project_id,
+                )
             else:
                 conn.execute(
                     """
@@ -473,59 +494,52 @@ class Orchestrator:
                 retryable = (not unrecoverable) and attempts < self.max_attempts
                 final_state = STATE_READY if retryable else STATE_FAILED
                 conn.execute("UPDATE tasks SET state = ? WHERE id = ?", (final_state, task_id))
+                self._emit_in_conn(
+                    conn,
+                    task_id,
+                    "task.failed" if final_state == STATE_FAILED else "task.retry_scheduled",
+                    {
+                        "error_code": outcome.error_code,
+                        "error_message": outcome.error_message,
+                        "next_state": final_state,
+                        "attempt": context.attempt_number,
+                    },
+                    context.project_id,
+                )
             conn.commit()
 
-        if outcome.success:
-            self._emit(
-                task_id,
-                "task.succeeded",
-                {"result": dict(outcome.result), "children": created_children},
-                project_id=context.project_id,
-            )
-            # Newly created children are BLOCKED on a now-DONE parent; promote.
-            if created_children:
-                self.promote_ready_tasks(context.run_id)
-        else:
-            self._emit(
-                task_id,
-                "task.failed" if final_state == STATE_FAILED else "task.retry_scheduled",
-                {
-                    "error_code": outcome.error_code,
-                    "error_message": outcome.error_message,
-                    "next_state": final_state,
-                    "attempt": context.attempt_number,
-                },
-                project_id=context.project_id,
-            )
+        # Promotion of just-created children runs in its own atomic transaction
+        # (see promote_ready_tasks); it is idempotent and safely re-derivable if
+        # a crash happens after the finalize commit but before promotion.
+        if outcome.success and created_children:
+            self.promote_ready_tasks(context.run_id)
 
-    def _emit(self, task_id: int, event_type: str, payload: dict, project_id: str | None = None) -> None:
-        """Write the append-only audit row and reliable outbox row for a transition."""
-        if project_id is None:
-            row = self.db.fetchone(
-                "SELECT r.project_id AS project_id FROM tasks t JOIN runs r ON r.id = t.run_id WHERE t.id = ?",
-                (task_id,),
-            )
-            project_id = row["project_id"] if row else "unknown"
+    def _emit_in_conn(self, conn, task_id: int, event_type: str, payload: dict, project_id: str) -> None:
+        """Write the audit and outbox rows for a transition on an open connection.
+
+        This deliberately takes the caller's connection and does **not** commit:
+        the audit and outbox writes must land in the same transaction as the
+        state change that produced them, so a transition and its evidence are
+        durable together or not at all.
+        """
         body = dict(payload)
         body["task_id"] = task_id
         payload_json = _json(body)
-        with self.db.connect() as conn:
-            conn.execute(
-                """
-                INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload_json)
-                VALUES ('task', ?, ?, ?)
-                """,
-                (str(task_id), event_type, payload_json),
-            )
-            conn.execute(
-                """
-                INSERT INTO audit_events (
-                    project_id, actor_type, actor_id, event_type, entity_type, entity_id, payload_json
-                ) VALUES (?, 'system', ?, ?, 'task', ?, ?)
-                """,
-                (project_id, self.worker_id, event_type, str(task_id), payload_json),
-            )
-            conn.commit()
+        conn.execute(
+            """
+            INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload_json)
+            VALUES ('task', ?, ?, ?)
+            """,
+            (str(task_id), event_type, payload_json),
+        )
+        conn.execute(
+            """
+            INSERT INTO audit_events (
+                project_id, actor_type, actor_id, event_type, entity_type, entity_id, payload_json
+            ) VALUES (?, 'system', ?, ?, 'task', ?, ?)
+            """,
+            (project_id, self.worker_id, event_type, str(task_id), payload_json),
+        )
 
     def _remaining_open_tasks(self, run_id: int | None) -> int:
         clause = "AND run_id = ?" if run_id is not None else ""

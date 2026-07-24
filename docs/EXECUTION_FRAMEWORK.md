@@ -16,7 +16,7 @@ covered by `tests/test_databossx_executor.py`.
 | **Bounded retries** | A worker exception or `TaskOutcome.fail(...)` reschedules the task to `READY` until `max_attempts` is exhausted, then `FAILED`. A missing handler fails once, unrecoverably (`no_handler`). |
 | **Lease recovery** | `recover_expired_leases` requeues tasks whose lease expired while still `LEASED` (a crashed worker), closing the open attempt as `LEASE_EXPIRED`. Time is injected via a `clock` callable so this is testable without sleeping. |
 | **Follow-up work** | A handler may return `follow_up=[FollowUpTask(...)]`; the orchestrator — as the single writer — creates each child task and wires the dependency edge to the just-completed parent. |
-| **Complete audit** | Every transition writes a paired append-only `audit_events` row and a reliable `outbox_events` row. |
+| **Atomic transitions** | The task-state change, the attempt/lease writes, and the paired append-only `audit_events` + reliable `outbox_events` rows are committed in **one** SQLite transaction. A crash before `COMMIT` rolls back the entire transition — no state change can survive without its audit and outbox record, and none can leak without its state change. Proven by failure-injection tests. |
 
 ## Minimal usage
 

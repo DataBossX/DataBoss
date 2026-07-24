@@ -18,6 +18,16 @@ This module implements the execution contract described in
 * Attempts are bounded and retryable; abandoned leases are recovered so a
   crashed worker never strands a task.
 
+Concurrency model
+-----------------
+This engine is designed to run as a **single orchestrator process**. Leasing,
+finalize, and lease recovery are each individually atomic and the ``_finalize``
+ownership guard makes a stale finalize safe, but the runtime does not implement
+distributed lease fencing. Do not run two orchestrators against one project
+database. A worker whose task may exceed ``lease_seconds`` should call
+:meth:`Orchestrator.heartbeat` to extend its lease rather than rely on a longer
+fixed timeout.
+
 The engine is deterministic and stdlib-only. Time is injected through a
 ``clock`` callable so lease expiry and recovery are testable without sleeping.
 
@@ -470,6 +480,23 @@ class Orchestrator:
                 )
                 recovered.append((task_id, next_state))
         return [task_id for task_id, _ in recovered]
+
+    def heartbeat(self, task_id: int) -> bool:
+        """Renew a leased task's lease: bump ``heartbeat_at`` and push
+        ``expires_at`` out by ``lease_seconds`` from now.
+
+        A worker whose task may run longer than ``lease_seconds`` calls this
+        periodically so :meth:`recover_expired_leases` does not reclaim work that
+        is still in progress. Returns ``True`` if a live lease was extended,
+        ``False`` if the task is no longer leased (already finalized/recovered).
+        """
+        now = self._clock()
+        with self._txn() as conn:
+            extended = conn.execute(
+                "UPDATE task_leases SET heartbeat_at = ?, expires_at = ? WHERE task_id = ?",
+                (_iso(now), _iso(now + timedelta(seconds=self.lease_seconds)), task_id),
+            ).rowcount
+        return extended > 0
 
     # -- internal helpers ---------------------------------------------------
 

@@ -75,11 +75,21 @@ python -m databossx run-intake --repo-root . --name "Section 32" \
 
 The CLI prints a JSON run report and exits non-zero if the run did not complete.
 
-**Delivery is at-least-once.** A task whose first attempt fails partway is
-retried, so handlers should be idempotent. The intake operations copy bytes
-idempotently (the content-addressed vault skips existing hashes) but append new
-bookkeeping rows per run; run a single attempt per task where exactly-once
-bookkeeping matters.
+**Delivery is at-least-once, so handlers are idempotent.** A task whose first
+attempt fails partway (or whose lease is recovered) is retried. The intake
+operations are written to resume cleanly: bytes go into the content-addressed
+vault (existing hashes skipped) and every bookkeeping row is created with
+select-or-return-existing / content-stable snapshot keys, so a retry after a
+committed side effect does not duplicate rows or hit a `UNIQUE` constraint. They
+also **fail closed** — a missing, unreadable, or empty source root raises
+`SourceValidationError` rather than recording a falsely-`COMPLETE` inventory
+(pass `allow_empty=True` to record an intentional empty snapshot).
+
+**Single orchestrator.** Run one orchestrator process per project database. Each
+transition is atomic and the finalize ownership guard makes a stale finalize
+safe, but there is no distributed lease fencing. A worker whose task may run
+longer than `lease_seconds` should call `Orchestrator.heartbeat(task_id)` to
+extend its lease rather than rely on a longer fixed timeout.
 
 ## Worker contract
 

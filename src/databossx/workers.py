@@ -12,12 +12,16 @@ so the durable task graph performs real work instead of abstract placeholders:
 
 Execution model: the orchestrator guarantees a task runs to a committed outcome
 under a single-writer lease, but delivery is **at-least-once** — a task whose
-first attempt fails partway is retried. The intake operations copy bytes
-idempotently (content-addressed vault skips existing hashes), but they append
-new ``source_connection`` / ``asset`` / ``source_snapshot`` rows on each run, so
-a retried task can create duplicate bookkeeping rows. Callers that require
-exactly-once bookkeeping should run a single attempt per task or add a natural
-key; duplicate detection at reconciliation time already tolerates repeats.
+first attempt fails partway (or whose lease is recovered) is retried. Each
+intake operation is therefore **idempotent**: bytes are copied into the
+content-addressed vault (existing hashes skipped), and ``source_connection`` /
+``asset`` / ``asset_version`` / ``source_snapshot`` / ``workbook_template`` rows
+are created with select-or-return-existing and content-stable snapshot keys, so
+a retry after a committed side effect resumes cleanly instead of duplicating
+rows or hitting a ``UNIQUE`` constraint. The operations also **fail closed**: a
+missing/unreadable/empty source root raises rather than recording a
+falsely-COMPLETE inventory (see :class:`databossx.intake.SourceValidationError`;
+pass ``allow_empty`` to record an intentional empty snapshot).
 """
 
 from __future__ import annotations

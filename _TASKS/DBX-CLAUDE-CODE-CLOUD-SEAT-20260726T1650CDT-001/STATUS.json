@@ -1,0 +1,140 @@
+{
+  "schema_id": "dbx.status",
+  "schema_version": "1.0",
+  "task_id": "DBX-CLAUDE-CODE-CLOUD-SEAT-20260726T1650CDT-001",
+  "parent_task_id": "DBX-OVERNIGHT-TITLE-CONTINUATION-20260726T0106CDT-001",
+  "written_at_utc": "2026-07-26T22:08:00Z",
+  "written_at_america_chicago": "2026-07-26T17:08:00-05:00",
+  "written_by": "CLAUDE_CODE_CLOUD_LINUX_SEAT",
+  "verdict": "PARTIAL_VERIFIED_NEW_BLOCKERS_FOUND",
+
+  "seat": {
+    "platform": "linux",
+    "windows_filesystem_access": false,
+    "probes": ["/c absent", "/mnt/c absent", "C:\\DataBoss absent"],
+    "capabilities": ["drive_read", "drive_write", "drive_byte_readback_small", "workbook_content_audit"],
+    "capabilities_absent": ["windows_fs", "native_excel", "byte_exact_io_large", "process_visibility"],
+    "note": "Not the same seat that authored 00R_TERMINAL_RECEIPT__CLAUDE_CODE.json. That seat had Windows access and patched C:\\DataBoss\\_TOOLS. No authority inherited."
+  },
+
+  "controller": {
+    "authoritative_controller": "CODEX",
+    "impersonated": false,
+    "liveness_verified_from_this_seat": false,
+    "reason": "no process visibility from a linux cloud seat"
+  },
+
+  "drive_bridge": {
+    "canary_result": "PASS",
+    "canary_task_folder_id": "1_xQjtW0S3vD2MNfOyJ-fu-VQ-moPP4Go",
+    "canary_file_id": "1ssiLOXMb9GZARUXKZuYwTgEnCcZ_HtOv",
+    "canary_nonce": "CLAUDE-CLOUD-20260726T1650CDT-9F2A7C41",
+    "source_bytes": 235,
+    "source_sha256": "5774F33DBB9A9F5C815E534EF5205D55FF99C93A97204329442A2ABE81B3C7ED",
+    "readback_bytes": 235,
+    "readback_sha256": "5774F33DBB9A9F5C815E534EF5205D55FF99C93A97204329442A2ABE81B3C7ED",
+    "byte_identical": true,
+    "worker_execution_proven": false,
+    "watcher_pickup_proven": false,
+    "exactly_once_claim_proven": false,
+    "transport_limit": "Large binary payloads are NOT byte-transportable through this seat. A 25561-byte xlsx reconstituted as 34429 base64 chars vs 34084 expected and failed to decode. Corrupt copy deleted, never used as evidence. Hash tasks must not be routed to drive_only seats."
+  },
+
+  "writer_leases": {
+    "held_by_this_seat": [],
+    "claimed_or_consumed_by_this_seat": "NONE",
+    "active_parent_lease": "LEASE-S17-CURSOR-A10-20260726T1510CDT-001",
+    "active_parent_lease_recommendation": "FREEZE",
+    "freeze_basis": ["D-01 cell address disputed", "D-02 target artifact lacks the subject instrument"]
+  },
+
+  "sections": {
+    "section_17": {
+      "scope": "Penterra, Campbell County, Wyoming, Section 17, T47N-R75W",
+      "state": "REJECT_DO_NOT_PROMOTE",
+      "artifact_title": "PENDING__PENTERRA_CAMPBELL_SEC17__INTERNAL_REVIEW__20260726.xlsx",
+      "artifact_drive_id": "1W_FwItz7xmFogVEwzUYk8jFI7iujdH0j",
+      "artifact_bytes": 25561,
+      "sheets": ["Index", "QA Review"],
+      "rows_populated": 197,
+      "rows_expected": 198,
+      "rows_evidence_bound": 2,
+      "evidence_binding_pct": 1.0,
+      "evidence_bound_passing": 1,
+      "release_readiness_pct": 0,
+      "competing_hashes": [
+        "B19A6B9729E6D30F0EDD389BF83E3D0366FE915448316227A228160F45E3F97F",
+        "80A8D3655159B09B4AEEA992D940DF57F7508B122BFD32FCE4AD4E5737CFD56E",
+        "B53B08761F51596AED164770B5CB02D7E46AB59B621DEF8A0FCF4B58B89BDFC0"
+      ],
+      "hash_computed_by_this_seat": null,
+      "hash_note": "Not computed. Transport limit above. Arbitration must occur on a windows_fs seat."
+    },
+    "section_20": {
+      "scope": "Penterra, Campbell County, Wyoming, Section 20, T47N-R75W",
+      "state": "HOLD_MATERIAL",
+      "artifact_title": "INTERNAL_REVIEW_COPY__PENTERRA_CAMPBELL_SEC20__20260726.xlsx",
+      "artifact_drive_id": "1GWpxOfS8IoPQelufJ5RW-mfWvmjf_8r4",
+      "artifact_bytes": 18727,
+      "expected_instruments": 136,
+      "rows_audited_pct": 0,
+      "release_readiness_pct": 0,
+      "writer_lease": "NONE"
+    },
+    "section_32": {
+      "scope": "Horizon, Beckham County, Oklahoma, Section 32, T11N-R25W",
+      "state": "SECTION_HOLD_PREWRITE_READINESS_REFRESHED",
+      "copies": [
+        {"title": "Section_32-11N-25W_Beckham_County_Cursory_Title_Report 7-23-2026.xlsx", "id": "1CuhEg1bzvcgX0rtpcRu6DmNYfjiq6um_", "bytes": 2991406},
+        {"title": "INTERNAL_REVIEW_COPY__HORIZON_BECKHAM_SEC32__20260726.xlsx", "id": "11eSRgFonY5l_6SwAbmPDIsbGeaLXyudO", "bytes": 2991406},
+        {"title": "PENDING__HORIZON_BECKHAM_SEC32__INTERNAL_REVIEW__20260726.xlsx", "id": "112CZEOJtSUoY_O_BkVM4cVIchCbimkpk", "bytes": 2991406}
+      ],
+      "finding": "All three copies identical in byte length across a claimed reconciliation cycle. Consistent with pure copies, no repair applied. Correct under hold, but an unrepaired file sits in PENDING FINAL VERIFICATION.",
+      "canonical_vs_ledger": {"canonical_instruments": 140, "source_ledger_rows": 144, "unexplained": 4, "classified": 0},
+      "rows_audited_pct": 0,
+      "release_readiness_pct": 0,
+      "writer_lease": "NONE"
+    }
+  },
+
+  "defects": {
+    "blocker": ["D-01", "D-02", "D-04"],
+    "high": ["D-03", "D-05", "D-11", "D-12", "D-14"],
+    "medium": ["D-06", "D-07", "D-08", "D-09", "D-10", "D-13", "D-15", "D-16"],
+    "process": ["D-17", "D-18"],
+    "most_urgent_title_defect": "D-04",
+    "most_urgent_control_defect": "D-01+D-02"
+  },
+
+  "unreachable_sources": {
+    "searched_terms": ["030M", "033M", "05ML", "0463"],
+    "not_found_in_drive": ["030M-0595.pdf", "030M-0615.pdf", "05ML-0463", "033M-0425.pdf"],
+    "found_in_drive": ["0331-0490.pdf", "0285-0528.pdf"],
+    "note": "033M-0463.pdf exists but is a different instrument. Doc 118065 is identified at 033M-0435, not 033M-0425."
+  },
+
+  "next_automatic_action": "Section 20 read-only content audit of Drive ID 1GWpxOfS8IoPQelufJ5RW-mfWvmjf_8r4, plus S17 defect-list re-baseline.",
+
+  "human_approval_required": {
+    "count": 1,
+    "item": "Freeze LEASE-S17-CURSOR-A10-20260726T1510CDT-001 before any writer consumes it.",
+    "type": "stop_work_notice",
+    "involves_credentials_or_purchase_or_release": false
+  },
+
+  "success_probability": {
+    "all_three_sections_client_ready_without_new_sources": "LOW",
+    "defensible_internal_review_source_limited_state": "GOOD",
+    "basis": "Evidence coverage, not tooling, is the binding constraint: S17 ~1% evidence-bound, S20 unaudited vs 136 expected, S32 144-to-140 unclassified."
+  },
+
+  "ready_folder_contents": "EMPTY",
+  "client_released": false,
+  "client_release_authorized": false,
+  "canonical_promotion_authorized": false,
+  "purchase_authorized": false,
+  "permanent_delete_authorized": false,
+  "title_artifacts_modified": false,
+  "second_controller_created": false,
+  "second_watcher_or_queue_created": false
+}

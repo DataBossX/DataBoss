@@ -1,0 +1,122 @@
+{
+  "schema_version": "databoss.receipt.v1",
+  "receipt_type": "TERMINAL_RECEIPT",
+  "task_id": "DBX-CLAUDE-CODE-CLOUD-SEAT-20260726T1650CDT-001",
+  "parent_task_id": "DBX-OVERNIGHT-TITLE-CONTINUATION-20260726T0106CDT-001",
+  "written_at_utc": "2026-07-26T22:08:00Z",
+  "written_by": "CLAUDE_CODE_CLOUD_LINUX_SEAT",
+  "directive_responded_to": "00W DATABOSS CONTINUATION DIRECTIVE — recover exact hash-pinned title artifacts, complete source renders, reissue only safe nonoverlapping writer leases",
+
+  "verdict": "PARTIAL_VERIFIED_NEW_BLOCKERS_FOUND",
+  "verdict_basis": "The Drive channel was proven byte-exact from this seat by canary. Independent audit of the Section 17 artifact refuted one control-document assertion (Index!A10 value), reclassified another (stale copy vs different artifact), showed a third defect already closed, and originated an evidence-confirmed title misstatement (0285-0528 missing mineral-reservation warning) plus six document-number sequence anomalies. It is PARTIAL rather than PASS because 00W Phase 1 is unexecutable from this seat: it requires Windows filesystem access this seat does not have, and large binary payloads cannot be moved through this seat byte-exactly, so no workbook hash could be independently computed.",
+
+  "scope_disclosure": {
+    "directive_assumption": "00W names 'Claude Code' the bounded local recovery engineer and orders verification of C:\\DataBoss\\_TASKS\\...\\SECTION_17_INTERNAL_REVIEW_CANDIDATE__05ML_0463_SOURCE_PATH.xlsx.",
+    "actual": "This seat is a Linux cloud container with no Windows filesystem. /c, /mnt/c and C:\\DataBoss are all absent. 00W Phase 1 steps 1-5 could not be attempted, only reported as unexecutable.",
+    "seat_identity_warning": "00R_TERMINAL_RECEIPT__CLAUDE_CODE.json was authored by a DIFFERENT Claude Code seat that did have Windows access. This seat did not impersonate it and inherits none of its authority.",
+    "flagging_rather_than_hiding": true
+  },
+
+  "actions_performed": [
+    "Probed seat capabilities and established topology by direct test.",
+    "Read authoritative control documents from Drive: RYAN_STATUS_NOW, directive 00W, E1 direct source verification, prior 00R terminal receipt.",
+    "Independently audited the Section 17 Drive PENDING workbook at content level.",
+    "Compared E1 primary-source findings against workbook rows.",
+    "Applied a Doc-No vs Rec-Date monotonicity contradiction test across all 197 rows.",
+    "Located and identified the Section 20 and Section 32 artifacts with IDs, sizes and folder placement.",
+    "Created one isolated Drive task folder and executed a read-write-reread-hash canary.",
+    "Published eleven task-local reports plus a machine-readable status file."
+  ],
+
+  "canary": {
+    "result": "PASS",
+    "nonce": "CLAUDE-CLOUD-20260726T1650CDT-9F2A7C41",
+    "task_folder_id": "1_xQjtW0S3vD2MNfOyJ-fu-VQ-moPP4Go",
+    "file_id": "1ssiLOXMb9GZARUXKZuYwTgEnCcZ_HtOv",
+    "source_sha256": "5774F33DBB9A9F5C815E534EF5205D55FF99C93A97204329442A2ABE81B3C7ED",
+    "readback_sha256": "5774F33DBB9A9F5C815E534EF5205D55FF99C93A97204329442A2ABE81B3C7ED",
+    "byte_identical": true,
+    "proves": "Drive read, write, re-read and hash equality from this seat.",
+    "does_not_prove": "Local watcher pickup, exactly-once claiming, isolated task folder creation on the PC, agent read, agent write, or local receipt publication. Queueing is not execution."
+  },
+
+  "exact_blockers": [
+    {
+      "id": "BLOCKER-1",
+      "title": "00W Phase 1 is unexecutable from this seat",
+      "evidence": "uname reports Linux 6.18.5 x86_64. ls of /c, /mnt/c and 'C:\\DataBoss' each returned 'No such file or directory'.",
+      "consequence": "Pinned-candidate verification, local hashing, task-local backup, and source rendering cannot be performed here.",
+      "operator_options": ["Route Phase 1 to the Windows-resident Codex or Claude seat.", "Add a requires: capability field to task envelopes so capability-mismatched dispatch fails loudly instead of stalling."],
+      "claude_did_not": "fabricate a local path check, a hash, or a render receipt"
+    },
+    {
+      "id": "BLOCKER-2",
+      "title": "Large binary payloads are not byte-transportable through this seat",
+      "evidence": "The 25561-byte S17 xlsx reconstituted as 34429 base64 characters against 34084 expected and failed to decode. A 64-character stride scan found no duplicated block, so corruption was distributed. The 235-byte canary round-tripped byte-identically, so the Drive channel and MCP tools are not at fault.",
+      "consequence": "No workbook or PDF SHA-256 can be computed here. OOXML package integrity checks are impossible. The three competing S17 hashes remain unarbitrated.",
+      "operator_options": ["Route all hash arbitration and package integrity work to a windows_fs seat."],
+      "claude_did_not": "report a hash from a copy it could not prove faithful; the corrupt copy was deleted and never used as evidence"
+    },
+    {
+      "id": "BLOCKER-3",
+      "title": "Four priority source instruments are not present in Google Drive",
+      "evidence": "Title searches on '030M', '033M', '05ML' and '0463' returned no 030M-0595.pdf, no 030M-0615.pdf, no 05ML-0463 and no 033M-0425.pdf. 0331-0490.pdf and 0285-0528.pdf were found.",
+      "consequence": "The Book 30 Page 595 mortgage reported as unreadable from one agent seat is not reachable from the cloud seat either.",
+      "operator_options": ["Recover on the Windows host.", "Re-pull from the county."],
+      "claude_did_not": "infer any title fact from a filename"
+    }
+  ],
+
+  "findings_summary": {
+    "blocker": 3,
+    "high": 5,
+    "medium": 8,
+    "process": 2,
+    "originated_by_this_seat": ["D-04", "D-05", "D-06", "D-07", "D-08", "D-09", "D-10", "D-13", "D-14"],
+    "prior_assertions_refuted": ["Index!A10 = Order and Decree (D-01)"],
+    "prior_assertions_reclassified": ["stale copy -> materially different artifact (D-02)"],
+    "prior_defects_shown_already_closed": ["row 35 / 0331-0490 (D-03)"],
+    "most_urgent": "D-04 — the 0285-0528 row implies minerals passed to The Carter Oil Company; the E1-rendered face proves they were expressly reserved. The Comments field is empty. The file is staged in PENDING FINAL VERIFICATION."
+  },
+
+  "artifacts_published": [
+    "CLAUDE_CODE_CURRENT_STATE.md",
+    "CLAUDE_CODE_EXECUTION_PLAN.md",
+    "CLAUDE_CODE_DEFECT_REGISTER.md",
+    "CLAUDE_CODE_AGENT_ASSIGNMENTS.md",
+    "CLAUDE_CODE_BRIDGE_VERIFICATION.md",
+    "SECTION_17_VALIDATION_REPORT.md",
+    "SECTION_20_VALIDATION_REPORT.md",
+    "SECTION_32_RECONCILIATION_REPORT.md",
+    "CROSS_AGENT_DISAGREEMENT_REPORT.md",
+    "FINAL_READINESS_REPORT.md",
+    "STATUS.json",
+    "06_TERMINAL_RECEIPT.json"
+  ],
+
+  "safety_assertions": {
+    "title_artifacts_modified": false,
+    "workbooks_written": 0,
+    "leases_claimed_or_consumed": "NONE",
+    "canonical_staging_or_delivery_files_written": 0,
+    "second_controller_watcher_queue_or_database_created": false,
+    "isolated_task_folders_created": 1,
+    "credentials_read_or_requested": false,
+    "security_controls_weakened": false,
+    "files_deleted": "One scratch copy of the S17 workbook that was provably not byte-faithful. It was never used as evidence. No evidence was deleted.",
+    "external_communications_sent": false,
+    "purchases": "NONE",
+    "johnson_county_work_performed": false
+  },
+
+  "rollback": "Not required. This task performed no mutation of any title artifact, lease, canonical file, or shared status source. Its outputs are additive: one Drive folder, one canary file, and task-local reports. Deleting the Drive folder 1_xQjtW0S3vD2MNfOyJ-fu-VQ-moPP4Go and the repository path _TASKS/DBX-CLAUDE-CODE-CLOUD-SEAT-20260726T1650CDT-001 fully reverses it.",
+
+  "single_next_safest_action": "Codex freezes LEASE-S17-CURSOR-A10-20260726T1510CDT-001 and re-issues it targeting the instrument by Doc No plus Book-Page rather than a bare cell address. Then repair the 0285-0528 mineral-reservation warning under a new exact lease. In parallel and needing no approval, this seat can audit the Section 20 workbook read-only and re-baseline the Section 17 defect list.",
+
+  "client_released": false,
+  "client_release_authorized": false,
+  "canonical_promotion_authorized": false,
+  "purchase_authorized": false,
+  "permanent_delete_authorized": false,
+  "ready_folder_contents": "EMPTY"
+}

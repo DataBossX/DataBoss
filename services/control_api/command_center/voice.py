@@ -237,8 +237,8 @@ def intake(
 ) -> IntakeResult:
     """Full intake step: transcript in, transcript + intent out, nothing created."""
     transcription = Transcription.create(transcript_text, confidence=confidence, provider=provider)
-    return IntakeResult(transcript=transcription, intent=parse_intent(transcript_text,
-                                                                     default_project=default_project))
+    intent = parse_intent(transcript_text, default_project=default_project)
+    return IntakeResult(transcript=transcription, intent=intent)
 
 
 def redact_for_phone(payload: Mapping) -> dict:

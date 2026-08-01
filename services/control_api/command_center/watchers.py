@@ -224,9 +224,11 @@ class SecurityWatcher(_BaseWatcher):
         if secrets:
             findings.append(Finding("BLOCKING", f"Secret-shaped values in task parameters: {secrets}"))
 
+        # HAVING must repeat the aggregate rather than reuse the select alias:
+        # SQLite tolerates the alias, PostgreSQL does not.
         dupes = view.query(
             "SELECT resource_scope, COUNT(*) AS n FROM writer_leases WHERE state='ACTIVE'"
-            " GROUP BY resource_scope HAVING n > 1"
+            " GROUP BY resource_scope HAVING COUNT(*) > 1"
         )
         checks.append({"name": "single_active_lease_per_scope", "status": "FAIL" if dupes else "PASS",
                        "detail": f"violations={dupes}" if dupes else "one writer per scope"})

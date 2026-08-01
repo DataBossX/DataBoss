@@ -1,0 +1,93 @@
+name: Command Center CI
+
+# Additive workflow for the Command Center lane. It does not replace or modify
+# any existing workflow. Three jobs, because the control kernel must hold on
+# both engines and the invariants are worth proving on the canonical one.
+
+on:
+  push:
+    paths:
+      - "services/control_api/**"
+      - "apps/control-center-web/**"
+      - "packages/contracts/**"
+      - "tests/command_center/**"
+      - ".github/workflows/command-center-ci.yml"
+  pull_request:
+    paths:
+      - "services/control_api/**"
+      - "apps/control-center-web/**"
+      - "packages/contracts/**"
+      - "tests/command_center/**"
+      - ".github/workflows/command-center-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite:
+    name: Suite on SQLite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run the Command Center suite
+        # No install step: the kernel is standard library only (ADR-0001).
+        run: |
+          PYTHONPATH=services/control_api \
+            python -m unittest discover -s tests/command_center -t . -p "test_*.py" -v
+
+  postgres:
+    name: Suite on PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dbx
+          POSTGRES_DB: dbx_cc
+          # The wire client supports trust, md5, and SCRAM-SHA-256; trust keeps
+          # the CI service definition minimal.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dbx -d dbx_cc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run the same suite against real PostgreSQL
+        # Same tests, same assertions, different engine. ADR-0003.
+        env:
+          DBX_CC_TEST_DSN: postgresql://dbx@127.0.0.1:5432/dbx_cc
+        run: |
+          PYTHONPATH=services/control_api \
+            python -m unittest discover -s tests/command_center -t . -p "test_*.py" -v
+
+  typecheck:
+    name: Typecheck and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install checkers
+        run: python -m pip install --upgrade pip mypy==1.8.0 flake8==7.0.0
+      - name: mypy
+        run: mypy --config-file mypy.ini services/control_api/command_center
+      - name: flake8 (Command Center paths only)
+        run: |
+          # 127 matches the repository's existing python-app workflow.
+          flake8 --max-line-length=127 \
+            services/control_api/command_center tests/command_center \
+            scripts/cdp_client.py scripts/command_center_visual_qa.py

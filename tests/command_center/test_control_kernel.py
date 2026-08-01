@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import datetime as dt
-import sqlite3
 import threading
 import unittest
 
+from command_center import db as dbmod
 from command_center import state_machines as sm
 from command_center.errors import (
     AcceptedArtifactImmutable,
@@ -37,7 +37,7 @@ class LeaseInvariantTests(KernelTestCase):
     def test_database_constraint_rejects_a_second_active_lease_row(self):
         """The invariant survives even if application code is bypassed."""
         self.kernel.claim_lease(OWNER, "project.alpha")
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(dbmod.IntegrityError):
             self.kernel.conn.execute(
                 "INSERT INTO writer_leases(lease_id, resource_scope, writer_identity, state,"
                 " fencing_sequence, issued_at, expires_at, heartbeat_interval_seconds,"
@@ -150,11 +150,11 @@ class HoldTests(KernelTestCase):
         self.assertEqual(events[0]["outcome"], "DENY")
 
     def test_direct_sql_delete_of_a_hold_is_rejected(self):
-        with self.assertRaises(sqlite3.DatabaseError):
+        with self.assertRaises(dbmod.DatabaseError):
             self.kernel.conn.execute("DELETE FROM holds WHERE hold_id='hold_section32'")
 
     def test_direct_sql_downgrade_of_a_hold_is_rejected(self):
-        with self.assertRaises(sqlite3.DatabaseError):
+        with self.assertRaises(dbmod.DatabaseError):
             self.kernel.conn.execute("UPDATE holds SET immutable=0 WHERE hold_id='hold_section32'")
 
 
@@ -165,9 +165,9 @@ class AuditTests(KernelTestCase):
 
     def test_audit_events_cannot_be_updated_or_deleted(self):
         self.kernel.claim_lease(OWNER, "project.alpha")
-        with self.assertRaises(sqlite3.DatabaseError):
+        with self.assertRaises(dbmod.DatabaseError):
             self.kernel.conn.execute("UPDATE audit_events SET actor='forged' WHERE audit_id=1")
-        with self.assertRaises(sqlite3.DatabaseError):
+        with self.assertRaises(dbmod.DatabaseError):
             self.kernel.conn.execute("DELETE FROM audit_events WHERE audit_id=1")
 
     def test_state_change_and_audit_share_a_transaction(self):
@@ -180,11 +180,11 @@ class AuditTests(KernelTestCase):
         original_audit = self.kernel._audit
 
         def exploding_audit(*args, **kwargs):
-            raise sqlite3.OperationalError("injected audit failure")
+            raise RuntimeError("injected audit failure")
 
         self.kernel._audit = exploding_audit
         try:
-            with self.assertRaises(sqlite3.OperationalError):
+            with self.assertRaises(RuntimeError):
                 self.kernel.claim_lease(OPERATOR, "project.delta")
         finally:
             self.kernel._audit = original_audit
@@ -251,7 +251,7 @@ class ArtifactTests(KernelTestCase):
     def test_accepted_version_cannot_be_deleted(self):
         version = self.kernel.register_artifact(logical_id="a1", sha256="a" * 64, byte_size=10)
         self.kernel.accept_artifact_version(version["version_id"], OWNER)
-        with self.assertRaises(sqlite3.DatabaseError):
+        with self.assertRaises(dbmod.DatabaseError):
             self.kernel.conn.execute(
                 "DELETE FROM artifact_versions WHERE version_id=?", (version["version_id"],)
             )

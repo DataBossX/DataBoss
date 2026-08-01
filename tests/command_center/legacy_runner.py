@@ -20,7 +20,6 @@ import argparse
 import contextlib
 import importlib.util
 import inspect
-import os
 import re
 import sys
 import tempfile

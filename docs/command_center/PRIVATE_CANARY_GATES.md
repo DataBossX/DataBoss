@@ -5,9 +5,16 @@ Release state: **FOR REVIEW — HOLD — NO EXTERNAL RELEASE**
 
 ## Verdict
 
-**NOT private-canary ready**, but the blocker set is now small: gate 19 cannot be
-satisfied without Drive authority, and PostgreSQL verification (ADR-0003) remains
-outstanding.
+**NOT private-canary ready.** One blocker remains, and it is an owner decision
+rather than an engineering gap: gate 19 needs Google Drive write authority,
+which is not granted.
+
+**Updated again 2026-08-01 (second pass).** The PostgreSQL gap is **closed** —
+PostgreSQL 16.13 turned out to be installed locally, and only a driver was
+missing. A standard-library wire client (ADR-0005) closed it: **169/169 tests
+pass against real PostgreSQL**, including the twelve-thread lease race and the
+full vertical slice. Running on the canonical engine also caught two real
+portability defects that SQLite had hidden, one of them in a security check.
 
 **Updated 2026-08-01 after CI ran.** Gates 3 and 4 were originally recorded as
 FAIL because `pytest` could not be installed in the build environment. GitHub
@@ -30,11 +37,11 @@ evidence rather than reinterpreting the old result.
 | 2 | Worktree clean except intentional committed changes | **PASS** | `git status` clean pre-cycle; all changes committed |
 | 3 | Existing canonical tests plus new tests pass, zero unexplained failures | **PASS** | CI run 30686563726: `303 passed, 7 skipped`, 0 failures, under real pytest 8.0.0 / Python 3.10 |
 | 4 | Known legacy failures fixed with regression proof, or isolated and still blocking | **PASS** | No legacy failures exist: the full suite passes in CI. The 7 skips are pytest's own, not unsupported cases. |
-| 5 | Compile, lint, typecheck, unit, integration, e2e, concurrency, failure-injection, security | **PARTIAL** | Compile/lint/unit/integration/concurrency/failure-injection/security: PASS (flake8 green in CI). Typecheck (`mypy`) still not run. |
+| 5 | Compile, lint, typecheck, unit, integration, e2e, concurrency, failure-injection, security | **PENDING CI** | Compile/unit/integration/concurrency/failure-injection/security: PASS locally on both engines. `mypy` + scoped `flake8` jobs added in `command-center-ci.yml` but have **not run yet** — not claimed as passing until they do |
 | 6 | Secret scan, dependency scan, license checks | **PARTIAL** | Secret scan: **PASS** — Gitleaks workflow green in CI on this branch. Dependency scan: N/A — zero dependencies added. License: N/A — no new deps. |
 | 7 | No client data, private path, credential, or real title fact in public code or demo data | **PASS** | Scan clean; only synthetic `synthetic-alpha` / `SYNTHETIC OWNER A–C` |
 | 8 | No raw client evidence leaves the local boundary | **PASS** | Runner posts metadata + receipts only; all artifacts `synthetic: true` |
-| 9 | One-writer and fencing tests prove stale writers cannot mutate | **PASS** | 12-thread race → 1 winner; `StaleFencingToken` fails closed |
+| 9 | One-writer and fencing tests prove stale writers cannot mutate | **PASS** | 12-thread race → 1 winner and `StaleFencingToken` fails closed, **on SQLite and PostgreSQL 16.13** |
 | 10 | Approval replay and scope confusion fail closed | **PASS** | 11 approval red-team tests |
 | 11 | Audit and state transitions are atomic | **PASS** | Failure injection rolls back state with the audit |
 | 12 | Holds cannot be removed by UI, model, watcher, or writer | **PASS** | 5 hold tests + API 403 + DB triggers |
@@ -48,11 +55,11 @@ evidence rather than reinterpreting the old result.
 | 20 | Rollback and recovery demonstrated | **PASS** | Mid-job failure → rollback + fail-closed receipt |
 | 21 | No public deployment, DNS change, App Store submission, client mutation, release, merge, or push without separate authority | **PASS** | None performed. Push confined to the assigned branch. |
 
-**Summary: 17 PASS · 4 PARTIAL · 0 FAIL.**
+**Summary: 17 PASS · 3 PARTIAL · 1 PENDING CI · 0 FAIL.**
 
-The remaining partials are gate 19 (no Drive write authority), the `mypy`
-typecheck in gate 5, and dependency/license scanning in gate 6 — the last of
-which is not applicable with zero dependencies added.
+The remaining partials are gate 19 (no Drive write authority — an owner
+decision), and dependency/license scanning in gate 6, which is not applicable
+with zero dependencies added.
 
 ## What must happen before canary
 
@@ -60,17 +67,19 @@ Ordered by dependency:
 
 1. ~~Networked runner — run the legacy suite under real pytest.~~ **Done** — CI
    run 30686563726, `303 passed, 7 skipped`. Gates 3 and 4 closed.
-2. **PostgreSQL** — run the same migrations and re-run the invariant tests
-   against Postgres. Closes ADR-0003; hardens gate 9.
-3. **Typecheck** — add `mypy` to CI. `flake8` already runs green. Closes gate 5.
+2. ~~PostgreSQL — re-run the invariant tests against Postgres.~~ **Done** —
+   169/169 on PostgreSQL 16.13 (ADR-0005). Gate 9 hardened.
+3. **Typecheck** — `mypy` and scoped `flake8` jobs are added in
+   `command-center-ci.yml`; gate 5 closes when that workflow reports green.
 4. ~~Gitleaks in CI.~~ **Done** — the Secret scan workflow is green on this branch.
 5. **Drive authority** — activate the authorization document, resolve
    `receipts` vs `03_RECEIPTS`, implement `GoogleDriveClient`, re-run the Drive
    red-team tests against a scratch folder. Closes gate 19.
 6. **Real step-up** — register a WebAuthn credential on the canary host over
    HTTPS. Retires a residual risk in the threat model.
-7. **Fix `backend/server.py` wildcard CORS**, or retire `backend/` per the
-   blueprint. Requires its own authorized lane.
+7. ~~Fix `backend/server.py` wildcard CORS.~~ **Done** — exact origin
+   allowlist; a wildcard now disables credentials. Retiring `backend/` entirely
+   is still open per the blueprint.
 
 ## Not authorized by this directive, regardless of gate status
 

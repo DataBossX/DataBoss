@@ -1,6 +1,6 @@
 # ADR-0003 — SQLite now, PostgreSQL as the canonical cloud target
 
-- Status: **Accepted** (explicitly provisional)
+- Status: **Accepted** — the provisional half is now RESOLVED, see ADR-0005
 - Date: 2026-08-01 · Cycle `DBX-CC-10000X-20260801-001`
 
 ## Context
@@ -43,9 +43,11 @@ produced by `canonical.iso()`, identical on both engines.
 - The invariant is proven now: twelve concurrent connections, exactly one lease.
 - Migration is a translation of five triggers and one exception mapping, not a
   redesign.
-- **This blocks private-canary readiness.** Recorded as open gap C-2 in
-  `CURRENT_GAP_REPORT.md`. Canary requires re-running the same invariant tests
-  against a real Postgres instance.
+- ~~This blocks private-canary readiness.~~ **RESOLVED 2026-08-01.** A
+  standard-library wire client (ADR-0005) made a real PostgreSQL run possible
+  here. All **169 tests pass against PostgreSQL 16.13**, including the
+  twelve-thread lease race and the full vertical slice, and CI reproduces the
+  run against a `postgres:16` service container.
 
 ## Also decided
 

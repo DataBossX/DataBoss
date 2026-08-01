@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
 import unittest
 
+from command_center import db as dbmod
 from command_center import policy as policymod
 from command_center import voice as voicemod
-from command_center.canonical import sha256_of
 from command_center.drive_bridge import DriveBridge, InMemoryDriveClient, plan_control_room
 from command_center.errors import (
     AdapterNotAllowed,
@@ -177,7 +176,7 @@ class IdempotencyRedTeamTests(KernelTestCase):
         runner.execute(job_id=issued["job_id"], task_id=issued["envelope"]["task_id"],
                        writer_identity=issued["lease"]["writer_identity"])
         # A second terminal COMPLETED attempt for the same task is impossible.
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(dbmod.IntegrityError):
             self.kernel.conn.execute(
                 "INSERT INTO execution_attempts(attempt_id, job_id, task_id, lease_id,"
                 " fencing_sequence, started_at, outcome) VALUES"
@@ -187,7 +186,7 @@ class IdempotencyRedTeamTests(KernelTestCase):
 
     def test_command_transcript_cannot_be_rewritten(self):
         command = self.make_command(key="immutable")
-        with self.assertRaises(sqlite3.DatabaseError):
+        with self.assertRaises(dbmod.DatabaseError):
             self.kernel.conn.execute(
                 "UPDATE commands SET transcript_text='forged', transcript_sha256=? "
                 "WHERE command_id=?",
@@ -633,11 +632,11 @@ class DatabaseInterruptionTests(KernelTestCase):
         original = self.kernel._outbox
 
         def exploding_outbox(*args, **kwargs):
-            raise sqlite3.OperationalError("injected outbox failure")
+            raise RuntimeError("injected outbox failure")
 
         self.kernel._outbox = exploding_outbox
         try:
-            with self.assertRaises(sqlite3.OperationalError):
+            with self.assertRaises(RuntimeError):
                 self.kernel.claim_lease(OWNER, "project.interrupted")
         finally:
             self.kernel._outbox = original
@@ -654,9 +653,13 @@ class DatabaseInterruptionTests(KernelTestCase):
 
     def test_audit_chain_detects_tampering(self):
         self.kernel.claim_lease(OWNER, "project.alpha")
-        # Bypass the append-only triggers the way an attacker with file access
-        # would, and confirm the chain still reports the tamper.
-        self.kernel.conn.execute("DROP TRIGGER trg_audit_no_update")
+        # Bypass the append-only triggers the way an attacker with database
+        # access would, and confirm the chain still reports the tamper.
+        # PostgreSQL requires the table in DROP TRIGGER; SQLite forbids it.
+        if getattr(self.kernel.conn, "dialect", "sqlite") == "postgres":
+            self.kernel.conn.execute("DROP TRIGGER trg_audit_no_update ON audit_events")
+        else:
+            self.kernel.conn.execute("DROP TRIGGER trg_audit_no_update")
         self.kernel.conn.execute(
             "UPDATE audit_events SET actor='forged' WHERE audit_id="
             "(SELECT MIN(audit_id) FROM audit_events)"

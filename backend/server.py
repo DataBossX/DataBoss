@@ -36,13 +36,35 @@ logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
 # Initialize FastAPI app
 app = FastAPI(title="DataBossX API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware.
+#
+# Previously this was allow_origins=["*"] together with allow_credentials=True.
+# That combination lets any site on the internet make credentialed requests to
+# this API using a visitor's cookies. Origins are now an exact allowlist, taken
+# from DATABOSSX_ALLOWED_ORIGINS (comma-separated), and credentials are only
+# enabled when the allowlist is genuinely explicit.
+_raw_origins = os.getenv(
+    "DATABOSSX_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+)
+ALLOWED_ORIGINS = [origin.strip() for origin in _raw_origins.split(",") if origin.strip()]
+
+# A wildcard and credentials must never be combined. If someone sets "*"
+# anyway, drop credentials rather than silently honouring the unsafe pairing.
+_wildcard = "*" in ALLOWED_ORIGINS
+if _wildcard:
+    logger.warning(
+        "DATABOSSX_ALLOWED_ORIGINS contains '*'; disabling credentialed CORS. "
+        "Set an exact origin list to allow cookies."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=not _wildcard,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    max_age=600,
 )
 
 # Database configuration

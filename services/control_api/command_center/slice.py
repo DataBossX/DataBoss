@@ -28,8 +28,13 @@ from .runner import LocalRunner, RunnerConfig
 SYNTHETIC_PROJECT = "synthetic-alpha"
 
 
-def run_slice(workdir: Optional[str] = None, *, verbose: bool = False) -> dict:
-    """Execute the full slice and return a structured trace."""
+def run_slice(workdir: Optional[str] = None, *, verbose: bool = False,
+              db_target: Optional[str] = None) -> dict:
+    """Execute the full slice and return a structured trace.
+
+    ``db_target`` selects the control store: a SQLite path by default, or a
+    ``postgres://`` DSN to run the same story against the canonical engine.
+    """
     workdir = workdir or tempfile.mkdtemp(prefix="dbx-cc-slice-")
     os.makedirs(workdir, exist_ok=True)
     trace: dict = {"workdir": workdir, "steps": []}
@@ -39,7 +44,7 @@ def run_slice(workdir: Optional[str] = None, *, verbose: bool = False) -> dict:
         if verbose:
             print(f"  [{len(trace['steps']):2d}] {name}: {detail}")
 
-    kernel = ControlKernel.open(os.path.join(workdir, "command_center.db"))
+    kernel = ControlKernel.open(db_target or os.path.join(workdir, "command_center.db"))
 
     # 1-2. Authenticate and observe the global hold.
     kernel.upsert_user("ryan", "Ryan Gille", "OWNER")
@@ -159,6 +164,7 @@ def run_slice(workdir: Optional[str] = None, *, verbose: bool = False) -> dict:
          holds=len(final["holds"]), recent_changes=len(final["changed"]))
 
     trace["summary"] = {
+        "engine": getattr(kernel.conn, "dialect", "sqlite"),
         "command_id": command["command_id"],
         "task_id": envelope["task_id"],
         "job_id": job_id,

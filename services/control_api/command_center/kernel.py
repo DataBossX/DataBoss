@@ -16,7 +16,6 @@ Concurrency is settled by the database, not by application locks:
 from __future__ import annotations
 
 import json
-import sqlite3
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Mapping, Optional, Sequence
@@ -82,14 +81,15 @@ class Actor:
 
 
 class ControlKernel:
-    def __init__(self, conn: sqlite3.Connection, *, clock=utc_now):
+    def __init__(self, conn, *, clock=utc_now):
         self.conn = conn
         self._clock = clock
 
     # ------------------------------------------------------------------ setup
     @classmethod
-    def open(cls, path: str, *, clock=utc_now) -> "ControlKernel":
-        conn = dbmod.connect(path)
+    def open(cls, target: str, *, clock=utc_now) -> "ControlKernel":
+        """Open against a SQLite path or a ``postgres://`` DSN."""
+        conn = dbmod.connect(target)
         dbmod.migrate(conn)
         kernel = cls(conn, clock=clock)
         kernel.ensure_policy_version()
@@ -211,7 +211,7 @@ class ControlKernel:
 
     # --------------------------------------------------------------- txn help
     def _begin(self) -> None:
-        self.conn.execute("BEGIN IMMEDIATE")
+        self.conn.execute(dbmod.begin_sql(getattr(self.conn, "dialect", "sqlite")))
 
     def _commit(self) -> None:
         self.conn.execute("COMMIT")
@@ -219,7 +219,7 @@ class ControlKernel:
     def _rollback(self) -> None:
         try:
             self.conn.execute("ROLLBACK")
-        except sqlite3.Error:
+        except dbmod.DatabaseError:
             pass
 
     # ------------------------------------------------------------------ users
@@ -373,7 +373,7 @@ class ControlKernel:
             )
             self._outbox("lease.claimed", {"lease_id": lease_id, "scope": resource_scope, "seq": sequence})
             self._commit()
-        except sqlite3.IntegrityError as exc:
+        except dbmod.IntegrityError as exc:
             self._rollback()
             raise LeaseHeld(f"concurrent claim lost the race for {resource_scope}") from exc
         except Exception:
@@ -525,7 +525,7 @@ class ControlKernel:
             )
             self._outbox("command.confirmed", {"command_id": command_id})
             self._commit()
-        except sqlite3.IntegrityError:
+        except dbmod.IntegrityError:
             # Lost an idempotency race; return the winner.
             self._rollback()
             row = dbmod.fetchone(
@@ -1000,9 +1000,9 @@ class ControlKernel:
             self.conn.execute(
                 "UPDATE artifact_versions SET sha256=? WHERE version_id=?", (new_sha, version_id)
             )
-        except sqlite3.IntegrityError as exc:
+        except dbmod.IntegrityError as exc:
             raise AcceptedArtifactImmutable(str(exc)) from exc
-        except sqlite3.DatabaseError as exc:
+        except dbmod.DatabaseError as exc:
             if "ACCEPTED_ARTIFACT_IMMUTABLE" in str(exc):
                 raise AcceptedArtifactImmutable(str(exc)) from exc
             raise

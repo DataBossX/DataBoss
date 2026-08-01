@@ -25,9 +25,9 @@ services/control_api/command_center/
   __init__.py      canonical.py    errors.py      state_machines.py
   policy.py        db.py           kernel.py      voice.py
   best_moves.py    watchers.py     drive_bridge.py runner.py
-  http_api.py      slice.py
+  http_api.py      slice.py        pg_wire.py
 packages/contracts/               5 JSON Schema contracts
-tests/command_center/             154 tests + legacy stdlib runner
+tests/command_center/             169 tests (SQLite + PostgreSQL) + legacy runner
 scripts/                          cdp_client.py, command_center_visual_qa.py
 docs/command_center/              this set, plus ADRs
 evidence/command_center/          screenshots and QA report
@@ -69,7 +69,9 @@ Enforced by the database, not by application state:
 | Heartbeat + stale threshold | `_expire_stale_leases` | A dead writer holding a scope forever |
 
 Proven by `test_concurrent_claims_produce_exactly_one_winner`: twelve threads,
-twelve independent connections, one winner and eleven `LEASE_HELD`.
+twelve independent connections, one winner and eleven `LEASE_HELD` — **on both
+SQLite and PostgreSQL 16.13**. The same partial unique index carries the
+guarantee on each engine (ADR-0005).
 
 ## 5. Atomicity
 
@@ -97,7 +99,7 @@ label. The runner is configured `simulation_only=True` and refuses `REAL`.
 | Directive preference | Built | Why |
 | --- | --- | --- |
 | React + Vite + Tailwind PWA | Hand-written HTML/CSS/JS PWA | npm registry returns HTTP 403 (network policy). A build that cannot install cannot be tested. See ADR-0001. |
-| PostgreSQL canonical store | SQLite (WAL), portable DDL | No database service reachable. Partial unique indexes, CHECKs, FKs, and triggers all port to Postgres. See ADR-0003. |
+| PostgreSQL canonical store | **Both.** PostgreSQL 16.13 verified; SQLite retained for the runner cache and offline work | A stdlib wire client (ADR-0005) removed the blocker. 169/169 tests pass on PostgreSQL; the same DDL drives both engines. |
 | Python API via FastAPI | `http.server` stdlib API | FastAPI not installable. Same security controls, implemented explicitly. |
 | `pytest` suite | `unittest` suite | `pytest` not installable; a suite that cannot run cannot be reported as passing. |
 | Real speech provider | `SpeechProvider` port + local stub | Paid service; spending requires the owner's approval. |
@@ -112,6 +114,8 @@ each leaves a named seam for the preferred technology.
 - `src/databossx` — preferred donor, **unmodified**. Patterns reused
   (content addressing, versioned assets, WAL); no competing ownership.
 - `horizon/` — preserved untouched; Section 32 hold honoured.
-- `backend/` — **not adopted**; carries wildcard CORS (`allow_origins=["*"]`)
-  and mock OCR. Recorded as an open defect, outside this lane's write scope.
+- `backend/` — **not adopted** as a control plane. Its wildcard CORS was fixed
+  in place under the owner's "do all best moves" instruction (exact origin
+  allowlist; a wildcard now disables credentials). It still carries mock OCR and
+  remains scheduled for retirement per the blueprint.
 - `website/` — untouched; marketing stays separate from the control plane.

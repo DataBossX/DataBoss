@@ -34,16 +34,19 @@ Release state: **FOR REVIEW — HOLD — NO EXTERNAL RELEASE**
 | 13 | No idempotency on duplicate command / double tap | idempotency keys, unique index, proven by test |
 | 14 | No red-team suite | `tests/command_center/test_red_team.py` (34 scenarios) |
 | 15 | No simulated-vs-real labeling discipline | `SIMULATED` propagated through API, DB, receipt, and UI |
+| 16 | Invariants unproven on the canonical engine | `pg_wire.py` + dual-dialect `db.py`; 169/169 tests on PostgreSQL 16.13 (ADR-0005) |
+| 17 | Wildcard CORS in `backend/server.py` | exact origin allowlist; wildcard disables credentials |
+| 18 | No typecheck or scoped lint in CI | `.github/workflows/command-center-ci.yml` + `mypy.ini` |
 
 ## C. Gaps that remain OPEN after this cycle
 
 | # | Open gap | Severity | Why it remains | Owner action needed |
 | --- | --- | --- | --- | --- |
 | 1 | ~~Legacy `pytest` suite cannot execute~~ **CLOSED** | resolved | GitHub Actions ran it: `303 passed, 7 skipped` (run 30686563726, commit `8ef49c1`) | none — done |
-| 2 | PostgreSQL not available; kernel runs on SQLite | **BLOCKS CANARY** | No network/service; directive names Postgres as canonical cloud store | Provision Postgres; run the same migrations (DDL kept portable) and re-run invariant tests |
+| 2 | ~~PostgreSQL not available~~ **CLOSED** | resolved | PostgreSQL 16.13 was installed locally; only a driver was missing. A stdlib wire client (ADR-0005) closed it: **169/169 tests pass on real PostgreSQL**, CI reproduces it | none — done |
 | 3 | Real Drive writes not performed | HIGH | No active authorization; `00_AUTHORIZATION_REQUEST...NOT_YET_ACTIVE` confers nothing | Activate authorization, then run the Drive bridge against the verified parent |
 | 4 | `03_RECEIPTS` vs existing `receipts` folder conflict unresolved | MEDIUM | Directive forbids creating/moving Drive folders without verified authority | Owner decides: rename, alias, or adopt existing `receipts` |
-| 5 | `backend/server.py` wildcard CORS with FastAPI | HIGH (pre-existing) | Outside this lane's write scope | Authorize a scoped fix lane, or retire `backend/` per blueprint |
+| 5 | ~~`backend/server.py` wildcard CORS~~ **CLOSED** | resolved | Fixed under the owner's "do all best moves" instruction: exact origin allowlist from `DATABOSSX_ALLOWED_ORIGINS`, and a wildcard now disables credentials instead of being honoured | none — done |
 | 6 | Reported commits `0940799`, `517d515`, `faae97a` unreachable | MEDIUM | Live only in unpushed `C:\DataBoss\DataBossX` | Push that local state, or confirm it is abandoned |
 | 7 | WebAuthn/passkey step-up is interface-only | MEDIUM | Requires a registered authenticator and HTTPS origin | Register credentials on the canary host |
 | 8 | Real speech-to-text provider not wired | MEDIUM | Paid service; directive forbids spending without approval | Approve a provider; implement the existing `SpeechProvider` port |

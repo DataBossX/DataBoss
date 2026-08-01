@@ -23,12 +23,31 @@ VIEWER = Actor("viewer", "VIEWER", session_id="s4", device_id="d4")
 WATCHER = Actor("watcher:security", "REVIEWER", session_id="s5", device_id="d5")
 
 
+#: Set to a ``postgres://`` DSN to run the whole suite against real PostgreSQL.
+#: Unset, the suite runs on SQLite. Both must pass -- see ADR-0003.
+POSTGRES_DSN = os.environ.get("DBX_CC_TEST_DSN", "").strip()
+
+
+def _new_schema_name() -> str:
+    import secrets
+
+    return f"cc_{secrets.token_hex(8)}"
+
+
 class KernelTestCase(unittest.TestCase):
-    """Gives each test a private database and work root."""
+    """Gives each test a private database and work root.
+
+    On SQLite that is a fresh file. On PostgreSQL it is a fresh schema pinned
+    via ``search_path``, which gives the same isolation without needing a
+    database per test.
+    """
 
     def setUp(self):
         self.workdir = tempfile.mkdtemp(prefix="dbx-cc-test-")
-        self.db_path = os.path.join(self.workdir, "cc.db")
+        if POSTGRES_DSN:
+            self.db_path = self._make_pg_schema()
+        else:
+            self.db_path = os.path.join(self.workdir, "cc.db")
         self.kernel = ControlKernel.open(self.db_path)
         for actor, name in ((OWNER, "Ryan"), (OPERATOR, "Operator"),
                             (REVIEWER, "Reviewer"), (VIEWER, "Viewer")):
@@ -36,6 +55,28 @@ class KernelTestCase(unittest.TestCase):
         self.kernel.upsert_user(WATCHER.user_id, "Security Watcher", "REVIEWER")
         self.addCleanup(shutil.rmtree, self.workdir, True)
         self.addCleanup(self.kernel.conn.close)
+
+    def _make_pg_schema(self) -> str:
+        """Create a throwaway schema and return a DSN pinned to it."""
+        from command_center import pg_wire
+
+        schema = _new_schema_name()
+        admin = pg_wire.connect(POSTGRES_DSN)
+        try:
+            admin.execute(f"CREATE SCHEMA {schema}")
+        finally:
+            admin.close()
+
+        def drop():
+            conn = pg_wire.connect(POSTGRES_DSN)
+            try:
+                conn.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+            finally:
+                conn.close()
+
+        self.addCleanup(drop)
+        separator = "&" if "?" in POSTGRES_DSN else "?"
+        return f"{POSTGRES_DSN}{separator}schema={schema}"
 
     def new_kernel(self) -> ControlKernel:
         """A second, independent connection to the same database.

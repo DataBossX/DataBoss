@@ -48,8 +48,10 @@ def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
 
     Current repairs (safe, non-destructive):
       * Remove ``<f>`` formula elements that evaluate to an error (``t="e"`` on
-        the parent ``<c>`` or a formula body starting with ``#``), leaving any
-        last-known cached ``<v>`` value in place so no data is lost.
+        the parent ``<c>`` or a formula body starting with ``#``). A cached error
+        ``<v>`` (e.g. ``#REF!``) and its ``t="e"`` marker are LEFT IN PLACE so the
+        cell remains a recognizable Excel error bound for examiner review -- never
+        silently downgraded to a plain value.
       * Drop dangling shared-formula masters that reference a deleted range.
     """
     parser = etree.XMLParser(remove_blank_text=False, recover=True)
@@ -65,9 +67,11 @@ def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
         is_error = t == "e" or body.startswith("#") or body.startswith("=#")
         if is_error:
             cell.remove(f)
-            # if the cached value was an error, clear the error type marker too
-            if t == "e":
-                del cell.attrib["t"]
+            # Drop only the dangling formula element. If the cell carried a cached
+            # Excel error (t="e", value like "#REF!"), KEEP the t="e" marker so the
+            # cell stays a recognizable error headed for examiner review. Stripping
+            # the marker while leaving the "#REF!" text would silently downgrade an
+            # error into an ordinary value -- a fabricated title fact. (CODE_REVIEW#F1)
             fixes.append(f"removed errored formula in cell {cell.get('r', '?')}")
             changed = True
 

@@ -29,9 +29,9 @@ landed on the canonical integration path (#66 + #61) with source-finding provena
 
 | ID | Sev | Source | Current disposition | Target | Regression test to author | Lands on |
 |----|-----|--------|---------------------|--------|---------------------------|----------|
-| **F1** | CRITICAL | `horizon/repair.py:65-71` | OPEN | FIX+TEST | Errored-formula workbook (`<c t="e">…<v>#REF!</v>`) must NOT converge: repaired cell is flagged for review, never emitted as a plain value. | #61 (repair/QA path) |
-| **F2** | HIGH | `grocery_report_pipeline.py:903` | OPEN | FIX+TEST | Deed with only `Effective Date:` and no recording label → `recording_date` stays blank AND `missing-recording-data` flag fires. | #61 |
-| **F4** | MED/HIGH | `grocery_report_pipeline.py:823` | OPEN | FIX+TEST | Owners `0.5 + 0.5` (and `0.75 + 0.25`) reconcile to 1.0 with **no** false `decimal-sum` conflict; two sub-4-digit owners summing ≠ 1.0 are still caught. | #61 |
+| **F1** | CRITICAL | `horizon/repair.py:65-71` | **FIX+TEST done** (#60 c/p → #61) | FIX+TEST ✓ | `test_review_fixes_f1_f2_f4.py::test_f1_errored_cell_stays_flagged_not_downgraded` — repaired `t="e"` cell keeps the error marker, not downgraded to a plain value. | #61 (repair/QA path) |
+| **F2** | HIGH | `grocery_report_pipeline.py:903` | **FIX+TEST done** (#60 c/p → #61) | FIX+TEST ✓ | `::test_f2_no_recording_date_fabrication` — deed with only `Effective Date:` leaves `recording_date` blank AND fires `missing-recording-data`. | #61 |
+| **F4** | MED/HIGH | `grocery_report_pipeline.py:823` | **FIX+TEST done** (#60 c/p → #61) | FIX+TEST ✓ | `::test_f4_two_digit_decimals_reconcile_without_false_conflict` — `0.5+0.5` no false conflict; `0.5+0.3` still caught. | #61 |
 | **F8** | MED | `horizon/workbook_qa.py:139-141` | OPEN | FIX+TEST | `=IFERROR(VLOOKUP(...),"#N/A")` is classified valid (not `broken_formula`); a truly errored cell (`data_type=='e'`) still is. | #61 |
 | **F3** | HIGH | `backend/server.py` (endpoints) | OPEN — verify vs #66 head | FIX+TEST or DISPROVEN | Unauthenticated `GET /api/documents/{id}` returns 401/403. Confirm whether #66's API-security layer already covers the legacy backend. | #66 |
 | **F5** | MED/HIGH | `backend/server.py:40-46` | **FIXED on #66** (CORS allowlist; wildcard disables credentials) | verify + close | Cross-origin credentialed request from a non-allowlisted origin is rejected. | #66 (done) |

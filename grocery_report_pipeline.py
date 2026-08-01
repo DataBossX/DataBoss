@@ -820,7 +820,11 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
-_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{4,9})", re.I)
+# Capture any-precision decimal after a "decimal[ interest]" label. The keyword
+# prefix bounds over-capture; the old {4,9} bound silently missed real values like
+# 0.5 / 0.25 / 0.125, hiding real sum!=1.0 imbalances and, when only some owners
+# matched, inventing false "sum != 1.0" conflicts. (CODE_REVIEW#F4)
+_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d+)", re.I)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
@@ -900,8 +904,11 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
             m = re.search(rf"{kw}[^\n]{{0,40}}", text, re.I)
             d = parse_date(m.group(0)) if m else None
             setv(key, d, 0.6 if d else 0.0)
-        if "recording_date" not in v:
-            setv("recording_date", parse_date(text), 0.4)
+        # NO blind fallback: if no "Recorded/Filed/recording date" label is found,
+        # recording_date stays unset. Grabbing the first date anywhere in the doc
+        # (an effective/execution date, a stray case-number year) would fabricate a
+        # recording date -- and it went unflagged. Leaving it blank lets the
+        # missing-recording-data check fire instead. (CODE_REVIEW#F2)
 
         m = _INSTR_RX.search(text)
         if m:

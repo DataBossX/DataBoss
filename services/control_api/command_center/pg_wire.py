@@ -197,8 +197,8 @@ class PgConnection:
             params["options"] = f"-csearch_path={schema}"
 
         body = struct.pack(">I", PROTOCOL_VERSION)
-        for key, value in params.items():
-            body += _cstr(key) + _cstr(value)
+        for param_key, param_value in params.items():
+            body += _cstr(param_key) + _cstr(param_value)
         body += b"\x00"
         self._send(_pack(None, body))
 
@@ -207,8 +207,8 @@ class PgConnection:
             if tag == b"R":
                 self._authenticate(body, user, password)
             elif tag == b"S":
-                key, _, rest = body.partition(b"\x00")
-                self.parameters[key.decode()] = rest.split(b"\x00")[0].decode()
+                name, _, rest = body.partition(b"\x00")
+                self.parameters[name.decode()] = rest.split(b"\x00")[0].decode()
             elif tag == b"K":
                 pass  # BackendKeyData; cancellation is not used here
             elif tag == b"Z":
@@ -226,24 +226,25 @@ class PgConnection:
         if code == 0:
             return  # trust / already authenticated
         if code == 3:  # cleartext
-            self._require_password(password)
-            self._send(_pack(b"p", _cstr(password)))
+            secret = self._require_password(password)
+            self._send(_pack(b"p", _cstr(secret)))
         elif code == 5:  # md5
-            self._require_password(password)
+            secret = self._require_password(password)
             salt = body[4:8]
-            inner = hashlib.md5(f"{password}{user}".encode()).hexdigest()
+            inner = hashlib.md5(f"{secret}{user}".encode()).hexdigest()
             digest = "md5" + hashlib.md5(inner.encode() + salt).hexdigest()
             self._send(_pack(b"p", _cstr(digest)))
         elif code == 10:  # SASL
-            self._require_password(password)
-            self._scram(body[4:], password)
+            self._scram(body[4:], self._require_password(password))
         else:
             raise PgError({"M": f"unsupported authentication method {code}"})
 
     @staticmethod
-    def _require_password(password: Optional[str]) -> None:
+    def _require_password(password: Optional[str]) -> str:
+        """Return the password, or refuse. Narrows Optional for callers."""
         if password is None:
             raise PgError({"M": "server requested a password but none was supplied"})
+        return password
 
     def _scram(self, body: bytes, password: str) -> None:
         mechanisms = [m.decode() for m in body.split(b"\x00") if m]
@@ -429,7 +430,8 @@ def connect(dsn: str, timeout: float = 30.0) -> PgConnection:
     parsed = urlparse(dsn)
     if parsed.scheme not in ("postgres", "postgresql"):
         raise ValueError(f"not a PostgreSQL DSN: {dsn!r}")
-    schema = (parse_qs(parsed.query).get("schema") or [None])[0]
+    schema_values = parse_qs(parsed.query).get("schema") or []
+    schema: Optional[str] = schema_values[0] if schema_values else None
     return PgConnection(
         host=parsed.hostname or "127.0.0.1",
         port=parsed.port or 5432,

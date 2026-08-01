@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DataBossX Command Center">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1018"/>
+      <stop offset="1" stop-color="#05070d"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4da3ff"/>
+      <stop offset="0.55" stop-color="#b98cff"/>
+      <stop offset="1" stop-color="#3ddc97"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#1d2736" stroke-width="10"/>
+  <circle cx="256" cy="256" r="104" fill="none" stroke="#1d2736" stroke-width="8"/>
+  <circle cx="256" cy="256" r="58" fill="url(#core)"/>
+  <circle cx="256" cy="106" r="21" fill="#4da3ff"/>
+  <circle cx="386" cy="331" r="21" fill="#b98cff"/>
+  <circle cx="126" cy="331" r="21" fill="#3ddc97"/>
+  <g stroke="#4da3ff" stroke-width="7" opacity="0.55">
+    <line x1="256" y1="256" x2="256" y2="106"/>
+    <line x1="256" y1="256" x2="386" y2="331"/>
+    <line x1="256" y1="256" x2="126" y2="331"/>
+  </g>
+</svg>

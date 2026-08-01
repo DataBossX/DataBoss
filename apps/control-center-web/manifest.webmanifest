@@ -1,0 +1,25 @@
+{
+  "name": "DataBossX Command Center",
+  "short_name": "DataBossX",
+  "description": "Private phone-first operating console for DataBossX. FOR REVIEW - HOLD - NO EXTERNAL RELEASE.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05070d",
+  "theme_color": "#05070d",
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Command", "url": "/", "description": "Best next move and system posture" },
+    { "name": "Decisions", "url": "/?screen=decisions", "description": "Approvals waiting on you" }
+  ]
+}

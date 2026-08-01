@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="command">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#05070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DataBossX">
+<meta name="robots" content="noindex, nofollow">
+<title>DataBossX Command Center</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<!-- Global hold banner. Rendered server-truthfully and never hidden by animation. -->
+<div class="hold-banner" role="alert" id="holdBanner">
+  <span class="hold-dot" aria-hidden="true"></span>
+  <strong>FOR REVIEW &middot; HOLD &middot; NO EXTERNAL RELEASE</strong>
+  <span class="hold-sub" id="holdCount">4 active holds</span>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="brand-text">DataBossX<span class="brand-sub">Command Center</span></span>
+  </div>
+  <div class="topbar-right">
+    <span class="pill pill-sim" id="modePill" title="Every action in this build is simulated">SIMULATED</span>
+    <button class="icon-btn" id="refreshBtn" type="button" aria-label="Refresh posture">
+      <span aria-hidden="true">&#8635;</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============================ COMMAND ============================ -->
+  <section class="screen is-active" id="screen-command" aria-labelledby="cmdHeading">
+    <h1 class="screen-title" id="cmdHeading">Command</h1>
+
+    <!-- Command Core: spatial telemetry. Decorative-by-contract; the same -->
+    <!-- state is always readable in the cards below it. -->
+    <div class="core-wrap">
+      <canvas id="commandCore" class="command-core" width="640" height="360"
+              aria-hidden="true"></canvas>
+      <noscript><p class="core-fallback">Command Core visualization requires JavaScript. All
+        system state remains available as text below.</p></noscript>
+      <div class="core-fallback" id="coreFallback" hidden>
+        Visualization unavailable on this device. All state is shown as text below.
+      </div>
+      <div class="core-legend" id="coreLegend"></div>
+    </div>
+
+    <!-- Six questions, answered first. Proof second, detail third. -->
+    <h2 class="section-label">Six questions</h2>
+    <div class="six-grid" id="sixGrid"></div>
+
+    <h2 class="section-label">Best next move</h2>
+    <div id="bestMove" class="best-move-slot"></div>
+
+    <details class="disclose" id="altDisclose">
+      <summary>Other ranked moves <span class="count" id="altCount"></span></summary>
+      <div id="altMoves"></div>
+    </details>
+
+    <details class="disclose">
+      <summary>Withheld moves <span class="count" id="vetoCount"></span></summary>
+      <div id="vetoMoves"></div>
+      <p class="fineprint">A withheld move is removed from the eligible set entirely. No score,
+        model, or retry can promote it.</p>
+    </details>
+
+    <h2 class="section-label">Needs Ryan</h2>
+    <div id="needsRyan" class="list-slot"></div>
+
+    <h2 class="section-label">Blocked</h2>
+    <div id="blockedList" class="list-slot"></div>
+
+    <h2 class="section-label">Recent verified changes</h2>
+    <div id="recentChanges" class="list-slot"></div>
+
+    <h2 class="section-label">Active writer</h2>
+    <div id="activeWriter" class="list-slot"></div>
+  </section>
+
+  <!-- ============================ PROJECTS =========================== -->
+  <section class="screen" id="screen-projects" aria-labelledby="projHeading" hidden>
+    <h1 class="screen-title" id="projHeading">Projects</h1>
+    <div id="projectList" class="list-slot"></div>
+  </section>
+
+  <!-- =========================== DECISIONS =========================== -->
+  <section class="screen" id="screen-decisions" aria-labelledby="decHeading" hidden>
+    <h1 class="screen-title" id="decHeading">Decisions</h1>
+    <div id="decisionList" class="list-slot"></div>
+  </section>
+
+  <!-- ============================== JOBS ============================= -->
+  <section class="screen" id="screen-jobs" aria-labelledby="jobsHeading" hidden>
+    <h1 class="screen-title" id="jobsHeading">Jobs</h1>
+    <div id="jobList" class="list-slot"></div>
+  </section>
+
+  <!-- ============================== MORE ============================= -->
+  <section class="screen" id="screen-more" aria-labelledby="moreHeading" hidden>
+    <h1 class="screen-title" id="moreHeading">More</h1>
+
+    <h2 class="section-label">Watchers</h2>
+    <div id="watcherList" class="list-slot"></div>
+
+    <h2 class="section-label">Holds &amp; authority</h2>
+    <div id="holdList" class="list-slot"></div>
+
+    <h2 class="section-label">Audit</h2>
+    <div id="auditList" class="list-slot"></div>
+
+    <h2 class="section-label">System health</h2>
+    <div id="healthList" class="list-slot"></div>
+
+    <h2 class="section-label">Settings</h2>
+    <div class="card">
+      <label class="switch-row">
+        <input type="checkbox" id="reduceMotionToggle">
+        <span>Reduce motion</span>
+      </label>
+      <label class="switch-row">
+        <input type="checkbox" id="lowPowerToggle">
+        <span>Low power (disable Command Core)</span>
+      </label>
+      <p class="fineprint">This client never stores raw evidence, secrets, or absolute paths.
+        Server responses are redacted before they leave the control plane.</p>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== PUSH TO TALK DOCK ========================= -->
+<div class="ptt-dock">
+  <button class="ptt" id="pttBtn" type="button"
+          aria-describedby="pttHint">
+    <span class="ptt-ring" aria-hidden="true"></span>
+    <span class="ptt-icon" aria-hidden="true">&#127908;</span>
+    <span class="ptt-label">Hold to speak</span>
+  </button>
+  <button class="text-fallback" id="textBtn" type="button">Type instead</button>
+  <p class="ptt-hint" id="pttHint">Audio is captured only while held and is not retained after
+    transcription.</p>
+</div>
+
+<!-- ===================== CONFIRMATION SHEET ======================== -->
+<div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+<div class="sheet" id="confirmSheet" role="dialog" aria-modal="true"
+     aria-labelledby="sheetTitle" hidden>
+  <h2 id="sheetTitle">Confirm before anything is created</h2>
+
+  <label class="field-label" for="transcriptBox">Transcript &mdash; what was heard</label>
+  <textarea id="transcriptBox" class="transcript-box" rows="3"
+            aria-describedby="transcriptNote"></textarea>
+  <p class="fineprint" id="transcriptNote">You may edit this before it is interpreted.</p>
+
+  <div class="interp" id="interpBlock">
+    <h3>Interpretation &mdash; what the system thinks you mean</h3>
+    <dl id="interpList"></dl>
+    <div id="unresolvedBlock" class="unresolved" hidden>
+      <strong>Unresolved &mdash; will not be guessed</strong>
+      <ul id="unresolvedList"></ul>
+    </div>
+  </div>
+
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" id="cancelBtn" type="button">Cancel</button>
+    <button class="btn btn-ghost" id="reinterpretBtn" type="button">Re-interpret</button>
+    <button class="btn btn-primary" id="confirmBtn" type="button">Confirm request</button>
+  </div>
+  <p class="fineprint">Confirming creates an immutable CommandEnvelope. It does not execute
+    anything. Consequential actions still require a separate approval.</p>
+</div>
+
+<!-- ============================ BOTTOM NAV ========================== -->
+<nav class="bottom-nav" aria-label="Primary">
+  <button class="nav-btn is-active" data-screen="command" type="button" aria-current="page">
+    <span class="nav-ico" aria-hidden="true">&#9678;</span><span class="nav-lbl">Command</span>
+  </button>
+  <button class="nav-btn" data-screen="projects" type="button">
+    <span class="nav-ico" aria-hidden="true">&#9635;</span><span class="nav-lbl">Projects</span>
+  </button>
+  <button class="nav-btn" data-screen="decisions" type="button">
+    <span class="nav-ico" aria-hidden="true">&#9878;</span><span class="nav-lbl">Decisions</span>
+    <span class="nav-badge" id="decBadge" hidden></span>
+  </button>
+  <button class="nav-btn" data-screen="jobs" type="button">
+    <span class="nav-ico" aria-hidden="true">&#9881;</span><span class="nav-lbl">Jobs</span>
+  </button>
+  <button class="nav-btn" data-screen="more" type="button">
+    <span class="nav-ico" aria-hidden="true">&#8943;</span><span class="nav-lbl">More</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>

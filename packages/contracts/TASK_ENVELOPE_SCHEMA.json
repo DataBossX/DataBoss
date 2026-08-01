@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://databossx.local/contracts/task-envelope/1.0.0",
+  "title": "TaskEnvelope",
+  "description": "The only object a runner may execute from. It binds a command, a resource scope, an allowlisted adapter, an approval (when required), and a lease fencing sequence. Anything not named here is out of scope by construction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "command_id",
+    "resource_scope",
+    "adapter",
+    "parameters",
+    "execution_mode",
+    "risk_class",
+    "issued_at",
+    "expires_at",
+    "nonce",
+    "fencing_sequence",
+    "lease_id",
+    "policy_version",
+    "content_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "task_id": { "type": "string", "pattern": "^task_[0-9a-f]{32}$" },
+    "command_id": { "type": "string", "pattern": "^cmd_[0-9a-f]{32}$" },
+    "resource_scope": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:\\.[a-z0-9_-]+)*$",
+      "description": "Dotted logical scope, e.g. `project.synthetic-alpha.workbook`. Never a filesystem path."
+    },
+    "adapter": {
+      "type": "string",
+      "description": "Must appear in the server-side adapter allowlist. Arbitrary shell or SQL is not representable."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Adapter-specific, schema-validated. Hashed into `content_sha256`; changing any parameter after approval invalidates the approval binding."
+    },
+    "execution_mode": {
+      "enum": ["READ_ONLY", "SIMULATED", "REAL"],
+      "description": "SIMULATED results MUST be labeled SIMULATED in UI, API, audit, and receipt."
+    },
+    "risk_class": { "enum": ["READ_ONLY", "SIMULATION", "APPROVAL_REQUIRED", "PROHIBITED"] },
+    "approval_token_id": {
+      "type": ["string", "null"],
+      "description": "Required and non-null when risk_class is APPROVAL_REQUIRED."
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "nonce": { "type": "string", "pattern": "^[0-9a-f]{32}$", "description": "Single-use. Replay is rejected." },
+    "fencing_sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic per resource scope. A write carrying a sequence lower than the current one MUST fail closed."
+    },
+    "lease_id": { "type": "string", "pattern": "^lease_[0-9a-f]{32}$" },
+    "writer_identity": { "type": "string" },
+    "policy_version": { "type": "string" },
+    "input_hashes": {
+      "type": "object",
+      "description": "logical input id -> sha256. Re-verified immediately before execution; mismatch aborts.",
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "content_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

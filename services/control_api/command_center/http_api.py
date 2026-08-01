@@ -503,9 +503,9 @@ def serve(kernel: ControlKernel, *, host: str = "127.0.0.1", port: int = 8787,
 if __name__ == "__main__":  # pragma: no cover
     import tempfile
 
+    HOST, PORT = "127.0.0.1", 8787
     work = tempfile.mkdtemp(prefix="dbx-cc-serve-")
-    k = ControlKernel.open(os.path.join(work, "command_center.db"))
-    srv = serve(k, workroot=work)
-    print(f"DataBossX Command Center on http://{srv.server_address[0]}:{srv.server_address[1]}"
-          " (private, loopback only)")
+    k = ControlKernel.open(os.environ.get("DBX_CC_DATABASE", os.path.join(work, "command_center.db")))
+    srv = serve(k, host=HOST, port=PORT, workroot=work)
+    print(f"DataBossX Command Center on http://{HOST}:{PORT} (private, loopback only)")
     srv.serve_forever()

@@ -16,6 +16,86 @@
 | Ending commit | the commit carrying this line — a commit cannot contain its own hash, so the implementation commit above is the content of record |
 | Release state | **FOR REVIEW — HOLD — NO EXTERNAL RELEASE** |
 
+## Second pass — "do all best moves" (2026-08-01)
+
+After the first cycle, the owner instructed: work the open gaps. Three were
+tractable here; the rest are owner decisions and were left alone.
+
+### 1. PostgreSQL — the top blocker, now closed
+
+The gap report said "no database service reachable". **That was wrong.**
+PostgreSQL 16.13 is installed in this environment; what was missing was a
+driver, because `psycopg2` needs PyPI.
+
+So the driver was written: `pg_wire.py` speaks the v3 wire protocol over a
+socket — startup, trust/md5/SCRAM-SHA-256 auth, the **extended query protocol**
+(Parse/Bind/Describe/Execute/Sync), typed result decoding, and SQLSTATE-aware
+error classification. Parameters are bound by the server and never interpolated
+into SQL text.
+
+`db.py` now drives both engines from one shared set of table and index DDL,
+with separate trigger sets for the one place the dialects genuinely diverge.
+
+**Result: 169/169 tests pass against real PostgreSQL 16.13**, including the
+twelve-thread lease race and the full vertical slice. On SQLite, 163 pass and
+the 6 Postgres-only checks report as skipped — never as passed.
+
+Verified structurally, not just by tests passing: all 4 unique indexes
+(`ux_lease_one_active_per_scope` confirmed genuinely partial) and all 7
+protective triggers exist in the PostgreSQL schema.
+
+**Running on the canonical engine caught two defects SQLite had hidden:**
+
+1. `SecurityWatcher`'s duplicate-active-lease check used `HAVING n > 1`,
+   relying on a SELECT alias. PostgreSQL rejects that (`42703`) — so a
+   **security check** would have failed outright in production.
+2. The audit-tamper test dropped a trigger without naming its table.
+
+That is the argument for this work in two lines.
+
+### 2. Wildcard CORS in `backend/server.py` — fixed
+
+`allow_origins=["*"]` with `allow_credentials=True` let any site make
+credentialed requests using a visitor's cookies. Origins now come from
+`DATABOSSX_ALLOWED_ORIGINS` as an exact allowlist, methods and headers are
+enumerated rather than wildcarded, and a wildcard **disables credentials**
+instead of being honoured.
+
+This file sits outside the original write scope. It was fixed under the
+owner's explicit instruction, and the scope expansion is recorded here.
+
+### 3. Typecheck and dual-engine CI
+
+`.github/workflows/command-center-ci.yml` is additive — it modifies no existing
+workflow — and runs three jobs: the suite on SQLite, the same suite against a
+`postgres:16` service container, and `mypy` plus scoped `flake8`.
+
+mypy found **45 real errors** across four rounds. None were silenced with
+`type: ignore`:
+
+- ~40 traced to one root cause: `db.fetchone` returned `Optional[object]`, so
+  every row lookup was "object is not indexable". Rows now have a structural
+  `Row` Protocol that both engines satisfy.
+- Five kernel sites indexed a row that could be `None`; `db.require_row()` now
+  raises `RowMissing` naming what was expected.
+- The synthetic ownership rows were mixed-type dicts; they are now
+  `list[tuple[str, Fraction]]`.
+- Implicit `Optional` in three signatures; an unhandled `None` from
+  `best_next_move()`; `.app` assigned to a stock `ThreadingHTTPServer`.
+- **A real bug in `pg_wire`**: the startup handler reused the loop variable
+  `key` (a str) to unpack ParameterStatus bytes.
+
+### Gaps deliberately NOT actioned
+
+| Gap | Why not |
+| --- | --- |
+| Real Drive writes | Authorization document is **NOT ACTIVE**. "Do all best moves" does not manufacture an authority that does not exist. |
+| `receipts` vs `03_RECEIPTS` | An owner decision. An agent renaming an existing folder would be an unauthorized mutation. |
+| Speech provider | Costs money; spending requires explicit approval. |
+| WebAuthn step-up | Needs a registered authenticator and an HTTPS origin. Cannot be honestly verified here. |
+| Signed release provenance | Requires release authority, which this directive withholds. |
+| Unreachable commits | Only the owner can push or abandon that local state. |
+
 ## Objective
 
 Complete Phase 0 read-only verification, pass the authority gate, then implement
@@ -27,25 +107,27 @@ and a hash-verified Drive bridge — on synthetic data, preserving every hold.
 ## Exact status
 
 **DELIVERED, NOT CANARY-READY.** The vertical slice is implemented, executed, and
-verified end to end, and CI is green on the branch head.
+verified end to end on **both** SQLite and real PostgreSQL 16.13.
 
-Two things still block private-canary readiness, and both are recorded as
-blocking rather than waived:
+One thing still blocks private-canary readiness, and it is an owner decision
+rather than an engineering gap:
 
-1. **PostgreSQL.** The single-writer and fencing invariants are proven on SQLite
-   with deliberately portable DDL (ADR-0003). They should be proven on the
-   engine that will actually hold them.
-2. **Drive write authority.** The publish protocol is proven against an
-   injectable client, but no real Drive write has occurred (ADR-0004).
+- **Drive write authority.** The publish protocol is proven against an
+  injectable client including corruption and truncation faults, but no real
+  Drive write has occurred, because the authorization document is not active
+  (ADR-0004).
 
-The build environment's lack of PyPI and npm shaped the stack (ADR-0001) but is
-no longer a verification gap: CI runs the real pytest suite. Gates 3 and 4 are
-closed on that evidence.
+The two blockers recorded in the first pass are closed. The legacy suite runs
+under real pytest in CI, and the single-writer invariant is now proven on the
+canonical engine (ADR-0005).
 
 ## Files changed
 
-Additive only — **85 files across 6 new trees**. No existing file was modified,
-renamed, or deleted.
+First pass: additive only, 85 files across 6 new trees. Second pass added
+`pg_wire.py`, `test_engine_portability.py`, `mypy.ini`,
+`.github/workflows/command-center-ci.yml`, and ADR-0005, and **modified one
+pre-existing file** — `backend/server.py`, to fix its wildcard CORS under the
+owner's explicit instruction. That is the only pre-existing file touched.
 
 ```
 apps/control-center-web/     PWA: index.html, app.css, app.js, sw.js,
@@ -53,19 +135,20 @@ apps/control-center-web/     PWA: index.html, app.css, app.js, sw.js,
 services/control_api/command_center/
                              __init__, canonical, errors, state_machines,
                              policy, db, kernel, voice, best_moves, watchers,
-                             drive_bridge, runner, http_api, slice
+                             drive_bridge, runner, http_api, slice, pg_wire
 packages/contracts/          5 JSON Schema contracts
-tests/command_center/        4 suites + support + legacy_runner
-docs/command_center/         13 documents + 4 ADRs
+tests/command_center/        5 suites + support + conftest + legacy_runner
+docs/command_center/         13 documents + 5 ADRs
 scripts/                     cdp_client.py, command_center_visual_qa.py
 evidence/command_center/     7 screenshots + visual_qa_report.json
 ```
 
 Python: 6,855 lines. Web: 1,380 lines. Zero third-party dependencies added.
 
-Prohibited paths verified untouched by `git status`: `horizon/`,
-`src/databossx/`, `mineral_deal_room/`, `doto_image_commander/`, `backend/`,
-`frontend/`, `website/`, `grocery_report_pipeline.py`, and all legacy `tests/*.py`.
+Prohibited paths verified untouched by `git diff`: `horizon/`,
+`src/databossx/`, `mineral_deal_room/`, `doto_image_commander/`, `frontend/`,
+`website/`, `grocery_report_pipeline.py`, and all legacy `tests/*.py`.
+Section 32, Section 20, and Section 17 artifacts were never read or written.
 
 ## Migrations
 
@@ -111,9 +194,12 @@ Command: `PYTHONPATH=services/control_api python -m unittest discover -s tests/c
 | `test_red_team.py` | 67 |
 | `test_api_security.py` | 30 |
 | `test_slice_and_moves.py` | 27 |
-| **Total** | **154** |
+| `test_engine_portability.py` | 15 |
+| **Total** | **169** |
 
-**pass 154 · fail 0 · skip 0 · xfail 0 · xpass 0** — runtime 6.85s.
+- **SQLite:** pass 163 · fail 0 · skip 6 (PostgreSQL-only checks, honestly
+  reported as skipped) · xfail 0 · xpass 0
+- **PostgreSQL 16.13:** pass 169 · fail 0 · skip 0 · xfail 0 · xpass 0
 
 ### Legacy suite — resolved by CI
 

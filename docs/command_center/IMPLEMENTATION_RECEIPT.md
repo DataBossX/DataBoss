@@ -27,9 +27,20 @@ and a hash-verified Drive bridge — on synthetic data, preserving every hold.
 ## Exact status
 
 **DELIVERED, NOT CANARY-READY.** The vertical slice is implemented, executed, and
-verified end to end. Private-canary readiness is blocked by environment gaps
-(no PyPI, no npm, no PostgreSQL) and by absent Drive write authority. Those are
-recorded as blocking rather than waived.
+verified end to end, and CI is green on the branch head.
+
+Two things still block private-canary readiness, and both are recorded as
+blocking rather than waived:
+
+1. **PostgreSQL.** The single-writer and fencing invariants are proven on SQLite
+   with deliberately portable DDL (ADR-0003). They should be proven on the
+   engine that will actually hold them.
+2. **Drive write authority.** The publish protocol is proven against an
+   injectable client, but no real Drive write has occurred (ADR-0004).
+
+The build environment's lack of PyPI and npm shaped the stack (ADR-0001) but is
+no longer a verification gap: CI runs the real pytest suite. Gates 3 and 4 are
+closed on that evidence.
 
 ## Files changed
 

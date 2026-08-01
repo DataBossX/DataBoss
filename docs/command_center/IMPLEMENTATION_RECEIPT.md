@@ -12,6 +12,7 @@
 | Worktree | `/home/user/DataBoss` — single, isolated, no competing checkout |
 | Baseline commit | `582d95161cf8220fb37f5224e21e57dcc5c3121c` |
 | Implementation commit | `843b43481ce74713811c49cae0bedc9e2cfd0c57` |
+| CI status | run 30686563726 on `8ef49c1`: **success** — flake8 green, `303 passed, 7 skipped` |
 | Ending commit | the commit carrying this line — a commit cannot contain its own hash, so the implementation commit above is the content of record |
 | Release state | **FOR REVIEW — HOLD — NO EXTERNAL RELEASE** |
 
@@ -103,17 +104,29 @@ Command: `PYTHONPATH=services/control_api python -m unittest discover -s tests/c
 
 **pass 154 · fail 0 · skip 0 · xfail 0 · xpass 0** — runtime 6.85s.
 
-### Legacy suite — reported separately, NOT as pytest
+### Legacy suite — resolved by CI
 
-`pytest` cannot be installed (no PyPI route), so the legacy suite **was not run
-under pytest and is not claimed as passing**. A stdlib-compat runner
-(`tests/command_center/legacy_runner.py`) executed the faithful subset:
+`pytest` cannot be installed in the build environment (no PyPI route), so during
+the build the legacy suite was reported separately and explicitly **not** claimed
+as passing. A stdlib-compat runner (`tests/command_center/legacy_runner.py`)
+executed the faithful subset: **passed 47 · failed 0 · skipped-unsupported 26**.
 
-**passed 47 · failed 0 · skipped-unsupported 26**
+**GitHub Actions then ran the real suite** on Python 3.10 with every dependency
+installed, on commit `8ef49c1`:
 
-Skips are module-level import failures (`pydantic`, `openpyxl` unavailable) and
-unsupported fixtures (`run`, `workspace`). Per Quality Gate 4 this **blocks
-private-canary readiness**.
+```
+303 passed, 7 skipped in 7.37s      run 30686563726, conclusion success
+```
+
+That is the 154 Command Center tests plus the full legacy suite under real
+pytest 8.0.0, with `flake8` green in the same job. **Quality gates 3 and 4 are
+now satisfied on CI evidence.** The stdlib runner remains useful for offline
+work, but CI is the authority.
+
+One fix was required to get there: the Command Center tests import
+`command_center` at module scope, which `python -m unittest` satisfied via
+`PYTHONPATH` but pytest did not. A conftest scoped to `tests/command_center/`
+now supplies it (commit `8ef49c1`).
 
 ## Security checks
 
@@ -215,13 +228,13 @@ or Section 17 artifact was read into or written from this lane.
 
 | # | Blocker | Severity |
 | --- | --- | --- |
-| 1 | `pytest` uninstallable — legacy suite unverified under pytest | **Blocks canary** |
+| 1 | ~~`pytest` uninstallable~~ — **RESOLVED**: CI ran `303 passed, 7 skipped` | Closed |
 | 2 | No PostgreSQL — invariants proven on SQLite only (ADR-0003) | **Blocks canary** |
 | 3 | Drive write authority not granted — no real upload performed (ADR-0004) | High |
 | 4 | `receipts` vs `03_RECEIPTS` folder conflict unresolved | Medium |
 | 5 | `backend/server.py` wildcard CORS — pre-existing, outside this write scope | High |
 | 6 | Directive commits `0940799`, `517d515`, `faae97a` absent from the repository | Medium |
-| 7 | `flake8`/`mypy`/gitleaks uninstallable | Medium |
+| 7 | `mypy` not run (`flake8` and gitleaks now green in CI) | Medium |
 | 8 | Step-up is a stub; no real WebAuthn | Medium |
 
 ## Decisions needed from Ryan
@@ -238,11 +251,11 @@ or Section 17 artifact was read into or written from this lane.
 
 ## Exact next safe action
 
-Run the legacy suite under real `pytest` on a networked runner and attach the
-results, then provision PostgreSQL and re-run
-`tests/command_center/test_control_kernel.py` against it. Those two steps close
-the only two hard-failing canary gates; everything else is either passing or
-awaiting an owner decision.
+Provision PostgreSQL, run the same migrations against it, and re-run
+`tests/command_center/test_control_kernel.py` there — the single-writer and
+fencing invariants should be proven on the engine that will actually hold them
+(ADR-0003). The pytest gate is already closed by CI; everything else is either
+passing or awaiting an owner decision.
 
 ## Prohibited next actions
 

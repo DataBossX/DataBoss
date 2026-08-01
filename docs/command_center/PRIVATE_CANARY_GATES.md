@@ -5,12 +5,22 @@ Release state: **FOR REVIEW — HOLD — NO EXTERNAL RELEASE**
 
 ## Verdict
 
-**NOT private-canary ready.** Gates 3, 4, and 5 fail on environment blockers, and
-gate 19 cannot be satisfied without Drive authority. Everything else passes.
+**NOT private-canary ready**, but the blocker set is now small: gate 19 cannot be
+satisfied without Drive authority, and PostgreSQL verification (ADR-0003) remains
+outstanding.
 
-Recording this honestly matters more than the score: the directive states that
-known legacy failures either get fixed with regression proof or explicitly block
-readiness. They are not fixable from inside this environment, so they block.
+**Updated 2026-08-01 after CI ran.** Gates 3 and 4 were originally recorded as
+FAIL because `pytest` could not be installed in the build environment. GitHub
+Actions then ran the real suite on Python 3.10 with all dependencies installed:
+
+```
+303 passed, 7 skipped in 7.37s     run 30686563726, commit 8ef49c1, conclusion success
+```
+
+That is the 154 Command Center tests plus the full legacy suite, executed under
+real pytest. Gates 3 and 4 now **PASS on CI evidence**, and gates 5 and 6 improve.
+The earlier FAIL was accurate when written; this supersedes it with better
+evidence rather than reinterpreting the old result.
 
 ## Gate results
 
@@ -18,10 +28,10 @@ readiness. They are not fixable from inside this environment, so they block.
 | --- | --- | --- | --- |
 | 1 | Exact baseline and changed commit recorded | **PASS** | `BASELINE_RECEIPT.md`; baseline `582d951` |
 | 2 | Worktree clean except intentional committed changes | **PASS** | `git status` clean pre-cycle; all changes committed |
-| 3 | Existing canonical tests plus new tests pass, zero unexplained failures | **FAIL** | 154 new tests pass; legacy suite cannot run under `pytest` (no PyPI). Not claimed as passing. |
-| 4 | Known legacy failures fixed with regression proof, or isolated and still blocking | **FAIL (blocking, as designed)** | Legacy suite recorded separately; 47 tests execute under the stdlib-compat runner, 0 fail, 26 SKIPPED-UNSUPPORTED |
-| 5 | Compile, lint, typecheck, unit, integration, e2e, concurrency, failure-injection, security | **PARTIAL** | Compile/unit/integration/concurrency/failure-injection/security: PASS. Lint (`flake8`) and typecheck (`mypy`) not installable. |
-| 6 | Secret scan, dependency scan, license checks | **PARTIAL** | Secret scan: PASS (manual, patterned). Dependency scan: N/A — zero dependencies added. License: N/A — no new deps. Gitleaks CI unavailable offline. |
+| 3 | Existing canonical tests plus new tests pass, zero unexplained failures | **PASS** | CI run 30686563726: `303 passed, 7 skipped`, 0 failures, under real pytest 8.0.0 / Python 3.10 |
+| 4 | Known legacy failures fixed with regression proof, or isolated and still blocking | **PASS** | No legacy failures exist: the full suite passes in CI. The 7 skips are pytest's own, not unsupported cases. |
+| 5 | Compile, lint, typecheck, unit, integration, e2e, concurrency, failure-injection, security | **PARTIAL** | Compile/lint/unit/integration/concurrency/failure-injection/security: PASS (flake8 green in CI). Typecheck (`mypy`) still not run. |
+| 6 | Secret scan, dependency scan, license checks | **PARTIAL** | Secret scan: **PASS** — Gitleaks workflow green in CI on this branch. Dependency scan: N/A — zero dependencies added. License: N/A — no new deps. |
 | 7 | No client data, private path, credential, or real title fact in public code or demo data | **PASS** | Scan clean; only synthetic `synthetic-alpha` / `SYNTHETIC OWNER A–C` |
 | 8 | No raw client evidence leaves the local boundary | **PASS** | Runner posts metadata + receipts only; all artifacts `synthetic: true` |
 | 9 | One-writer and fencing tests prove stale writers cannot mutate | **PASS** | 12-thread race → 1 winner; `StaleFencingToken` fails closed |
@@ -38,18 +48,22 @@ readiness. They are not fixable from inside this environment, so they block.
 | 20 | Rollback and recovery demonstrated | **PASS** | Mid-job failure → rollback + fail-closed receipt |
 | 21 | No public deployment, DNS change, App Store submission, client mutation, release, merge, or push without separate authority | **PASS** | None performed. Push confined to the assigned branch. |
 
-**Summary: 15 PASS · 3 PARTIAL · 2 FAIL · 1 blocking-by-design.**
+**Summary: 17 PASS · 4 PARTIAL · 0 FAIL.**
+
+The remaining partials are gate 19 (no Drive write authority), the `mypy`
+typecheck in gate 5, and dependency/license scanning in gate 6 — the last of
+which is not applicable with zero dependencies added.
 
 ## What must happen before canary
 
 Ordered by dependency:
 
-1. **Networked runner** — install `pytest`, run the legacy suite, attach results.
-   Closes gates 3 and 4.
+1. ~~Networked runner — run the legacy suite under real pytest.~~ **Done** — CI
+   run 30686563726, `303 passed, 7 skipped`. Gates 3 and 4 closed.
 2. **PostgreSQL** — run the same migrations and re-run the invariant tests
    against Postgres. Closes ADR-0003; hardens gate 9.
-3. **Lint and typecheck** — `flake8` and `mypy` in CI. Closes gate 5.
-4. **Gitleaks in CI** — the workflow exists but needs a network runner. Closes 6.
+3. **Typecheck** — add `mypy` to CI. `flake8` already runs green. Closes gate 5.
+4. ~~Gitleaks in CI.~~ **Done** — the Secret scan workflow is green on this branch.
 5. **Drive authority** — activate the authorization document, resolve
    `receipts` vs `03_RECEIPTS`, implement `GoogleDriveClient`, re-run the Drive
    red-team tests against a scratch folder. Closes gate 19.

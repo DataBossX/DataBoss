@@ -99,8 +99,10 @@ Prohibited and untouched (verified by diff at end of cycle):
 | Repository release gate | `website/src/components/ReleaseGate.astro` | untouched |
 | Security incident record | `SECURITY.md` (credential + client-metadata incidents) | untouched, honored |
 
-The Command Center ships with a hard-coded, non-removable global hold. See
-`tests/command_center/test_red_team.py::HoldProtectionTests`.
+The Command Center ships with hard-coded, non-removable holds. See
+`tests/command_center/test_control_kernel.py::HoldTests` (kernel and database
+layers) and `tests/command_center/test_api_security.py::HoldEndpointTests`
+(HTTP layer).
 
 ## 7. Google Drive state — verified read-only
 
@@ -140,8 +142,10 @@ The legacy suite (`tests/test_horizon_*.py`, `tests/test_databossx_foundation.py
   and `pytest.mark.parametrize`. Its results are reported as *runner-executed*,
   explicitly **not** as a pytest run, and unsupported tests are reported as
   SKIPPED-UNSUPPORTED rather than passed.
-- Per Quality Gate 4, this environmental blocker **blocks private-canary
-  readiness** and is listed in `CURRENT_GAP_REPORT.md`.
+- **Update (post-CI):** GitHub Actions ran the real suite with all dependencies
+  on commit `8ef49c1` — `303 passed, 7 skipped`, zero failures (run
+  30686563726). The environmental blocker applied to the build environment only;
+  Quality Gates 3 and 4 are satisfied on CI evidence.
 
 ## 10. Attestation
 

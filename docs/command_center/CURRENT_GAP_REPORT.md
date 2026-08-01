@@ -39,7 +39,7 @@ Release state: **FOR REVIEW — HOLD — NO EXTERNAL RELEASE**
 
 | # | Open gap | Severity | Why it remains | Owner action needed |
 | --- | --- | --- | --- | --- |
-| 1 | Legacy `pytest` suite cannot execute (PyPI blocked) | **BLOCKS CANARY** | No package network in this environment | Run `pytest` on a networked runner and attach results |
+| 1 | ~~Legacy `pytest` suite cannot execute~~ **CLOSED** | resolved | GitHub Actions ran it: `303 passed, 7 skipped` (run 30686563726, commit `8ef49c1`) | none — done |
 | 2 | PostgreSQL not available; kernel runs on SQLite | **BLOCKS CANARY** | No network/service; directive names Postgres as canonical cloud store | Provision Postgres; run the same migrations (DDL kept portable) and re-run invariant tests |
 | 3 | Real Drive writes not performed | HIGH | No active authorization; `00_AUTHORIZATION_REQUEST...NOT_YET_ACTIVE` confers nothing | Activate authorization, then run the Drive bridge against the verified parent |
 | 4 | `03_RECEIPTS` vs existing `receipts` folder conflict unresolved | MEDIUM | Directive forbids creating/moving Drive folders without verified authority | Owner decides: rename, alias, or adopt existing `receipts` |
@@ -52,8 +52,9 @@ Release state: **FOR REVIEW — HOLD — NO EXTERNAL RELEASE**
 
 ## D. Known pre-existing test conditions (recorded separately, not caused here)
 
-- `tests/*.py` legacy suite: **NOT RUN under pytest** — dependency unavailable.
-  Not claimed as passing. See `BASELINE_RECEIPT.md` §9.
+- `tests/*.py` legacy suite: not runnable **in the build environment** (no PyPI),
+  so it was never claimed as passing there. **CI has since run it under real
+  pytest with all dependencies: `303 passed, 7 skipped`, zero failures.**
 - `backend_test.py` requires FastAPI/httpx — unavailable, not run.
 - `tests/test_grocery_pipeline.py` uses a module-scoped fixture and external
   spreadsheet dependencies — unsupported by the stdlib runner, reported SKIPPED-UNSUPPORTED.

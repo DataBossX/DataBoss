@@ -13,7 +13,7 @@ quote these hashes; a mismatch invalidates the submission.
 
 | File | SHA-256 |
 | --- | --- |
-| `FROZEN_BRIEF.md` | `9a3392cd89d1625691a66c81838fe604e0a65e504a4370dae90a7dda711ff2ba` |
+| `FROZEN_BRIEF.md` | `dfc37dbc5198af74eb8838a7047618549e0cc544b2db68222222111c28922471` (amendment `A-1`; supersedes pre-amendment `9a3392cd…`, which no competitor ever received) |
 | `RED_TEAM_TEST_PLAN.md` | `456b774f4bffc2fbe2f31d13a1e08cef118fff6fd5c2b77a0225019c50c0714d` |
 | `seed/README.md` | `b0c0c0aa0957ffa287a5ebdb75b286cc13f5ffcadc22aea46c11f8271c355930` |
 | `seed/conflicts.json` | `803b91f39be913b2a6cf010dbbe6fda19e27acbe032bf2a041a17a4794e1bd0f` |

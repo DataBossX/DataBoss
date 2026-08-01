@@ -67,14 +67,24 @@ Read these before writing anything:
 
 ### Environment facts you must design around (verified, not assumed)
 
-- **No PyPI and no npm egress.** `pypi.org` and `registry.npmjs.org` both return
-  403 under this session's egress policy. Only the Python standard library plus
-  `requests` are importable. Node 22 and npm exist but cannot fetch packages.
+- **The repository baseline is GREEN.** GitHub Actions installs the full
+  `requirements.txt` and runs the real `pytest`: **149 passed, 7 skipped, 0
+  failed** at `582d951`. Do not treat the existing code as broken.
+- **This authoring session has no PyPI and no npm egress.** `pypi.org` and
+  `registry.npmjs.org` both return 403 under this session's egress policy. Only
+  the Python standard library plus `requests` are importable here. Node 22 and
+  npm exist but cannot fetch packages.
 - Consequently `pydantic`, `openpyxl`, `lxml`, `pytest`, `fastapi`, `pandas`
-  are **unavailable**, and 11 of 17 test modules cannot import.
-- **A prototype that needs an unavailable dependency cannot be demonstrated
-  here and will be scored as undemonstrated.** Prefer stdlib-first designs, or
-  state precisely and honestly which parts are undemonstrable and why.
+  are unavailable **in-session**, and 11 of 17 test modules cannot import
+  **in-session**. They all pass in CI.
+- **What this means for you:** you may declare third-party dependencies, and
+  they will be genuinely verified — by CI. What you cannot do is *interactively
+  demonstrate* them during a Phase 2 session. A stdlib-first prototype can be
+  shown running live; a dependency-heavy one can only be shown green in CI.
+  Both are legitimate. Neither is penalised for the environment itself.
+- **What is penalised** is claiming a demonstration you did not perform. State
+  precisely which parts you ran, where you ran them, and which parts you did
+  not run at all.
 - The real title corpus is **not** in this environment. It is on a private
   Windows machine. All prototype data is synthetic.
 
@@ -295,5 +305,19 @@ result. Silent partial success is unacceptable.**
 
 ## 12. Amendments
 
-*(none — any amendment is dated, applies to every entry equally, and is
-re-issued before scoring)*
+Any amendment is dated, applies to every entry equally, and is re-issued before
+scoring.
+
+### A-1 — 2026-08-01, pre-launch
+
+**Made before any competitor was started, so no entry saw the earlier text.**
+
+CI ran against the director branch and proved that the canonical `pytest` suite
+passes with full dependencies (149 passed, 7 skipped, 0 failed). The original §2
+had generalised this session's missing packages into a project-wide constraint
+and told competitors that dependency-needing prototypes "will be scored as
+undemonstrated". That was wrong and would have biased every entry toward
+stdlib-only designs for no real reason. §2 is corrected above.
+
+The frozen-package hashes in `COMPETITOR_REGISTRY.md` were recomputed after this
+amendment.

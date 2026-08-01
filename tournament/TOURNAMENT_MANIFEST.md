@@ -129,4 +129,17 @@ competitor and sole judge of its own work"). Mitigations are recorded in
 
 ## 7. Amendments
 
-*(none)*
+### A-1 — 2026-08-01, pre-launch: baseline test status corrected
+
+The first pass of `BASELINE_RECEIPT.md` reported only a stdlib substitute-harness
+result, because this session cannot install `pytest`. CI then ran against the
+director branch and produced the authoritative figure: **149 passed, 7 skipped,
+0 failed**, with all 17 test modules importing.
+
+Corrected: `BASELINE_RECEIPT.md` §3 (CI result promoted to authoritative),
+`SECURITY_EXCEPTIONS.md` `SX-1` (downgraded HIGH → LOW-MEDIUM),
+`FROZEN_BRIEF.md` §2 (amendment `A-1`; hash recomputed in
+`COMPETITOR_REGISTRY.md`).
+
+No competitor existed when this was corrected, so no entry was scored under the
+wrong assumption.

@@ -61,7 +61,63 @@ retried or routed around.
 **Therefore the canonical command `python -m pytest -q` from `README.md` cannot
 be executed in this environment.** Any claim that it passed would be false.
 
-## 3. Baseline test result — obtained via a declared substitute harness
+## 3. AUTHORITATIVE baseline test result — GitHub Actions CI
+
+The `python-app` workflow installs `requirements.txt` on `ubuntu-latest` /
+Python 3.10 and runs the real `pytest`. It executed against this branch and
+**passed**:
+
+```
+collected 156 items
+
+backend_test.py                          sssssss                [  4%]
+tests/test_databossx_foundation.py       ...                    [  6%]
+tests/test_grocery_pipeline.py           ..........             [ 12%]
+tests/test_horizon_artifacts.py          .....                  [ 16%]
+tests/test_horizon_audit_fixes.py        .............          [ 24%]
+tests/test_horizon_chaining.py           .......                [ 28%]
+tests/test_horizon_controlled_loop.py    ..........             [ 35%]
+tests/test_horizon_foundation.py         ......                 [ 39%]
+tests/test_horizon_interest.py           .....................  [ 57%]
+tests/test_horizon_pipeline.py           .......                [ 62%]
+tests/test_horizon_repair_orchestrator.py .....                 [ 65%]
+tests/test_horizon_review_fixes.py       ................       [ 75%]
+tests/test_horizon_review_fixes2.py      .....                  [ 78%]
+tests/test_horizon_review_fixes3.py      ........               [ 83%]
+tests/test_horizon_review_fixes5.py      .....                  [ 87%]
+tests/test_horizon_review_fixes6.py      .....                  [ 90%]
+tests/test_horizon_validation.py         ........               [ 95%]
+tests/test_horizon_versioning.py         .......                [100%]
+
+======================== 149 passed, 7 skipped in 6.41s ========================
+```
+
+- Run: <https://github.com/DataBossX/DataBoss/actions/runs/30679838040/job/91314510001>
+- Also green: `secret-scan / current-tree` (two runs), `flake8` syntax gate.
+- The 7 skips are all in `backend_test.py` (legacy demo backend), skipped by the
+  file itself.
+- No application code was changed on this branch, so this result is the
+  **pre-tournament baseline**: `582d951` + documentation is green.
+
+### Therefore, the real baseline is GREEN
+
+**`BASELINE = 149 passed, 7 skipped, 0 failed.`** This is the number that counts.
+It supersedes the harness figures in §4 as the statement of repository health.
+
+The distinction that survives:
+
+| Environment | Dependencies | Canonical `pytest` | Result |
+| --- | --- | --- | --- |
+| GitHub Actions CI | full `requirements.txt` | **yes** | **149 passed / 7 skipped** |
+| This cloud session | stdlib + `requests` only | no — uninstallable | 11 of 17 modules cannot import |
+
+So the constraint is **local to this session**, not a property of the project.
+A competitor may declare third-party dependencies and have them genuinely
+verified — in CI. What a competitor cannot do is demonstrate them *interactively
+here*. Section 4 is retained because that in-session limit still governs what a
+prototype can be shown doing during Phase 2.
+
+## 4. In-session test result — obtained via a declared substitute harness
 
 To get a real signal rather than no signal, the director wrote a stdlib-only
 substitute harness **outside the repository** (in the session scratchpad, not
@@ -112,7 +168,7 @@ SKIP      0
 validation, and controlled-loop test**, i.e. exactly the safety-critical
 surface — cannot execute here at all.
 
-## 4. KNOWN PRE-EXISTING FAILURES (not caused by the tournament)
+## 5. KNOWN PRE-EXISTING CONDITIONS (not caused by the tournament)
 
 ### KF-1 — `test_grocery_pipeline.py::test_all_outputs_exist`
 
@@ -122,18 +178,26 @@ AssertionError: Missing outputs: ['file_inventory.xlsx', 'extracted_facts.xlsx',
 'validation_report.xlsx', ...]
 ```
 
-Cause: environmental, not a code defect. `grocery_report_pipeline.py` degrades
-to CSV when `openpyxl` is absent (it logs
-`WARN openpyxl missing -> wrote CSV fallback for ...`), which is the documented
-and intended behaviour in `README.md` / `RUNBOOK.md`. The test asserts the
-`.xlsx` filenames unconditionally, so the graceful-degradation path fails its
-own test suite. This is a **test-vs-design mismatch that predates the
-tournament**. It is recorded here so it is never attributed to a competitor.
+**Does not reproduce in CI** — this test passes there, because `openpyxl` is
+installed and the `.xlsx` files are actually written.
 
-### KF-2 — 11 blocked modules
+Cause: purely environmental. `grocery_report_pipeline.py` degrades to CSV when
+`openpyxl` is absent (logging `WARN openpyxl missing -> wrote CSV fallback for
+...`), which is the documented and intended behaviour in `README.md` /
+`RUNBOOK.md`. The test asserts the `.xlsx` filenames unconditionally, so the
+graceful-degradation path fails its own test suite.
 
-Cause: environmental (no PyPI egress). Pre-existing. Not attributable to any
-competitor.
+The latent point is still worth recording even though CI is green: the
+documented degraded mode has **no passing test that covers it**. A competitor
+proposing to rely on stdlib-only degradation should notice that the degraded
+path is currently unverified. That is an observation for scoring band I, not a
+defect attributable to anyone.
+
+### KF-2 — 11 modules unrunnable in this session
+
+Cause: environmental (no PyPI egress in this cloud session). **Not a repository
+condition** — all 11 pass in CI. Recorded so that in-session results are never
+misread as project health, in either direction.
 
 ### KF-3 — Client identifier present in the public repository
 
@@ -157,7 +221,7 @@ tournament's). It is escalated in the response to Ryan.
 See `TOURNAMENT_MANIFEST.md` §3. No hold registry, no hold check, no test.
 Pre-existing.
 
-## 5. Writer-lease check
+## 6. Writer-lease check
 
 - Local worktrees: 1 (`/home/user/DataBoss`). No competing checkout.
 - Working tree clean; no stash; no rebase/merge in progress.
@@ -170,7 +234,7 @@ Pre-existing.
   cannot prove no human or agent is writing there. Treated as **unverified for
   the private side**; see blocker B-3 in the response to Ryan.
 
-## 6. Reproduction
+## 7. Reproduction
 
 ```bash
 git -C /home/user/DataBoss rev-parse HEAD          # 582d951...

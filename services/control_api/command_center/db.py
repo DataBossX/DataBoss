@@ -534,6 +534,21 @@ def migrate(conn) -> None:
         raise
 
 
+class RowMissing(LookupError):
+    """A row the caller had proven must exist was not there.
+
+    Raised instead of letting ``None`` propagate into an index or ``dict()``,
+    so a broken invariant surfaces at its source rather than as an obscure
+    ``TypeError`` further along.
+    """
+
+
+def require_row(row: Optional[Row], what: str) -> Row:
+    if row is None:
+        raise RowMissing(f"expected exactly one row for {what}, found none")
+    return row
+
+
 def fetchone(conn, sql: str, params: Iterable = ()) -> Optional[Row]:
     cur = conn.execute(sql, tuple(params))
     try:

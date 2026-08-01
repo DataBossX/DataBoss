@@ -339,9 +339,13 @@ class ControlKernel:
                 "UPDATE fencing_counters SET current_value = current_value + 1 WHERE resource_scope = ?",
                 (resource_scope,),
             )
-            sequence = dbmod.fetchone(
-                self.conn, "SELECT current_value FROM fencing_counters WHERE resource_scope=?",
-                (resource_scope,),
+            sequence = dbmod.require_row(
+                dbmod.fetchone(
+                    self.conn,
+                    "SELECT current_value FROM fencing_counters WHERE resource_scope=?",
+                    (resource_scope,),
+                ),
+                f"fencing counter for {resource_scope}",
             )["current_value"]
 
             now = self.now()
@@ -642,7 +646,10 @@ class ControlKernel:
         except Exception:
             self._rollback()
             raise
-        return dict(dbmod.fetchone(self.conn, "SELECT * FROM approvals WHERE approval_id=?", (approval_id,)))
+        return dict(dbmod.require_row(
+            dbmod.fetchone(self.conn, "SELECT * FROM approvals WHERE approval_id=?", (approval_id,)),
+            f"approval {approval_id}",
+        ))
 
     def consume_approval(
         self,
@@ -714,7 +721,10 @@ class ControlKernel:
         except Exception:
             self._rollback()
             raise
-        return dict(dbmod.fetchone(self.conn, "SELECT * FROM approvals WHERE approval_id=?", (approval_id,)))
+        return dict(dbmod.require_row(
+            dbmod.fetchone(self.conn, "SELECT * FROM approvals WHERE approval_id=?", (approval_id,)),
+            f"approval {approval_id}",
+        ))
 
     # ---------------------------------------------------------- task envelope
     def build_task_envelope(
@@ -891,7 +901,10 @@ class ControlKernel:
         except Exception:
             self._rollback()
             raise
-        return dict(dbmod.fetchone(self.conn, "SELECT * FROM jobs WHERE job_id=?", (job_id,)))
+        return dict(dbmod.require_row(
+            dbmod.fetchone(self.conn, "SELECT * FROM jobs WHERE job_id=?", (job_id,)),
+            f"job {job_id}",
+        ))
 
     def start_attempt(self, *, job_id: str, task_id: str, lease_id: str, fencing_sequence: int) -> str:
         attempt_id = new_id("att")
@@ -963,10 +976,14 @@ class ControlKernel:
                 version_number = 1
             else:
                 artifact_id = row["artifact_id"]
-                last = dbmod.fetchone(
-                    self.conn,
-                    "SELECT MAX(version_number) AS n FROM artifact_versions WHERE artifact_id=?",
-                    (artifact_id,),
+                last = dbmod.require_row(
+                    dbmod.fetchone(
+                        self.conn,
+                        "SELECT MAX(version_number) AS n FROM artifact_versions"
+                        " WHERE artifact_id=?",
+                        (artifact_id,),
+                    ),
+                    f"version count for artifact {artifact_id}",
                 )
                 version_number = (last["n"] or 0) + 1
 

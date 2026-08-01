@@ -22,7 +22,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Callable, Mapping, Optional
+from typing import Callable, List, Mapping, Optional, Tuple
 
 from . import policy as policymod
 from . import db as dbmod
@@ -351,12 +351,12 @@ def _adapter_simulate_rollup(runner: "LocalRunner", params: Mapping, task_id: st
     project_id = params["project_id"]
     # Synthetic ownership. Deliberately does NOT sum to 1 so the honest-reporting
     # path is the one that actually executes.
-    synthetic_owners = [
-        {"owner": "SYNTHETIC OWNER A", "interest": Fraction(1, 4)},
-        {"owner": "SYNTHETIC OWNER B", "interest": Fraction(1, 8)},
-        {"owner": "SYNTHETIC OWNER C", "interest": Fraction(1, 16)},
+    synthetic_owners: List[Tuple[str, Fraction]] = [
+        ("SYNTHETIC OWNER A", Fraction(1, 4)),
+        ("SYNTHETIC OWNER B", Fraction(1, 8)),
+        ("SYNTHETIC OWNER C", Fraction(1, 16)),
     ]
-    total = sum((o["interest"] for o in synthetic_owners), Fraction(0))
+    total = sum((interest for _owner, interest in synthetic_owners), Fraction(0))
     balanced = total == Fraction(1)
     remainder = Fraction(1) - total
 
@@ -364,9 +364,8 @@ def _adapter_simulate_rollup(runner: "LocalRunner", params: Mapping, task_id: st
         "SIMULATED": True,
         "project_id": project_id,
         "owners": [
-            {"owner": o["owner"],
-             "interest": f"{o['interest'].numerator}/{o['interest'].denominator}"}
-            for o in synthetic_owners
+            {"owner": owner, "interest": f"{interest.numerator}/{interest.denominator}"}
+            for owner, interest in synthetic_owners
         ],
         "total_interest": f"{total.numerator}/{total.denominator}",
         "balanced": balanced,

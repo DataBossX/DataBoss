@@ -9,6 +9,10 @@ Release state: **FOR REVIEW — HOLD — NO EXTERNAL RELEASE**
 rather than an engineering gap: gate 19 needs Google Drive write authority,
 which is not granted.
 
+**Confirmed by CI (run 30692255367, commit `d2d4dda`):** "Suite on SQLite",
+"Suite on PostgreSQL", "Typecheck and lint", and the Gitleaks secret scan all
+report **success**.
+
 **Updated again 2026-08-01 (second pass).** The PostgreSQL gap is **closed** —
 PostgreSQL 16.13 turned out to be installed locally, and only a driver was
 missing. A standard-library wire client (ADR-0005) closed it: **169/169 tests
@@ -37,7 +41,7 @@ evidence rather than reinterpreting the old result.
 | 2 | Worktree clean except intentional committed changes | **PASS** | `git status` clean pre-cycle; all changes committed |
 | 3 | Existing canonical tests plus new tests pass, zero unexplained failures | **PASS** | CI run 30686563726: `303 passed, 7 skipped`, 0 failures, under real pytest 8.0.0 / Python 3.10 |
 | 4 | Known legacy failures fixed with regression proof, or isolated and still blocking | **PASS** | No legacy failures exist: the full suite passes in CI. The 7 skips are pytest's own, not unsupported cases. |
-| 5 | Compile, lint, typecheck, unit, integration, e2e, concurrency, failure-injection, security | **PENDING CI** | Compile/unit/integration/concurrency/failure-injection/security: PASS locally on both engines. `mypy` + scoped `flake8` jobs added in `command-center-ci.yml` but have **not run yet** — not claimed as passing until they do |
+| 5 | Compile, lint, typecheck, unit, integration, e2e, concurrency, failure-injection, security | **PASS** | CI run 30692255367 on `d2d4dda`: "Typecheck and lint" (mypy + flake8), "Suite on SQLite", and "Suite on PostgreSQL" all **success** |
 | 6 | Secret scan, dependency scan, license checks | **PARTIAL** | Secret scan: **PASS** — Gitleaks workflow green in CI on this branch. Dependency scan: N/A — zero dependencies added. License: N/A — no new deps. |
 | 7 | No client data, private path, credential, or real title fact in public code or demo data | **PASS** | Scan clean; only synthetic `synthetic-alpha` / `SYNTHETIC OWNER A–C` |
 | 8 | No raw client evidence leaves the local boundary | **PASS** | Runner posts metadata + receipts only; all artifacts `synthetic: true` |
@@ -55,7 +59,7 @@ evidence rather than reinterpreting the old result.
 | 20 | Rollback and recovery demonstrated | **PASS** | Mid-job failure → rollback + fail-closed receipt |
 | 21 | No public deployment, DNS change, App Store submission, client mutation, release, merge, or push without separate authority | **PASS** | None performed. Push confined to the assigned branch. |
 
-**Summary: 17 PASS · 3 PARTIAL · 1 PENDING CI · 0 FAIL.**
+**Summary: 18 PASS · 3 PARTIAL · 0 FAIL.**
 
 The remaining partials are gate 19 (no Drive write authority — an owner
 decision), and dependency/license scanning in gate 6, which is not applicable
@@ -69,8 +73,9 @@ Ordered by dependency:
    run 30686563726, `303 passed, 7 skipped`. Gates 3 and 4 closed.
 2. ~~PostgreSQL — re-run the invariant tests against Postgres.~~ **Done** —
    169/169 on PostgreSQL 16.13 (ADR-0005). Gate 9 hardened.
-3. **Typecheck** — `mypy` and scoped `flake8` jobs are added in
-   `command-center-ci.yml`; gate 5 closes when that workflow reports green.
+3. ~~Typecheck — add `mypy` and scoped `flake8`.~~ **Done** — green in CI run
+   30692255367. Gate 5 closed. mypy surfaced 45 real defects along the way,
+   none suppressed.
 4. ~~Gitleaks in CI.~~ **Done** — the Secret scan workflow is green on this branch.
 5. **Drive authority** — activate the authorization document, resolve
    `receipts` vs `03_RECEIPTS`, implement `GoogleDriveClient`, re-run the Drive

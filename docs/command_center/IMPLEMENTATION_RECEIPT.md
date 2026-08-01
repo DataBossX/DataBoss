@@ -12,7 +12,7 @@
 | Worktree | `/home/user/DataBoss` — single, isolated, no competing checkout |
 | Baseline commit | `582d95161cf8220fb37f5224e21e57dcc5c3121c` |
 | Implementation commit | `843b43481ce74713811c49cae0bedc9e2cfd0c57` |
-| CI status | run 30686563726 on `8ef49c1`: **success** — flake8 green, `303 passed, 7 skipped` |
+| CI status | run 30692255367 on `d2d4dda`: **all green** — Suite on SQLite, Suite on PostgreSQL, Typecheck and lint (mypy + flake8), Gitleaks secret scan. Legacy pytest suite green earlier at `303 passed, 7 skipped` |
 | Ending commit | the commit carrying this line — a commit cannot contain its own hash, so the implementation commit above is the content of record |
 | Release state | **FOR REVIEW — HOLD — NO EXTERNAL RELEASE** |
 
@@ -84,6 +84,9 @@ mypy found **45 real errors** across four rounds. None were silenced with
   `best_next_move()`; `.app` assigned to a stock `ThreadingHTTPServer`.
 - **A real bug in `pg_wire`**: the startup handler reused the loop variable
   `key` (a str) to unpack ParameterStatus bytes.
+
+All three jobs report **success** on `d2d4dda` (CI run 30692255367), so the
+typecheck gate is closed on evidence rather than on intent.
 
 ### Gaps deliberately NOT actioned
 

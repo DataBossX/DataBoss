@@ -1,0 +1,68 @@
+{
+  "schema_id": "dbx.tournament_seed.wells",
+  "schema_version": "1.0",
+  "data_class": "SYNTHETIC",
+  "warning": "FICTIONAL DATA ONLY. API numbers use a reserved-for-fiction state code (99) and are not valid identifiers.",
+  "operators": [
+    {"operator_id": "OP-SEED-001", "name": "Northfork Synthetic Energy LLC"},
+    {"operator_id": "OP-SEED-002", "name": "Blue Mesa Fictional Resources Inc"}
+  ],
+  "wells": [
+    {
+      "well_id": "W-SEED-0001",
+      "api": "99-999-00001",
+      "name": "SANDHILL 32-1H (SYNTHETIC)",
+      "operator_id": "OP-SEED-001",
+      "surface_location": {"section": 32, "township": "11N", "range": "25W", "state": "ZZ", "county": "Sandhill"},
+      "wellbore_type": "HORIZONTAL",
+      "status": "PRODUCING",
+      "spud_date": "2024-03-11",
+      "completion_date": "2024-07-02",
+      "formation": "SYNTHETIC SHALE A",
+      "links_to_tracts": ["SEED-32-T1"],
+      "link_confidence": "HIGH"
+    },
+    {
+      "well_id": "W-SEED-0002",
+      "api": "99-999-00002",
+      "name": "SANDHILL 20-2H (SYNTHETIC)",
+      "operator_id": "OP-SEED-002",
+      "surface_location": {"section": 20, "township": "9N", "range": "22W", "state": "ZZ", "county": "Sandhill"},
+      "wellbore_type": "HORIZONTAL",
+      "status": "SHUT_IN",
+      "spud_date": "2023-09-01",
+      "completion_date": "2023-12-19",
+      "formation": "SYNTHETIC SHALE B",
+      "links_to_tracts": ["SEED-20-T1"],
+      "link_confidence": "HIGH"
+    },
+    {
+      "well_id": "W-SEED-0003",
+      "api": "99-999-00003",
+      "name": "SANDHILL 17-3H (SYNTHETIC)",
+      "operator_id": "OP-SEED-002",
+      "surface_location": {"section": 17, "township": "9N", "range": "22W", "state": "ZZ", "county": "Sandhill"},
+      "wellbore_type": "HORIZONTAL",
+      "status": "PERMITTED_NOT_SPUD",
+      "formation": "SYNTHETIC SHALE B",
+      "links_to_tracts": ["SEED-17-T1", "SEED-20-T1"],
+      "link_confidence": "AMBIGUOUS",
+      "ambiguity_note": "Lateral crosses a synthetic unit boundary; tract attribution is unresolved. Exercises RT-24."
+    }
+  ],
+  "permits": [
+    {"permit_id": "P-SEED-1001", "well_id": "W-SEED-0003", "type": "INTENT_TO_DRILL", "filed": "2026-07-28", "status": "APPROVED", "note": "recent — exercises new-permit alerting"}
+  ],
+  "spacing_orders": [
+    {"order_id": "SO-SEED-5001", "sections": [17, 20], "township": "9N", "range": "22W", "state": "ZZ", "spacing_acres": 640, "effective": "2022-05-01"}
+  ],
+  "units": [
+    {"unit_id": "U-SEED-9001", "name": "SANDHILL 9N-22W UNIT (SYNTHETIC)", "order_id": "SO-SEED-5001", "tracts": ["SEED-17-T1", "SEED-20-T1"]}
+  ],
+  "production_periods": [
+    {"well_id": "W-SEED-0001", "period": "2024-08", "oil_bbl": 18400, "gas_mcf": 41200, "water_bbl": 9100, "source": "SEED-OFFICIAL-FEED", "restated": false},
+    {"well_id": "W-SEED-0001", "period": "2024-09", "oil_bbl": 15100, "gas_mcf": 36800, "water_bbl": 8800, "source": "SEED-OFFICIAL-FEED", "restated": false},
+    {"well_id": "W-SEED-0001", "period": "2024-10", "oil_bbl": 12950, "gas_mcf": 33100, "water_bbl": 8400, "source": "SEED-OFFICIAL-FEED", "restated": true, "restatement_note": "superseded by corrected filing — see conflicts.json CF-2"},
+    {"well_id": "W-SEED-0002", "period": "2024-01", "oil_bbl": 9800, "gas_mcf": 22400, "water_bbl": 5100, "source": "SEED-OFFICIAL-FEED", "restated": false}
+  ]
+}

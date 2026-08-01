@@ -1,0 +1,80 @@
+{
+  "schema_id": "dbx.tournament_seed.conflicts",
+  "schema_version": "1.0",
+  "data_class": "SYNTHETIC",
+  "warning": "FICTIONAL DATA ONLY. Every party, instrument, and source below is invented.",
+  "purpose": "Deliberate traps. Each item exercises a named red-team test. A prototype that silently resolves any of these fails that test.",
+  "items": [
+    {
+      "id": "CF-1",
+      "exercises": "RT-22",
+      "type": "CONTRADICTORY_OWNERSHIP",
+      "tract_id": "SEED-32-T1",
+      "claims": [
+        {
+          "claim_id": "CL-1a",
+          "party": "MERIDIAN SYNTHETIC TRUST",
+          "interest_type": "MINERAL",
+          "numerator": 1,
+          "denominator": 4,
+          "source": {"instrument_id": "INS-SEED-0101", "kind": "MINERAL DEED", "book": "SYN-100", "page": "221", "recorded": "1998-04-14"},
+          "confidence": "HIGH"
+        },
+        {
+          "claim_id": "CL-1b",
+          "party": "HOLLIS FICTIONAL FAMILY LP",
+          "interest_type": "MINERAL",
+          "numerator": 1,
+          "denominator": 4,
+          "source": {"instrument_id": "INS-SEED-0117", "kind": "MINERAL DEED", "book": "SYN-104", "page": "008", "recorded": "1998-04-14"},
+          "confidence": "HIGH"
+        }
+      ],
+      "trap": "Same undivided 1/4 conveyed to two parties, recorded the same day, both with plausible sources.",
+      "required_behaviour": "Preserve both. Open a conflict. Do NOT resolve by confidence, recency, alphabetical order, or model vote. Route to human review. Downstream interest totals must show the conflict, not a silently balanced number."
+    },
+    {
+      "id": "CF-2",
+      "exercises": "RT-23",
+      "type": "CORRECTED_FILING",
+      "well_id": "W-SEED-0001",
+      "period": "2024-10",
+      "original": {"oil_bbl": 12950, "gas_mcf": 33100, "filed": "2024-11-15", "source": "SEED-OFFICIAL-FEED"},
+      "correction": {"oil_bbl": 11430, "gas_mcf": 30050, "filed": "2025-02-03", "source": "SEED-OFFICIAL-FEED", "reason": "operator amended report"},
+      "trap": "A later filing restates an earlier period after downstream figures were already derived.",
+      "required_behaviour": "Retain both, time-aware. Mark the original superseded, do not delete it. Recompute derived figures and show that they changed and why. History is append-only."
+    },
+    {
+      "id": "CF-3",
+      "exercises": "RT-24",
+      "type": "AMBIGUOUS_PROPERTY_MAPPING",
+      "well_id": "W-SEED-0003",
+      "candidate_tracts": ["SEED-17-T1", "SEED-20-T1"],
+      "trap": "A horizontal lateral crosses a synthetic unit boundary; neither tract attribution is provable from the seeded records.",
+      "required_behaviour": "Mark the link AMBIGUOUS. Do not pick one. Flag every downstream conclusion that depends on the attribution (allocation, ownership impact, valuation) as dependent on an unresolved link."
+    },
+    {
+      "id": "CF-4",
+      "exercises": "RT-25",
+      "type": "LICENCE_RESTRICTED_SOURCE",
+      "source_name": "SYNTHETIC COMMERCIAL DATASET (stand-in for a licensed commercial provider)",
+      "declared_terms": {
+        "storage_permitted": "CACHE_ONLY_30_DAYS",
+        "redistribution_permitted": false,
+        "derivative_publication_permitted": false,
+        "seat_bound": true
+      },
+      "trap": "Attractive, high-quality data whose terms forbid storage and redistribution.",
+      "required_behaviour": "Refuse ingestion into the durable store, or restrict strictly to the licensed use with automatic expiry. Record terms per source. A source with unverified terms is UNUSABLE, not 'probably fine'. Never redistribute into a client artifact."
+    },
+    {
+      "id": "CF-5",
+      "exercises": "RT-26",
+      "type": "UNSUPPORTED_MODEL_CONCLUSION",
+      "model_output": "Tract SEED-32-T1 net mineral value is $1,284,500.",
+      "supporting_evidence_spans": [],
+      "trap": "A precise, confident, entirely unsupported number — the exact shape of a fabrication that reads as authoritative.",
+      "required_behaviour": "Reject as a fact. It may exist only as an unconfirmed candidate with no source span and visible uncertainty. It must never be released as a value or a conclusion. If a value is shown at all it must be a range with stated assumptions, timestamp, and confidence."
+    }
+  ]
+}

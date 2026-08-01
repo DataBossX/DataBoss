@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>DataBossX Command Brain</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --line: #30363d; --text: #e6edf3;
+    --muted: #8b949e; --accent: #2f81f7; --ok: #3fb950; --warn: #d29922;
+    --bad: #f85149; --sim: #a371f7;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f8fa; --panel:#fff; --line:#d0d7de; --text:#1f2328; --muted:#656d76; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:var(--panel); border-bottom:1px solid var(--line); padding:12px 16px; }
+  h1 { font-size:16px; margin:0 0 6px; letter-spacing:.02em; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .chip.level { color:var(--accent); border-color:var(--accent); }
+  .chip.hold { color:var(--bad); border-color:var(--bad); font-weight:600; }
+  .chip.sim { color:var(--sim); border-color:var(--sim); }
+  main { padding:16px; max-width:900px; margin:0 auto; display:grid; gap:16px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 10px; }
+  .mic { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  button { font:inherit; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--text); padding:10px 14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.danger { background:var(--bad); border-color:var(--bad); color:#fff; font-weight:600; }
+  button.big { min-height:52px; font-size:16px; flex:1 1 220px; }
+  #mic { width:56px; height:56px; border-radius:50%; font-size:20px; }
+  #mic.live { background:var(--bad); border-color:var(--bad); color:#fff; }
+  textarea { width:100%; min-height:64px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; resize:vertical; }
+  .transcript { border-left:3px solid var(--accent); padding:8px 12px; background:var(--bg); border-radius:0 8px 8px 0; }
+  .restate { font-weight:600; }
+  .grid { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .stat b { display:block; font-size:22px; }
+  .stat span { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  ul { margin:0; padding-left:18px; } li { margin:4px 0; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; overflow-x:auto; font-size:12px; max-height:320px; }
+  .muted { color:var(--muted); font-size:12px; }
+  .banner { border:1px solid var(--sim); color:var(--sim); border-radius:8px; padding:8px 10px; font-size:12px; }
+  .banner.warn { border-color:var(--warn); color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; }
+  .scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DataBossX Command Brain <span class="muted">Alpha</span></h1>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <section>
+    <h2>Speak or type</h2>
+    <div class="mic">
+      <button id="mic" title="Push to talk">🎙</button>
+      <div style="flex:1 1 260px">
+        <textarea id="utterance" placeholder="e.g. What is blocking the report?"></textarea>
+      </div>
+      <button class="primary" id="send">Send</button>
+    </div>
+    <p class="muted" id="voiceNote"></p>
+  </section>
+
+  <section>
+    <h2>What I heard</h2>
+    <div class="transcript">
+      <div id="heard" class="muted">Nothing yet.</div>
+      <div id="restate" class="restate"></div>
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <button id="notWhatIMeant">That is not what I meant</button>
+      <button id="draftOnly">Draft only — do not execute</button>
+      <button id="readOnly">Read-only only</button>
+      <button class="danger" id="stopAll">STOP ALL QUEUED WORK</button>
+    </div>
+  </section>
+
+  <section id="approvalPanel" hidden>
+    <h2>Approval required</h2>
+    <div id="approvalText"></div>
+    <p class="muted">Envelope hash <code id="envHash"></code></p>
+    <div class="actions">
+      <button class="primary big" id="approve">APPROVE BOUNDED JOB</button>
+      <button class="big" id="reject">REJECT PLAN</button>
+      <button class="big" id="humanReview">ASK FOR HUMAN REVIEW</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Current state</h2>
+    <div class="grid" id="stats"></div>
+  </section>
+
+  <section>
+    <h2>Plan</h2>
+    <div id="plan" class="muted">No plan yet.</div>
+  </section>
+
+  <section id="resultPanel" hidden>
+    <h2>Result</h2>
+    <div id="resultSummary"></div>
+    <div class="scroll"><table id="candidates"></table></div>
+    <h2 style="margin-top:14px">Disagreements</h2>
+    <ul id="disagreements"></ul>
+    <div class="actions">
+      <button id="openEvidence">OPEN EVIDENCE</button>
+      <button id="quarantine">QUARANTINE RESULT</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Evidence drawer</h2>
+    <pre id="evidence">Nothing opened.</pre>
+  </section>
+
+  <section>
+    <h2>Models</h2>
+    <div class="scroll"><table id="models"></table></div>
+  </section>
+</main>
+
+<script>
+const state = { last: null, envelopeId: null, approvalId: null, lastSubject: null };
+const $ = (id) => document.getElementById(id);
+
+async function api(path, body) {
+  const options = body
+    ? { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": window.CSRF_TOKEN || "" }, body: JSON.stringify(body) }
+    : {};
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+function chip(text, cls) { return `<span class="chip ${cls || ""}">${text}</span>`; }
+
+function renderChips(s) {
+  const p = s.policy || {};
+  const bits = [
+    chip(`AUTONOMY ${p.autonomy_ceiling_name || "?"}`, "level"),
+    chip(p.local_only ? "LOCAL ONLY" : "cloud permitted"),
+    chip(p.cloud_models_allowed ? "cloud models on" : "cloud models off"),
+    chip(p.client_files_allowed ? "client files allowed" : "no client files"),
+    chip("LEVEL 4 DISABLED"),
+  ];
+  if (p.global_hold) bits.unshift(chip("● GLOBAL HOLD ACTIVE", "hold"));
+  (s.simulated_components || []).forEach((c) => bits.push(chip(`SIMULATED: ${c}`, "sim")));
+  $("chips").innerHTML = bits.join("");
+}
+
+function renderStats(s) {
+  const sys = s.system || {};
+  const cells = [
+    ["Active jobs", sys.active_jobs], ["Pending approvals", sys.pending_approvals],
+    ["Open defects", sys.open_defects], ["Active holds", sys.active_holds],
+    ["Human review", sys.open_human_reviews], ["Ledger", (sys.ledger || {}).valid ? "intact" : "BROKEN"],
+  ];
+  $("stats").innerHTML = cells.map(([k, v]) => `<div class="stat"><b>${v ?? "—"}</b><span>${k}</span></div>`).join("");
+  const models = s.models || [];
+  $("models").innerHTML =
+    "<tr><th>Model</th><th>State</th><th>Local</th><th>Simulated</th></tr>" +
+    models.map((m) => `<tr><td>${m.model_id}</td><td>${m.verification_state}</td><td>${m.is_local ? "yes" : "no"}</td><td>${m.simulated ? "SIMULATED" : "—"}</td></tr>`).join("");
+}
+
+function renderPlan(r) {
+  const p = r.plan || {};
+  const steps = (p.steps || []).map((s) => `<li>${s.ordinal}. ${s.description} <span class="muted">[${s.required_level_name}${s.tool_id ? " · " + s.tool_id : ""}]</span></li>`).join("");
+  const risks = (p.risks || []).map((x) => `<li>${x}</li>`).join("");
+  $("plan").innerHTML = `<b>${p.title || ""}</b><ul>${steps}</ul>` + (risks ? `<h2>Risks</h2><ul>${risks}</ul>` : "");
+}
+
+function renderResponse(r) {
+  state.last = r;
+  $("heard").textContent = r.transcript;
+  $("restate").textContent = r.interpreted_request || "";
+  renderPlan(r);
+  (r.warnings || []).forEach((w) => {
+    const div = document.createElement("div");
+    div.className = "banner warn";
+    div.textContent = w;
+    $("restate").after(div);
+  });
+  if (r.requires_approval && r.envelope) {
+    state.envelopeId = r.envelope.task_id;
+    $("approvalText").textContent = r.approval_prompt;
+    $("envHash").textContent = (r.envelope_hash || "").slice(0, 16) + "…";
+    $("approvalPanel").hidden = false;
+  } else {
+    $("approvalPanel").hidden = true;
+  }
+  if (r.results && r.results.explanation) $("evidence").textContent = r.results.explanation;
+}
+
+function renderTournament(t) {
+  if (!t) return;
+  state.lastSubject = t.tournament_id;
+  $("resultPanel").hidden = false;
+  $("resultSummary").innerHTML =
+    `<b>${t.baseline_preserved ? "Baseline preserved." : "A candidate replaced the baseline."}</b> ` +
+    `<span class="muted">accepted: ${t.accepted_candidate_id || "none"}</span>`;
+  const rows = [t.baseline, ...(t.candidates || [])];
+  $("candidates").innerHTML =
+    "<tr><th>Candidate</th><th>Profile</th><th>Score</th><th>Decision</th><th>Status</th></tr>" +
+    rows.map((c) => `<tr><td>${c.candidate_id.slice(0, 14)}…</td><td>${c.spec.profile_id}${c.simulated ? " <span class='chip sim'>SIM</span>" : ""}</td><td>${c.scorecard.aggregate}</td><td>${(c.decision || {}).decision || "baseline"}</td><td>${c.status}</td></tr>`).join("");
+  $("disagreements").innerHTML = ((t.consensus || {}).disagreement_lines || []).map((l) => `<li>${l}</li>`).join("") || "<li class='muted'>None recorded.</li>";
+}
+
+async function refresh() {
+  const s = await api("/api/state");
+  renderChips(s);
+  renderStats(s);
+  $("voiceNote").textContent = s.voice_note || "";
+}
+
+async function send(text) {
+  const r = await api("/api/command", { transcript: text, channel: "text" });
+  renderResponse(r);
+  await refresh();
+}
+
+$("send").onclick = () => { const v = $("utterance").value.trim(); if (v) send(v); };
+$("mic").onclick = async () => {
+  const live = $("mic").classList.toggle("live");
+  $("voiceNote").textContent = live
+    ? "Listening (SIMULATED capture — type what you would say, then press Send)."
+    : "Microphone released.";
+};
+$("notWhatIMeant").onclick = () => { $("utterance").value = ""; $("utterance").focus(); $("restate").textContent = "Discarded. Say it again."; };
+$("draftOnly").onclick = () => send("Draft only, do not execute.");
+$("readOnly").onclick = () => send("Read-only mode.");
+$("stopAll").onclick = () => send("Stop all queued work.");
+$("approve").onclick = async () => {
+  const a = await api("/api/approve", { envelope_id: state.envelopeId });
+  state.approvalId = a.approval_id;
+  const r = await api("/api/execute", { envelope_id: state.envelopeId, approval_id: a.approval_id });
+  renderTournament(r.tournament);
+  $("evidence").textContent = JSON.stringify(r, null, 2);
+  await refresh();
+};
+$("reject").onclick = () => { $("approvalPanel").hidden = true; $("restate").textContent = "Plan rejected. Nothing ran."; };
+$("humanReview").onclick = () => send("Request human review of this plan.");
+$("openEvidence").onclick = () => send("Show me the evidence.");
+$("quarantine").onclick = () => send("Quarantine that result.");
+
+refresh();
+</script>
+</body>
+</html>

@@ -52,7 +52,7 @@ class RunnerConfig:
     runner_id: str = "runner-local-1"
     simulation_only: bool = True
     kill_switch_path: Optional[str] = None
-    limits: Mapping = None
+    limits: Optional[Mapping] = None
 
     def __post_init__(self):
         if self.limits is None:

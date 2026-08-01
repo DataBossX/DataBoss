@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from typing import Iterable, Optional
+from typing import Any, Iterable, List, Optional, Protocol, Sequence
 
 from . import pg_wire
 
@@ -38,6 +38,21 @@ IntegrityError = (sqlite3.IntegrityError, pg_wire.PgIntegrityError)
 
 #: Exceptions meaning "the database refused this", including trigger aborts.
 DatabaseError = (sqlite3.Error, pg_wire.PgError)
+
+
+class Row(Protocol):
+    """What both engines' result rows guarantee.
+
+    ``sqlite3.Row`` and :class:`pg_wire.Row` both satisfy this structurally, so
+    the kernel can index rows by column name and pass them to ``dict()`` without
+    caring which engine produced them.
+    """
+
+    def keys(self) -> Sequence[str]:
+        ...
+
+    def __getitem__(self, key: str) -> Any:
+        ...
 
 
 def is_postgres(target: str) -> bool:
@@ -519,7 +534,7 @@ def migrate(conn) -> None:
         raise
 
 
-def fetchone(conn, sql: str, params: Iterable = ()) -> Optional[object]:
+def fetchone(conn, sql: str, params: Iterable = ()) -> Optional[Row]:
     cur = conn.execute(sql, tuple(params))
     try:
         return cur.fetchone()
@@ -527,7 +542,7 @@ def fetchone(conn, sql: str, params: Iterable = ()) -> Optional[object]:
         cur.close()
 
 
-def fetchall(conn, sql: str, params: Iterable = ()) -> list:
+def fetchall(conn, sql: str, params: Iterable = ()) -> List[Row]:
     cur = conn.execute(sql, tuple(params))
     try:
         return cur.fetchall()

@@ -211,6 +211,7 @@ class ControlCenterApp:
 
         if path == "/api/session/step-up" and method == "POST":
             actor = self.actor_from_session(session)
+            assert session is not None  # actor_from_session raises when it is None
             # A real deployment verifies a WebAuthn assertion here. The port is
             # explicit so the substitution is a one-place change.
             if body.get("method") != "WEBAUTHN_STUB":
@@ -337,8 +338,10 @@ def make_handler(app: ControlCenterApp):
                 return origin
             return None
 
-        def _send(self, status, payload: Optional[Mapping] = None, *, raw: bytes = None,
-                  content_type: str = "application/json", extra_headers: Mapping = None):
+        def _send(self, status, payload: Optional[Mapping] = None, *,
+                  raw: Optional[bytes] = None,
+                  content_type: str = "application/json",
+                  extra_headers: Optional[Mapping] = None):
             body = raw if raw is not None else json.dumps(payload or {}).encode("utf-8")
             self.send_response(int(status))
             self.send_header("Content-Type", content_type)
@@ -480,13 +483,19 @@ def make_handler(app: ControlCenterApp):
     return Handler
 
 
+class ControlCenterServer(ThreadingHTTPServer):
+    """Threading server that carries its app, so callers can reach the sessions."""
+
+    app: "ControlCenterApp"
+
+
 def serve(kernel: ControlKernel, *, host: str = "127.0.0.1", port: int = 8787,
-          workroot: Optional[str] = None) -> ThreadingHTTPServer:
+          workroot: Optional[str] = None) -> ControlCenterServer:
     """Bind loopback only. Public binding is a prohibited action in this lane."""
     if host not in ("127.0.0.1", "localhost", "::1"):
         raise NotAuthorized("the control API may not bind a public interface in this lane")
     app = ControlCenterApp(kernel, allowed_origins=(f"http://{host}:{port}",), workroot=workroot)
-    server = ThreadingHTTPServer((host, port), make_handler(app))
+    server = ControlCenterServer((host, port), make_handler(app))
     server.app = app
     return server
 

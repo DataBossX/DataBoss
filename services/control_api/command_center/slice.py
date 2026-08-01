@@ -79,6 +79,10 @@ def run_slice(workdir: Optional[str] = None, *, verbose: bool = False,
     # 8. Best Moves ranking with explanations.
     ranked = bm.rank_for(kernel.posture(), role="OWNER")
     best = bm.best_next_move(ranked)
+    if best is None:
+        # Every candidate withheld means policy is refusing everything. That is
+        # a legitimate state, but the slice has nothing safe left to demonstrate.
+        raise RuntimeError("no eligible move: every candidate was withheld by policy")
     vetoed = [r.to_dict() for r in ranked if not r.eligible]
     step("best_moves_ranked", best_move=best.candidate.move_id, score=round(best.score, 4),
          eligible=sum(1 for r in ranked if r.eligible),

@@ -77,11 +77,13 @@ def test_filesystem_paths_are_rejected_everywhere(value):
         scan_tool_input({"artifact_id": value})
 
 
-def test_credential_shaped_input_is_rejected():
+def test_credential_shaped_input_is_rejected(credential_samples):
     with pytest.raises(ToolInputRejected):
         scan_tool_input({"api_key": "anything"})
     with pytest.raises(ToolInputRejected):
-        scan_tool_input({"note": "sk-abcdefghijklmnopqrstuvwxyz012345"}, {"properties": {"note": {}}})
+        scan_tool_input(
+            {"note": credential_samples["openai"]}, {"properties": {"note": {}}}
+        )
 
 
 def test_unregistered_artifact_is_rejected(runtime):

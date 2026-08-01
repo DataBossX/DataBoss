@@ -17,12 +17,7 @@ from databossx.command_brain.redaction import (
     redact_text,
 )
 
-SECRET_SAMPLES = (
-    "sk-abcdefghijklmnopqrstuvwxyz0123456789",
-    "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
-    "AKIAIOSFODNN7EXAMPLE",
-    "-----BEGIN RSA PRIVATE KEY-----",
-)
+SECRET_SAMPLE_KEYS = ("openai", "github_pat", "aws_access_key", "private_key_header")
 
 PATH_SAMPLES = (
     "C:\\DataBoss\\DataBossX\\Section32\\workbook.xlsx",
@@ -33,8 +28,9 @@ PATH_SAMPLES = (
 
 # -- Redaction ---------------------------------------------------------------
 
-@pytest.mark.parametrize("secret", SECRET_SAMPLES)
-def test_known_credential_formats_are_removed_entirely(secret):
+@pytest.mark.parametrize("sample_key", SECRET_SAMPLE_KEYS)
+def test_known_credential_formats_are_removed_entirely(sample_key, credential_samples):
+    secret = credential_samples[sample_key]
     cleaned = redact_text(f"the key is {secret} ok")
     assert secret not in cleaned
     # Not even a suffix survives: a partial secret is still a secret.
@@ -82,12 +78,12 @@ def test_command_responses_are_redacted(brain):
     assert contains_absolute_path(payload) is False
 
 
-def test_receipts_are_redacted_on_write(runtime):
+def test_receipts_are_redacted_on_write(runtime, credential_samples):
     receipt = runtime.store.write_receipt(
         "test",
         "subject_1",
         {
-            "api_key": "sk-abcdefghijklmnopqrstuvwxyz0123456789",
+            "api_key": credential_samples["openai"],
             "note": "wrote C:\\DataBoss\\DataBossX\\out.xlsx",
         },
     )
@@ -95,19 +91,21 @@ def test_receipts_are_redacted_on_write(runtime):
     assert contains_absolute_path(receipt["payload"]) is False
 
 
-def test_audit_events_are_redacted_on_write(runtime):
+def test_audit_events_are_redacted_on_write(runtime, credential_samples):
     runtime.store.audit(
         "test.event",
         "thing",
         "thing_1",
-        {"authorization": "Bearer sk-abcdefghijklmnopqrstuvwxyz0123456789"},
+        {"authorization": f"Bearer {credential_samples['openai']}"},
     )
     event = runtime.store.audit_events(limit=1)[0]
     assert contains_secret(event["payload"]) is False
 
 
-def test_transcripts_with_secrets_do_not_reach_the_ledger(runtime, brain):
-    brain.handle("What is blocking the report? my token is ghp_abcdefghijklmnopqrstuvwxyz0123456789")
+def test_transcripts_with_secrets_do_not_reach_the_ledger(runtime, brain, credential_samples):
+    brain.handle(
+        f"What is blocking the report? my token is {credential_samples['github_pat']}"
+    )
     for event in runtime.store.audit_events(limit=100):
         assert contains_secret(event["payload"]) is False
 

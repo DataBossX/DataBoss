@@ -26,15 +26,13 @@ from typing import Callable, List, Mapping, Optional, Tuple
 
 from . import policy as policymod
 from . import db as dbmod
-from .canonical import canonical_json, iso, new_id, parse_iso, sha256_bytes, sha256_of, utc_now
+from .canonical import canonical_json, iso, new_id, parse_iso, sha256_bytes, utc_now
 from .errors import (
     AdapterNotAllowed,
     ApprovalRequired,
     ArtifactChanged,
     ControlKernelError,
     LeaseExpired,
-    NonceReplay,
-    PathNotAllowed,
 )
 
 #: Coarse resource ceilings for a job. Enforced where the platform allows.

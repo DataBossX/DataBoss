@@ -506,5 +506,6 @@ if __name__ == "__main__":  # pragma: no cover
     work = tempfile.mkdtemp(prefix="dbx-cc-serve-")
     k = ControlKernel.open(os.path.join(work, "command_center.db"))
     srv = serve(k, workroot=work)
-    print(f"DataBossX Command Center on http://127.0.0.1:8787 (private, loopback only)")
+    print(f"DataBossX Command Center on http://{srv.server_address[0]}:{srv.server_address[1]}"
+          " (private, loopback only)")
     srv.serve_forever()

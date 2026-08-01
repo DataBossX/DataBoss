@@ -19,7 +19,7 @@ from typing import Optional
 from . import best_moves as bm
 from . import voice as voicemod
 from . import watchers as watchmod
-from .canonical import canonical_json, sha256_of
+from .canonical import canonical_json
 from .drive_bridge import DriveBridge, InMemoryDriveClient, plan_control_room
 from .errors import HoldRemovalForbidden
 from .kernel import Actor, ControlKernel

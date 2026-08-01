@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Mapping, Optional, Sequence
+from typing import Mapping, Optional
 
 from . import POLICY_VERSION, SCHEMA_VERSION
 from . import db as dbmod
@@ -43,7 +43,6 @@ from .errors import (
     ApprovalRequired,
     ApprovalScopeMismatch,
     ArtifactChanged,
-    HoldInEffect,
     HoldRemovalForbidden,
     InvalidStateTransition,
     LeaseExpired,

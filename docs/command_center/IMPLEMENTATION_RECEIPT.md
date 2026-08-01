@@ -11,7 +11,8 @@
 | Branch | `claude/databossx-command-center-build-lxt5jx` (session-assigned) |
 | Worktree | `/home/user/DataBoss` — single, isolated, no competing checkout |
 | Baseline commit | `582d95161cf8220fb37f5224e21e57dcc5c3121c` |
-| Ending commit | `55eea009ebc15d70dc31479f96826285cfb1b2b9` (this receipt amended into it) |
+| Implementation commit | `843b43481ce74713811c49cae0bedc9e2cfd0c57` |
+| Ending commit | the commit carrying this line — a commit cannot contain its own hash, so the implementation commit above is the content of record |
 | Release state | **FOR REVIEW — HOLD — NO EXTERNAL RELEASE** |
 
 ## Objective

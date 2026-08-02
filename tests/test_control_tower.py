@@ -357,7 +357,12 @@ FAKE_OPENAI_KEY = _fake_credential("sk" "-", 48)
 
 
 @pytest.mark.parametrize(
-    "secret", [FAKE_GITHUB_PAT, FAKE_GCP_KEY, FAKE_OAUTH_TOKEN, FAKE_OPENAI_KEY]
+    "secret",
+    [FAKE_GITHUB_PAT, FAKE_GCP_KEY, FAKE_OAUTH_TOKEN, FAKE_OPENAI_KEY],
+    # Explicit IDs keep the fixture values out of test node IDs, which would
+    # otherwise land in .pytest_cache, CI logs, and JUnit XML -- all places a
+    # credential-shaped string does not belong.
+    ids=["github_pat", "gcp_key", "oauth_token", "openai_key"],
 )
 def test_secret_values_are_redacted(secret):
     assert secret not in redact("credential is {0} end".format(secret))

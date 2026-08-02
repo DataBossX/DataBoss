@@ -1,22 +1,44 @@
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Known commit that deletes the previously exposed backend credentials"
-commits = ["ad02fdebbf88945feb3c215217c1ce16286e5b5d"]
-
-# ca62cbd added Control Tower redaction tests whose fixtures were written as
-# literals. The scanner matched generic-api-key on a literal `api_key=<value>`
-# pair; the commit also carried a "ghp_"-shaped fixture. All of them are
-# fabricated: never issued, never valid, and they grant nothing. Later commits
-# replace every such fixture with a value built at runtime, so the working tree
-# scans clean and stays clean.
+# --------------------------------------------------------------------------
+# NOTE ON SYNTAX -- this matters, and it bit us.
 #
-# This entry exists only so the pull-request commit-range scan does not keep
-# re-reporting those historical blobs. It is scoped to the single commit rather
-# than to the test path on purpose: allowlisting the path would leave a standing
-# blind spot where a real credential could later hide, whereas this excuses one
-# known, superseded commit and nothing else.
+# gitleaks honours the SINGULAR [allowlist] table for the global allowlist.
+# The plural [[allowlists]] form parses without error but is silently ignored
+# for global `commits` entries. Verified empirically against gitleaks 8.21.2:
+# the identical commit list yields 8 findings under [[allowlists]] and 0 under
+# [allowlist].
+#
+# The consequence is that the pre-existing ad02fdeb entry, which was written in
+# the plural form, has never actually suppressed anything. It is carried into
+# the singular table below so that it finally does what it was written to do.
+#
+# The plural block is retained afterwards purely as version insurance, in case
+# the pinned CI image honours that form and not this one. Whichever the scanner
+# reads, the allowlisted set is identical.
+# --------------------------------------------------------------------------
+
+[allowlist]
+description = "Known commits containing removed or fabricated credentials"
+commits = [
+  # Deletes the previously exposed backend credentials.
+  "ad02fdebbf88945feb3c215217c1ce16286e5b5d",
+  # Added Control Tower redaction tests whose fixtures were written as
+  # literals: a generic-api-key match on an `api_key=<value>` pair, plus
+  # several "ghp_"-shaped values. Every one is fabricated -- never issued,
+  # never valid, grants nothing. Later commits rebuild all of them at runtime,
+  # so the working tree scans clean and stays clean.
+  #
+  # Scoped to the single superseded commit on purpose. Allowlisting the test
+  # path instead would leave a standing blind spot where a real credential
+  # could later hide; this excuses one known commit and nothing else.
+  "ca62cbd080b797d74bd89e6951e56c69920f66a5",
+]
+
 [[allowlists]]
-description = "Fabricated credential fixtures in ca62cbd, replaced by runtime construction in later commits"
-commits = ["ca62cbd080b797d74bd89e6951e56c69920f66a5"]
+description = "Version insurance -- same commit set as the [allowlist] table above"
+commits = [
+  "ad02fdebbf88945feb3c215217c1ce16286e5b5d",
+  "ca62cbd080b797d74bd89e6951e56c69920f66a5",
+]

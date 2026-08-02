@@ -65,6 +65,15 @@ def main(argv=None):
     parser.add_argument("--v12-path", default=os.environ.get("DBX_V12_PATH"))
     parser.add_argument("--repo-path", default=os.environ.get("DBX_REPO_PATH", "."))
     parser.add_argument("--workbook-dir", default=os.environ.get("DBX_WORKBOOK_DIR"))
+    parser.add_argument(
+        "--drive",
+        action="store_true",
+        help=(
+            "include the live Drive control surface in the audit (read-only). "
+            "Requires DBX_DRIVE_ACCESS_TOKEN. Opt-in on purpose: the audit is "
+            "useful offline, and a run should never reach the network by accident."
+        ),
+    )
     args = parser.parse_args(argv)
 
     started = time.time()
@@ -88,12 +97,20 @@ def main(argv=None):
         _print_checks(pre)
         return 1
 
+    drive_client = None
+    if args.drive:
+        # Imported lazily so an offline run never even loads the network code.
+        from .drive_google import GoogleDriveClient
+
+        drive_client = GoogleDriveClient()
+
     report = run_audit(
-        client=None,
+        client=drive_client,
         v12_path=args.v12_path,
         repo_path=args.repo_path,
         workbook_dir=args.workbook_dir,
     )
+    report["drive_surface_consulted"] = bool(args.drive)
     report["selftest_passed"] = pre["passed"]
     report["selftest_total"] = pre["total"]
     report["started_at_epoch"] = started

@@ -86,10 +86,48 @@ step through `Gate0Runner`, and `preflight()` refuses to claim unless the
 selftest passes completely. It does not remove the HOLD — no code path here
 can. It does not mutate a workbook.
 
-## Wiring the real Drive
+## Talking to the real Drive
 
-`drive.DriveClient` is the interface. `OfflineDriveClient` implements it in
-memory for the selftest and canary. A production implementation must honour one
-rule the offline client already enforces: **`create` must refuse to replace an
-existing name.** Append-only is a property of the storage layer, not a
-convention the caller is trusted to follow.
+`drive.DriveClient` is the interface. Two implementations ship:
+
+| Implementation | Use |
+|---|---|
+| `drive.OfflineDriveClient` | in-memory, used by `selftest` and `canary` |
+| `drive_google.GoogleDriveClient` | Drive v3 REST over `urllib`, standard library only |
+
+Any implementation must honour the rule both of these enforce: **`create` must
+refuse to replace an existing name.** Append-only is a property of the storage
+layer, not a convention the caller is trusted to follow.
+
+### Using it
+
+```
+set DBX_DRIVE_ACCESS_TOKEN=<an OAuth2 access token with Drive scope>
+run_control_tower.bat audit --drive
+```
+
+`--drive` is opt-in. The audit is useful entirely offline, and a run should
+never reach the network by accident. Without the flag no network code is even
+imported. Without a token the client raises before opening a socket, and the
+audit records the Drive surface as `UNREACHABLE` rather than failing the run.
+
+### What the client guarantees
+
+- **Create never replaces.** Drive will happily create a second file with the
+  same name in the same folder, and `update` would overwrite bytes outright.
+  Neither is acceptable here, so `create` checks for the name first and refuses.
+- **Every request URL is checked against the trusted-host allowlist** before
+  it is opened. No URL from a response body is ever followed.
+- **The token never escapes.** It is scrubbed from errors *by exact value*
+  first, then by pattern. Value-scrubbing matters because an access token can
+  be an opaque string that matches no known credential shape — there is a test
+  for exactly that case.
+- **Outages are distinguished from refusals.** DNS, TLS, and connection
+  failures plus 429/5xx classify as `DriveOutage`, so spooled evidence is
+  retained and the run can complete later. A 4xx is a `DriveApiError`: Drive
+  answered and said no.
+- **Google-native documents are exported, not fetched.** A Doc has no byte
+  stream; `alt=media` would fail on it.
+
+The client takes an injectable `transport`, so all 30 of its tests run with no
+network at all.

@@ -1,10 +1,12 @@
 """Durable, process-safe state for claims, leases, fencing and retired commands.
 
 The Control Tower must survive process restarts and concurrent workers without
-forgetting authority state.  This module stores one small JSON document behind
-an exclusive lock file and replaces it atomically after every transaction.
+forgetting authority state. This module stores one small JSON document behind
+an operating-system file lock and replaces it atomically after every
+transaction. OS locks are released automatically when a process exits, so a
+crash cannot leave a permanent stale lock file.
 
-No third-party dependency is used.  The state file contains control metadata
+No third-party dependency is used. The state file contains control metadata
 only; it never contains workbook or client-evidence bytes.
 """
 
@@ -13,6 +15,7 @@ from __future__ import absolute_import
 import contextlib
 import json
 import os
+import tempfile
 import time
 
 from .constants import ControlTowerError
@@ -36,6 +39,38 @@ class DurableStateError(ControlTowerError):
     """The durable state could not be read, locked or committed safely."""
 
 
+def _try_lock(handle):
+    """Try one non-blocking exclusive lock; return True on success."""
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        try:
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            return True
+        except OSError:
+            return False
+    import fcntl
+
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
+def _unlock(handle):
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 class DurableStateStore(object):
     """Small JSON state store with exclusive transactions and atomic replace."""
 
@@ -54,28 +89,29 @@ class DurableStateStore(object):
     @contextlib.contextmanager
     def _locked(self):
         deadline = time.monotonic() + self.lock_timeout
-        fd = None
-        while fd is None:
-            try:
-                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            except FileExistsError:
+        handle = open(self.lock_path, "a+b")
+        try:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+                os.fsync(handle.fileno())
+            acquired = False
+            while not acquired:
+                acquired = _try_lock(handle)
+                if acquired:
+                    break
                 if time.monotonic() >= deadline:
                     raise DurableStateError(
                         "timed out waiting for durable-state lock {0}".format(self.lock_path)
                     )
                 time.sleep(self.poll_interval)
-        try:
-            os.write(fd, str(os.getpid()).encode("ascii", "strict"))
-            os.fsync(fd)
-            yield
-        finally:
             try:
-                os.close(fd)
+                yield
             finally:
-                try:
-                    os.unlink(self.lock_path)
-                except FileNotFoundError:
-                    pass
+                _unlock(handle)
+        finally:
+            handle.close()
 
     def _read_unlocked(self):
         try:
@@ -94,16 +130,22 @@ class DurableStateStore(object):
         state = dict(state)
         state["schema"] = _STATE_SCHEMA
         state["revision"] = int(state.get("revision", 0)) + 1
-        temporary = "{0}.{1}.tmp".format(self.path, os.getpid())
         payload = json.dumps(
             state, sort_keys=True, ensure_ascii=True, indent=2, separators=(",", ": ")
         ).encode("utf-8") + b"\n"
+        fd = None
+        temporary = None
         try:
-            with open(temporary, "xb") as handle:
+            fd, temporary = tempfile.mkstemp(
+                prefix=".control_state.", suffix=".tmp", dir=self.root
+            )
+            with os.fdopen(fd, "wb") as handle:
+                fd = None
                 handle.write(payload)
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, self.path)
+            temporary = None
             try:
                 directory_fd = os.open(self.root, os.O_RDONLY)
             except OSError:
@@ -116,10 +158,13 @@ class DurableStateStore(object):
                 finally:
                     os.close(directory_fd)
         except OSError as exc:
-            try:
-                os.unlink(temporary)
-            except OSError:
-                pass
+            if fd is not None:
+                os.close(fd)
+            if temporary is not None:
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
             raise DurableStateError("cannot commit durable state: {0}".format(exc)) from None
         return state
 
@@ -130,7 +175,7 @@ class DurableStateStore(object):
     def transaction(self, mutator):
         """Run ``mutator(state)`` under one lock and atomically persist it.
 
-        The mutator may modify ``state`` in place and return any result.  If it
+        The mutator may modify ``state`` in place and return any result. If it
         raises, no state is written.
         """
         with self._locked():
@@ -165,9 +210,9 @@ class DurableStateStore(object):
     def reconcile(self, records, retired_command_ids=None):
         """Rebuild safe durable facts from verified append-only records.
 
-        Only explicit identifiers supplied by the caller are retired.  Receipt
+        Only explicit identifiers supplied by the caller are retired. Receipt
         records may restore claim terminal states when they contain a claim key
-        and terminal sentinel.  Ambiguous or conflicting records fail closed.
+        and terminal sentinel. Ambiguous or conflicting records fail closed.
         """
         retired_command_ids = tuple(retired_command_ids or ())
 
@@ -175,7 +220,11 @@ class DurableStateStore(object):
             for command_id in retired_command_ids:
                 state["retired_commands"].setdefault(
                     command_id,
-                    {"command_id": command_id, "evidence": {"source": "reconcile"}, "retired": True},
+                    {
+                        "command_id": command_id,
+                        "evidence": {"source": "reconcile"},
+                        "retired": True,
+                    },
                 )
             for record in records or ():
                 if not isinstance(record, dict):

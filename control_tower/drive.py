@@ -142,18 +142,20 @@ class OfflineDriveClient(DriveClient):
 class SafeDriveWriter(object):
     """Spool first, require the current lease/fence, upload and verify.
 
-    Live clients can never write without a registry-backed current lease. The
-    offline client remains usable for pure synthetic self-tests, including the
-    legacy runner that owns an in-memory lease registry outside this writer.
-    Pending spool records are resumed with :meth:`recover_record`, which adopts
-    one exact existing Drive object or uploads only when absent. Duplicates and
-    byte mismatches fail closed.
+    Live clients can never write unless this writer is bound by the durable
+    runner to one durable lease/fencing registry. The offline client remains
+    usable for pure synthetic self-tests, including the legacy runner that owns
+    an in-memory lease registry outside this writer. Pending spool records are
+    resumed with :meth:`recover_record`, which adopts one exact existing Drive
+    object or uploads only when absent. Duplicates and byte mismatches fail
+    closed.
     """
 
     def __init__(self, client, spool, leases=None):
         self.client = client
         self.spool = spool
         self.leases = leases
+        self.durable_runner_bound = False
 
     def poll_queue(self):
         folder_id = assert_pollable(POLLED_FOLDER_ID)
@@ -183,8 +185,12 @@ class SafeDriveWriter(object):
                     )
                 )
             return lease
+        if not self.client.is_offline and not self.durable_runner_bound:
+            raise LeaseExpired("live writer is not bound to the durable runner")
         if self.leases is None:
             raise LeaseExpired("live writer has no lease registry")
+        if not self.client.is_offline and getattr(self.leases, "store", None) is None:
+            raise LeaseExpired("live writer lease registry is not durable")
         if lease is None:
             raise LeaseExpired("protected write requires a lease")
         return self.leases.require_valid(lease, effective_now)

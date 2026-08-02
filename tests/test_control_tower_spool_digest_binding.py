@@ -1,8 +1,15 @@
 """Recovery must reject spool bytes not bound into durable claim state."""
 
+import os
+
 import pytest
 
-from control_tower.constants import QUEUE_FOLDER_ID, RECEIPTS_FOLDER_ID, ClaimConflict, ReadbackMismatch
+from control_tower.constants import (
+    QUEUE_FOLDER_ID,
+    RECEIPTS_FOLDER_ID,
+    ClaimConflict,
+    ReadbackMismatch,
+)
 from control_tower.drive import DriveOutage, OfflineDriveClient, SafeDriveWriter
 from control_tower.durable import DurableStateStore
 from control_tower.durable_runner import DurableGate0Runner
@@ -34,11 +41,11 @@ def command():
 
 
 def overwrite_spool(spool, name):
-    path = spool.root + "/" + name
+    path = os.path.join(spool.root, name)
     with open(path, "wb") as handle:
-        handle.write((
-            '{"hold":"%s","tampered":true}\n' % HOLD
-        ).encode("utf-8"))
+        handle.write(
+            ('{"hold":"%s","tampered":true}\n' % HOLD).encode("utf-8")
+        )
 
 
 def test_changed_start_spool_is_rejected_after_restart(tmp_path):
@@ -97,7 +104,9 @@ def test_changed_terminal_spool_is_rejected_after_restart(tmp_path):
         restarted_runner.terminalize(
             claimed["claim_key"], SUCCESS, {"ok": True}, lease, now=3.0
         )
-    assert client.find_all_by_name(RECEIPTS_FOLDER_ID, state["terminal_name"]) == []
+    assert client.find_all_by_name(
+        RECEIPTS_FOLDER_ID, state["terminal_name"]
+    ) == []
 
 
 def test_changed_terminal_findings_conflict_with_bound_digest(tmp_path):

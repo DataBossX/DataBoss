@@ -1,0 +1,101 @@
+{
+  "schema": "databossx.control_tower_code_manifest.v2",
+  "run_id": "DBX-S32-CT-BUILD-20260802T1600Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "result": "CONTROL_TOWER_BUILD_PRESENT_AND_PROVEN",
+  "supersedes": {
+    "manifest": "CONTROL_TOWER_CODE_MANIFEST.json",
+    "prior_result": "DATABOSSX_CONTROL_TOWER_BUILD_NOT_FOUND",
+    "note": "The prior manifest was accurate when written: no build existed. This manifest records the build that now exists. The prior file is retained unmodified."
+  },
+  "repository": {
+    "path": "/home/user/DataBoss",
+    "branch": "claude/databossx-section32-recovery-ouyziy",
+    "head_commit_before_build": "944d6d81ed778ac74577f77f5197886cd919d57b"
+  },
+  "entrypoint": {
+    "windows": "run_control_tower.bat",
+    "portable": "python -m control_tower.cli",
+    "sha256": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
+    "subcommands": [
+      "selftest",
+      "canary",
+      "audit"
+    ],
+    "exit_codes": {
+      "0": "pass/complete",
+      "1": "check failed - do not claim",
+      "2": "audit ran but target unreachable"
+    }
+  },
+  "implementation_modules": 8,
+  "implementation_lines": 1770,
+  "test_lines": 583,
+  "total_files": 11,
+  "total_lines": 2491,
+  "total_bytes": 88839,
+  "per_file": {
+    "control_tower/README.md": {
+      "sha256": "40D6F1DE1225C5FEDB7E488BFE4F3F77070D0292B56E17C882C794C917EB4707",
+      "lines": 95,
+      "bytes": 4456
+    },
+    "control_tower/__init__.py": {
+      "sha256": "A3877A8B80F11B82F91BBED1664BD35B74997E4345AF3446EA7357866418E325",
+      "lines": 56,
+      "bytes": 1513
+    },
+    "control_tower/audit.py": {
+      "sha256": "B18915F8CE6474F962D9E74F1CB43240AEE94EA307AA4B14738687591EDF5EF6",
+      "lines": 219,
+      "bytes": 7423
+    },
+    "control_tower/cli.py": {
+      "sha256": "84A610DB7855E5CDF00F2645CA97EF9CA253D77526B97A94C8CDA27CEA7419A5",
+      "lines": 118,
+      "bytes": 4278
+    },
+    "control_tower/constants.py": {
+      "sha256": "B0D8597CE712D472E959AD19E5BACDE4CEFDA18DCC206BF2FACE6B85339B12E2",
+      "lines": 151,
+      "bytes": 5331
+    },
+    "control_tower/drive.py": {
+      "sha256": "68D677C942B0CAA53CA10A1EC15FFFBB362F27BB98AB53CA00EB503925C5C1C5",
+      "lines": 213,
+      "bytes": 7194
+    },
+    "control_tower/kernel.py": {
+      "sha256": "E3FCDB3D2113E91761947B159C6F8F9B705F8CA93D9604DE2F9E30DBD7968D86",
+      "lines": 339,
+      "bytes": 12308
+    },
+    "control_tower/safety.py": {
+      "sha256": "81747DDB5DE7CAB6264D2C82C1CD108F64EB2B327FBA97513048308A8A439E78",
+      "lines": 205,
+      "bytes": 7352
+    },
+    "control_tower/tower.py": {
+      "sha256": "A544A58C622D0828B4010D5F8D1898FC1E1633FD9AE0422249CA46853E75C961",
+      "lines": 469,
+      "bytes": 17213
+    },
+    "run_control_tower.bat": {
+      "sha256": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
+      "lines": 43,
+      "bytes": 1073
+    },
+    "tests/test_control_tower.py": {
+      "sha256": "C850FA772C7E4B0F692087EFDBC14652DEF5B202E6CF38588F4A08B8D520AD94",
+      "lines": 583,
+      "bytes": 20698
+    }
+  },
+  "dependencies": {
+    "third_party": [],
+    "note": "Standard library only. Adds no entry to requirements.txt and no new CI install step.",
+    "python_built_with": "3.11.15",
+    "python_min_supported": "3.8"
+  },
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

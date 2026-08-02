@@ -1,0 +1,10 @@
+472A3FD1545CE3FE714B9C169649676F5D28EBE323ECCDDFA36F78AF091BABA1  DBX_CORRECTION_02__CONTROL_TOWER_BUILD_EXISTS_AND_INDEPENDENTLY_REPRODUCES__20260802T1145CDT.json
+algorithm: SHA-256
+byte_size: 9871
+drive_id: 1w6LseGGZSZnC1cjKpjLujcde2JQ38vyq
+parent_folder: 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR
+uploaded_utc: 2026-08-02T16:47:30.959Z
+readback_byte_count_confirmed: 9871 == 9871 PASS
+supersedes_fields_of: 1iMUL_pEYIP1VX6zDOoWOws0mIkGbuRex (not edited, not overwritten)
+computed_by: Claude Code independent reviewer lane, host vm, Linux ephemeral cloud container
+release_state: FOR REVIEW - HOLD NO EXTERNAL RELEASE

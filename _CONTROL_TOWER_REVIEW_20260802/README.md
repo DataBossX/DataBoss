@@ -71,5 +71,48 @@ The repository suite was **not run**: this container has no PyPI access and `pyt
 `openpyxl`, `pandas`, `fastapi`, and `pydantic` are all absent. `python -m compileall` over
 `horizon src tests automation scripts` exits 0. A compile check is not a test pass.
 
+## Correction 02 — a Control Tower does exist (2026-08-02 11:45 CDT)
+
+The outcome above (`D-for-this-host`) was **incomplete**. It searched branch `582d951` and
+PR 66 only. Draft **PR #74** (`claude/databossx-section32-recovery-ouyziy`, head `fb4186e`)
+contains a purpose-built, **standard-library-only** DataBossX Control Tower: 8 modules,
+1,773 implementation lines, 604 test lines, `run_control_tower.bat`, and
+`python -m control_tower.cli {selftest,canary,audit}`.
+
+This lane fetched and ran it independently on this host:
+
+| Check | Claimed | Observed | Result |
+|---|---|---|---|
+| `selftest` | 18/18, exit 0 | **18/18, exit 0** | CONFIRMED |
+| `canary` | 7/7, exit 0 | **7/7, exit 0** | CONFIRMED |
+| `audit` | exit 2, `PARTIAL_HOST_MISMATCH`, V12 `NOT_VERIFIED_UNREACHABLE` | identical | CONFIRMED |
+| per-file code hashes vs `BUILD_02_CODE_MANIFEST.json` | — | **12/12 match** | CONFIRMED |
+| evidence artifacts vs `CONTROL_TOWER_SHA256SUMS.txt` | — | **12/12 OK** | CONFIRMED |
+| stdlib-only | no third-party deps | ran with zero packages installed | CONFIRMED |
+| `pytest` 88 tests | 88 passed | **not run** — no pytest, no PyPI | NOT VERIFIED (not a failure) |
+
+Revised outcome: **A for the code, C for the matter.** A runnable Control Tower exists and
+reproduces; its Drive-watcher and Windows-host integration remain unproven because it has
+never run on the workstation that owns `C:\DataBoss`. **Outcome D is withdrawn.**
+
+The `audit` result is the important one: from a host that cannot see `C:\DataBoss`, the tool
+**refuses to call V12 verified and exits non-zero** rather than reporting a clean result it
+did not earn.
+
+New minor finding **R-05**: `CONTROL_TOWER_SHA256SUMS.txt` lists 7 `./logs/*.log` files that
+are not committed, so `sha256sum -c` reports 7 unreadable against 12 OK. Integrity is fine;
+reviewability from a fresh clone is not.
+
+Findings R-01 through R-04 are unaffected and still stand.
+
+- Correction record: Drive ID `1w6LseGGZSZnC1cjKpjLujcde2JQ38vyq`, 9871 bytes,
+  SHA-256 `472A3FD1545CE3FE714B9C169649676F5D28EBE323ECCDDFA36F78AF091BABA1`
+- Sidecar: Drive ID `1nFGDFfg2HI8ekIGeFSzH7_S8YR2U9aTF`, 612 bytes
+
+**Fastest path to a complete Gate 0 audit:** run `run_control_tower.bat selftest` then
+`run_control_tower.bat audit` from PR 74 on the Windows workstation. It reaches V12, Excel
+locks, services, and scheduled tasks that no cloud container can see, and opens no workbook.
+
 ---
+
 **FOR REVIEW - HOLD NO EXTERNAL RELEASE**

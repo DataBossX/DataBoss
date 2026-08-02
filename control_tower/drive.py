@@ -143,19 +143,34 @@ class SafeDriveWriter(object):
     """Spool first, require the current lease/fence, upload and verify.
 
     Live clients can never write unless this writer is bound by the durable
-    runner to one durable lease/fencing registry. The offline client remains
-    usable for pure synthetic self-tests, including the legacy runner that owns
-    an in-memory lease registry outside this writer. Pending spool records are
-    resumed with :meth:`recover_record`, which adopts one exact existing Drive
-    object or uploads only when absent. Duplicates and byte mismatches fail
-    closed.
+    runner to the exact durable store used by its lease/fencing registry. The
+    offline client remains usable for synthetic self-tests, including the
+    legacy runner. Pending spool records are resumed with
+    :meth:`recover_record`, which adopts one exact existing Drive object or
+    uploads only when absent. Duplicates and byte mismatches fail closed.
     """
 
     def __init__(self, client, spool, leases=None):
         self.client = client
         self.spool = spool
         self.leases = leases
-        self.durable_runner_bound = False
+        self._durable_runner_store = None
+
+    @property
+    def durable_runner_bound(self):
+        return (
+            self._durable_runner_store is not None
+            and self.leases is not None
+            and self._durable_runner_store is getattr(self.leases, "store", None)
+        )
+
+    def bind_durable_runner(self, store):
+        if store is None:
+            raise LeaseExpired("durable runner binding requires a durable store")
+        if self.leases is None or store is not getattr(self.leases, "store", None):
+            raise LeaseExpired("durable runner binding does not match lease state")
+        self._durable_runner_store = store
+        return True
 
     def poll_queue(self):
         folder_id = assert_pollable(POLLED_FOLDER_ID)
@@ -186,7 +201,7 @@ class SafeDriveWriter(object):
                 )
             return lease
         if not self.client.is_offline and not self.durable_runner_bound:
-            raise LeaseExpired("live writer is not bound to the durable runner")
+            raise LeaseExpired("live writer is not bound to the durable control store")
         if self.leases is None:
             raise LeaseExpired("live writer has no lease registry")
         if not self.client.is_offline and getattr(self.leases, "store", None) is None:

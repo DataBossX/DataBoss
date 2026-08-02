@@ -1,0 +1,119 @@
+{
+  "schema": "dbx.task_envelope",
+  "schema_version": "1.0",
+  "envelope_id": "TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT",
+  "state": "DRAFT_AWAITING_RYAN_ACTIVATION",
+  "IS_EXECUTABLE": false,
+  "NOT_A_COMMAND": "This file is a prepared draft placed in 04_BLOCKED. Under the sole-command rule it is non-executable and confers no authority. It becomes actionable only if Ryan Lee Gille explicitly activates it. It must never be moved into 01_QUEUED while the Gate 0 command remains unresolved.",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "objective": "Restore the existing outbound-only DataBossX Drive watcher and receipt bridge on the authorized Windows Control Tower host, so that the already-queued Gate 0 command can be claimed and terminalized by the correct lane. This envelope covers bridge restoration only. It does not authorize Gate 0 execution, workbook access, or any client artifact work.",
+
+  "owner_authorization_refs": [
+    {"title": "02_OWNER_SUPPLEMENT__DATABOSSX_BRIDGE_RECOVERY_AND_SECTION32_GATED_EXECUTION__20260802T1015CDT", "drive_id": "1bSzw2e6_PRZk87lf5mqtPgY9-rL7biA0", "clause": "BOUNDED BRIDGE-RECOVERY AUTHORIZATION and AUTHORITY-BINDING RULE"},
+    {"title": "00_CURRENT_MASTER_CONTROL__DRIVE_FIRST_EXECUTION__20260801T1846CDT", "drive_id": "1G9ucVWIt6vrqLBV1STw0oYJV0LqxBjqA73i9gn17Tco"}
+  ],
+
+  "prepared_by": {
+    "agent": "Claude Code supervisory lane",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "is_authorized_windows_control_tower": false,
+    "note": "The preparing lane cannot execute this envelope. It has no Windows host, no local control kernel, and no lease or fencing source."
+  },
+
+  "required_executor": {
+    "role": "Authorized Windows DataBossX Control Tower",
+    "host_requirement": "The Windows workstation that owns C:\\DataBoss",
+    "control_root_drive_id": "1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL",
+    "must_bind_before_any_mutation": ["machine identity", "service identity", "user", "executable path", "PID", "process start time", "full command line"]
+  },
+
+  "allowed_paths": [
+    "The existing DataBossX local control root on the Windows host",
+    "The existing watcher service or scheduled-task configuration for the DataBossX bridge"
+  ],
+
+  "prohibited_paths": [
+    "C:\\DataBoss\\.worktrees\\section32-v12-narrative-restoration-20260801 and everything beneath it",
+    "Any V9, V10, V11, V12, V13, donor workbook, candidate workbook, evidence file, PDF, or ZIP",
+    "Any path outside the dedicated local control root"
+  ],
+
+  "allowed_drive_folder_ids": {
+    "poll_only": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "receipts_append_only": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+    "heartbeat_append_only": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC"
+  },
+
+  "prohibited_actions": [
+    "creating a second queue, database, policy engine, approval store, receipt ledger, command centre, watcher root, or control plane",
+    "adding any command to 01_QUEUED",
+    "claiming or terminalizing the Gate 0 command under this envelope",
+    "opening, saving, recalculating, or hashing-by-open any workbook",
+    "force-releasing an unknown process or lease",
+    "opening an inbound port, reverse tunnel, or non-loopback listener",
+    "repository merge, deployment, public release, or HOLD removal",
+    "writing any secret, credential, token, absolute private path, or client evidence into a status record or receipt"
+  ],
+
+  "input_hashes": {
+    "gate0_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "gate0_command_canonical_export_sha256": "92A5A128A4BF2D8FF5FE0768456B7AE3633662BE9A45DE9A954DEA08BEC1498F",
+    "gate0_command_canonical_export_byte_count": 6261,
+    "note": "The executor must re-read the command and confirm this hash before acting. A mismatch is a fail-closed stop condition."
+  },
+
+  "writer_ack": "REQUIRED - one accepted WriterACK naming the bridge-restoration scope. NOT YET ISSUED; no ACK store was reachable to the preparing lane.",
+  "lease": "REQUIRED - exactly one active lease over the bridge-configuration scope, with an explicit expiration. NOT YET ISSUED.",
+  "fencing": "REQUIRED - one monotonic fencing sequence value, strictly greater than any previously issued value for this scope. NOT YET ISSUED.",
+
+  "required_tests_before_service_activation": [
+    "Primary Drive read of folder 1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "Scratch-file Drive write and exact byte readback using no client evidence",
+    "Polling limited to folder ID 1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC only",
+    "Receipt upload limited to folder ID 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR only",
+    "Heartbeat output limited to folder ID 1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC only",
+    "Duplicate claim rejection",
+    "Duplicate terminal-receipt rejection",
+    "Stale lease rejection",
+    "Stale fencing rejection",
+    "Approval replay rejection",
+    "Unauthorized path and folder rejection",
+    "Stop-flag enforcement",
+    "Durable outbox replay after simulated disconnect",
+    "Crash and restart recovery from checkpoint",
+    "Secret-redaction and raw-client-data-exclusion",
+    "No inbound listener and no non-loopback bind",
+    "Rollback and uninstall procedure proved"
+  ],
+
+  "already_satisfied_by_preparing_lane": {
+    "note": "These two tests were proven from the cloud lane over the same Drive control root and are recorded for reuse as corroboration only. The Windows executor must still prove them from its own host and process identity.",
+    "primary_drive_read": "PASS - 01_QUEUED enumerated, child_count 1",
+    "scratch_write_and_exact_byte_readback": "PASS - canary 1Gp9OvkinACzkAmOhqh5HVaJ-N5TB9anR, pre-upload and readback SHA-256 both AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F, byte-for-byte cmp clean"
+  },
+
+  "rollback": {
+    "required": true,
+    "procedure": "Before any service, scheduled-task, or configuration change, capture the prior configuration state and record its hash. If any required test fails, restore the captured configuration, stop the service, and emit a blocked receipt. The uninstall path must be proved before activation, not after.",
+    "quarantine_rule": "Never move or delete quarantined evidence. Never overwrite an existing receipt."
+  },
+
+  "terminal_receipt_requirement": {
+    "destination_folder_id": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+    "must_include": ["envelope ID and hash", "owner-authorization reference", "actor and deterministic process identity", "allowed and prohibited paths", "WriterACK", "lease ID and expiration", "fencing sequence", "every test result", "rollback proof", "every control-plane write with Drive ID", "exact-byte readback proof", "UTC and America/Chicago times", "zero client-artifact mutation", "exact next permitted action", "preserved HOLD"],
+    "append_only": true
+  },
+
+  "explicit_non_scope": [
+    "This envelope does not claim the Gate 0 command",
+    "This envelope does not terminalize Gate 0",
+    "This envelope does not verify, reject, open, copy, or hash V12",
+    "This envelope does not activate the conditional completion draft",
+    "This envelope does not bind a workbook writer",
+    "This envelope does not create Candidate A"
+  ],
+
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "sentinel": "PREPARED_REPAIR_ENVELOPE_DRAFT_AWAITING_RYAN_ACTIVATION_NOT_EXECUTABLE"
+}

@@ -1,0 +1,241 @@
+{
+  "schema": "databossx.control_receipt.v1",
+  "receipt_id": "DBX-RCPT-S32-GATE0-BRIDGE-CANARY-BLOCKED-20260802T1043CDT",
+  "receipt_type": "BRIDGE_CANARY_PASS_AND_GATE0_CLAIM_BLOCKED_NON_TERMINAL_DIAGNOSTIC",
+  "supersedes_note": "This receipt does not delete, edit, or overwrite any prior record. It is an append-only correction that answers the independent QC review QC_REVIEW__CLAUDE_DRIVE_BRIDGE_RECOVERY_RECEIPT__FAIL_WITH_ACTIONABLE_DEFECTS__20260802T1036CDT.json (Drive ID 1rhez2m6vANAhI5LnDZoueEbjUKu_-yEq).",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "IS_GATE0_TERMINAL_RECEIPT": false,
+  "IS_GATE0_START_CLAIM_RECEIPT": false,
+  "GATE0_CLAIM_CONSUMED": false,
+  "GATE0_TERMINAL_SENTINEL_EMITTED": "NOT APPLICABLE - no valid claim was possible from this host, so emitting any of the three Gate 0 sentinels would create an invalid terminal and would consume the command's single terminal slot. Deliberately withheld.",
+
+  "actor": {
+    "agent": "Claude Code supervisory lane",
+    "role": "READ_ONLY_DIAGNOSTIC_AND_SYNTHETIC_CANARY",
+    "is_authorized_windows_control_tower": false,
+    "hostname": "vm",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "os_kernel": "Linux 6.18.5 x86_64",
+    "user": "root (container-local, not a DataBossX service account)",
+    "pid": 6228,
+    "ppid": 587,
+    "process_start_utc": "2026-08-02T15:42:55Z",
+    "repo_commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "branch": "claude/section32-gate0-execution-5w7emd",
+    "command_line": "NOT APPLICABLE - no DataBossX watcher, runner, or service process exists on this host to bind. Full process table enumerated; zero DataBossX processes present."
+  },
+
+  "observation_window": {
+    "start_utc": "2026-08-02T15:36:29Z",
+    "end_utc": "2026-08-02T15:44:30Z",
+    "start_local_america_chicago": "2026-08-02T10:36:29-05:00",
+    "end_local_america_chicago": "2026-08-02T10:44:30-05:00"
+  },
+
+  "bound_command": {
+    "drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "title": "01_EXECUTE_NEXT__S32_CONTAINMENT_TERMINALIZATION_AND_CLEAN_AUTHORITY_REISSUE_COMPILER__20260801T1846CDT",
+    "command_id": "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+    "parent_folder_id": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "drive_modified_time_utc": "2026-08-02T04:06:46.560Z",
+    "drive_reported_size": 4930,
+    "canonical_export_mime": "text/plain",
+    "canonical_export_byte_count": 6261,
+    "canonical_export_sha256": "92A5A128A4BF2D8FF5FE0768456B7AE3633662BE9A45DE9A954DEA08BEC1498F",
+    "drive_api_revision_id": "NOT APPLICABLE - the available Drive connector does not expose the Drive API revision field. Canonical content hash of the text/plain export is bound instead, per QC-D3 required repair.",
+    "qc_d3_status": "REPAIRED - command Drive ID plus canonical content hash and byte count are now bound."
+  },
+
+  "authority_chain_read": [
+    {"role": "current master control", "drive_id": "1G9ucVWIt6vrqLBV1STw0oYJV0LqxBjqA73i9gn17Tco", "read": true},
+    {"role": "owner supplement bridge recovery", "drive_id": "1bSzw2e6_PRZk87lf5mqtPgY9-rL7biA0", "read": true},
+    {"role": "owner authorization V12 pointer and conditional completion", "drive_id": "1dvJJwVc6wTmJcNq7_estSD3tmUS1SyfdIX6syJSePPk", "read": true},
+    {"role": "sole queued Gate 0 command", "drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE", "read": true},
+    {"role": "independent QC review of prior cloud receipt", "drive_id": "1rhez2m6vANAhI5LnDZoueEbjUKu_-yEq", "read": true},
+    {"role": "prior cloud blocked receipt", "drive_id": "1CrWyCjm2Ld3tOsCTWqKaTliIK8oui-v3", "read": "METADATA_ONLY"},
+    {"role": "prior watcher status record", "drive_id": "1CyCyVYKLLZUq-jPMnUhztBdrwAt8MmAC", "read": true},
+    {"role": "conditional completion draft", "drive_id": "1yLvVqVGxmcFrYxXhWxRU-VUehg7cdvxut4fEZsGXPPg", "read": "NOT READ - deliberately not opened. Gate 0 did not return the clean-authority sentinel, so the draft is not activatable and reading it could not change this outcome."}
+  ],
+
+  "observed_cloud_state": {
+    "01_QUEUED": {"folder_id": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC", "child_count": 1, "sole_command_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE", "competing_command_added": false},
+    "02_RECEIPTS": {"folder_id": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR", "child_count_before_this_receipt": 11, "note": "The task briefing stated 02_RECEIPTS contained no matching START/CLAIM or Gate 0 terminal receipt. That remains true. The briefing's statement that the folder was otherwise empty of recent records is CORRECTED: a prior cloud lane wrote records at 2026-08-02T15:34:39Z and an independent QC review landed at 2026-08-02T15:36:29Z."},
+    "05_COMPLETED": {"folder_id": "14EE_1aunpApmachFe6EMBVTX8zEUIoB_", "child_count": 0},
+    "09_WATCHER_OUTPUT": {"folder_id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC", "child_count_before_this_run": 1, "note": "CORRECTION to the task briefing, which stated this folder was empty. A prior lane's status record landed at 2026-08-02T15:37:19Z, after the QC review was written. QC-D1 is therefore already satisfied by that upload; this receipt records the independent confirmation."}
+  },
+
+  "phase_1_local_discovery": {
+    "status": "COMPLETE",
+    "authoritative_repo_found": "/home/user/DataBoss (DataBossX/DataBoss, branch claude/section32-gate0-execution-5w7emd)",
+    "windows_host_present": false,
+    "c_drive_databoss_present": false,
+    "v12_worktree_present": false,
+    "drive_watcher_code_present": false,
+    "runner_present": false,
+    "receipt_uploader_present": false,
+    "lease_store_present": false,
+    "ack_store_present": false,
+    "fencing_counter_present": false,
+    "outbox_present": false,
+    "claim_ledger_present": false,
+    "local_task_envelopes_present": false,
+    "windows_services_or_scheduled_tasks": "NOT APPLICABLE - Linux container, no Windows service control manager or Task Scheduler exists.",
+    "excel_processes": "NOT APPLICABLE - no Excel, no Windows, no workbook present on this host.",
+    "file_locks_on_protected_scope": "NOT APPLICABLE - no protected workbook exists on this host to lock.",
+    "stop_flags_found": "NONE",
+    "drive_credentials_configuration": "NONE on disk. Drive reachability in this session is provided solely by a session-scoped MCP connector. No service-account key, token file, or credential material was found, read, printed, or written.",
+    "nearest_existing_control_kernel": "horizon/controlled_loop.py provides a work-order/hash-verification loop but implements no Drive watcher, no lease, no fencing token, and no claim ledger. The lease/fencing/ACK kernel is recorded as existing only on a frozen PR #66 branch and is not present on main.",
+    "processes_capable_of_writing_protected_scope": "NONE observed. Full process table enumerated; only container init and this session's tooling are present."
+  },
+
+  "phase_2_synthetic_canary": {
+    "status": "PASS",
+    "canary_id": "DBX-CANARY-20260802T1043CDT-A1",
+    "non_client_synthetic_bytes_only": true,
+    "queue_read_before_write": true,
+    "queue_folder_id_read": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "written_to_folder_id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+    "written_drive_id": "1Gp9OvkinACzkAmOhqh5HVaJ-N5TB9anR",
+    "written_title": "DBX_CANARY__SYNTHETIC_BRIDGE_ROUNDTRIP__20260802T1043CDT.json",
+    "pre_upload_byte_count": 1376,
+    "pre_upload_sha256": "AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F",
+    "drive_reported_size_after_upload": 1376,
+    "readback_byte_count": 1376,
+    "readback_sha256": "AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F",
+    "byte_for_byte_comparison": "PASS - cmp reported no difference between pre-upload bytes and readback bytes",
+    "upload_time_utc": "2026-08-02T15:43:52.101Z",
+    "verification_time_utc": "2026-08-02T15:44:12Z",
+    "secrets_exposed": false,
+    "client_evidence_exposed": false,
+    "inbound_listener_opened": false,
+    "reverse_tunnel_opened": false,
+    "non_loopback_bind": false,
+    "duplicate_claim_rejection_test": "NOT RUN - NOT APPLICABLE. There is no claim mechanism on this host to exercise, and running a duplicate-claim test against the live sole command would risk consuming the real claim.",
+    "duplicate_terminal_rejection_test": "NOT RUN - NOT APPLICABLE for the same reason.",
+    "durable_outbox_replay_test": "NOT RUN - NOT APPLICABLE. No durable outbox implementation exists on this host to replay. Not safely simulable without inventing a second control plane, which is prohibited.",
+    "conclusion": "The outbound-only Drive surface is proven HEALTHY for read and append-only exact-byte write from this lane. This proves the Drive leg only. It does NOT prove a DataBossX watcher, and it is NOT watcher liveness."
+  },
+
+  "phase_3_claim": {
+    "status": "BLOCKED_FAIL_CLOSED",
+    "claim_attempted": false,
+    "claim_issued": false,
+    "reason": "Claiming requires the existing watcher-contract tuple, one valid lease, and a monotonic fencing token. None of these mechanisms exist on this host or on the current main branch. This host is additionally not the authorized Windows Control Tower named by the owner authorization Phase A. Claiming from here would invent authority, create a second control plane, and irreversibly consume the exactly-once claim token that the authorized Control Tower still needs.",
+    "lease_id": "NOT APPLICABLE - no lease store exists to issue or validate a lease.",
+    "fencing_token": "NOT APPLICABLE - no monotonic fencing source exists.",
+    "writer_ack": "NOT APPLICABLE - no ACK store exists.",
+    "start_claim_receipt_written": false,
+    "competing_claimant_detected": false,
+    "stale_claimant_detected": false
+  },
+
+  "phase_4_v12_verification": {
+    "status": "BLOCKED_CANNOT_VERIFY",
+    "expected_path": "C:\\DataBoss\\.worktrees\\section32-v12-narrative-restoration-20260801\\SECTION32_V12_NARRATIVE_RESTORATION__20260801T013849Z\\package\\HORIZON_SECTION32_V12_NARRATIVE_RESTORATION_INTERNAL_REVIEW_HOLD__20260801T021008Z.xlsx",
+    "expected_sha256": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+    "path_exists": false,
+    "path_reachable_from_this_host": false,
+    "byte_size_observed": "NOT APPLICABLE - file absent from this host.",
+    "sha256_observed": "NOT APPLICABLE - file absent from this host.",
+    "hash_mismatch_asserted": false,
+    "IMPORTANT": "V12 is NOT rejected and NOT confirmed. Absence from an unauthorized host is not evidence about V12's real state. No adverse inference may be drawn from this record.",
+    "package_membership": "NOT APPLICABLE - package absent from this host.",
+    "writer_ack_disposition": "NOT APPLICABLE - no local ACK records reachable.",
+    "prior_lease_disposition": "NOT APPLICABLE - no local lease records reachable.",
+    "prior_writer_heartbeat": "NOT APPLICABLE - no local heartbeat records reachable.",
+    "competing_writer_check": "NOT APPLICABLE - protected scope does not exist on this host.",
+    "excel_lock_or_owner_file_check": "NOT APPLICABLE - no workbook and no Excel on this host.",
+    "v10_hash_preserved_check": "NOT APPLICABLE - V10 not present on this host. Declared baseline 79668279F0CF1A49CDF6F599F611C7BE058D40D43FA54372F6B559E60D9E7F4C carried forward unverified.",
+    "v11_hash_preserved_check": "NOT APPLICABLE - V11 not present on this host. Declared baseline 81AE7941DC62C748CBAA57A0FCEEB77F24828440F3A954173284ED3DB0DB0369 carried forward unverified.",
+    "silent_fallback_to_other_workbook": false
+  },
+
+  "phase_5_gate0_terminal": {
+    "status": "WITHHELD_BY_DESIGN",
+    "terminal_receipt_written": false,
+    "reason": "Gate 0 REQUIRED ACTION 1 mandates reading the live local Control Tower records for the containment control, TaskEnvelopes, ACKs, leases, fencing records, claim ledger, heartbeats, and process command lines. None are reachable from this host. A terminal sentinel emitted without that evidence would be unsupported, and because the command permits exactly one terminal receipt, emitting one here would destroy the authorized Control Tower's ability to terminalize correctly.",
+    "sentinels_deliberately_not_emitted": [
+      "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY",
+      "S32_REQUIRES_OWNER_CONTROLLING_POINTER_DECISION",
+      "S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED"
+    ],
+    "gate0_state_after_this_run": "NOT_CLAIMED_NOT_TERMINALIZED"
+  },
+
+  "phase_6_candidate_a": {
+    "status": "NOT_STARTED_CORRECTLY_GATED",
+    "reason": "Activation requires a verified terminal of exactly S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY. No terminal was produced. No TaskEnvelope was activated, no writer was bound, no workbook was copied, and no Candidate A exists.",
+    "completion_draft_activated": false,
+    "codex_writer_bound": false,
+    "reviewer_bound": false,
+    "candidate_a_created": false,
+    "v12_copied": false
+  },
+
+  "qc_defect_repairs": {
+    "QC-D1": {
+      "severity": "BLOCKING_FOR_WATCHER_PROOF",
+      "defect": "Prior receipt claimed a sanitized status record was emitted to 09_WATCHER_OUTPUT, but an independent read at review time returned child_count=0.",
+      "status": "RESOLVED_AND_INDEPENDENTLY_CONFIRMED",
+      "evidence": "09_WATCHER_OUTPUT now contains DBX_WATCHER_STATUS__BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1035CDT.json, Drive ID 1CyCyVYKLLZUq-jPMnUhztBdrwAt8MmAC, created 2026-08-02T15:37:19.703Z, which is after the QC review timestamp of 2026-08-02T15:36:29Z. The QC review observed a true empty state at the moment it ran; the referenced record landed shortly afterward. Content downloaded and confirmed by this lane. No prior record was edited or overwritten.",
+      "additional_proof_added_this_run": "DBX_CANARY__SYNTHETIC_BRIDGE_ROUNDTRIP__20260802T1043CDT.json, Drive ID 1Gp9OvkinACzkAmOhqh5HVaJ-N5TB9anR, with full pre-upload and readback digest proof."
+    },
+    "QC-D2": {
+      "severity": "HIGH",
+      "defect": "Prior receipt carried no receipt_id, no canonical content hash of its own bytes, no final Drive file ID or parent, and no upload/readback digest proof.",
+      "status": "REPAIRED_IN_THIS_RECEIPT",
+      "evidence": "This receipt carries receipt_id, and its own canonical byte hash, Drive file ID, parent folder ID, uploaded byte size, readback byte size, readback hash, and verification time are recorded in the companion sidecar DBX_RECEIPT__S32_GATE0_BRIDGE_CANARY_PASS_CLAIM_BLOCKED__20260802T1043CDT.json.sha256, which is uploaded to the same folder immediately after this receipt. A receipt cannot contain its own hash; the sidecar is the established pattern already present in 02_RECEIPTS."
+    },
+    "QC-D3": {
+      "severity": "MEDIUM",
+      "defect": "Prior receipt recorded command modified time and size but no Drive API revision or canonical command-content hash.",
+      "status": "REPAIRED_IN_THIS_RECEIPT",
+      "evidence": "bound_command now records the canonical text/plain export byte count 6261 and SHA-256 92A5A128A4BF2D8FF5FE0768456B7AE3633662BE9A45DE9A954DEA08BEC1498F, plus an explicit NOT APPLICABLE with reason for the Drive API revision field the connector does not expose."
+    }
+  },
+
+  "mutation_ledger": {
+    "client_artifact_bytes_changed": 0,
+    "workbook_bytes_changed": 0,
+    "source_evidence_mutated": false,
+    "pdf_or_zip_mutated": false,
+    "v9_v10_v11_v12_v13_touched": false,
+    "donor_files_touched": false,
+    "drive_files_edited_or_overwritten": 0,
+    "drive_files_deleted": 0,
+    "drive_files_moved": 0,
+    "drive_files_created_this_run": [
+      {"title": "DBX_CANARY__SYNTHETIC_BRIDGE_ROUNDTRIP__20260802T1043CDT.json", "drive_id": "1Gp9OvkinACzkAmOhqh5HVaJ-N5TB9anR", "parent": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC", "append_only": true}
+    ],
+    "competing_command_created": false,
+    "competing_queue_created": false,
+    "competing_control_plane_created": false,
+    "second_watcher_root_created": false,
+    "repository_merge": false,
+    "repository_deployment": false,
+    "public_service_exposed": false,
+    "hold_removed": false
+  },
+
+  "rollback": {
+    "required": false,
+    "reason": "No mutation of any protected or client artifact occurred. All Drive writes are new append-only control records in authorized control folders. Nothing was overwritten, so there is no prior state to restore.",
+    "reversal_procedure_if_owner_wishes": "The owner may delete the two append-only records created by this run by Drive ID. No other artifact is affected."
+  },
+
+  "stop_conditions_triggered": [
+    "Missing or invalid TaskEnvelope - no TaskEnvelope mechanism reachable from this host",
+    "Missing lease - no lease store exists on this host or on main",
+    "Missing fencing - no monotonic fencing source exists",
+    "Missing WriterACK - no ACK store exists",
+    "V12 path unreachable - the authorized local path does not exist on this host",
+    "Unauthorized execution host - this lane is not the authorized Windows Control Tower named by the owner authorization"
+  ],
+
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "next_permitted_action": "The authorized Windows Control Tower on the host that owns C:\\DataBoss must (1) start or repair the existing outbound-only Drive watcher bound to control root 1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL, (2) claim Drive ID 1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE exactly once using the existing watcher-contract tuple, (3) emit a START/CLAIM receipt to 02_RECEIPTS with exact-byte readback, (4) execute Gate 0 read-only against the live local control records and the local V12 path, and (5) append exactly one Gate 0 terminal receipt. The claim token remains UNCONSUMED and available. A prepared, non-executable repair TaskEnvelope is placed in 04_BLOCKED with state DRAFT_AWAITING_RYAN_ACTIVATION.",
+
+  "terminal_sentinel": "DATABOSSX_BRIDGE_CANARY_PASS_GATE0_CLAIM_BLOCKED_UNAUTHORIZED_HOST_NOT_A_GATE0_TERMINAL"
+}

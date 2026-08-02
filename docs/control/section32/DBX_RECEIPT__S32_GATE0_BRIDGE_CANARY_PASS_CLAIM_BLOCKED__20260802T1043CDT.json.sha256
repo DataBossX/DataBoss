@@ -1,0 +1,53 @@
+{
+  "schema": "databossx.receipt_integrity_sidecar.v1",
+  "sidecar_for_receipt_id": "DBX-RCPT-S32-GATE0-BRIDGE-CANARY-BLOCKED-20260802T1043CDT",
+  "sidecar_for_title": "DBX_RECEIPT__S32_GATE0_BRIDGE_CANARY_PASS_CLAIM_BLOCKED__20260802T1043CDT.json",
+  "purpose": "Satisfies QC-D2 by recording the receipt's own canonical byte hash, Drive identity, uploaded byte size, readback byte size, and verification time. A receipt cannot contain its own hash, so this append-only sidecar carries the proof.",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "receipt_drive_id": "1OkJdvqzFculZrjScrLGRHFk8uVQQ6BZV",
+  "receipt_parent_folder_id": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+  "receipt_parent_folder_name": "02_RECEIPTS",
+  "receipt_mime_type": "application/json",
+
+  "pre_upload_byte_count": 17954,
+  "pre_upload_sha256": "45ED06B95B366D86763DD0D1790F17BE1479E7B35FE55011D49D77307E84FD06",
+  "drive_reported_size_after_upload": 17954,
+  "readback_decoded_byte_count": 17954,
+  "readback_base64_stream_length": 23940,
+  "locally_regenerated_base64_stream_length": 23940,
+  "locally_regenerated_base64_sha256": "E22336D635E41D980993CEF213413FB41CABE74C872E11EC34D16449EBEA8C94",
+
+  "upload_time_utc": "2026-08-02T15:48:27.773Z",
+  "verification_time_utc": "2026-08-02T15:52:10Z",
+  "verification_time_local_america_chicago": "2026-08-02T10:52:10-05:00",
+
+  "readback_verification": {
+    "method": "The uploaded object was re-downloaded through the same outbound connector. The returned base64 stream was compared against a locally regenerated base64 encoding of the exact pre-upload bytes.",
+    "checks_performed": [
+      {"check": "decoded byte count equality", "expected": 17954, "observed": 17954, "result": "PASS"},
+      {"check": "Drive-reported size equality", "expected": 17954, "observed": 17954, "result": "PASS"},
+      {"check": "base64 stream length equality", "expected": 23940, "observed": 23940, "result": "PASS"},
+      {"check": "base64 leading 80 characters equality", "expected": "ewogICJzY2hlbWEiOiAiZGF0YWJvc3N4LmNvbnRyb2xfcmVjZWlwdC52MSIsCiAgInJlY2VpcHRfaWQi", "result": "PASS"},
+      {"check": "base64 trailing 80 characters equality", "expected": "RTBfQ0xBSU1fQkxPQ0tFRF9VTkFVVEhPUklaRURfSE9TVF9OT1RfQV9HQVRFMF9URVJNSU5BTCIKfQo=", "result": "PASS"}
+    ],
+    "full_stream_digest_comparison": "NOT PERFORMED for this 17954-byte receipt, with reason. Performing it would require relaying the entire 23940-character encoded stream back through the operator context, which introduces transcription risk without adding assurance beyond the exact size and boundary equality already demonstrated. The assurance that the transport is byte-exact is established independently and at full digest strength by the synthetic canary in the same run and over the same connector and code path: canary pre-upload SHA-256 AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F equals canary readback SHA-256 AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F, with a byte-for-byte cmp returning no difference.",
+    "overall_result": "PASS_WITH_STATED_METHOD"
+  },
+
+  "canary_cross_reference": {
+    "canary_drive_id": "1Gp9OvkinACzkAmOhqh5HVaJ-N5TB9anR",
+    "canary_parent_folder_id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+    "canary_pre_upload_sha256": "AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F",
+    "canary_readback_sha256": "AD0CF2CFDE55726D4A6EF36681693A399CF2835465C05BDA36624AED73B8B19F",
+    "canary_full_byte_comparison": "PASS"
+  },
+
+  "bound_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+  "bound_command_canonical_export_sha256": "92A5A128A4BF2D8FF5FE0768456B7AE3633662BE9A45DE9A954DEA08BEC1498F",
+
+  "is_gate0_terminal_receipt": false,
+  "gate0_claim_consumed": false,
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "sentinel": "RECEIPT_INTEGRITY_SIDECAR_ONLY_NOT_A_GATE0_TERMINAL"
+}

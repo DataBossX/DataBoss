@@ -1,13 +1,9 @@
-"""Drive access, wrapped so that every write is guarded and verified.
-
-The tower never talks to a Drive SDK directly. It talks to a client interface,
-which lets the whole control kernel be exercised offline and lets the canary
-inject outages and corruption deliberately rather than waiting for them.
-"""
+"""Drive access wrapped with lease/fence guards and exact-byte recovery."""
 
 from .constants import (
     POLLED_FOLDER_ID,
     ControlTowerError,
+    LeaseExpired,
     ReadbackMismatch,
 )
 from .safety import (
@@ -31,6 +27,8 @@ class DriveOutage(ControlTowerError):
 class DriveClient(object):
     """The interface the tower depends on. Implementations must not overwrite."""
 
+    is_offline = False
+
     def list_children(self, folder_id):
         raise NotImplementedError
 
@@ -44,15 +42,17 @@ class DriveClient(object):
         raise NotImplementedError
 
     def find_by_name(self, folder_id, name):
-        raise NotImplementedError
+        matches = self.find_all_by_name(folder_id, name)
+        return matches[0] if matches else None
+
+    def find_all_by_name(self, folder_id, name):
+        return [item for item in self.list_children(folder_id) if item.get("title") == name]
 
 
 class OfflineDriveClient(DriveClient):
-    """An in-memory Drive used by the selftest and the offline canary.
+    """Strict in-memory Drive used only by synthetic tests and canaries."""
 
-    It is intentionally strict: ``create`` refuses to replace an existing name,
-    mirroring the append-only rule that the real control package relies on.
-    """
+    is_offline = True
 
     def __init__(self):
         self._files = {}
@@ -110,16 +110,27 @@ class OfflineDriveClient(DriveClient):
             return found["payload"] + b"x"
         return found["payload"]
 
-    def find_by_name(self, folder_id, name):
+    def find_all_by_name(self, folder_id, name):
         self._check_outage()
-        for f in self._files.values():
-            if f["parentId"] == folder_id and f["title"] == name:
-                return dict(f)
-        return None
+        return [
+            {
+                "id": f["id"],
+                "parentId": f["parentId"],
+                "title": f["title"],
+                "mimeType": f["mimeType"],
+                "fileSize": str(len(f["payload"])),
+            }
+            for f in self._files.values()
+            if f["parentId"] == folder_id and f["title"] == name
+        ]
+
+    def find_by_name(self, folder_id, name):
+        matches = self.find_all_by_name(folder_id, name)
+        return matches[0] if matches else None
 
     def create(self, folder_id, name, payload, mime_type):
         self._check_outage()
-        if self.find_by_name(folder_id, name) is not None:
+        if self.find_all_by_name(folder_id, name):
             raise ControlTowerError(
                 "append-only: a file named {0} already exists".format(name)
             )
@@ -129,12 +140,13 @@ class OfflineDriveClient(DriveClient):
 
 
 class SafeDriveWriter(object):
-    """Spool first, then upload, then read back and compare exact bytes.
+    """Spool first, require the current lease/fence, upload and verify.
 
-    Ordering matters. The spool write happens before the network call, so a
-    Drive outage can never destroy evidence -- at worst the record is durable
-    locally and marked pending, and a later run can complete it without
-    overwriting anything.
+    Live clients can never write without a registry-backed current lease.  The
+    offline client remains usable for pure synthetic self-tests.  Pending spool
+    records are resumed with :meth:`recover_record`, which adopts one exact
+    existing Drive object or uploads only when absent.  Duplicates and byte
+    mismatches fail closed.
     """
 
     def __init__(self, client, spool, leases=None):
@@ -143,7 +155,6 @@ class SafeDriveWriter(object):
         self.leases = leases
 
     def poll_queue(self):
-        """Read the one canonical queue folder. Titles carry no authority."""
         folder_id = assert_pollable(POLLED_FOLDER_ID)
         return self.client.list_children(folder_id)
 
@@ -159,22 +170,55 @@ class SafeDriveWriter(object):
             assert_read_allowed(meta.get("parentId"))
         return meta, self.client.download(file_id)
 
-    def emit_record(self, folder_id, name, record, lease=None, now=None):
-        """Emit one control record with full durability and verification."""
-        assert_write_allowed(folder_id)
-        if self.leases is not None and lease is not None:
-            self.leases.require_valid(lease, now if now is not None else 0)
+    def _require_lease(self, lease, now):
+        if self.client.is_offline and self.leases is None and lease is None:
+            return None
+        if self.leases is None:
+            raise LeaseExpired("live writer has no lease registry")
+        if lease is None:
+            raise LeaseExpired("protected write requires a lease")
+        return self.leases.require_valid(lease, now if now is not None else 0)
 
+    def _named_matches(self, folder_id, name):
+        matches = self.client.find_all_by_name(folder_id, name)
+        if len(matches) > 1:
+            raise ControlTowerError(
+                "duplicate Drive objects named {0} in folder {1}".format(name, folder_id)
+            )
+        return matches
+
+    def _verify_match(self, match, folder_id, name, payload, digest):
+        if match.get("parentId") != folder_id or match.get("title") != name:
+            raise ControlTowerError("Drive match identity changed during reconciliation")
+        returned = self.client.download(match["id"])
+        readback_digest = verify_readback(payload, returned)
+        if readback_digest != digest:
+            raise ReadbackMismatch("existing Drive object has mismatched bytes")
+        return {
+            "event": "UPLOAD_VERIFIED",
+            "name": name,
+            "folder_id": folder_id,
+            "drive_id": match["id"],
+            "canonical_url": canonical_drive_url(match["id"]),
+            "uploaded_bytes": len(payload),
+            "readback_bytes": len(returned),
+            "sha256": digest,
+            "readback_sha256": readback_digest,
+            "byte_exact_match": True,
+        }
+
+    def emit_record(self, folder_id, name, record, lease=None, now=None):
+        """Emit a new record. Existing spool names remain collision-safe."""
+        assert_write_allowed(folder_id)
+        self._require_lease(lease, now)
         safe = stamp_hold(redact_tree(record))
         payload = canonical_json_bytes(safe)
         digest = assert_uploadable(payload, filename=name, mime_type="application/json")
-
-        # Durability before the network. A collision here is an error, never a
-        # silent replacement.
         spooled = self.spool.put_record(name, payload)
-
         try:
-            created = self.client.create(folder_id, name, payload, "application/json")
+            return self._upload_or_adopt(
+                folder_id, name, payload, digest, spooled, lease=lease, now=now
+            )
         except DriveOutage:
             self.spool.append(
                 {
@@ -188,23 +232,56 @@ class SafeDriveWriter(object):
             )
             raise
 
-        returned = self.client.download(created["id"])
-        readback_digest = verify_readback(payload, returned)
-        if readback_digest != digest:  # pragma: no cover - defence in depth
-            raise ReadbackMismatch("digest changed between upload and readback")
+    def recover_record(self, folder_id, name, lease=None, now=None):
+        """Resume one already-spooled record idempotently after interruption."""
+        assert_write_allowed(folder_id)
+        self._require_lease(lease, now)
+        payload = self.spool.read_record(name)
+        digest = assert_uploadable(payload, filename=name, mime_type="application/json")
+        spooled = self.spool.verify_record(name, payload)
+        try:
+            return self._upload_or_adopt(
+                folder_id, name, payload, digest, spooled, lease=lease, now=now
+            )
+        except DriveOutage:
+            self.spool.append(
+                {
+                    "event": "RECOVERY_PENDING_DRIVE_OUTAGE",
+                    "name": name,
+                    "folder_id": folder_id,
+                    "sha256": digest,
+                    "bytes": len(payload),
+                }
+            )
+            raise
 
-        result = {
-            "event": "UPLOAD_VERIFIED",
-            "name": name,
-            "folder_id": folder_id,
-            "drive_id": created["id"],
-            "canonical_url": canonical_drive_url(created["id"]),
-            "uploaded_bytes": len(payload),
-            "readback_bytes": len(returned),
-            "sha256": digest,
-            "readback_sha256": readback_digest,
-            "byte_exact_match": True,
-        }
+    def _upload_or_adopt(self, folder_id, name, payload, digest, spooled, lease=None, now=None):
+        self._require_lease(lease, now)
+        matches = self._named_matches(folder_id, name)
+        if matches:
+            result = self._verify_match(matches[0], folder_id, name, payload, digest)
+            result["event"] = "UPLOAD_RECOVERED_EXACT_MATCH"
+            self.spool.append(result)
+            return result
+
+        try:
+            created = self.client.create(folder_id, name, payload, "application/json")
+        except ControlTowerError:
+            # Another process may have won the create race. Reconcile once and
+            # accept only one exact object; otherwise propagate the failure.
+            matches = self._named_matches(folder_id, name)
+            if not matches:
+                raise
+            result = self._verify_match(matches[0], folder_id, name, payload, digest)
+            result["event"] = "UPLOAD_RECOVERED_AFTER_CREATE_RACE"
+            self.spool.append(result)
+            return result
+
+        matches = self._named_matches(folder_id, name)
+        if len(matches) != 1 or matches[0].get("id") != created.get("id"):
+            raise ControlTowerError("Drive create did not converge to one stable object")
+        result = self._verify_match(matches[0], folder_id, name, payload, digest)
+        result["spool_path"] = spooled["path"]
         self.spool.append(result)
         return result
 

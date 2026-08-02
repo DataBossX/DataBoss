@@ -70,22 +70,25 @@ def test_two_concurrent_lease_holders_have_exactly_one_winner(tmp_path):
 
 
 class ForcedCreateRaceClient(OfflineDriveClient):
-    """Force both creates past their precheck so reconciliation sees duplicates."""
+    """Force both creates to finish before either writer reconciles."""
 
     is_offline = False
 
     def __init__(self):
         super().__init__()
-        self.create_barrier = threading.Barrier(2)
+        self.pre_create_barrier = threading.Barrier(2)
+        self.post_create_barrier = threading.Barrier(2)
         self.create_lock = threading.Lock()
 
     def create(self, folder_id, name, payload, mime_type):
         self._check_outage()
-        self.create_barrier.wait()
+        self.pre_create_barrier.wait()
         with self.create_lock:
             self._seq += 1
             file_id = "RACE{0:016d}".format(self._seq)
-            return self.seed(file_id, folder_id, name, payload, mime_type)
+            created = self.seed(file_id, folder_id, name, payload, mime_type)
+        self.post_create_barrier.wait()
+        return created
 
 
 def test_two_concurrent_same_name_creators_fail_closed_on_duplicate(tmp_path):

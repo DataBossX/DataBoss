@@ -4,3 +4,19 @@ useDefault = true
 [[allowlists]]
 description = "Known commit that deletes the previously exposed backend credentials"
 commits = ["ad02fdebbf88945feb3c215217c1ce16286e5b5d"]
+
+# ca62cbd added Control Tower redaction tests whose fixtures were written as
+# literals. One of them, "ghp_" followed by 36 sequential alphanumerics, is a
+# structurally valid GitHub PAT shape and matches the default github-pat rule.
+# It is a fabricated fixture: it was never issued, never valid, and grants
+# nothing. The following commit replaces every such fixture with a value built
+# at runtime, so the working tree is clean and stays clean.
+#
+# This entry exists only so the pull-request commit-range scan does not keep
+# re-reporting that one historical blob. It is scoped to the single commit
+# rather than to the test path on purpose: allowlisting the path would leave a
+# standing blind spot where a real credential could later hide, whereas this
+# excuses one known, superseded commit and nothing else.
+[[allowlists]]
+description = "Fabricated credential fixture in ca62cbd, replaced by runtime construction in the next commit"
+commits = ["ca62cbd080b797d74bd89e6951e56c69920f66a5"]

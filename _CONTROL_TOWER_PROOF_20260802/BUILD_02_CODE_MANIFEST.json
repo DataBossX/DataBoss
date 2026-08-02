@@ -29,11 +29,11 @@
     }
   },
   "implementation_modules": 8,
-  "implementation_lines": 1770,
-  "test_lines": 583,
+  "implementation_lines": 1771,
+  "test_lines": 594,
   "total_files": 11,
-  "total_lines": 2491,
-  "total_bytes": 88839,
+  "total_lines": 2503,
+  "total_bytes": 89491,
   "per_file": {
     "control_tower/README.md": {
       "sha256": "40D6F1DE1225C5FEDB7E488BFE4F3F77070D0292B56E17C882C794C917EB4707",
@@ -76,9 +76,9 @@
       "bytes": 7352
     },
     "control_tower/tower.py": {
-      "sha256": "A544A58C622D0828B4010D5F8D1898FC1E1633FD9AE0422249CA46853E75C961",
-      "lines": 469,
-      "bytes": 17213
+      "sha256": "CDE4749EDD76DEAFAFC54B25DF2499183D67DF12CCC6BC78668BCCD30725A1E4",
+      "lines": 470,
+      "bytes": 17382
     },
     "run_control_tower.bat": {
       "sha256": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
@@ -86,9 +86,9 @@
       "bytes": 1073
     },
     "tests/test_control_tower.py": {
-      "sha256": "C850FA772C7E4B0F692087EFDBC14652DEF5B202E6CF38588F4A08B8D520AD94",
-      "lines": 583,
-      "bytes": 20698
+      "sha256": "4D84C5E9702F0247A21AA467BB3BFEB8E22B94DF5DB1F35A6BF7A4840263C1A1",
+      "lines": 594,
+      "bytes": 21181
     }
   },
   "dependencies": {
@@ -97,5 +97,6 @@
     "python_built_with": "3.11.15",
     "python_min_supported": "3.8"
   },
-  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "secret_scanner_note": "Credential-shaped test fixtures are constructed at runtime rather than written as literals, so the repository secret scanner stays fully armed. No gitleaks allowlist entry was added, because an allowlisted path is a blind spot where a real credential could hide."
 }

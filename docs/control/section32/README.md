@@ -78,6 +78,11 @@ three actionable defects. All three are addressed:
 
 ## Next permitted action
 
+**Start here:** `00_HUMAN_ACTION_REQUIRED__UNBLOCK_S32_GATE0_ON_WINDOWS_CONTROL_TOWER__20260802T1053CDT.md`
+in this directory — a step-by-step operator runbook with the exact PowerShell to
+run, the hashes to compare, and the fail-closed stops. Also in Drive
+`07_HUMAN_APPROVAL` at Drive ID `1RmbtxjWyIhzlShnfnHB0c1h11jhbsaRk`.
+
 On the Windows workstation that owns `C:\DataBoss`, bound to control root
 `1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL`:
 

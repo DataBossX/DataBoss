@@ -1,0 +1,44 @@
+{
+  "schema": "databossx.correction_record.v1",
+  "correction_id": "DBX-CORR-01-CT-BUILDPROOF-20260802",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "record_class": "APPEND_ONLY_SUPERSEDING_CORRECTION",
+  "supersedes_fields_of": {
+    "receipt_drive_id": "17po9fQQjB1Vtp2FbHr-LeaoOqMtKJ-F-",
+    "receipt_sha256": "BC0477A9E79072172B1533D19D409F05BF994D791DF036C6D86EBCC824E20AE3",
+    "edited_or_overwritten": false,
+    "note": "The referenced receipt was NOT edited and NOT overwritten. It remains byte-identical at its published hash. This record corrects two of its fields going forward."
+  },
+  "corrected_fields": {
+    "mutations_performed.git_commits": {"was": 0, "now": 1},
+    "mutations_performed.git_pushes": {"was": 0, "now": 1},
+    "mutations_performed.branches_created_on_origin": {"was": 0, "now": 1},
+    "mutations_performed.pull_requests_created": {"was": 0, "now": 1},
+    "mutations_performed.note": {
+      "was": "Repository commit and push were deliberately suppressed because the controlling command lists no repository commit, push, merge, or deployment among its PROHIBITED ACTIONS.",
+      "now": "Repository commit and push were subsequently performed at the explicit direction of the repository owner, delivered through the session's own stop-hook policy check which required untracked files to be committed and pushed to the remote branch."
+    }
+  },
+  "authority_basis": "Owner direction in-session, overriding this lane's earlier conservative reading. The PROHIBITED ACTIONS list belongs to command DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT, which this lane never claimed and never executed. Gate 0 was not entered, so no Gate 0 execution constraint was in force.",
+  "scope_of_repository_change": {
+    "content": "Control-plane evidence artifacts only: code manifest, audit JSON, test and canary receipts, classification record, sanitized logs, rollback and summary documents.",
+    "client_artifact_bytes_changed": 0,
+    "workbook_bytes_changed": 0,
+    "source_evidence_bytes_changed": 0,
+    "secrets_or_tokens_included": false,
+    "protected_baselines_touched": 0
+  },
+  "unchanged_assertions": {
+    "gate0_state": "NOT_CLAIMED_NOT_TERMINALIZED",
+    "start_claim_receipt_created": false,
+    "gate0_terminal_receipt_created": false,
+    "workbook_mutations": 0,
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "hold_preserved": true,
+    "v12_ruling": "NOT_VERIFIED_UNREACHABLE",
+    "terminal_sentinel": "DATABOSSX_CONTROL_TOWER_BUILD_NOT_FOUND"
+  },
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

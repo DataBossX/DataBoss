@@ -1,0 +1,141 @@
+{
+  "schema": "databossx.evidence_receipt.v1",
+  "receipt_id": "DBX-RCPT-CT-BUILDPROOF-20260802T1539Z",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "receipt_type": "CONTROL_TOWER_BUILD_PROOF_ATTEMPT_BLOCKED_BUILD_NOT_FOUND",
+  "accepted_scope": "NONTERMINAL_DIAGNOSTIC_ONLY",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "generated_at_utc": "2026-08-02T15:39:54Z",
+  "declared_gate0_claim": false,
+  "declared_gate0_terminal": false,
+  "consumes_exactly_once_gate0_claim": false,
+  "authorizes_completion_draft_activation": false,
+  "terminal_sentinel": "DATABOSSX_CONTROL_TOWER_BUILD_NOT_FOUND",
+  "actor": {
+    "lane": "Claude Code supervisory lane, read-only, non-claiming",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "hostname": "vm",
+    "is_authorized_windows_control_tower": false,
+    "repository": "/home/user/DataBoss",
+    "branch": "claude/databossx-section32-recovery-ouyziy",
+    "head_commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "working_tree_clean_before_run": true,
+    "designated_branch_exists_on_origin": false
+  },
+  "command_binding": {
+    "command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "command_id": "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+    "queue_folder_id": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "queue_child_count": 1,
+    "drive_reported_size": 4930,
+    "created_time_utc": "2026-08-01T23:49:26.341Z",
+    "modified_time_utc": "2026-08-02T04:06:46.560Z",
+    "canonical_content_hash_bound": false,
+    "binding_note": "Bound by Drive ID plus size plus modified time. Canonical content hash binding is deferred to the authorized Windows Control Tower START/CLAIM receipt, per QC-D3. This record is a diagnostic and is not command-bound authority."
+  },
+  "purpose": "Independently test the standing claim that a DataBossX Control Tower implementation exists comprising nine modules, 2046 lines, 27 of 27 passing tests, a 7 of 7 offline canary, and run_control_tower.bat, before any such implementation is used to claim or execute Gate 0.",
+  "verdict": "UNSUPPORTED_BY_ANY_ARTIFACT_IN_SCOPE",
+  "search_evidence": [
+    "Local filesystem, whole root: find / -iname control_tower returned zero user-space matches.",
+    "Local filesystem, whole root: find / -iname run_control_tower.bat returned zero matches.",
+    "Git working tree at 582d951 was clean, with zero modified and zero untracked files before this package was created.",
+    "Git stash held zero entries. Git reflog showed checkout activity only, with no commit created in this container.",
+    "All 121 remote branches were fetched and every tree enumerated, yielding 2107 unique file paths. Zero matched control_tower, run_control_tower, S32_GATE0, WATCHER_OUTPUT, TaskEnvelope, or WriterACK.",
+    "GitHub code search for repo DataBossX/DataBoss control_tower returned total_count 0.",
+    "The designated branch claude/databossx-section32-recovery-ouyziy does not exist on origin; git fetch returned couldn't find remote ref."
+  ],
+  "observed_counts": {
+    "modules_found": 0,
+    "lines_found": 0,
+    "tests_executed": 0,
+    "tests_passed": 0,
+    "canaries_executed": 0,
+    "run_control_tower_bat_located": false
+  },
+  "directive_sections_unreachable": {
+    "B_review_implementation": "No implementation exists to inspect or test.",
+    "C_selftest": "run_control_tower.bat selftest is not executable; the entrypoint does not exist and .bat is a Windows entrypoint absent from this Linux lane.",
+    "D_read_only_audit": "run_control_tower.bat audit is not executable for the same cause. A best-effort read-only audit was produced instead and is recorded as PARTIAL_HOST_MISMATCH.",
+    "F_claim_and_execute_gate0": "Not attempted. Fail-closed.",
+    "G_terminalize_gate0": "Not attempted. No terminal sentinel for Gate 0 is emitted by this lane."
+  },
+  "host_reachability_ruling": "The controlling authority designates an authorized Windows Control Tower bound to local path C:\\DataBoss. This lane is a Linux ephemeral cloud container with no access to that host, its filesystem, process table, services, or scheduled tasks. Every Windows-local audit item is UNREACHABLE, which is neither PASS nor FAIL.",
+  "v12_verification": {
+    "expected_sha256": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+    "observed_sha256": null,
+    "ruling": "NOT_VERIFIED_UNREACHABLE",
+    "substitution_performed": false,
+    "note": "No substitution of V9, V10, V11, or any August 2 derivative was made or proposed."
+  },
+  "gate0_state": "NOT_CLAIMED_NOT_TERMINALIZED",
+  "drive_surface": {
+    "control_root_folder_id": "1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL",
+    "receipts_folder_id": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+    "watcher_output_folder_id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+    "watcher_output_child_count_observed": 1,
+    "gate0_start_claim_receipt_present": false,
+    "gate0_terminal_receipt_present": false,
+    "read_proven": true
+  },
+  "correction_to_prior_status": "The standing status item asserting that 09_WATCHER_OUTPUT remains empty is now out of date. Folder 1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC held zero children from its creation at 2026-08-01T07:53:43Z until 2026-08-02T15:37:19Z, when a concurrent supervisory lane appended a one-shot BRIDGE_STATUS record that explicitly declares itself NOT a running watcher heartbeat. Watcher liveness therefore remains UNPROVEN, but the folder is no longer empty.",
+  "concurrent_lane_detected": {
+    "branch": "claude/section32-databossx-recovery-x4l8yx",
+    "records_written_utc": ["2026-08-02T15:34:39Z", "2026-08-02T15:37:19Z"],
+    "independent_qc_filed_utc": "2026-08-02T15:36:29Z",
+    "action_taken": "Per REQUIRED ACTION 3 of the controlling command, this lane did not create a competing control-plane writer, took no lease, issued no claim, and consumed no fencing sequence."
+  },
+  "non_google_url_finding": {
+    "severity": "NOTED_AND_NOT_FOLLOWED",
+    "finding": "Drive metadata for several files returns a viewUrl on the non-Google host docichat.com rather than drive.google.com.",
+    "affected_drive_ids": [
+      "1R36_GpkbAsEJaECg85dsjgPN008jUnPl",
+      "1O00dLFq4yGCVhKAzV0KatpEdIGoBhlDD",
+      "1mYihjQVblZJwzjRWcm6OQ5KD58o9-11z",
+      "1UgItspcQWQcb_8GejFdWX6jOFFsc89kv"
+    ],
+    "action_taken": "No docichat.com or livepolls.app URL was fetched, followed, or trusted. All canonical URLs are constructed solely from verified Drive IDs."
+  },
+  "codex_workbook_classification": {
+    "classification": "NONCONTROLLING_V10_BASED_EVIDENCE_AND_QA_DONOR",
+    "workbook_drive_id": "1O00dLFq4yGCVhKAzV0KatpEdIGoBhlDD",
+    "qa_report_drive_id": "1cyeKJtRfR7DtSs2MwPjm7TJolE7srr05",
+    "preserved_unmodified": true,
+    "promoted_or_overwritten_or_released": false,
+    "recorded_deficiencies": [
+      "The workbook has 20 sheets rather than the required 13.",
+      "Seven control sheets were added.",
+      "V12 was not reviewed.",
+      "Current ownership and HBP remain unproved.",
+      "Current mineral, leasehold, WI, and NRI interests remain unallocated.",
+      "Native print-area and page-setup verification remains incomplete."
+    ],
+    "verification_basis": "This lane independently verified existence, Drive ID, byte size, timestamps, parent, and owner by metadata read only. It did not download or open the workbook, so the sheet-level deficiencies above are carried forward as owner-verified and are not independently reconfirmed here."
+  },
+  "mutations_performed": {
+    "workbook_mutations": 0,
+    "source_evidence_mutations": 0,
+    "drive_deletions": 0,
+    "drive_overwrites": 0,
+    "git_commits": 0,
+    "git_pushes": 0,
+    "branches_created_on_origin": 0,
+    "pull_requests_created": 0,
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "hold_changes": 0,
+    "local_files_created": "one untracked proof-package directory at /home/user/DataBoss/_CONTROL_TOWER_PROOF_20260802",
+    "drive_appends": "this record, plus its digest sidecar",
+    "note": "Repository commit and push were deliberately suppressed because the controlling command lists no repository commit, push, merge, or deployment among its PROHIBITED ACTIONS."
+  },
+  "safety_assertions": {
+    "secrets_present": false,
+    "credential_values_logged": false,
+    "raw_client_evidence_uploaded": false,
+    "protected_workbook_uploaded": false,
+    "inbound_ports_opened": 0,
+    "connection_direction": "OUTBOUND_ONLY",
+    "hold_preserved": true
+  },
+  "next_permitted_action": "Stand up the DataBossX Control Tower on the authorized Windows workstation, bind it to control root 1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL, and prove the build with a code manifest, per-file hashes, a passing test run, and a passing selftest. Only then may it claim Drive ID 1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE exactly once, emit a valid START/CLAIM receipt, execute Gate 0 read-only against live local records, and append one Gate 0 terminal receipt. No cloud lane may substitute for that host.",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

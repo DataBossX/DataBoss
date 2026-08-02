@@ -1,0 +1,157 @@
+{
+  "schema": "databossx.s32_gate0_local_audit.v1",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "generated_at_utc": "2026-08-02T15:41:47Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "audit_mode": "READ_ONLY",
+  "audit_completeness": "PARTIAL_HOST_MISMATCH",
+  "host_reachability_ruling": "The controlling authority designates an authorized WINDOWS Control Tower bound to local path C:\\\\DataBoss. This lane is a Linux ephemeral cloud container with no access to that host, filesystem, process table, service registry, or task scheduler. Every Windows-local audit item is therefore UNREACHABLE, not PASS and not FAIL.",
+  "items": {
+    "v12_exact_path": {
+      "status": "UNREACHABLE_WINDOWS_HOST",
+      "expected_path": "C:\\\\DataBoss\\\\.worktrees\\\\section32-v12-narrative-restoration-20260801\\\\SECTION32_V12_NARRATIVE_RESTORATION__20260801T013849Z\\\\package\\\\HORIZON_SECTION32_V12_NARRATIVE_RESTORATION_INTERNAL_REVIEW_HOLD__20260801T021008Z.xlsx"
+    },
+    "v12_existence": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "v12_byte_size": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "v12_timestamps": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "v12_sha256": {
+      "status": "UNREACHABLE_WINDOWS_HOST",
+      "expected": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+      "observed": null,
+      "ruling": "NOT_VERIFIED"
+    },
+    "v12_package_membership": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "v10_hash": {
+      "status": "UNREACHABLE_WINDOWS_HOST",
+      "expected": "79668279F0CF1A49CDF6F599F611C7BE058D40D43FA54372F6B559E60D9E7F4C"
+    },
+    "v11_hash": {
+      "status": "UNREACHABLE_WINDOWS_HOST",
+      "expected": "81AE7941DC62C748CBAA57A0FCEEB77F24828440F3A954173284ED3DB0DB0369"
+    },
+    "prior_writer_ack": {
+      "status": "UNREACHABLE_WINDOWS_HOST",
+      "note": "no ACK store exists in this lane"
+    },
+    "prior_lease_and_release": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "heartbeat_disposition": {
+      "status": "OBSERVED_DRIVE_SIDE",
+      "finding": "09_WATCHER_OUTPUT held zero children from folder creation 2026-08-01T07:53:43Z until 2026-08-02T15:37:19Z, when a concurrent supervisory lane wrote a one-shot BRIDGE_STATUS record that explicitly declares itself NOT a running watcher heartbeat. No watcher liveness is proven."
+    },
+    "excel_processes": {
+      "status": "OBSERVED_LOCAL",
+      "count": 0,
+      "note": "Linux container; not evidence about the Windows host"
+    },
+    "open_workbook_locks": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "databossx_processes": {
+      "status": "OBSERVED_LOCAL",
+      "count": 0
+    },
+    "services": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "scheduled_tasks": {
+      "status": "UNREACHABLE_WINDOWS_HOST"
+    },
+    "worktrees_and_branches": {
+      "status": "OBSERVED_REPO",
+      "local_worktrees": 1,
+      "remote_branches": 121,
+      "designated_branch_on_origin": false
+    },
+    "active_task_envelopes": {
+      "status": "NONE_OBSERVABLE",
+      "note": "no envelope store reachable from this lane"
+    },
+    "claims": {
+      "status": "NONE",
+      "finding": "no START/CLAIM receipt exists in 02_RECEIPTS for the sole queued command"
+    },
+    "leases": {
+      "status": "NONE_OBSERVABLE"
+    },
+    "fencing_sequences": {
+      "status": "NONE_OBSERVABLE"
+    },
+    "august_2_blocked_derivative_origin": {
+      "status": "PARTIALLY_IDENTIFIED",
+      "finding": "Drive receipt DBX_RECEIPT__CONCURRENT_SECTION32_DERIVATIVE_DETECTED_BLOCKED__20260802T0833CDT (ID 1hEkcgg-cluWXkzzL-T_7Smwd_ihhzbTjnk45urvxLNw) records the detection. The OpenAI Codex derivative set was created 2026-08-02T06:04:47Z-06:05:02Z in Drive folder 1OK8_uti3TRp5RtsKYzBpNvwTLbAStJ52 by owner account. Exact originating process is not determinable from this lane."
+    },
+    "current_section32_derivatives": {
+      "status": "OBSERVED_DRIVE_SIDE",
+      "enumerated": [
+        {
+          "title": "SECTION32_CURSORY_TITLE__OPENAI_CODEX__20260802_005007__FOR_REVIEW_HOLD.xlsx",
+          "drive_id": "1O00dLFq4yGCVhKAzV0KatpEdIGoBhlDD",
+          "bytes": 442996
+        },
+        {
+          "title": "SECTION32_QA_REPORT__OPENAI_CODEX__20260802_005007.md",
+          "drive_id": "1cyeKJtRfR7DtSs2MwPjm7TJolE7srr05",
+          "bytes": 6082
+        },
+        {
+          "title": "SECTION32_ASSUMPTIONS_EXCEPTIONS__OPENAI_CODEX__20260802_005007.xlsx",
+          "drive_id": "1mYihjQVblZJwzjRWcm6OQ5KD58o9-11z",
+          "bytes": 7125
+        },
+        {
+          "title": "SECTION32_FINDINGS__OPENAI_CODEX__20260802_005007.md",
+          "drive_id": "1gBSyONxYAfKNNXNgpNhY_t3poFTgQjt6",
+          "bytes": 8016
+        },
+        {
+          "title": "SECTION32_EVIDENCE_MANIFEST__OPENAI_CODEX__20260802_005007.csv",
+          "drive_id": "1UgItspcQWQcb_8GejFdWX6jOFFsc89kv",
+          "bytes": 5949
+        }
+      ],
+      "note": "enumeration is not exhaustive across all of Drive; scoped to the OPENAI_CODEX title match"
+    }
+  },
+  "drive_control_surface": {
+    "control_root_folder_id": "1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL",
+    "queue_folder_id": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "queue_child_count": 1,
+    "sole_queued_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "sole_queued_command_id": "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+    "receipts_folder_id": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+    "receipts_child_count": 10,
+    "watcher_output_folder_id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+    "watcher_output_child_count": 1,
+    "gate0_start_claim_receipt_present": false,
+    "gate0_terminal_receipt_present": false,
+    "gate0_state": "NOT_CLAIMED_NOT_TERMINALIZED",
+    "drive_read_proven": true,
+    "drive_write_proven_by_this_lane": null
+  },
+  "non_google_url_finding": {
+    "severity": "NOTED_AND_NOT_FOLLOWED",
+    "finding": "Drive metadata for several files returns a viewUrl on the non-Google host docichat.com rather than drive.google.com.",
+    "affected_drive_ids": [
+      "1R36_GpkbAsEJaECg85dsjgPN008jUnPl",
+      "1O00dLFq4yGCVhKAzV0KatpEdIGoBhlDD",
+      "1mYihjQVblZJwzjRWcm6OQ5KD58o9-11z",
+      "1UgItspcQWQcb_8GejFdWX6jOFFsc89kv"
+    ],
+    "action_taken": "No docichat.com URL was fetched, followed, or trusted. All canonical URLs in this package are constructed solely from verified Drive IDs as https://drive.google.com/file/d/<ID>/view"
+  },
+  "concurrent_lane_detected": {
+    "finding": "A concurrent supervisory lane on branch claude/section32-databossx-recovery-x4l8yx wrote two Drive records at 2026-08-02T15:34:39Z and 2026-08-02T15:37:19Z, and an independent QC review was filed at 15:36:29Z.",
+    "consequence": "Per REQUIRED ACTION 3 of the controlling command, this lane did not create a competing control-plane writer, took no lease, and issued no claim."
+  },
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

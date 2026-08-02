@@ -27,6 +27,7 @@ DESIGN NOTE
 class _Raises:
     def __init__(self, expected):
         self.expected = expected
+        self.value = None  # populated on exit, so `excinfo.value` works
 
     def __enter__(self):
         return self
@@ -35,6 +36,7 @@ class _Raises:
         if exc_type is None:
             raise AssertionError(f"DID NOT RAISE {self.expected}")
         if issubclass(exc_type, self.expected):
+            self.value = exc
             return True  # swallow: this is the expected refusal
         return False  # propagate: wrong exception type -> test errors
 
@@ -96,6 +98,16 @@ class MonkeyPatch:
 
         self._undo.append(("env", k, os.environ.get(k)))
         os.environ[k] = v
+
+    def delenv(self, k, raising=True):
+        import os
+
+        if k not in os.environ:
+            if raising:
+                raise KeyError(k)
+            return
+        self._undo.append(("env", k, os.environ[k]))
+        del os.environ[k]
 
     def undo(self):
         import os

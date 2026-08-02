@@ -1,0 +1,53 @@
+{
+  "audit_completeness": "PARTIAL_HOST_MISMATCH",
+  "audit_mode": "READ_ONLY",
+  "drive_surface": {
+    "reason": "no Drive client supplied",
+    "status": "UNREACHABLE"
+  },
+  "drive_surface_consulted": false,
+  "ended_at_epoch": 1785694469.8195076,
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "host": {
+    "is_windows": false,
+    "node": "vm",
+    "release": "6.18.5",
+    "system": "Linux"
+  },
+  "processes": {
+    "host": "Linux",
+    "reason": "Windows process table not visible from this host",
+    "status": "UNREACHABLE"
+  },
+  "repository": {
+    "reason": "no git repository at that path",
+    "status": "UNREACHABLE"
+  },
+  "selftest_passed": 18,
+  "selftest_total": 18,
+  "services_and_tasks": {
+    "reason": "Windows services and scheduled tasks not visible from this host",
+    "status": "UNREACHABLE"
+  },
+  "started_at_epoch": 1785694469.7978234,
+  "unreachable_items": [
+    "drive_surface",
+    "processes",
+    "repository",
+    "services_and_tasks",
+    "v12",
+    "workbook_locks"
+  ],
+  "v12": {
+    "path": "/nonexistent/V12.xlsx",
+    "reason": "path not present on this host",
+    "status": "UNREACHABLE"
+  },
+  "v12_ruling": "NOT_VERIFIED_UNREACHABLE",
+  "workbook_locks": {
+    "reason": "directory not present on this host",
+    "status": "UNREACHABLE"
+  },
+  "workbook_mutated": false,
+  "workbook_opened": false
+}

@@ -1,0 +1,134 @@
+{
+  "schema": "databossx.independent_review_record.v1",
+  "record_id": "DBX-QCREV-CT-PINNED-REVERIFIED-20260802T1315CDT",
+  "record_type": "ADDENDUM_AND_SELF_CORRECTION_TO_A_PRIOR_REVIEW_RECORD",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "IS_GATE0_START_CLAIM_RECEIPT": false,
+  "IS_GATE0_TERMINAL_RECEIPT": false,
+  "GATE0_CLAIM_ATTEMPTED_BY_THIS_LANE": false,
+  "COMPETING_CONTROL_PLANE_CREATED": false,
+  "GATE0_TERMINAL_SENTINEL_EMITTED_BY_THIS_LANE": "NOT APPLICABLE - the original Gate 0 command is retired and spent per owner ruling 06_OWNER_RULING_SUPERSESSION (Drive ID 1yA5zk_z-P9d6Eu7jvTO-LQpDvBJZ2cRw). It may not be claimed, retried, or receive another terminal receipt. This record carries no sentinel.",
+
+  "extends": {
+    "record_drive_id": "1pium504lAdWy5QctqSb8ClJB-Dkz49f1",
+    "record_title": "DBX_REVIEW__CONTROL_TOWER_BUILD_INDEPENDENTLY_REPRODUCED__20260802T1150CDT.json",
+    "sha256": "17EB6EE3FE7DD47A5DC00CE326A47FE4FA337F7F08BA6348138EB6DA0FA8395A",
+    "edited_or_overwritten": false,
+    "note": "The prior record is left byte-identical at its published hash. This corrects and extends it by addition, which is the only permitted mechanism."
+  },
+
+  "why_this_addendum_exists": "The prior review verified build commit fb4186e77612e6c81bdab819a78b9b79457edde9. The owner has since pinned commit 39f1f404fe151171541f60fc00f9d455fdd4eeb5 for the operator packet. These are not the same tree. The pinned commit adds a real Google Drive client and a second test file that the prior verification never executed, so the prior findings did not automatically carry over. They have now been re-established against the pinned commit.",
+
+  "self_correction": {
+    "id": "SC-01",
+    "severity": "MATERIAL_SCOPE_CORRECTION",
+    "prior_statement": "The offline claim was confirmed statically: the only socket reference in the entire package is socket.gethostname(). There is no HTTP client, no URL fetch, and no outbound call path anywhere in the implementation.",
+    "status_at_prior_commit_fb4186e": "TRUE AS WRITTEN. At fb4186e there was genuinely no network code.",
+    "status_at_pinned_commit_39f1f40": "NO LONGER TRUE. control_tower/drive_google.py (236 lines, new) performs real outbound HTTP via urllib.request.urlopen at line 83 and urllib.request.Request at line 99. Anyone relying on the prior sentence to conclude the pinned build cannot reach the network would be wrong.",
+    "what_survives_unchanged": "The dependency-free property holds. urllib is standard library, so third-party dependencies remain zero and the build still runs on the Windows workstation with nothing installed but Python.",
+    "compensating_controls_verified_this_run": [
+      "The live Drive surface is opt-in behind an explicit --drive flag. It is not the default.",
+      "--drive additionally requires DBX_DRIVE_ACCESS_TOKEN to be set.",
+      "The import is lazy. cli.py imports GoogleDriveClient inside the --drive branch, with the stated intent that an offline run never even loads the network code.",
+      "audit refuses to run at all if selftest does not pass first, so the network path is unreachable on an unproven build.",
+      "canary is documented as the fast offline subset with no network of any kind."
+    ],
+    "empirical_proof_of_isolation": {
+      "method": "Ran the audit subcommand in-process without --drive, then inspected sys.modules for any module matching drive_google.",
+      "result": "drive_google was NOT present in sys.modules. Audit returned exit 2 as expected.",
+      "verdict": "OFFLINE_ISOLATION_CONFIRMED - the network module is never loaded without the explicit flag. This is an executed check, not a reading of the source."
+    }
+  },
+
+  "reverification_at_pinned_commit": {
+    "pinned_commit": "39f1f404fe151171541f60fc00f9d455fdd4eeb5",
+    "commit_time_utc": "2026-08-02T16:47:01Z",
+    "commit_subject": "Add the real Drive client so the tower can reach the control package",
+    "delta_from_previously_verified_commit": {
+      "control_tower/drive_google.py": "ADDED, 236 lines - real Google Drive client",
+      "tests/test_control_tower_drive_google.py": "ADDED, 259 lines - never executed by the prior review",
+      "control_tower/cli.py": "MODIFIED, +19 lines - adds the --drive opt-in flag and lazy import",
+      "control_tower/README.md": "MODIFIED, documentation only",
+      "no_other_implementation_files_changed": true
+    },
+    "results": [
+      {"gate": "tests/test_control_tower.py", "observed": "88 passed, 0 failed, 0 errors", "verdict": "STILL GREEN AT PINNED COMMIT"},
+      {"gate": "tests/test_control_tower_drive_google.py", "observed": "31 passed, 0 failed, 0 errors", "verdict": "NEWLY VERIFIED - 23 test functions expanded by 3 parametrize decorators"},
+      {"gate": "combined suite", "observed": "119 passed, 0 failed, 0 errors", "verdict": "GREEN"},
+      {"gate": "cli selftest", "observed": "18/18 passed, exit 0", "verdict": "GREEN", "report_sha256": "F311AA3B742BAC48AAEA769917F098DD3F7EE09EF87564B2ADCA1912F55271B9"},
+      {"gate": "cli canary", "observed": "7/7 passed, exit 0", "verdict": "GREEN", "report_sha256": "9C3FDAD55D3B83E07DA039CB3793B9DB21F76F0B74884C1019A3D48EB717ABBD"},
+      {"gate": "cli audit, offline, no --drive", "observed": "exit 2, PARTIAL_HOST_MISMATCH, v12_ruling NOT_VERIFIED_UNREACHABLE", "verdict": "GREEN - correct honest refusal on a host that cannot see C:\\DataBoss", "report_sha256": "778BC3FE1D3DC45AFC9D7F93B8663B6B91340D3C5911F0A4153213C3D477451E"}
+    ],
+    "shim_gaps_found_and_closed": "The strict stdlib shim initially lacked monkeypatch.delenv and excinfo.value, both of which the new Drive test file uses. Both surfaced as ERRORS rather than as false passes, which is the behaviour the shim was designed for, and both were implemented before the run was accepted. The committed shim now carries them.",
+    "live_drive_leg_still_unproven": "The --drive path was deliberately NOT exercised. Doing so would require a real access token and would put this unauthorized host on the live control surface. The 31 new tests exercise the client against in-process response doubles, which proves its request construction, error handling, and redaction logic but does not prove a real round trip against Google."
+  },
+
+  "independent_corroboration_of_CT_RETIRE_01": {
+    "finding_origin": "DBX_RECEIPT__CLAUDE_LANE_CORRECTION__GATE0_STATE_STALE_ASSERTION__20260802T1720Z.json (Drive ID 1uQOLs3HLY2DzpaVNJTykk2JEziW2FWwZ)",
+    "claim": "At the pinned commit the control kernel has no concept of a retired command; derive_authority grants authority on the retired Gate 0 command purely because it still sits in the pinned 01_QUEUED folder.",
+    "independent_check_performed": "Searched the whole package for retire, spent, revoked, denylist, and blocklist; read derive_authority; searched cli.py for Gate0Runner and any claim path.",
+    "result": "CONFIRMED. No retired-command concept exists anywhere in the package. derive_authority grants on folder membership by pinned ID alone. cli.py exposes only selftest, canary, and audit, and never constructs a runner or claim path.",
+    "assessment": "The other lane's characterisation is accurate and its severity rating is fair. This is a latent defence-in-depth gap, not an active exposure: nothing reachable from run_control_tower.bat can claim a command. The protection is topological rather than enforced, so it would silently stop holding the moment a caller wires the claim path. The proposed cure was correctly not applied, since applying it would move the branch tip the owner has pinned.",
+    "reviewer_note": "Independent corroboration matters here because the finding was self-reported by the lane that wrote the code it concerns."
+  },
+
+  "owner_rulings_observed_this_run": {
+    "note": "Observed and reported only. This lane took no action on them and has no authority to.",
+    "r01_first_ruling": {
+      "drive_id": "1TPJRcSktovKUXXaLClkjf7l-8a8f9YMG",
+      "title": "04_OWNER_RULING__R01_GATE0_1110CDT_RECORD_IS_NONCONSUMING__20260802T1155CDT.json",
+      "created_utc": "2026-08-02T16:55:44Z",
+      "disposition": "the 1110CDT BLOCKED terminal was ruled NON-CONSUMING"
+    },
+    "r01_superseding_ruling": {
+      "drive_id": "1yA5zk_z-P9d6Eu7jvTO-LQpDvBJZ2cRw",
+      "title": "06_OWNER_RULING_SUPERSESSION__R01_GATE0_COMMAND_IS_SPENT__20260802T1213CDT.json",
+      "created_utc": "2026-08-02T17:16:07Z",
+      "disposition": "SUPERSEDES the first ruling. The Gate 0 command IS SPENT.",
+      "controlling": true
+    },
+    "retirement_receipt": {
+      "drive_id": "1XvgiKNYdkjG4HhcAkDEUxmu1tIOe_tJillj89RuDET8",
+      "terminal_sentinel": "S32_ORIGINAL_GATE0_COMMAND_RETIRED_SUCCESSOR_REQUIRED",
+      "effect": "Original Gate 0 command Drive ID 1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE is retired. It may not be claimed, retried, or receive another terminal receipt. A new command ID and TaskEnvelope are required for any successor."
+    },
+    "consequence_for_the_prior_record": "The prior review's next_permitted_action said a Gate 0 claim must not be attempted until Ryan ruled on R-01. Ryan has now ruled, twice, and the controlling answer is that the command is spent. That guidance is therefore discharged, not contradicted: the correct reading is now that the original command must never be claimed by anyone.",
+    "r02_r03_r04_cured_by_other_lanes": "CURE_D published the missing 1110CDT sidecar (R-04), CURE_E marked F-02 explicitly NOT RULED with reason (R-02), and CURE_F proved V13 WIP quarantine inaccessibility (R-03). Observed in 02_RECEIPTS; not independently re-verified by this lane."
+  },
+
+  "mutation_ledger": {
+    "workbook_bytes_changed": 0,
+    "client_artifact_bytes_changed": 0,
+    "source_evidence_mutated": false,
+    "v9_v10_v11_v12_v13_touched": false,
+    "drive_files_edited_or_overwritten": 0,
+    "drive_files_deleted": 0,
+    "drive_files_moved": 0,
+    "queue_commands_added": 0,
+    "gate0_claim_consumed": false,
+    "gate0_terminal_receipts_issued": 0,
+    "competing_queue_or_control_plane_created": false,
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "hold_removed": false,
+    "inbound_ports_opened": 0,
+    "connection_direction": "OUTBOUND_ONLY",
+    "live_drive_write_by_this_lane": "only this record and its sidecar, appended to 02_RECEIPTS",
+    "pinned_branch_tip_moved_by_this_lane": false,
+    "build_executed_in_isolated_scratch_directory": true,
+    "secrets_present": false,
+    "client_evidence_present": false
+  },
+
+  "rollback": {
+    "required": false,
+    "reason": "No protected artifact, workbook, evidence file, Drive record, or control record was mutated. The pinned build was executed from an isolated scratch extraction. This record is a new append-only file.",
+    "reversal_if_owner_wishes": "Delete this record and its sidecar by Drive ID, and revert the corresponding commit on branch claude/databossx-s32-gate0-recovery-52jb55."
+  },
+
+  "next_permitted_action": "Unchanged for the operator: on the Windows workstation that owns C:\\DataBoss, run run_control_tower.bat selftest at pinned commit 39f1f40 and confirm 18/18, then run_control_tower.bat audit with DBX_V12_PATH set to the pinned V12 path. This addendum adds only that the four validation steps are now independently proven safe to run against the pinned commit specifically, and that --drive should stay off unless and until the owner intends a live Drive read. No Gate 0 claim is permitted against the original command under any circumstances now that it is retired.",
+
+  "review_verdict": "PINNED_COMMIT_REVERIFIED_119_TESTS_GREEN_OFFLINE_ISOLATION_PROVEN_ONE_SELF_CORRECTION_ISSUED_NO_NEW_DEFECTS",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

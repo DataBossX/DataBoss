@@ -34,6 +34,7 @@ class DurableGate0Runner(object):
             raise ControlTowerError("durable runner requires a durable lease registry")
         if ledger.store is not leases.store:
             raise ControlTowerError("claim and lease registries must share one durable store")
+        writer.durable_runner_bound = True
         self.writer = writer
         self.ledger = ledger
         self.leases = leases

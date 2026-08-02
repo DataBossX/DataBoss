@@ -142,11 +142,12 @@ class OfflineDriveClient(DriveClient):
 class SafeDriveWriter(object):
     """Spool first, require the current lease/fence, upload and verify.
 
-    Live clients can never write without a registry-backed current lease.  The
-    offline client remains usable for pure synthetic self-tests.  Pending spool
-    records are resumed with :meth:`recover_record`, which adopts one exact
-    existing Drive object or uploads only when absent.  Duplicates and byte
-    mismatches fail closed.
+    Live clients can never write without a registry-backed current lease. The
+    offline client remains usable for pure synthetic self-tests, including the
+    legacy runner that owns an in-memory lease registry outside this writer.
+    Pending spool records are resumed with :meth:`recover_record`, which adopts
+    one exact existing Drive object or uploads only when absent. Duplicates and
+    byte mismatches fail closed.
     """
 
     def __init__(self, client, spool, leases=None):
@@ -171,13 +172,22 @@ class SafeDriveWriter(object):
         return meta, self.client.download(file_id)
 
     def _require_lease(self, lease, now):
-        if self.client.is_offline and self.leases is None and lease is None:
-            return None
+        effective_now = now if now is not None else 0
+        if self.client.is_offline and self.leases is None:
+            if lease is None:
+                return None
+            if not lease.is_valid(effective_now):
+                raise LeaseExpired(
+                    "offline lease {0} expired at {1}; now is {2}".format(
+                        lease.lease_id, lease.expires_at, effective_now
+                    )
+                )
+            return lease
         if self.leases is None:
             raise LeaseExpired("live writer has no lease registry")
         if lease is None:
             raise LeaseExpired("protected write requires a lease")
-        return self.leases.require_valid(lease, now if now is not None else 0)
+        return self.leases.require_valid(lease, effective_now)
 
     def _named_matches(self, folder_id, name):
         matches = self.client.find_all_by_name(folder_id, name)

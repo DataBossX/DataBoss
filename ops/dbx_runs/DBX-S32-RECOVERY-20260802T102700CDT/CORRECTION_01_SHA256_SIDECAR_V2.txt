@@ -1,0 +1,49 @@
+DBX CORRECTION 01 - DIGEST SIDECAR v2 (SUPERSEDES v2-DEFECTIVE SIDECAR)
+
+RECORD CLASS: APPEND_ONLY_SUPERSEDING_CORRECTION
+RELEASE STATE: FOR REVIEW - HOLD NO EXTERNAL RELEASE
+
+SELF-REPORTED DEFECT IN THE PRIOR SIDECAR
+  Defective file : DBX_CORRECTION_01__CLAUDE_BRIDGE_RECEIPT__QC_D1_D2_REMEDIATED__20260802T1143CDT.json.sha256
+  Drive file ID  : 1nHeNCuSssKviKbGkVTkGVPWmD_ejs3c7
+  Drive bytes    : 987
+  Defect         : the uploaded text carries a trailing tool-markup artifact, the two literal
+                   lines "</textContent>" and "</invoke>", appended after the intended final
+                   line "FOR REVIEW - HOLD NO EXTERNAL RELEASE". Author error at upload time.
+  Impact         : cosmetic only. Every digest, Drive ID, and byte count in that file is correct
+                   and independently verifiable. No digest value was altered by the artifact.
+  Handling       : NOT deleted and NOT overwritten, per control rule 14 and per the append-only
+                   discipline required by QC-D1. This v2 record supersedes it for reading.
+  Found by       : self-check readback immediately after upload, not by an external reviewer.
+
+AUTHORITATIVE DIGESTS FOR RUN DBX-S32-RECOVERY-20260802T102700CDT
+
+789c9cefe926d6e88eb7b30753f24220466e9041bb616597057a8d6bd2ffafcc  DBX_CORRECTION_01__CLAUDE_BRIDGE_RECEIPT__QC_D1_D2_REMEDIATED__20260802T1143CDT.json
+  Drive file ID : 1hgAQsB2WlYaXgBx1uk82pDoLeMi-ZKtP
+  Parent folder : 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR (02_RECEIPTS)
+  Bytes         : 8352 uploaded, 8352 reported by Drive
+  Created (UTC) : 2026-08-02T16:48:33.104Z
+
+24493b71ec0a7289630fd7e82d293ed3084d78525227041f8c66632ee50e7289  DBX_RECEIPT__DRIVE_BRIDGE_RECOVERY_BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1027CDT.json
+  Drive file ID : 1CrWyCjm2Ld3tOsCTWqKaTliIK8oui-v3
+  Parent folder : 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR (02_RECEIPTS)
+  Bytes         : 8985 uploaded, 8985 reported by Drive
+  Created (UTC) : 2026-08-02T15:34:39.781Z
+
+56e0353827b5255bd0aa25787cd6f68533bd23b56650df915439c812f3d6e745  DBX_WATCHER_STATUS__BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1035CDT.json
+  Drive file ID : 1CyCyVYKLLZUq-jPMnUhztBdrwAt8MmAC
+  Parent folder : 1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC (09_WATCHER_OUTPUT)
+  Bytes         : 3250 uploaded, 3250 reported by Drive
+  Created (UTC) : 2026-08-02T15:37:19.703Z
+
+Upload transform for all three: base64 with disableConversionToGoogleType=true, so each stored
+object is the raw file bytes and each SHA-256 above is the digest of the stored object.
+Readback method: download_file_content, returned base64 compared against the base64 submitted.
+
+UNCHANGED BY THIS RECORD
+  Gate 0 claimed by this lane      : false
+  Exactly-once claim token consumed: false
+  Workbook mutations               : 0
+  Drive deletions / overwrites     : 0
+  Pull requests merged             : 0
+  Hold preserved                   : FOR REVIEW - HOLD NO EXTERNAL RELEASE

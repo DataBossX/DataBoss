@@ -28,3 +28,43 @@ NOT WRITTEN, DELIBERATELY:
 SHA-256 note: the two SHA-256 values above are of the LOCAL source files that were
 base64-encoded and uploaded. Drive reports matching byte sizes and returns identical
 base64 on download, so the stored objects are byte-identical to those local files.
+
+--- QC REMEDIATION ROUND (2026-08-02T16:48Z) ---
+
+Independent QC review of receipt 1CrWyCjm2Ld3tOsCTWqKaTliIK8oui-v3:
+  QC_REVIEW__CLAUDE_DRIVE_BRIDGE_RECOVERY_RECEIPT__FAIL_WITH_ACTIONABLE_DEFECTS__20260802T1036CDT.json
+  Drive ID 1rhez2m6vANAhI5LnDZoueEbjUKu_-yEq, reviewer ChatGPT Work, reviewed 15:35:50Z
+  Verdict FAIL_WITH_ACTIONABLE_DEFECTS, accepted_scope NONTERMINAL_DIAGNOSTIC_ONLY
+  All eight control-safety rulings returned false (not a claim, not a terminal, does not
+  consume the exactly-once token, does not change Gate 0 status).
+
+3) 02_RECEIPTS  DBX_CORRECTION_01__CLAUDE_BRIDGE_RECEIPT__QC_D1_D2_REMEDIATED__20260802T1143CDT.json
+   drive_id   1hgAQsB2WlYaXgBx1uk82pDoLeMi-ZKtP
+   bytes      8352 local == 8352 Drive
+   sha256     789c9cefe926d6e88eb7b30753f24220466e9041bb616597057a8d6bd2ffafcc
+   QC-D1      remediated by repair option 1. Root cause: the receipt was uploaded at
+              15:34:39.781Z and used present tense for a watcher write actually completed at
+              15:37:19.703Z. The reviewer read the folder at 15:35:50Z, inside that 160s
+              window, and correctly saw child_count=0. Premature at write time, true now.
+   QC-D2      remediated: receipt_id, canonical hash, Drive ID, parent, byte sizes and
+              readback proof all supplied.
+   QC-D3      accepted as forward-binding guidance; no repair owed (no claim/terminal issued).
+
+4) 02_RECEIPTS  DBX_CORRECTION_01__..._20260802T1143CDT.json.sha256
+   drive_id   1nHeNCuSssKviKbGkVTkGVPWmD_ejs3c7   bytes 987
+   DEFECTIVE  carries a trailing tool-markup artifact ("</textContent>", "</invoke>").
+              Author error. Digests inside are correct. NOT deleted, NOT overwritten.
+
+5) 02_RECEIPTS  DBX_CORRECTION_01__DIGEST_SIDECAR_V2__SUPERSEDES_DEFECTIVE_SIDECAR__20260802T1150CDT.txt
+   drive_id   1Lnu_CCUzW00VjKJb0DJ_onqph3EoFUXR
+   bytes      2914 local == 2914 Drive
+   purpose    supersedes item 4 for reading and self-reports that defect.
+
+CONTROL STATE OBSERVED AT REMEDIATION TIME (by other lanes, not this one):
+  A Gate 0 terminal receipt now exists: DBX_RECEIPT__S32_GATE0__AUTHORITY_REISSUE_COMPILATION_BLOCKED__20260802T1110CDT.json
+  Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE, terminal S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED.
+  That is NOT S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY, so the completion
+  draft remains non-activatable and Stages 7-15 remain closed.
+  The sole queue command 1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE is still in 01_QUEUED.
+  A second cloud lane (branch ...-ouyziy, PR #74) is producing build-proof records.
+  This lane still has NOT claimed Gate 0 and has NOT consumed the exactly-once token.

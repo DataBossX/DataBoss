@@ -1,0 +1,123 @@
+{
+  "schema": "databossx.correction_record.v1",
+  "correction_id": "DBX-CORR-01-CLAUDE-BRIDGE-RECEIPT-20260802",
+  "run_id": "DBX-S32-RECOVERY-20260802T102700CDT",
+  "record_class": "APPEND_ONLY_SUPERSEDING_CORRECTION",
+  "accepted_scope": "NONTERMINAL_DIAGNOSTIC_ONLY",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "created_at_utc": "2026-08-02T16:43:55Z",
+  "created_at_local": "2026-08-02T11:43:55-05:00",
+  "created_by": "Claude Code supervisory lane, branch claude/section32-databossx-recovery-x4l8yx (read-only, non-claiming)",
+
+  "responds_to_review": {
+    "drive_id": "1rhez2m6vANAhI5LnDZoueEbjUKu_-yEq",
+    "name": "QC_REVIEW__CLAUDE_DRIVE_BRIDGE_RECOVERY_RECEIPT__FAIL_WITH_ACTIONABLE_DEFECTS__20260802T1036CDT.json",
+    "reviewer": "ChatGPT Work - Drive-first independent QC",
+    "review_status": "FAIL_WITH_ACTIONABLE_DEFECTS",
+    "reviewed_at_utc": "2026-08-02T15:35:50Z"
+  },
+
+  "supersedes_fields_of": {
+    "receipt_drive_id": "1CrWyCjm2Ld3tOsCTWqKaTliIK8oui-v3",
+    "receipt_name": "DBX_RECEIPT__DRIVE_BRIDGE_RECOVERY_BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1027CDT.json",
+    "receipt_sha256": "24493B71EC0A7289630FD7E82D293ED3084D78525227041F8C66632EE50E7289",
+    "edited_or_overwritten": false,
+    "note": "The reviewed receipt was NOT edited and NOT overwritten. It remains byte-identical at its published hash. This record corrects two of its fields going forward, per the append-only rule and per QC-D1 guidance to issue a superseding correction rather than mutate a reviewed receipt."
+  },
+
+  "QC_D1": {
+    "severity_as_filed": "BLOCKING_FOR_WATCHER_PROOF",
+    "reviewer_evidence": "STAGE_6_WATCHER said 'A sanitized status record is emitted to 09_WATCHER_OUTPUT declaring health BLOCKED.' Independent folder read returned child_count=0 for 1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC.",
+    "disposition": "VALID_DEFECT_ACCEPTED_AND_REMEDIATED_BY_REPAIR_OPTION_1",
+    "root_cause": "A write-ordering and verb-tense defect, not a fabricated write. The receipt was uploaded at 15:34:39.781Z and asserted the watcher record in the present tense ('is emitted') while that upload had not yet been performed. The record was actually created at 15:37:19.703Z. The reviewer read the folder at 15:35:50Z, inside that 160-second window, and correctly observed child_count=0. The assertion was PREMATURE AT WRITE TIME, and is now TRUE.",
+    "corrected_field": {
+      "path": "stage_dispositions.STAGE_6_WATCHER",
+      "was": "A sanitized status record is emitted to 09_WATCHER_OUTPUT declaring health BLOCKED.",
+      "now": "A sanitized status record WAS SUBSEQUENTLY emitted to 09_WATCHER_OUTPUT at 2026-08-02T15:37:19.703Z, after this receipt was written. At the moment this receipt was uploaded the folder was still empty, so the original present-tense wording overstated completed state."
+    },
+    "proof_of_write": {
+      "drive_id": "1CyCyVYKLLZUq-jPMnUhztBdrwAt8MmAC",
+      "title": "DBX_WATCHER_STATUS__BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1035CDT.json",
+      "parent_folder_id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+      "parent_folder_name": "09_WATCHER_OUTPUT",
+      "created_time_utc": "2026-08-02T15:37:19.703Z",
+      "uploaded_byte_size": 3250,
+      "drive_reported_byte_size": 3250,
+      "local_source_sha256": "56E0353827B5255BD0AA25787CD6F68533BD23B56650DF915439C812F3D6E745",
+      "readback_performed_at_utc": "2026-08-02T16:43:55Z",
+      "readback_method": "download_file_content; returned base64 compared against the base64 submitted at upload",
+      "readback_result": "IDENTICAL - byte sizes equal and base64 payload equal",
+      "record_type_declared": "BRIDGE_STATUS_NOT_A_RUNNING_WATCHER_HEARTBEAT",
+      "liveness_claim": "NONE - this record explicitly disclaims watcher liveness and must not be read as a heartbeat"
+    },
+    "folder_state_now": {
+      "child_count": 3,
+      "note": "09_WATCHER_OUTPUT now also contains records emitted by a separate cloud lane. Only 1CyCyVYKLLZUq-jPMnUhztBdrwAt8MmAC belongs to this lane."
+    }
+  },
+
+  "QC_D2": {
+    "severity_as_filed": "HIGH",
+    "reviewer_evidence": "The reviewed JSON contains no receipt_id, no content_sha256 for its own canonical bytes, no final Drive file ID/parent, and no upload/readback digest proof.",
+    "disposition": "VALID_DEFECT_ACCEPTED - a receipt cannot contain its own content hash; this superseding record supplies the missing identity and digest proof",
+    "receipt_identity": {
+      "receipt_id": "DBX-RCPT-CLAUDE-BRIDGE-BLOCKED-20260802T1027CDT",
+      "canonical_content_sha256": "24493B71EC0A7289630FD7E82D293ED3084D78525227041F8C66632EE50E7289",
+      "drive_file_id": "1CrWyCjm2Ld3tOsCTWqKaTliIK8oui-v3",
+      "parent_folder_id": "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+      "parent_folder_name": "02_RECEIPTS",
+      "uploaded_byte_size": 8985,
+      "drive_reported_byte_size": 8985,
+      "readback_byte_size": 8985,
+      "readback_method": "download_file_content; returned base64 compared against the base64 submitted at upload",
+      "readback_result": "IDENTICAL",
+      "created_time_utc": "2026-08-02T15:34:39.781Z",
+      "verification_time_utc": "2026-08-02T16:43:55Z",
+      "upload_transform": "base64 with disableConversionToGoogleType=true, so the stored object is the raw JSON bytes and the SHA-256 above is the stored object's digest"
+    }
+  },
+
+  "QC_D3": {
+    "severity_as_filed": "MEDIUM",
+    "disposition": "ACCEPTED_AS_FORWARD_BINDING_GUIDANCE - no repair to this receipt required by the reviewer",
+    "acknowledgement": "Any future START/CLAIM or terminal receipt must bind the command Drive ID plus Drive API revision and/or a canonical command-content hash. This lane issued no START/CLAIM and no terminal receipt, so no such binding was owed here.",
+    "connector_limitation_restated": "Byte-exact export hashing of Google-native documents is not obtainable through this connector, which is why the original receipt recorded Drive metadata identity for the five control documents and explicitly declined to claim a hash it had not computed. That limitation does not apply to uploaded JSON objects, whose canonical digests are supplied above."
+  },
+
+  "control_state_update_since_original_receipt": {
+    "note": "Recorded for accuracy. The original receipt's observations were true at 2026-08-02T15:34Z and some have since been overtaken by events performed by other lanes.",
+    "gate0_terminal_receipt_now_exists": true,
+    "gate0_terminal_receipt_drive_id": "1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE",
+    "gate0_terminal_receipt_name": "DBX_RECEIPT__S32_GATE0__AUTHORITY_REISSUE_COMPILATION_BLOCKED__20260802T1110CDT.json",
+    "gate0_terminal_sentinel_observed": "S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED",
+    "consequence": "This is NOT S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY, so the conditional completion draft 1yLvVqVGxmcFrYxXhWxRU-VUehg7cdvxut4fEZsGXPPg remains NOT activatable and Stages 7-15 remain closed.",
+    "sole_queue_command_still_present": true,
+    "sole_queue_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "separate_cloud_lane_observed": {
+      "branch": "claude/databossx-section32-recovery-ouyziy",
+      "pull_request": 74,
+      "note": "A second cloud lane is producing control-tower build-proof records. This lane did not coordinate with it, did not duplicate its work, and makes no assertion about its correctness."
+    }
+  },
+
+  "unchanged_assertions_by_this_lane": {
+    "gate0_claimed_by_this_lane": false,
+    "start_claim_receipt_created_by_this_lane": false,
+    "gate0_terminal_receipt_created_by_this_lane": false,
+    "exactly_once_claim_token_consumed_by_this_lane": false,
+    "workbook_mutations": 0,
+    "source_evidence_mutations": 0,
+    "drive_deletions": 0,
+    "drive_overwrites": 0,
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "inbound_ports_opened": 0,
+    "v12_ruling": "NOT_VERIFIED_UNREACHABLE",
+    "watcher_conformance_tests_claimed_passing": 0,
+    "hold_preserved": true
+  },
+
+  "next_permitted_action": "Unchanged. The authorized Windows Control Tower remains the only lane that may claim Drive ID 1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE. This correction neither blocks nor satisfies that action.",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "terminal_sentinel": "CLAUDE_BRIDGE_RECEIPT_QC_DEFECTS_REMEDIATED_APPEND_ONLY"
+}

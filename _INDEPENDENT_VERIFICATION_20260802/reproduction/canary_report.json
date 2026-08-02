@@ -1,0 +1,48 @@
+{
+  "checks": [
+    {
+      "detail": "polled 1 file(s) from the pinned queue folder only",
+      "name": "only_canonical_queue_polled",
+      "passed": true
+    },
+    {
+      "detail": "refused as required",
+      "name": "filename_text_grants_no_authority",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; refused as required; refused as required; activated envelope accepted",
+      "name": "mutation_denied_without_activated_envelope",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; lease valid inside its window",
+      "name": "stale_lease_cannot_write",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; sequence advanced 1 -> 2",
+      "name": "monotonic_fencing_enforced",
+      "passed": true
+    },
+    {
+      "detail": "spooled before upload, marked pending, and re-emit refused to overwrite",
+      "name": "drive_outage_does_not_drop_or_overwrite",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; refused as required",
+      "name": "non_google_urls_never_trusted",
+      "passed": true
+    }
+  ],
+  "ended_at_epoch": 1785689292.3605058,
+  "failed": 0,
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "network_calls": 0,
+  "ok": true,
+  "passed": 7,
+  "started_at_epoch": 1785689292.3353848,
+  "suite": "control_tower_offline_canary",
+  "total": 7
+}

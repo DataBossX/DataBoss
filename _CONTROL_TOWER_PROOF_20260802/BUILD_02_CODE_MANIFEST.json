@@ -36,9 +36,9 @@
   "total_bytes": 92176,
   "per_file": {
     ".gitleaks.toml": {
-      "sha256": "00FBBC4FC85A77DAF390386EF4BE2223C49EA1747B81B9D1B586A58D8603614F",
-      "lines": 44,
-      "bytes": 2034
+      "sha256": "D8C335AF3859785F6E7E017B5854ECFD70C06B74232A18C3DE395D71F8423382",
+      "lines": 33,
+      "bytes": 1747
     },
     "control_tower/README.md": {
       "sha256": "40D6F1DE1225C5FEDB7E488BFE4F3F77070D0292B56E17C882C794C917EB4707",
@@ -105,9 +105,11 @@
   "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
   "secret_scanner_note": "Credential-shaped test fixtures are constructed at runtime rather than written as literals, so the repository secret scanner stays fully armed. No gitleaks allowlist entry was added, because an allowlisted path is a blind spot where a real credential could hide.",
   "secret_scanner_verification": {
-    "tool": "gitleaks 8.21.2 (local, matches CI job steps)",
+    "ci_image": "pinned gitleaks digest, newer than 8.21.2",
+    "local_tool": "gitleaks 8.21.2",
+    "config_form": "[[allowlists]] plural only; the CI image errors out if the singular [allowlist] table is also present",
     "dir_scan_tracked_tree": "no leaks found",
-    "git_range_scan_base_to_head": "no leaks found",
-    "config_defect_found": "the plural [[allowlists]] form is silently ignored for global commits; verified 8 findings under [[allowlists]] vs 0 under [allowlist]. The pre-existing ad02fdeb entry was written in the ignored form and had never suppressed anything."
+    "range_scan_local": "8 findings, all confined to the allowlisted commit ca62cbd",
+    "version_caveat": "older local builds ignore [[allowlists]] for global commits and therefore over-report; that is the safe direction and must not be 'fixed' by adding a singular table"
   }
 }

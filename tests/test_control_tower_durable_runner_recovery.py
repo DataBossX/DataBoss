@@ -5,7 +5,7 @@ from control_tower.drive import OfflineDriveClient, SafeDriveWriter
 from control_tower.durable import DurableStateStore
 from control_tower.durable_runner import DurableGate0Runner
 from control_tower.kernel import AppendOnlySpool, ClaimLedger, LeaseRegistry
-from control_tower.safety import canonical_json_bytes, stamp_hold
+from control_tower.safety import canonical_json_bytes, sha256_hex, stamp_hold
 
 
 SUCCESS = "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY"
@@ -46,8 +46,17 @@ def test_runner_recovers_terminal_uploaded_before_local_resolution(tmp_path):
             "ended_at_epoch": 2.0,
         }
     )
+    expected_digest = sha256_hex(canonical_json_bytes(terminal))
 
     ledger.prepare_terminal(key, SUCCESS, terminal_name)
+
+    def bind_expected(state):
+        record = dict(state["claims"][key])
+        record["terminal_ended_at"] = 2.0
+        record["terminal_expected_sha256"] = expected_digest
+        state["claims"][key] = record
+
+    store.transaction(bind_expected)
     emitted = writer.emit_record(
         RECEIPTS_FOLDER_ID, terminal_name, terminal, lease=lease, now=2.0
     )

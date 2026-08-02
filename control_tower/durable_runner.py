@@ -1,7 +1,7 @@
 """Crash-safe Gate 0 runner backed by durable claims, leases and fencing.
 
 This runner is additive while the original PR #74 runner remains available for
-read-only compatibility.  Live claim and terminal work must use this class.
+read-only compatibility. Live claim and terminal work must use this class.
 """
 
 import time
@@ -12,7 +12,6 @@ from .constants import (
     GATE0_TERMINAL_SENTINELS,
     MODE_READ_ONLY,
     RECEIPTS_FOLDER_ID,
-    ClaimConflict,
     ControlTowerError,
     SpoolCollision,
 )
@@ -71,9 +70,18 @@ class DurableGate0Runner(object):
             key.replace("|", "__")
         )
         lease = self.leases.acquire(self.scope, holder, now, ttl_seconds)
-        prepared = self.ledger.prepare_open(
-            key, holder, now, receipt_name=receipt_name
-        )
+        existing = self.ledger.state(key)
+        if (
+            existing
+            and existing.get("state") == "OPEN"
+            and existing.get("holder") == holder
+            and existing.get("start_receipt_name") == receipt_name
+        ):
+            prepared = existing
+        else:
+            prepared = self.ledger.prepare_open(
+                key, holder, now, receipt_name=receipt_name
+            )
         receipt = stamp_hold(
             {
                 "schema": "databossx.gate0_start_claim.v2",
@@ -90,7 +98,7 @@ class DurableGate0Runner(object):
                 "mode": MODE_READ_ONLY,
                 "mutation_permitted": False,
                 "process": process_identity(),
-                "started_at_epoch": now,
+                "started_at_epoch": prepared.get("opened_at", now),
                 "allowed_write_folder_ids": sorted(ALLOWED_WRITE_FOLDER_IDS),
                 "stop_conditions": [
                     "selftest failure",
@@ -131,9 +139,18 @@ class DurableGate0Runner(object):
         receipt_name = "DBX_RECEIPT__GATE0_TERMINAL__{0}.json".format(
             claim_key_value.replace("|", "__")
         )
-        prepared = self.ledger.prepare_terminal(
-            claim_key_value, sentinel, receipt_name
-        )
+        existing = self.ledger.state(claim_key_value)
+        if (
+            existing
+            and existing.get("state") in ("TERMINAL_PREPARED", "TERMINAL_UPLOADED")
+            and existing.get("sentinel") == sentinel
+            and existing.get("terminal_name") == receipt_name
+        ):
+            prepared = existing
+        else:
+            prepared = self.ledger.prepare_terminal(
+                claim_key_value, sentinel, receipt_name
+            )
         receipt = stamp_hold(
             {
                 "schema": "databossx.gate0_terminal.v2",

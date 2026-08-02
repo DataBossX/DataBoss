@@ -1,0 +1,256 @@
+{
+  "schema": "databossx.independent_review_record.v1",
+  "record_id": "DBX-QCREV-S32-GATE0-TERMINAL-20260802T1121CDT",
+  "record_type": "INDEPENDENT_READ_ONLY_REVIEW_OF_A_LANDED_TERMINAL_RECEIPT",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "IS_GATE0_START_CLAIM_RECEIPT": false,
+  "IS_GATE0_TERMINAL_RECEIPT": false,
+  "GATE0_CLAIM_ATTEMPTED_BY_THIS_LANE": false,
+  "GATE0_TERMINAL_SENTINEL_EMITTED_BY_THIS_LANE": "NOT APPLICABLE - deliberately withheld. Exactly one Gate 0 terminal receipt already exists (Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE). The controlling command forbids a second terminal receipt for the same command. This record is an append-only review of that receipt and carries no sentinel.",
+  "COMPETING_CONTROL_PLANE_CREATED": false,
+
+  "purpose": "A Gate 0 terminal receipt landed in 02_RECEIPTS at 2026-08-02T16:14:31Z, after every existing review record in this control plane was written. Nothing has reviewed it. The owner authorization names Claude Code as the independent read-only reviewer. This record supplies that review. It adds no control decision, takes no control action, claims nothing, and terminalizes nothing.",
+
+  "actor": {
+    "agent": "Claude Code independent reviewer lane",
+    "model": "claude-opus-5",
+    "role": "READ_ONLY_INDEPENDENT_REVIEWER",
+    "is_authorized_windows_control_tower": false,
+    "hostname": "vm",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "os_kernel": "Linux 6.18.5 x86_64",
+    "os_release": "Ubuntu 24.04.4 LTS",
+    "user": "root (container-local, not a DataBossX service account)",
+    "session_process_pid": 5565,
+    "repository": "DataBossX/DataBoss",
+    "branch": "claude/databossx-control-tower-recovery-le2xg6",
+    "commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "worktree": "/home/user/DataBoss (single worktree; git worktree list shows no others)",
+    "command_line": "NOT APPLICABLE - no DataBossX watcher, runner, or service process exists on this host to bind. Process table enumerated; zero DataBossX processes present.",
+    "executable_hash": "NOT APPLICABLE - no DataBossX control executable exists on this host to hash."
+  },
+
+  "observation_window": {
+    "start_utc": "2026-08-02T16:16:00Z",
+    "end_utc": "2026-08-02T16:21:04Z",
+    "end_local_america_chicago": "2026-08-02T11:21:04-05:00"
+  },
+
+  "record_under_review": {
+    "title": "DBX_RECEIPT__S32_GATE0__AUTHORITY_REISSUE_COMPILATION_BLOCKED__20260802T1110CDT.json",
+    "drive_id": "1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE",
+    "declared_byte_size": 19946,
+    "created_utc": "2026-08-02T16:14:31.469Z",
+    "receipt_id": "DBX-RCPT-S32-GATE0-AUTHORITY-REISSUE-COMPILATION-BLOCKED-20260802T1110CDT",
+    "receipt_type": "GATE0_TERMINAL_BLOCKED",
+    "terminal_state": "S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED",
+    "command_id": "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+    "emitting_actor": "OpenAI Codex on machine RYANSPC, Windows identity RYANSPC\\ryang, host PID 18908",
+    "emitting_actor_is_authorized_windows_control_tower": true
+  },
+
+  "confirmed_strengths": [
+    {
+      "id": "S-01",
+      "finding": "V12 expected SHA-256 D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D is identical across four independent controlling records: the Gate 0 command, the Section 32 owner authorization (0840CDT), the owner handoff (1114CDT), and the terminal receipt under review. No drift.",
+      "method": "Direct read of each record and literal string comparison."
+    },
+    {
+      "id": "S-02",
+      "finding": "V10 (79668279F0CF1A49CDF6F599F611C7BE058D40D43FA54372F6B559E60D9E7F4C), V11 (81AE7941DC62C748CBAA57A0FCEEB77F24828440F3A954173284ED3DB0DB0369), and the Drive V9 advisory (7075B9AC8B9ACFEEBFA5FAE97A23B01064F2B19CC064AD4124B118900936B5A6) reported by the terminal receipt match the PROTECTED WORKBOOK BASELINES declared in the command exactly.",
+      "method": "Literal comparison against the command text."
+    },
+    {
+      "id": "S-03",
+      "finding": "The command canonical text/plain export hash cited by the terminal receipt (92A5A128A4BF2D8FF5FE0768456B7AE3633662BE9A45DE9A954DEA08BEC1498F, 6261 bytes) equals the value independently reproduced by the prior Linux lane at 1102CDT by local digest. Two mutually independent lanes on different host classes agree, so the Gate 0 command text did not change between lanes.",
+      "method": "Cross-record comparison against DBX_RECEIPT__S32_GATE0_INDEPENDENT_REVERIFICATION_CLAIM_STILL_UNCONSUMED__20260802T1102CDT.json (Drive ID 1WRaXVMdoKWDdLYxrFjMZWOqdSWeQ4sra)."
+    },
+    {
+      "id": "S-04",
+      "finding": "The terminal receipt declines to fabricate absent controls. It records TaskEnvelope, WriterACK, active lease, monotonic fencing token, heartbeat contract, output allowlist, and rollback path as MISSING and states plainly that these controls were not fabricated. This is the correct fail-closed posture and is the principal reason the review does not dispute the BLOCKED outcome itself.",
+      "method": "Field-level read of ack_lease_heartbeat_fencing.current_gate0."
+    },
+    {
+      "id": "S-05",
+      "finding": "Zero mutations are claimed, and the mutation statement is specific rather than generic. 01_QUEUED still contains exactly one child, the sole Gate 0 command, independently confirmed by this lane at 2026-08-02T16:17Z. No competing command was added.",
+      "method": "Independent Drive folder enumeration of 01_QUEUED (1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC)."
+    },
+    {
+      "id": "S-06",
+      "finding": "The terminal receipt correctly subordinated command REQUIRED ACTION 8 (compile the clean authority-reissue package once the pointer resolves) to the command STOP CONDITIONS (stop on absent ACK/lease/fencing proof). Compiling a package that binds a lease and fencing token which do not exist would have produced a false authority artifact.",
+      "method": "Comparison of clean_authority_reissue_draft.reason against the command REQUIRED ACTIONS and STOP CONDITIONS."
+    }
+  ],
+
+  "findings": [
+    {
+      "id": "R-01",
+      "severity": "MATERIAL - OWNER DECISION REQUIRED",
+      "title": "A Gate 0 TERMINAL receipt exists although no START/CLAIM receipt was ever issued, and the newest owner-side direction still asserts Gate 0 is unterminated.",
+      "evidence": [
+        "02_RECEIPTS contains no START/CLAIM receipt for command DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT. This lane enumerated the folder directly; the prior lane recorded the same absence at 1102CDT.",
+        "The terminal receipt's own drive_control_snapshot.queue.claim_status is NOT_VALIDLY_ESTABLISHED, so its emitter agrees it never validly claimed the command.",
+        "The owner supplement states: 'The Control Tower must claim only the existing Gate 0 command and emit a START/CLAIM receipt before execution is considered active.'",
+        "The sole-command rule states the Gate 0 command 'remains the only executable command until it has one verified terminal receipt.' A terminal receipt now exists.",
+        "00_OPERATOR_NEXT_ACTION__SECTION32_WINDOWS_BRIDGE_AND_GATE0__20260802T1118CDT (Drive ID 1r0lqywaM46tQajcSMZ-4NfTDI9trdzNmuGzQj1ZgOT0, created 2026-08-02T16:18:45Z) states 'Gate 0 remains unclaimed and unterminated' - written 4 minutes AFTER the terminal receipt landed."
+      ],
+      "why_it_matters": "Two controlling records now disagree about whether the sole executable command is spent. If the BLOCKED terminal consumed the command's single terminal slot, the Windows Control Tower may not simply re-run Gate 0 and a fresh reissued command is required. If it did not, the claim token is still live and the operator instructions stand. Both readings are defensible from the current records, and the difference determines the next legal action.",
+      "reviewer_reading": "The terminal receipt's own single_next_permitted_action speaks of establishing controls 'before any new Gate 0 attempt', which implies its emitter treated the BLOCKED terminal as a non-consuming fail-closed diagnostic rather than as retirement of the command. That reading is coherent but is nowhere ratified by an owner record.",
+      "recommended_resolution": "Ryan issues one short append-only ruling stating either (a) the 1110CDT BLOCKED terminal is non-consuming and the Gate 0 claim token remains live, or (b) the command is retired and a successor command must be queued. Until then no lane should attempt a Gate 0 claim.",
+      "action_taken_by_this_lane": "NONE. Surfaced only. This lane has no authority to rule on it."
+    },
+    {
+      "id": "R-02",
+      "severity": "DEFECT - REQUIRED FIELD OMITTED",
+      "title": "The terminal receipt omits the F-02 scope ruling that the command expressly requires it to prove.",
+      "evidence": [
+        "The command section OUTPUT RECEIPT MUST PROVE lists 'F-02 scope ruling' as a mandatory element.",
+        "The command carries an F-02 BASELINE block (inventory SHA-256 648104BF819B3AA4B5E6F753C2677402A076C7F25B7CDB94799FD250C68249AD; 177 occurrences / 12 exact strings actual; 156 / 9 proposed; 21 / 3 already predicated).",
+        "The terminal receipt contains no f02 field of any kind, and does not mark it NOT APPLICABLE with a reason.",
+        "The owner supplement states: 'A field that is not applicable must be explicitly marked NOT APPLICABLE with reason, not silently omitted.'"
+      ],
+      "why_it_matters": "F-02 defines the exact narrow repair scope any future authority reissue would carry. Silently dropping it leaves the scope unruled while the receipt reads as complete.",
+      "recommended_resolution": "The Windows Control Tower appends a superseding correction record supplying the F-02 ruling, or explicitly marking it NOT RULED with reason. It must not edit the published receipt; the append-only precedent already exists as DBX_CORRECTION_01.",
+      "action_taken_by_this_lane": "NONE. Cannot rule on F-02: the local inventory artifact is unreachable from this host."
+    },
+    {
+      "id": "R-03",
+      "severity": "DEFECT - PARTIAL NON-EXECUTION",
+      "title": "The quarantined V13 WIP hash was not confirmed or dispositioned.",
+      "evidence": [
+        "Command REQUIRED ACTION 5 directs confirmation of 'V10, V11, V12, the Drive V9 advisory file, and quarantined V13 WIP hashes where locally accessible.'",
+        "The command declares the quarantined V13 WIP baseline as FF8D6CF349CCEE753FA62F5213F152C0F3B17D7B18A57E1BA7A1A63DB6CEBC58.",
+        "The terminal receipt's verified_source_workbooks block covers v12, v10, v11 and v9_advisory only. V13 WIP appears nowhere, neither as verified nor as inaccessible."
+      ],
+      "why_it_matters": "The quarantined V13 WIP is the artifact the entire containment episode exists to contain. Leaving its hash unconfirmed means the receipt cannot demonstrate the quarantined material is still intact and unmoved.",
+      "recommended_resolution": "Confirm the V13 WIP hash read-only on the Windows host, or record explicitly why it was not accessible, in the same superseding correction that resolves R-02.",
+      "action_taken_by_this_lane": "NONE. V13 WIP is unreachable from this host."
+    },
+    {
+      "id": "R-04",
+      "severity": "DEFECT - UNVERIFIABLE SELF-CLAIM",
+      "title": "The terminal receipt asserts exact-byte readback verification of itself but publishes nothing that lets a third party reproduce it.",
+      "evidence": [
+        "output_hashes.terminal_receipt reads 'VERIFIED_EXTERNALLY_BY_EXACT_BYTE_READBACK_AFTER_APPEND_SELF_HASH_NOT_EMBEDDED'.",
+        "No .sha256 sidecar for this receipt exists in 02_RECEIPTS. Its sibling receipts at 1043CDT and 1102CDT, and the 1539Z build-proof receipt, each do have one.",
+        "QC_REVIEW__CLAUDE_DRIVE_BRIDGE_RECOVERY_RECEIPT__FAIL_WITH_ACTIONABLE_DEFECTS__20260802T1036CDT (Drive ID 1rhez2m6vANAhI5LnDZoueEbjUKu_-yEq) previously FAILED a lane's receipt on precisely this defect class, logged as QC-D1: an unverified readback claim."
+      ],
+      "why_it_matters": "This is the most consequential record in the matter and it is the one record whose integrity cannot be independently checked. The control plane already ruled this defect class unacceptable once.",
+      "recommended_resolution": "Publish a .sha256 sidecar for Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE from the Windows host that wrote it.",
+      "action_taken_by_this_lane": "NOT REMEDIED HERE, deliberately. This lane could compute a digest only by transcribing the file's bytes through a language model, which is not a trustworthy byte channel; a transcription slip would manufacture a false mismatch against the most important record in the matter. Declining is the honest result. This record publishes its own .sha256 sidecar so it does not repeat the defect it reports."
+    }
+  ],
+
+  "gate0_state_as_observed": {
+    "queue_folder_drive_id": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "queue_child_count": 1,
+    "sole_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "start_claim_receipt_present": false,
+    "gate0_terminal_receipt_present": true,
+    "gate0_terminal_count": 1,
+    "gate0_terminal_sentinel": "S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED",
+    "success_sentinel_emitted": false,
+    "completed_folder_child_count": 0,
+    "state_summary": "TERMINALIZED_BLOCKED_WITHOUT_A_PRECEDING_CLAIM - see finding R-01"
+  },
+
+  "section32_completion_gate": {
+    "required_sentinel_to_unlock": "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY",
+    "actual_sentinel": "S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED",
+    "unlocked": false,
+    "consequence": "Phase B conditional single-writer full completion authority did NOT vest. The conditional completion draft (Drive ID 1yLvVqVGxmcFrYxXhWxRU-VUehg7cdvxut4fEZsGXPPg) remains DRAFT_AWAITING_GATE0 and non-executable. No workbook writer may be bound. No successor workbook may be created."
+  },
+
+  "v12_verification_disposition": {
+    "verified_by_this_lane": false,
+    "reason_not_verified_here": "The V12 path is on the Windows host that owns C:\\DataBoss. No C: volume exists on this host in any mount form, and no .xlsx file exists anywhere on this filesystem.",
+    "verified_by_authorized_host": true,
+    "authorized_host_result": "EXACT_MATCH - 530416 bytes, SHA-256 D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D, package integrity PASS_8_OF_8, historical WriterACK ACCEPTED, historical lease RELEASED, heartbeat STOPPED_LEASE_RELEASED, zero lock holders, zero Excel processes, V10 and V11 preserved.",
+    "reviewer_assessment": "Every owner-required V12 predicate is reported PASS by the authorized host. The V12 pointer ruling (V12_CONDITIONALLY_SELECTED_AS_THE_ONLY_PERMITTED_SOURCE_POINTER) is well supported on the face of the record. V12 is not disputed by this review. It is the surrounding Gate 0 controls, not V12, that are missing.",
+    "no_fallback_confirmed": "V9 remains ADVISORY_NONCONTROLLING_NO_FALLBACK. No fallback to V9, V10, V11, V13, or any August 2 derivative is authorized or has occurred."
+  },
+
+  "repository_state": {
+    "repository": "DataBossX/DataBoss",
+    "branch": "claude/databossx-control-tower-recovery-le2xg6",
+    "commit_at_review": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "dirty_before_this_record": false,
+    "stashes": 0,
+    "additional_worktrees": 0,
+    "control_tower_implementation_found_in_repository": false,
+    "search_method": "Filename search for control tower, TaskEnvelope, WriterACK, lease, fencing, watcher, receipt, and queue patterns; plus content search across the tree for TaskEnvelope, WriterACK, fencing, control_tower, 01_QUEUED, 02_RECEIPTS, 09_WATCHER_OUTPUT, DBX-S32, googleapiclient, and Drive files.create.",
+    "search_result": "No Drive watcher, no TaskEnvelope implementation, no WriterACK implementation, no lease or fencing store, no receipt uploader, and no claim ledger exist on branch 582d951. The 198 keyword hits are documentation prose, unrelated UI review queues, and title-workbook QA code. The donor control kernel lives only in unmerged draft PR 66 at head 65f48d3.",
+    "tests": {
+      "suite": "python -m pytest -q",
+      "result": "NOT RUN - CANNOT RUN ON THIS HOST",
+      "reason": "pytest is not installed and this environment has no PyPI access (pip reports 'no versions available'). openpyxl, pandas, fastapi, and pydantic are also absent, so the suite could not import even if pytest were present.",
+      "substitute_check_performed": "python -m compileall over horizon, src, tests, automation, scripts - exit 0, all sources compile.",
+      "explicit_caveat": "A compile check is NOT a test pass and must not be reported as one. The repository test suite result for this lane is UNKNOWN."
+    }
+  },
+
+  "control_tower_recovery_outcome": {
+    "selected": "D-for-this-host / B-for-the-matter",
+    "explanation": "Outcome D (no usable implementation) is the correct answer for THIS host: exhaustive discovery found no DataBossX Control Tower, watcher, service, scheduled task, lease store, ACK store, or fencing source anywhere on this Linux container, and none in the repository at 582d951. Outcome B is the correct answer for the matter as a whole: the authorized Windows host demonstrably HAS a live control surface - the 1110CDT receipt enumerates its scheduled tasks, its services, its process table, its Restart Manager lock probe, and its historical lease, ACK, and heartbeat records - but its Gate 0 runner and current-envelope binding are missing. The repair belongs on that host and cannot be performed here.",
+    "repair_attempted_by_this_lane": false,
+    "reason_no_repair": "Every repair target is on a host this lane cannot reach. Building a runner here would create a second control plane, which the owner supplement expressly prohibits."
+  },
+
+  "lease_and_fencing_state": {
+    "gate0_current_lease": "MISSING - never established",
+    "gate0_current_fencing_sequence": "MISSING - never established",
+    "gate0_writer_ack": "MISSING - never established",
+    "stale_containment_lease_id": "LEASE-DBX-V13-MULTI-WRITER-CONTAINMENT-20260801",
+    "stale_containment_lease_status": "Canonically LEASED_CONTAINMENT_ACTIVE but expired 2026-08-02T02:48:41Z; its writer PID 42668 is dead; its monotonic fencing sequence is MISSING and its WriterACK is MISSING.",
+    "stale_containment_lease_still_unreleased": true,
+    "note_on_required_action_4": "Command REQUIRED ACTION 4 directs that a terminal-but-unreleased authority receive an append-only terminalization or supersession record. The terminal receipt classified the containment lease as stale and expired but did not create that record, deferring it to the next permitted action. Given that no lease-store authority was bound, deferring rather than fabricating a release is defensible, but the containment lease remains unreleased and is a live blocker.",
+    "historical_v12_lease": "LEASE-SECTION32_V12_NARRATIVE_RESTORATION-4A3F23F4 - RELEASED, ACK accepted, heartbeat stopped. Clean.",
+    "live_unbound_worker": "node.exe PID 49548, started 2026-08-02T01:32:06-05:00, owner application Cursor, scoped to C:\\DataBoss\\_TASKS\\DBX-SEC32-MAX-DEFENSIBLE-UPDATE-20260727-A1. Mutation-capable, not bound to any Gate 0 authority. This is the first blocker named in the next permitted action."
+  },
+
+  "rollback": {
+    "required": false,
+    "reason": "No protected artifact, workbook, evidence file, Drive record, or control record was mutated by this lane. This record is a new append-only file; nothing was overwritten, so there is no prior state to restore.",
+    "reversal_if_owner_wishes": "Delete this single Drive record and its .sha256 sidecar by Drive ID, and revert the corresponding commit on branch claude/databossx-control-tower-recovery-le2xg6. No other artifact is affected."
+  },
+
+  "mutation_ledger": {
+    "client_artifact_bytes_changed": 0,
+    "workbook_bytes_changed": 0,
+    "v9_v10_v11_v12_v13_touched": false,
+    "source_evidence_mutated": false,
+    "drive_files_edited_or_overwritten": 0,
+    "drive_files_deleted": 0,
+    "drive_files_moved": 0,
+    "drive_files_created": "2 - this review record and its .sha256 sidecar, both appended to 02_RECEIPTS",
+    "queue_commands_added": 0,
+    "competing_queue_or_control_plane_created": false,
+    "gate0_claim_consumed": false,
+    "gate0_terminal_receipts_issued": 0,
+    "repository_commit_or_push": "YES - control-plane evidence only, to the designated branch, draft PR, no merge",
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "hold_removed": false,
+    "inbound_ports_opened": 0,
+    "connection_direction": "OUTBOUND_ONLY",
+    "secrets_present": false,
+    "client_evidence_present": false
+  },
+
+  "repository_write_authority_basis": "DBX_CORRECTION_01__CONTROL_TOWER_BUILD_PROOF__REPOSITORY_COMMIT_AUTHORIZED__20260802T1600Z.json (Drive ID 1-hVSpnv5pa3RWBpAcDXFQbGIZkNJxREo) records the owner's in-session direction that a Linux reviewer lane of this class may commit and push control-plane evidence artifacts to its designated branch as a draft PR, and rules that the Gate 0 command's PROHIBITED ACTIONS bind a lane that has claimed and is executing Gate 0. This lane never claimed Gate 0 and never executed it. Content committed is control-plane evidence only: zero executable code, zero client artifact bytes, zero workbook bytes, zero secrets.",
+
+  "stop_conditions_triggered": [
+    "Unauthorized execution host - this lane is not the authorized Windows Control Tower named by the controlling records",
+    "Gate 0 already terminalized by another actor - a second terminal receipt is forbidden",
+    "Conflicting authority - the 1118CDT operator direction and the 1110CDT terminal receipt disagree on whether Gate 0 is terminated (finding R-01)",
+    "V12 path unreachable from this host",
+    "No lease store, ACK store, or monotonic fencing source reachable",
+    "Repository test suite cannot execute - no PyPI access"
+  ],
+
+  "next_permitted_action": "Unchanged in substance from the terminal receipt under review, with one addition. On the Windows host that owns C:\\DataBoss: (1) execute the owner-activated bounded bridge-restoration envelope TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT (draft Drive ID 159gQIvazu4RWDB8wmZSYuJxsEM9NC5gb) per the 1118CDT operator direction, stopping at its own terminal receipt; (2) quiesce or conclusively disarm the live unbound Section 32 Cursor worker PID 49548 without touching a workbook; (3) append-only terminalize and release the expired containment lease LEASE-DBX-V13-MULTI-WRITER-CONTAINMENT-20260801. ADDED BY THIS REVIEW: (4) obtain Ryan's ruling on finding R-01 before any Gate 0 claim is attempted, because whether the claim token is still live is currently disputed between two controlling records; and (5) publish the missing .sha256 sidecar for the terminal receipt and a superseding correction supplying the F-02 ruling and the V13 WIP disposition. The activation expires 2026-08-03 10:54 CDT.",
+
+  "review_verdict": "TERMINAL_OUTCOME_NOT_DISPUTED_WITH_FOUR_ACTIONABLE_DEFECTS_AND_ONE_OWNER_DECISION_REQUIRED",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

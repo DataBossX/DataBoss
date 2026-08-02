@@ -1,0 +1,10 @@
+81E9D50E8F141FE1A6FFFFEE87E4BBEF81195BFC18426E5F40E3078DAB16CB24  QC_REVIEW__S32_GATE0_TERMINAL_RECEIPT__INDEPENDENT_READ_ONLY_REVIEW__20260802T1121CDT.json
+algorithm: SHA-256
+byte_size: 23200
+drive_id: 1iMUL_pEYIP1VX6zDOoWOws0mIkGbuRex
+parent_folder: 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR
+uploaded_utc: 2026-08-02T16:25:47.508Z
+readback_byte_count_confirmed: 23200 == 23200 PASS
+computed_by: Claude Code independent reviewer lane, host vm, Linux ephemeral cloud container
+computed_from: local file digested with sha256sum before upload; Drive-reported fileSize compared after upload
+release_state: FOR REVIEW - HOLD NO EXTERNAL RELEASE

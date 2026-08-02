@@ -2,6 +2,9 @@
 
 This runner is additive while the original PR #74 runner remains available for
 read-only compatibility. Live claim and terminal work must use this class.
+Every receipt's exact expected digest is committed to durable claim state
+before local spooling or a Drive request, so restart recovery cannot adopt
+changed, stale or tampered spool bytes.
 """
 
 import time
@@ -12,6 +15,7 @@ from .constants import (
     GATE0_TERMINAL_SENTINELS,
     MODE_READ_ONLY,
     RECEIPTS_FOLDER_ID,
+    ClaimConflict,
     ControlTowerError,
     SpoolCollision,
 )
@@ -50,15 +54,64 @@ class DurableGate0Runner(object):
             )
         return report
 
+    def _claim_context(self, key, process=None, terminal_time=None):
+        """Persist stable receipt context once and return the claim record."""
+
+        def mutate(state):
+            record = state["claims"].get(key)
+            if record is None:
+                raise ClaimConflict("cannot bind receipt context to unknown claim {0}".format(key))
+            record = dict(record)
+            if process is not None:
+                if record.get("start_process") is None:
+                    record["start_process"] = process
+                elif record.get("start_process") != process and record.get("state") == "CLAIM_PREPARED":
+                    # A restarted process reuses the original prepared identity;
+                    # it does not rewrite the receipt after the spool may exist.
+                    pass
+            if terminal_time is not None and record.get("terminal_ended_at") is None:
+                record["terminal_ended_at"] = float(terminal_time)
+            state["claims"][key] = record
+            return dict(record)
+
+        return self.ledger.store.transaction(mutate)
+
+    def _bind_expected_digest(self, key, field, digest):
+        """Bind one immutable expected receipt digest before any write."""
+
+        def mutate(state):
+            record = state["claims"].get(key)
+            if record is None:
+                raise ClaimConflict("cannot bind receipt digest to unknown claim {0}".format(key))
+            record = dict(record)
+            existing = record.get(field)
+            if existing is not None and existing != digest:
+                raise ClaimConflict(
+                    "durable expected digest conflict for {0}: {1} != {2}".format(
+                        key, existing, digest
+                    )
+                )
+            record[field] = digest
+            state["claims"][key] = record
+            return digest
+
+        return self.ledger.store.transaction(mutate)
+
     @staticmethod
-    def _emit_or_recover(writer, folder_id, name, record, lease, now):
+    def _emit_or_recover(
+        writer, folder_id, name, record, lease, now, expected_sha256
+    ):
         try:
             return writer.emit_record(
                 folder_id, name, record, lease=lease, now=now
             )
         except SpoolCollision:
             return writer.recover_record(
-                folder_id, name, lease=lease, now=now
+                folder_id,
+                name,
+                lease=lease,
+                now=now,
+                expected_sha256=expected_sha256,
             )
 
     def claim(self, command_meta, command_revision, holder, now=None, ttl_seconds=900):
@@ -83,6 +136,7 @@ class DurableGate0Runner(object):
             prepared = self.ledger.prepare_open(
                 key, holder, now, receipt_name=receipt_name
             )
+        prepared = self._claim_context(key, process=process_identity())
         receipt = stamp_hold(
             {
                 "schema": "databossx.gate0_start_claim.v2",
@@ -98,7 +152,7 @@ class DurableGate0Runner(object):
                 "fencing_sequence": lease.fencing_sequence,
                 "mode": MODE_READ_ONLY,
                 "mutation_permitted": False,
-                "process": process_identity(),
+                "process": prepared["start_process"],
                 "started_at_epoch": prepared.get("opened_at", now),
                 "allowed_write_folder_ids": sorted(ALLOWED_WRITE_FOLDER_IDS),
                 "stop_conditions": [
@@ -114,6 +168,8 @@ class DurableGate0Runner(object):
                 ],
             }
         )
+        expected_digest = sha256_hex(canonical_json_bytes(receipt))
+        self._bind_expected_digest(key, "start_expected_sha256", expected_digest)
         emitted = self._emit_or_recover(
             self.writer,
             RECEIPTS_FOLDER_ID,
@@ -121,6 +177,7 @@ class DurableGate0Runner(object):
             receipt,
             lease,
             now,
+            expected_digest,
         )
         opened = self.ledger.mark_open(
             key, drive_id=emitted["drive_id"], digest=emitted["sha256"]
@@ -152,6 +209,7 @@ class DurableGate0Runner(object):
             prepared = self.ledger.prepare_terminal(
                 claim_key_value, sentinel, receipt_name
             )
+        prepared = self._claim_context(claim_key_value, terminal_time=now)
         receipt = stamp_hold(
             {
                 "schema": "databossx.gate0_terminal.v2",
@@ -160,8 +218,12 @@ class DurableGate0Runner(object):
                 "terminal_sentinel": sentinel,
                 "findings": findings,
                 "workbook_mutated": False,
-                "ended_at_epoch": now,
+                "ended_at_epoch": prepared["terminal_ended_at"],
             }
+        )
+        expected_digest = sha256_hex(canonical_json_bytes(receipt))
+        self._bind_expected_digest(
+            claim_key_value, "terminal_expected_sha256", expected_digest
         )
         emitted = self._emit_or_recover(
             self.writer,
@@ -170,6 +232,7 @@ class DurableGate0Runner(object):
             receipt,
             lease,
             now,
+            expected_digest,
         )
         uploaded = self.ledger.mark_terminal_uploaded(
             claim_key_value, emitted["drive_id"], emitted["sha256"]

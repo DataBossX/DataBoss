@@ -29,11 +29,11 @@
     }
   },
   "implementation_modules": 8,
-  "implementation_lines": 1771,
-  "test_lines": 594,
+  "implementation_lines": 1773,
+  "test_lines": 599,
   "total_files": 11,
-  "total_lines": 2503,
-  "total_bytes": 89491,
+  "total_lines": 2510,
+  "total_bytes": 89870,
   "per_file": {
     "control_tower/README.md": {
       "sha256": "40D6F1DE1225C5FEDB7E488BFE4F3F77070D0292B56E17C882C794C917EB4707",
@@ -76,9 +76,9 @@
       "bytes": 7352
     },
     "control_tower/tower.py": {
-      "sha256": "CDE4749EDD76DEAFAFC54B25DF2499183D67DF12CCC6BC78668BCCD30725A1E4",
-      "lines": 470,
-      "bytes": 17382
+      "sha256": "77E24EFB2AFE85D999C82E9767BE830DD7CEF91387A93BEE978763813F8033D4",
+      "lines": 472,
+      "bytes": 17456
     },
     "run_control_tower.bat": {
       "sha256": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
@@ -86,9 +86,9 @@
       "bytes": 1073
     },
     "tests/test_control_tower.py": {
-      "sha256": "4D84C5E9702F0247A21AA467BB3BFEB8E22B94DF5DB1F35A6BF7A4840263C1A1",
-      "lines": 594,
-      "bytes": 21181
+      "sha256": "E3D2553F3C111CF7F3AB170200C2231383C3DD980C0B698BCF84A4589674ABF5",
+      "lines": 599,
+      "bytes": 21486
     }
   },
   "dependencies": {
@@ -98,5 +98,6 @@
     "python_min_supported": "3.8"
   },
   "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
-  "secret_scanner_note": "Credential-shaped test fixtures are constructed at runtime rather than written as literals, so the repository secret scanner stays fully armed. No gitleaks allowlist entry was added, because an allowlisted path is a blind spot where a real credential could hide."
+  "secret_scanner_note": "Credential-shaped test fixtures are constructed at runtime rather than written as literals, so the repository secret scanner stays fully armed. No gitleaks allowlist entry was added, because an allowlisted path is a blind spot where a real credential could hide.",
+  "secret_scanner_verification": "gitleaks 8.21.2 dir scan of the tracked tree: no leaks found"
 }

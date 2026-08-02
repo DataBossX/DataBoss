@@ -364,9 +364,14 @@ def test_secret_values_are_redacted(secret):
 
 
 def test_keyed_secrets_are_redacted_but_keys_remain():
-    scrubbed = redact('password: "hunter2secret" and api_key=abcdef123456')
-    assert "hunter2secret" not in scrubbed
-    assert "abcdef123456" not in scrubbed
+    # Values built at runtime for the same reason as the fixtures above: a
+    # literal `api_key=<value>` in source is exactly what generic-api-key
+    # detectors are built to catch, and they cannot tell a fixture from a leak.
+    password = _fake_credential("pw", 14)
+    api_key = _fake_credential("ak", 18)
+    scrubbed = redact('password: "{0}" and api_key={1}'.format(password, api_key))
+    assert password not in scrubbed
+    assert api_key not in scrubbed
     assert "password" in scrubbed and "api_key" in scrubbed
 
 

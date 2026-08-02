@@ -227,13 +227,15 @@ def selftest(tmp_root=None):
     # 11. Secret values are redacted.
     # Built at runtime so no credential-shaped literal is committed, which
     # keeps the repository secret scanner armed without an allowlist blind spot.
-    fake_token = "gh" "p_" + ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" * 2)[:36]
-    sample = 'token="{0}" and password: hunter2xyz'.format(fake_token)
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    fake_token = "gh" "p_" + (alphabet * 2)[:36]
+    fake_password = "pw" + alphabet[:14]
+    sample = 'token="{0}" and password: {1}'.format(fake_token, fake_password)
     scrubbed = redact(sample)
     _check(
         results,
         "secrets_redacted",
-        fake_token not in scrubbed and "hunter2xyz" not in scrubbed and "token" in scrubbed,
+        fake_token not in scrubbed and fake_password not in scrubbed and "token" in scrubbed,
         "values removed, keys retained",
     )
 

@@ -147,7 +147,8 @@ class SafeDriveWriter(object):
     offline client remains usable for synthetic self-tests, including the
     legacy runner. Pending spool records are resumed with
     :meth:`recover_record`, which adopts one exact existing Drive object or
-    uploads only when absent. Duplicates and byte mismatches fail closed.
+    uploads only when absent. Recovery may be bound to a digest persisted in
+    durable claim state, so stale or altered spool bytes fail closed.
     """
 
     def __init__(self, client, spool, leases=None):
@@ -263,12 +264,20 @@ class SafeDriveWriter(object):
             )
             raise
 
-    def recover_record(self, folder_id, name, lease=None, now=None):
-        """Resume one already-spooled record idempotently after interruption."""
+    def recover_record(
+        self, folder_id, name, lease=None, now=None, expected_sha256=None
+    ):
+        """Resume one spooled record, optionally bound to durable-state digest."""
         assert_write_allowed(folder_id)
         self._require_lease(lease, now)
         payload = self.spool.read_record(name)
         digest = assert_uploadable(payload, filename=name, mime_type="application/json")
+        if expected_sha256 is not None and digest != expected_sha256:
+            raise ReadbackMismatch(
+                "spooled record digest {0} does not match durable expected {1}".format(
+                    digest, expected_sha256
+                )
+            )
         spooled = self.spool.verify_record(name, payload)
         try:
             return self._upload_or_adopt(

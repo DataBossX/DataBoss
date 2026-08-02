@@ -1,0 +1,58 @@
+DATABOSSX RUN SNAPSHOT (STAGE 0)
+run_id: DBX-S32-RECOVERY-20260802T102700CDT
+utc: 2026-08-02T15:27:00Z
+america_chicago: 2026-08-02T10:27:00-0500
+hostname: vm
+user: root
+os: Ubuntu 24.04.4 LTS kernel 6.18.5 x86_64
+platform_class: LINUX_EPHEMERAL_CLOUD_CONTAINER (Claude Code on the web)
+is_windows_control_tower: NO
+pid: 4082  ppid: 588
+cwd: /home/user/DataBoss
+
+-- TOOLCHAIN --
+python3: Python 3.11.15
+node: v22.22.2
+git: git version 2.43.0
+powershell: ABSENT
+excel: ABSENT
+acrobat: ABSENT
+codex_cli: ABSENT
+claude_code: /opt/node22/bin/claude
+libreoffice: /usr/bin/soffice
+google_api_python_client: ABSENT (ModuleNotFoundError googleapiclient)
+gcloud_credentials: ABSENT (/root/.config/gcloud missing)
+drive_access_method: MCP connector Google_Drive (OAuth held by harness, account ryangille02@aol.com) - READ+CREATE proven this run
+
+-- EXPECTED WINDOWS PATHS --
+/mnt/d/DataBoss: ABSENT
+/mnt/c/DataBoss: ABSENT
+/d/DataBoss: ABSENT
+/c/DataBoss: ABSENT
+D:\DataBoss\DataBossX_Final_Modular: UNREACHABLE - no Windows volume mounted
+C:\DataBoss\.worktrees\section32-v12-narrative-restoration-20260801: UNREACHABLE - no Windows volume mounted
+
+-- PROCESS / SERVICE INVENTORY (this container only) --
+process_count: 87
+databossx_processes: 0 (the 4 raw grep hits were this Claude Code CLI process itself, PID 588; no DataBossX watcher/writer process exists in this container)
+excel_processes: 0 (Excel not installed on Linux)
+windows_services: NOT_APPLICABLE
+windows_scheduled_tasks: NOT_APPLICABLE
+systemd_drive_watcher_units: 0
+0
+cron_entries: 0
+
+-- GIT --
+branch: claude/section32-databossx-recovery-x4l8yx
+head: 582d95161cf8220fb37f5224e21e57dcc5c3121c
+uncommitted: 1
+worktrees: 1
+/home/user/DataBoss  582d951 [claude/section32-databossx-recovery-x4l8yx]
+
+-- LOCAL LEASE / ACK / HEARTBEAT / QUEUE STATE --
+local_control_root: ABSENT
+leases: NOT_OBSERVABLE_FROM_THIS_HOST
+ack_files: NOT_OBSERVABLE_FROM_THIS_HOST
+heartbeat_files: NOT_OBSERVABLE_FROM_THIS_HOST
+watcher_logs: NOT_OBSERVABLE_FROM_THIS_HOST
+receipt_logs_local: NOT_OBSERVABLE_FROM_THIS_HOST

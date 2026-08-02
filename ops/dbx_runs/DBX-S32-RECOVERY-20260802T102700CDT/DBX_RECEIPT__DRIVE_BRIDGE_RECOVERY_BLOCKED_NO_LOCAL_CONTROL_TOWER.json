@@ -1,0 +1,104 @@
+{
+  "schema": "databossx.control_receipt.v1",
+  "receipt_type": "DRIVE_BRIDGE_RECOVERY_ATTEMPT_BLOCKED_NOT_LOCAL_EXECUTION",
+  "run_id": "DBX-S32-RECOVERY-20260802T102700CDT",
+  "created_at_local": "2026-08-02T10:29:17-05:00",
+  "created_at_utc": "2026-08-02T15:29:17Z",
+  "created_by": "Claude Code (claude/section32-databossx-recovery-x4l8yx) running in an ephemeral Linux cloud container",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "THIS_IS_NOT_A_CLAIM": true,
+  "THIS_IS_NOT_THE_GATE0_TERMINAL_RECEIPT": true,
+  "gate0_command_claimed": false,
+  "gate0_start_claim_receipt_written": false,
+  "gate0_terminal_receipt_written": false,
+  "gate0_command_left_in_01_QUEUED_unclaimed": true,
+  "exactly_once_claim_token_consumed": false,
+
+  "gate0_command": {
+    "title": "01_EXECUTE_NEXT__S32_CONTAINMENT_TERMINALIZATION_AND_CLEAN_AUTHORITY_REISSUE_COMPILER__20260801T1846CDT",
+    "drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "command_id": "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+    "modified_time_utc": "2026-08-02T04:06:46.560Z",
+    "file_size_reported": 4930,
+    "verified_still_sole_command_in_01_QUEUED": true,
+    "verified_no_prior_terminal_receipt": true,
+    "verified_owner_authorization_active": true
+  },
+
+  "controlling_records_verified_live_this_run": {
+    "master_control": {"id": "1G9ucVWIt6vrqLBV1STw0oYJV0LqxBjqA73i9gn17Tco", "modified_utc": "2026-08-02T13:47:08.949Z", "size": 8284},
+    "owner_authorization": {"id": "1dvJJwVc6wTmJcNq7_estSD3tmUS1SyfdIX6syJSePPk", "modified_utc": "2026-08-02T13:45:29.784Z", "size": 8844},
+    "conditional_completion_draft": {"id": "1yLvVqVGxmcFrYxXhWxRU-VUehg7cdvxut4fEZsGXPPg", "modified_utc": "2026-08-02T13:46:34.472Z", "size": 6498, "state": "DRAFT_AWAITING_GATE0 - NOT EXECUTABLE YET"},
+    "watcher_output_folder": {"id": "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC", "child_count_at_run_start": 0},
+    "note": "Byte-exact SHA-256 of Google-native docs is not obtainable through this connector; Drive metadata identity recorded instead. No hash is claimed that was not computed."
+  },
+
+  "executing_host": {
+    "hostname": "vm",
+    "user": "root",
+    "os": "Ubuntu 24.04.4 LTS, Linux 6.18.5 x86_64",
+    "platform_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "is_the_authorized_windows_control_tower": false,
+    "pid": 5212,
+    "ppid": 588,
+    "repository_path": "/home/user/DataBoss",
+    "branch": "claude/section32-databossx-recovery-x4l8yx",
+    "head_commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "powershell": "ABSENT", "excel": "ABSENT", "acrobat": "ABSENT", "codex_cli": "ABSENT",
+    "google_api_python_client": "ABSENT", "gcloud_credentials": "ABSENT",
+    "drive_access": "MCP connector only (read proven, create proven). No local DataBossX Drive bridge, watcher, service, or scheduled task exists in this container."
+  },
+
+  "exact_cause": [
+    "C-1 HOST MISMATCH. The owner authorization directs 'the authorized Windows Control Tower' to claim and execute the Gate 0 command. This process is not that host. It is an ephemeral Linux container that is reclaimed at session end.",
+    "C-2 CONTROLLED INPUTS UNREACHABLE. D:\\DataBoss\\DataBossX_Final_Modular and C:\\DataBoss\\.worktrees\\section32-v12-narrative-restoration-20260801 are not mounted. Checked /mnt/d, /mnt/c, /d, /c - all ABSENT. The V12 workbook cannot be opened, sized, or hashed from here.",
+    "C-3 GATE 0 REQUIRED ACTION 1 IS UNSATISFIABLE. The command requires reading the LIVE LOCAL Control Tower records: containment control, TaskEnvelopes, ACKs, leases, fencing records, claim ledger, heartbeat, process command lines, branch, worktree, allowed write root. All of those live on the Windows workstation and are NOT_OBSERVABLE_FROM_THIS_HOST.",
+    "C-4 CLAIMING WOULD RECREATE THE EXACT FAILURE THIS COMMAND EXISTS TO END. Gate 0 Required Action 3 states: 'If active, do not create a competing control-plane writer.' The prior collision was caused by an unbound lane (Cursor) taking authority. A claim issued from an unauthorized, non-persistent host would consume the single exactly-once claim token, produce a second control plane (violating control rule 15), and could block the legitimate Windows Control Tower.",
+    "C-5 NO BRIDGE EXISTS HERE TO REPAIR. The DataBossX single-writer control kernel (leases, monotonic fencing, ACKs, hash-chained audit ledger) exists only on the frozen PR #66 branch, not on main. main at 582d951 contains no lease, fencing, watcher, or Drive-bridge implementation. Building one here would introduce a SECOND bridge, which Stage 1 and control rule 15 both forbid."
+  ],
+
+  "corroborating_evidence": {
+    "precedent_receipt": "DBX_RECEIPT__S32_V13_DISPATCH_BLOCKED_LOCAL_CONTROL_UNREACHABLE__20260801T0304CDT.json (Drive id 1nKn9fb9pHHM2ISyvxvQaXGgW2CBGN4c8) recorded this identical failure class on 8/1 with every local field marked NOT_INDEPENDENTLY_OBSERVABLE.",
+    "pr_66_self_report": "PR #66 states 'Reconcile the private Windows repository - not reachable from this environment' and lists gate 19 as blocked on Drive write authority. It independently confirms the Windows control plane is unreachable from cloud lanes.",
+    "watcher_folder_empty": "09_WATCHER_OUTPUT has zero children since creation 2026-08-01T07:53:43Z. No DataBossX watcher has ever emitted a heartbeat. The bridge is not merely degraded - it has never been proven to run."
+  },
+
+  "mutation_state": {
+    "workbook_mutation_authorized": false,
+    "workbook_mutations_performed": 0,
+    "protected_workbooks_touched": "NONE - V9, V10, V11, V12, V13 WIP all unreachable and untouched",
+    "raw_source_documents_touched": "NONE",
+    "drive_records_deleted_or_overwritten": "NONE - all writes are new append-only files",
+    "prior_commands_receipts_evidence_deleted": "NONE",
+    "pull_requests_merged": 0,
+    "public_or_cloud_deployments": 0,
+    "inbound_ports_opened": 0,
+    "raw_client_evidence_uploaded": "NONE",
+    "second_control_plane_created": false
+  },
+
+  "stage_dispositions": {
+    "STAGE_0_SNAPSHOT": "COMPLETE",
+    "STAGE_1_DRIVE_CONNECTIVITY": "PARTIAL - Drive control surface is READABLE AND WRITABLE from this lane via the MCP connector, proven by live reads of all five control records and by the creation of this receipt. The DataBossX local bridge/watcher remains ABSENT and unproven.",
+    "STAGE_2_CLAIM_GATE0": "DELIBERATELY NOT PERFORMED - fail-closed. See C-1 through C-5.",
+    "STAGE_3_TERMINALIZE_CONTAINMENT": "NOT PERFORMED - depends on Stage 2 and on unreachable local records.",
+    "STAGE_4_V12_POINTER_VERIFICATION": "FAIL-CLOSED - V12 path unreachable. Existence, byte size, SHA-256, owner, read-only state, lock status, package membership, lease/ACK/heartbeat linkage: ALL NOT_OBSERVABLE. No substitute workbook was selected. No fallback to V9, V10, V11, or any August 2 derivative was made.",
+    "STAGE_5_GATE0_TERMINAL_RECEIPT": "NOT WRITTEN - would be false. The Gate 0 terminal receipt slot remains unconsumed and available to the real Control Tower.",
+    "STAGE_6_WATCHER": "BLOCKED - no watcher binary, service, scheduled task, or credential exists in this container. A sanitized status record is emitted to 09_WATCHER_OUTPUT declaring health BLOCKED. The 15 required watcher tests were NOT run and are NOT claimed as passed.",
+    "STAGE_7_THROUGH_15": "NOT ENTERED - activation condition of the completion draft is not met. Conditions 1, 2, 3, 4 and 5 all fail or are unverifiable from this host."
+  },
+
+  "what_this_lane_did_accomplish": [
+    "Re-read all five live Drive control records rather than trusting prompt text; all five IDs match and all remain active.",
+    "Proved 01_QUEUED holds exactly one command - the Gate 0 command - with no competing queue entry.",
+    "Proved no terminal receipt exists for the Gate 0 command, so Gate 0 is genuinely still open for the correct host.",
+    "Proved 09_WATCHER_OUTPUT has never received output, isolating the true root cause of 'no verifiable watcher output'.",
+    "Proved the Drive custody surface itself is healthy and writable - the failure is host-side, not Drive-side.",
+    "Preserved the exactly-once claim token for the authorized Windows Control Tower."
+  ],
+
+  "next_permitted_action": "On the authorized Windows workstation, with D:\\DataBoss and C:\\DataBoss present: (1) start the local Control Tower and bind it to control root 1CGkVNw0jUExTTR7cACBsJ21YkSwtfqVL; (2) claim ONLY Drive id 1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE, exactly once; (3) execute it read-only against the live local control records; (4) recompute fresh SHA-256 for V10, V11 and V12 and compare to the recorded baselines; (5) append one Gate 0 terminal receipt to 02_RECEIPTS. Only if that terminal is S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY may the completion draft 1yLvVqVGxmcFrYxXhWxRU-VUehg7cdvxut4fEZsGXPPg be promoted into 01_QUEUED.",
+
+  "terminal_sentinel": "DATABOSSX_DRIVE_BRIDGE_BLOCKED_WITH_EXACT_CAUSE"
+}

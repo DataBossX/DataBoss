@@ -1,0 +1,30 @@
+DRIVE WRITES PERFORMED THIS RUN (append-only, no deletions, no overwrites)
+
+1) 02_RECEIPTS (folder 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR)
+   title      DBX_RECEIPT__DRIVE_BRIDGE_RECOVERY_BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1027CDT.json
+   drive_id   1CrWyCjm2Ld3tOsCTWqKaTliIK8oui-v3
+   created    2026-08-02T15:34:39.781Z
+   drive_size 8985
+   local_size 8985            <-- MATCH
+   local_sha256 24493b71ec0a7289630fd7e82d293ed3084d78525227041f8c66632ee50e7289
+   readback   PERFORMED via download_file_content; returned base64 identical to uploaded base64
+   terminal   DATABOSSX_DRIVE_BRIDGE_BLOCKED_WITH_EXACT_CAUSE
+
+2) 09_WATCHER_OUTPUT (folder 1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC)
+   title      DBX_WATCHER_STATUS__BLOCKED_NO_LOCAL_CONTROL_TOWER__20260802T1035CDT.json
+   drive_id   1CyCyVYKLLZUq-jPMnUhztBdrwAt8MmAC
+   created    2026-08-02T15:37:19.703Z
+   drive_size 3250
+   local_size 3250            <-- MATCH
+   local_sha256 56e0353827b5255bd0aa25787cd6f68533bd23b56650df915439c812f3d6e745
+   health     BLOCKED_NO_LOCAL_CONTROL_TOWER
+
+NOT WRITTEN, DELIBERATELY:
+ - No START/CLAIM receipt for the Gate 0 command.
+ - No Gate 0 terminal receipt.
+ - No promotion of the completion draft into 01_QUEUED.
+ - No modification, rename, move, or deletion of any existing Drive record.
+
+SHA-256 note: the two SHA-256 values above are of the LOCAL source files that were
+base64-encoded and uploaded. Drive reports matching byte sizes and returns identical
+base64 on download, so the stored objects are byte-identical to those local files.

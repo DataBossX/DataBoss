@@ -1,0 +1,138 @@
+{
+  "schema": "DataBossX.ClaudeToCodexHandoff.v1",
+  "handoff_schema_version": "1.0.0",
+  "generated_at_america_chicago": "2026-08-03T10:59:02-05:00",
+  "generated_at_utc": "2026-08-03T15:59:02Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "lane": "CLAUDE_CODE_INDEPENDENT_READ_ONLY_REVIEWER",
+  "role_assertion": "Non-writer. Not a protected-workbook writer. Not a second control plane.",
+
+  "claude_branch": "claude/databoss-independent-review-43j2z0",
+  "claude_base_commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+
+  "codex_heads_under_review": [
+    {
+      "pull_request": 74,
+      "head_sha": "39f1f404fe151171541f60fc00f9d455fdd4eeb5",
+      "branch": "claude/databossx-section32-recovery-ouyziy",
+      "state": "draft_unmerged",
+      "verdict": "SUPERSEDED_BY_PR_82_DO_NOT_TREAT_AS_CANONICAL"
+    },
+    {
+      "pull_request": 82,
+      "head_sha": "92764fd2",
+      "branch": "agent/issue-78-durable-control-tower",
+      "state": "draft_unmerged",
+      "verdict": "CURRENT_CANONICAL_CONTROL_TOWER_HEAD"
+    }
+  ],
+
+  "controlling_drive_authority": {
+    "current_execution_route": {
+      "title": "04_CODEX_SUCCESSOR_POINTER_AND_TERMINAL_RECONCILIATION__20260803T044620Z",
+      "drive_id": "1fAlCtbTfG-vmP9n2vAuDr_J-ZLIuABvhh9bzDBlmf9g",
+      "modified_utc": "2026-08-03T04:52:28.078Z"
+    },
+    "binding_prohibition": {
+      "title": "04_OWNER_RULING__RETIRE_ORIGINAL_S32_GATE0_COMMAND_AND_REQUIRE_SUCCESSOR__20260802T1210CDT",
+      "drive_id": "1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM",
+      "status": "STILL_BINDING_NOT_REPEALED_BY_20260803_DIRECTIVE"
+    },
+    "unreconciled_tracks": true,
+    "note": "The 2026-08-02 Gate 0 track and the 2026-08-03 post-Directive-7 pointer track are both live. Neither retires the other. Owner decision required."
+  },
+
+  "reviewed_receipt_ids": [
+    "1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE",
+    "1LDsdx_boxHcCo1l7dbAI95DG4xmoey1S",
+    "1hpoPjCcv4Ht1178yX2qGHkJmGABXa-_6",
+    "1KmY62CzZlf4LicOEIQi2LEBf4rl8Cqxq",
+    "1uaFOo-LNvuEqepJc4BfFn4KpSy6m0kXS",
+    "1lYK7VkXliBWvwuEUdnAMpL7HBu4wwvKD",
+    "1zuLZ21L6zw8zI9nAYXn1-kOuqVj8xNGd",
+    "1q7us7UaSX5JhtrkHeEV7-cJk_B81E44M",
+    "1LZAW0ORoYcJ_f_YS8PdvLi1M3t1U3dXv",
+    "15tLxsIv8sHa00g_33FEXFEsm6mGOi2g-",
+    "1FnLtamaGHF5AWra6awh_OmFErizzYKnaNH6kbr8MLPA"
+  ],
+
+  "findings": [
+    {"id": "F-01", "severity_pr74": "BLOCKING", "severity_pr82": "MEDIUM", "title": "Exactly-once claim state does not survive restart", "file": "control_tower/kernel.py", "symbol": "ClaimLedger", "proof": "harness/adversarial_durability.py::D1"},
+    {"id": "F-02", "severity_pr74": "BLOCKING", "severity_pr82": "MEDIUM", "title": "Monotonic fencing restarts at zero", "file": "control_tower/kernel.py", "symbol": "FencingRegistry", "proof": "harness/adversarial_durability.py::D2"},
+    {"id": "F-03", "severity_pr74": "BLOCKING", "severity_pr82": "MEDIUM", "title": "Two processes can hold one scope's lease", "file": "control_tower/kernel.py", "symbol": "LeaseRegistry", "proof": "harness/adversarial_durability.py::D3"},
+    {"id": "F-04", "severity_pr74": "HIGH", "severity_pr82": "HIGH", "title": "No production path populates the retired-command register", "file": "control_tower/constants.py, control_tower/durable.py", "proof": "harness/adversarial_durability.py::D4 plus live queue enumeration", "live_trigger": true},
+    {"id": "F-05", "severity_pr74": "MEDIUM", "severity_pr82": "MEDIUM", "title": "Upload guard denies known-bad shapes rather than requiring known-good schemas", "file": "control_tower/safety.py", "symbol": "assert_uploadable"},
+    {"id": "F-06", "severity_pr74": "LOW", "severity_pr82": "LOW", "title": "assert_trusted_url ignores port", "file": "control_tower/safety.py"},
+    {"id": "F-07", "severity_pr74": "LOW", "severity_pr82": "LOW", "title": "redact() replaces captured value globally within the match", "file": "control_tower/safety.py"},
+    {"id": "F-08", "severity_pr74": "LOW", "severity_pr82": "LOW", "title": "FencingRegistry.require() accepts an equal token, contradicting its comment", "file": "control_tower/kernel.py"},
+    {"id": "F-09", "severity_pr74": "MEDIUM", "severity_pr82": "MEDIUM", "title": "Cure letters transposed against the owner ruling", "class": "PROCESS"},
+    {"id": "F-10", "severity_pr74": "BLOCKING", "severity_pr82": "BLOCKING", "title": "Bridge activation expired 2026-08-03 10:54 CDT with no terminal receipt", "class": "AUTHORITY"}
+  ],
+
+  "blocking_findings": ["F-10"],
+  "blocking_findings_pr74_only": ["F-01", "F-02", "F-03"],
+
+  "tests_executed": [
+    {"target": "PR74 tests/test_control_tower.py + test_control_tower_drive_google.py", "runner": "CUSTOM_STDLIB_HARNESS_NOT_PYTEST", "passed": 119, "failed": 0, "errored": 0, "exit_code": 0},
+    {"target": "PR82 tests/test_control_tower*.py", "runner": "CUSTOM_STDLIB_HARNESS_NOT_PYTEST", "passed": 140, "failed": 0, "errored": 0, "exit_code": 0},
+    {"target": "PR74 python -m control_tower.cli selftest", "runner": "GENUINE_CLI", "result": "18/18", "exit_code": 0},
+    {"target": "PR74 python -m control_tower.cli canary", "runner": "GENUINE_CLI", "result": "7/7", "exit_code": 0},
+    {"target": "PR74 python -m control_tower.cli audit", "runner": "GENUINE_CLI", "result": "PARTIAL_HOST_MISMATCH, V12 NOT_VERIFIED_UNREACHABLE, workbook opened: False", "exit_code": 2},
+    {"target": "adversarial_durability.py vs PR74 and PR82 kernel classes", "runner": "CUSTOM_PROBE", "defects_confirmed": "4/4", "exit_code": 0}
+  ],
+
+  "test_runner_caveat": "pytest is NOT installed in this container and 'pip install pytest' fails with no index reachability. All suite counts above come from a custom stdlib harness with a minimal pytest shim. They are NOT upstream pytest results and must never be labelled as such.",
+
+  "tests_to_add": [
+    "Terminalise a claim, discard the ledger, reconstruct from the same root, assert ClaimConflict on replay.",
+    "Assert every issued fencing sequence strictly exceeds the persisted high-water mark across a simulated restart.",
+    "Place the retired command ID in a synthetic queue folder; assert enumeration yields zero candidates and emits a COMMAND_RETIRED record.",
+    "Assert production code cannot construct the non-durable ClaimLedger/FencingRegistry/LeaseRegistry.",
+    "Assert a non-ZIP client-evidence payload with an allowed suffix is refused by schema allowlist."
+  ],
+
+  "exact_limitations": [
+    "No Windows host: process, lock, service, scheduled-task and Excel-lock facts cannot be observed or reproduced from this lane. None were invented.",
+    "No PyPI: upstream pytest could not be run.",
+    "Drive content arrives as base64 in model context; no byte-preserving channel exists, so the raw SHA-256 of 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE was NOT independently recomputed. All other published integrity brackets were verified.",
+    "rodneydanger84/DataBossX is outside this session's repository scope and was not read.",
+    "No protected workbook was opened, hashed-by-open, saved, or recalculated."
+  ],
+
+  "codex_safe_now": [
+    "Fix F-04: pin RETIRED_COMMAND_IDS in constants.py, seed the durable store, make queue enumeration consult is_retired().",
+    "Fix F-06 and F-08 (one-line corrections).",
+    "Make the non-durable kernel classes unreachable from production paths.",
+    "Continue read-only work under the 2026-08-03 pointer-reconciliation directive.",
+    "Publish an append-only cure-letter crosswalk (F-09)."
+  ],
+
+  "codex_prohibited_now": [
+    "Claiming, retrying, re-entering or reconstructing a START/CLAIM for the retired Gate 0 command.",
+    "Issuing a second terminal against the retired Gate 0 command.",
+    "Placing the successor draft into 01_QUEUED.",
+    "Executing TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT under the expired activation.",
+    "Any workbook mutation, merge, deployment, external send, or HOLD removal."
+  ],
+
+  "must_codex_stop": false,
+  "must_codex_stop_reason": "No blocking CODE defect survives against PR #82's live-write path. The blocking item F-10 is an AUTHORITY lapse requiring the owner, and it blocks the bridge and successor lanes only. Read-only lanes may continue.",
+
+  "owner_action_required": true,
+  "owner_decisions": [
+    "OWNER-1: which track controls - 2026-08-02 Gate 0 or 2026-08-03 post-Directive-7 pointer?",
+    "OWNER-2: which GitHub remote is canonical - rodneydanger84/DataBossX or DataBossX/DataBoss?",
+    "OWNER-3: fresh bridge-restoration activation (prior one expired 2026-08-03 10:54 CDT).",
+    "OWNER-4: is V12 D3937F46... still the controlling source pointer?"
+  ],
+
+  "next_permitted_action": "Codex may apply the bounded F-04/F-06/F-08 corrections on its own branch and continue read-only work under the 2026-08-03 directive. No queueing, no bridge execution, no workbook mutation.",
+
+  "protected_artifacts_accessed": false,
+  "protected_artifacts_mutated": false,
+  "client_evidence_exposed": false,
+  "drive_mutations": 0,
+  "merges_or_deployments": 0,
+  "hold_removals": 0,
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

@@ -1,0 +1,123 @@
+{
+  "schema": "DataBossX.ChatGPTHandoff.v1",
+  "generated_at_america_chicago": "2026-08-03T10:59:02-05:00",
+  "generated_at_utc": "2026-08-03T15:59:02Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "purpose": "Single-file current state. Read this plus the cited records instead of reconstructing prior chats.",
+
+  "current_controlling_authority": {
+    "execution_route": "04_CODEX_SUCCESSOR_POINTER_AND_TERMINAL_RECONCILIATION__20260803T044620Z",
+    "execution_route_drive_id": "1fAlCtbTfG-vmP9n2vAuDr_J-ZLIuABvhh9bzDBlmf9g",
+    "confirmed_by": [
+      "00_START_HERE__DATABOSSX_LIVING_CONTROL_PLAN__20260803 (1_22XqIL-KVEW9Su6Q1t9blTwQ36B5x8It1m6AsFS-FQ, modified 2026-08-03T15:47:17Z)",
+      "00_DATABOSSX_COO_MASTER_STATUS__LIVE (1AaeCfzx1RWE_uXU2De2KOZHorBCxpxuAQqaK_6LFVJM, modified 2026-08-03T15:52:08Z)"
+    ],
+    "still_binding_prohibition": "04_OWNER_RULING__RETIRE_ORIGINAL_S32_GATE0_COMMAND__20260802T1210CDT (1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM)",
+    "authority_conflict": "TWO_UNRECONCILED_TRACKS_OWNER_DECISION_REQUIRED"
+  },
+
+  "current_phase": "CONTROL_STATE_RECONCILIATION_PRE_GATE0. Not a workbook-build phase.",
+
+  "current_command_state": {
+    "original_gate0_command": "RETIRED_TERMINAL_SLOT_CONSUMED_UNCLAIMABLE",
+    "original_gate0_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "physically_still_in_01_QUEUED": true,
+    "queue_folder_drive_id": "1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "queue_observed_child_count": 1,
+    "successor_draft": "DRAFT_AWAITING_CURES (1VfdAVRX8zG8Elzi_ucsOkM-Gy27JHrH_pitfg9oLY3E), correctly held in 04_BLOCKED, NOT queued"
+  },
+
+  "current_protected_workbook_state": {
+    "accessed_this_run": false,
+    "mutated_this_run": false,
+    "competing_candidate_hashes_live": {
+      "V12_per_2026_08_02_track": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+      "Directive7_immutable_baseline": "F5E7B923D6C65A3E29F80699B2F923E272FBDABA83556D2C72B6D4CA7F50F179",
+      "post_Directive7_held_successor": "D57410D75BD7C662B67913121A2C4E2EBBA98DDBC96FFF34915BF05039DB1D0E",
+      "older_registered_candidate": "24055B0A6F345C82E42AC720DE156C2FA59719F2B7E43D8F3D72F31A651177A4"
+    },
+    "unresolved": "Four distinct 'current' hashes are live across the corpus. The 2026-08-03 directive already treats 24055B0A vs D57410D7 as its P0 reason for existing; the V12 lineage appears in NEITHER 2026-08-03 control surface."
+  },
+
+  "current_writer": "NONE_ACTIVE. Codex remains the preferred sole protected-workbook writer. Claude Code is read-only and issued no writer claim.",
+
+  "lease_and_fencing_state": {
+    "LEASE-DBX-V13-MULTI-WRITER-CONTAINMENT-20260801": "TERMINALIZATION_INSTRUMENT_PUBLISHED_RELEASE_NOT_INDEPENDENTLY_CONFIRMED",
+    "gate0_taskenvelope": "MISSING",
+    "gate0_writer_ack": "MISSING",
+    "gate0_active_lease": "MISSING",
+    "gate0_fencing_token": "MISSING",
+    "source": "1110CDT terminal receipt, stop_conditions_triggered"
+  },
+
+  "drive_bridge_state": {
+    "envelope": "TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT",
+    "owner_activation": "1MABO3IlrAeR6q4nxJLT7xSBeYiLQJdrL0cAUXaj8cqg",
+    "activation_expired_at_cdt": "2026-08-03T10:54:00-05:00",
+    "observed_at_cdt": "2026-08-03T10:59:02-05:00",
+    "terminal_receipt_present": false,
+    "state": "EXPIRED_WITHOUT_TERMINAL_FRESH_OWNER_ACTIVATION_REQUIRED"
+  },
+
+  "verified_receipts": [
+    {"id": "1LDsdx_boxHcCo1l7dbAI95DG4xmoey1S", "verdict": "QUALIFIED_PASS", "note": "All published structural brackets verified (19946 bytes, raw upload, valid JSON, 25 top-level keys, exact anchors). Raw SHA-256 not recomputed for an environmental reason, not an evidentiary one."},
+    {"id": "1zuLZ21L6zw8zI9nAYXn1-kOuqVj8xNGd", "verdict": "PASS", "note": "Cure E, F-02 explicitly NOT RULED with reason, which the ruling permits."},
+    {"id": "1LZAW0ORoYcJ_f_YS8PdvLi1M3t1U3dXv", "verdict": "PASS_IN_FORM", "note": "Successor envelope bound as draft, parent is 04_BLOCKED, correctly outside 01_QUEUED."},
+    {"id": "15tLxsIv8sHa00g_33FEXFEsm6mGOi2g-", "verdict": "PASS", "note": "Cure H qualified pass; a review is not an activation."}
+  ],
+
+  "disputed_receipts": [
+    {"id": "1hpoPjCcv4Ht1178yX2qGHkJmGABXa-_6", "issue": "Labelled Cure A and marked TERMINAL, but records BRIDGE_RESTORE_NOT_EXECUTABLE_THIS_LANE. It is a lane-limitation terminal, not the bridge-restoration terminal the ruling requires. Cure C of the ruling remains unmet."},
+    {"id": "1KmY62CzZlf4LicOEIQi2LEBf4rl8Cqxq", "issue": "Cursor PID 49548 recorded as NOT_OBSERVABLE_THIS_LANE. Honest, but not a disposition. The ruling requires quiescence or conclusive disarm."},
+    {"id": "ALL_CURE_RECEIPTS", "issue": "Cure letters A/B/C are transposed relative to the owner ruling's lettering."}
+  ],
+
+  "blockers": [
+    "BRIDGE_ACTIVATION_EXPIRED_WITHOUT_TERMINAL",
+    "CURE_A_CURSOR_PID_49548_NOT_DISPOSITIONED",
+    "CURE_C_BRIDGE_RESTORATION_NOT_COMPLETED",
+    "TWO_UNRECONCILED_CONTROL_TRACKS",
+    "FOUR_COMPETING_CURRENT_CANDIDATE_HASHES",
+    "RETIRED_COMMAND_STILL_PHYSICALLY_IN_01_QUEUED_WITH_NO_ENFORCED_TOMBSTONE"
+  ],
+
+  "next_permitted_action": "Read-only only. Codex may apply bounded Control Tower corrections (F-04, F-06, F-08) on its own branch and continue under the 2026-08-03 pointer-reconciliation directive. No queueing, no bridge execution, no workbook mutation, no merge, no release.",
+
+  "records_chatgpt_should_inspect": [
+    "1fAlCtbTfG-vmP9n2vAuDr_J-ZLIuABvhh9bzDBlmf9g (current execution route)",
+    "1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM (binding prohibition)",
+    "1MABO3IlrAeR6q4nxJLT7xSBeYiLQJdrL0cAUXaj8cqg (expired bridge activation)",
+    "1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE (blocked Gate 0 terminal)",
+    "1AaeCfzx1RWE_uXU2De2KOZHorBCxpxuAQqaK_6LFVJM (live COO status)"
+  ],
+
+  "owner_decisions_required": [
+    "OWNER-1: which track controls?",
+    "OWNER-2: which GitHub remote is canonical?",
+    "OWNER-3: fresh bridge activation?",
+    "OWNER-4: is V12 still the controlling source pointer?"
+  ],
+
+  "protected_artifacts_accessed": false,
+  "anything_mutated": false,
+  "external_release_occurred": false,
+
+  "reliability_assessment": {
+    "confidence_high": [
+      "PR #74 and #82 head SHAs, draft/unmerged state, and file inventories (read directly from git).",
+      "Test counts and CLI exit codes (executed, not reported).",
+      "Drive metadata: IDs, parents, timestamps, sizes, queue membership (read directly).",
+      "The four durability defects (executable proof included)."
+    ],
+    "confidence_medium": [
+      "Cure satisfaction judgements, which rest on receipt text this lane cannot reproduce byte-for-byte.",
+      "The reading that the 2026-08-03 directive does not repeal the 2026-08-02 ruling; it is silent rather than explicit."
+    ],
+    "confidence_none_not_asserted": [
+      "Every Windows-local fact: PID 49548, Excel locks, services, scheduled tasks, V10/V11/V12 on-disk hashes.",
+      "The raw SHA-256 of the 1110CDT terminal."
+    ]
+  },
+
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

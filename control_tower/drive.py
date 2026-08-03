@@ -3,6 +3,7 @@
 from .constants import (
     POLLED_FOLDER_ID,
     ControlTowerError,
+    FencingViolation,
     LeaseExpired,
     ReadbackMismatch,
 )
@@ -239,6 +240,19 @@ class SafeDriveWriter(object):
             "byte_exact_match": True,
         }
 
+    def _record_orphan(self, folder_id, name, digest, created, reason):
+        event = {
+            "event": "ORPHAN_CREATED_AFTER_AUTHORITY_LOSS",
+            "name": name,
+            "folder_id": folder_id,
+            "drive_id": None if created is None else created.get("id"),
+            "sha256": digest,
+            "reason": str(reason),
+            "reconciliation_required": True,
+        }
+        self.spool.append(event)
+        return event
+
     def emit_record(self, folder_id, name, record, lease=None, now=None):
         """Emit a new record. Existing spool names remain collision-safe."""
         assert_write_allowed(folder_id)
@@ -296,14 +310,20 @@ class SafeDriveWriter(object):
             raise
 
     def _upload_or_adopt(self, folder_id, name, payload, digest, spooled, lease=None, now=None):
+        # Network-window fencing: every external boundary is bracketed by a
+        # fresh durable lease/fence read. A race-created object is retained as
+        # an explicit orphan and can never advance terminal state.
         self._require_lease(lease, now)
         matches = self._named_matches(folder_id, name)
         if matches:
             result = self._verify_match(matches[0], folder_id, name, payload, digest)
+            self._require_lease(lease, now)
             result["event"] = "UPLOAD_RECOVERED_EXACT_MATCH"
             self.spool.append(result)
             return result
 
+        self._require_lease(lease, now)
+        created = None
         try:
             created = self.client.create(folder_id, name, payload, "application/json")
         except ControlTowerError:
@@ -313,14 +333,21 @@ class SafeDriveWriter(object):
             if not matches:
                 raise
             result = self._verify_match(matches[0], folder_id, name, payload, digest)
+            self._require_lease(lease, now)
             result["event"] = "UPLOAD_RECOVERED_AFTER_CREATE_RACE"
             self.spool.append(result)
             return result
 
-        matches = self._named_matches(folder_id, name)
-        if len(matches) != 1 or matches[0].get("id") != created.get("id"):
-            raise ControlTowerError("Drive create did not converge to one stable object")
-        result = self._verify_match(matches[0], folder_id, name, payload, digest)
+        try:
+            self._require_lease(lease, now)
+            matches = self._named_matches(folder_id, name)
+            if len(matches) != 1 or matches[0].get("id") != created.get("id"):
+                raise ControlTowerError("Drive create did not converge to one stable object")
+            result = self._verify_match(matches[0], folder_id, name, payload, digest)
+            self._require_lease(lease, now)
+        except (LeaseExpired, FencingViolation) as exc:
+            self._record_orphan(folder_id, name, digest, created, exc)
+            raise
         result["spool_path"] = spooled["path"]
         self.spool.append(result)
         return result

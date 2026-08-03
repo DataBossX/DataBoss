@@ -1,0 +1,20 @@
+{
+  "schema": "databossx.control_tower.acceptance_matrix.v1",
+  "base_commit": "39f1f404fe151171541f60fc00f9d455fdd4eeb5",
+  "remote_pr82_head_before_repair": "92764fd2f7ddf41710634b9b8d712f44ca2d6882",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "criteria": [
+    {"id": "B1", "result": "PASS", "proof": "test_b1_retired_replay_has_byte_for_byte_zero_state_delta"},
+    {"id": "B2", "result": "PASS", "proof": "test_b2_stale_lease_cannot_prepare_terminal_or_freeze_fields"},
+    {"id": "B3", "result": "PASS", "proof": "test_b3_supersession_during_network_window_creates_orphan_not_success"},
+    {"id": "B4", "result": "PASS", "proof": "test_b4_live_transition_requires_and_single_uses_exact_envelope_ack plus empty-binding cases"},
+    {"id": "B5", "result": "PASS", "proof": "canonical pin, duplicate, and live-terminal reconstruction tests"},
+    {"id": "B6", "result": "PASS", "proof": "test_b6_expired_start_recovers_once_under_new_fence_without_new_start_bytes"},
+    {"id": "B7", "result": "PASS", "proof": "exact 24055B0A... observation-only fixture has byte-for-byte zero authority-state delta"},
+    {"id": "WINDOWS_PROCESS_LOCK", "result": "PASS", "proof": "msvcrt crash-release and multi-process lease/fence race tests"},
+    {"id": "FULL_PYTHON_SUITE", "result": "PASS", "proof": "302 passed"},
+    {"id": "STRICT_FULL_TREE_TYPING", "result": "QUALIFIED", "proof": "new reconstruction module passes strict mypy; legacy modules retain pre-existing findings"},
+    {"id": "LIVE_DRIVE_ACTIVATION", "result": "NOT_AUTHORIZED", "proof": "no live TaskEnvelope/WriterACK was consumed"}
+  ],
+  "overall": "QUALIFIED_PASS_CODE_ONLY"
+}

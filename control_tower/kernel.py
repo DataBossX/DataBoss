@@ -88,6 +88,41 @@ class TaskEnvelope(object):
         )
 
 
+class WriterACK(object):
+    """Single-use writer acknowledgement bound to one TaskEnvelope.
+
+    Consumption is persisted by :class:`DurableStateStore`; this value object
+    intentionally carries no mutable ``consumed`` flag that a caller could
+    reset in memory.
+    """
+
+    def __init__(
+        self,
+        ack_id,
+        envelope_digest,
+        actor,
+        operation,
+        scope,
+        expires_at,
+    ):
+        self.ack_id = str(ack_id)
+        self.envelope_digest = str(envelope_digest)
+        self.actor = str(actor)
+        self.operation = str(operation)
+        self.scope = str(scope)
+        self.expires_at = float(expires_at)
+
+    def as_record(self):
+        return {
+            "ack_id": self.ack_id,
+            "envelope_digest": self.envelope_digest,
+            "actor": self.actor,
+            "operation": self.operation,
+            "scope": self.scope,
+            "expires_at": self.expires_at,
+        }
+
+
 def require_mutation_allowed(envelope):
     """Fail closed unless an activated mutation envelope is presented."""
     if envelope is None:

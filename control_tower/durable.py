@@ -20,7 +20,6 @@ import time
 
 from .constants import ControlTowerError
 
-
 _STATE_SCHEMA = "databossx.control_tower.durable_state.v1"
 
 
@@ -32,6 +31,8 @@ def _initial_state():
         "leases": {},
         "fencing": {},
         "retired_commands": {},
+        "writer_acks": {},
+        "startup_reconstruction": {},
     }
 
 
@@ -121,7 +122,18 @@ class DurableStateStore(object):
             raise DurableStateError("cannot read durable state: {0}".format(exc)) from None
         if not isinstance(state, dict) or state.get("schema") != _STATE_SCHEMA:
             raise DurableStateError("durable state schema is missing or unsupported")
-        for key in ("claims", "leases", "fencing", "retired_commands"):
+        # Additive schema fields are defaulted for an older durable file and
+        # become persistent only in the next successful transaction.
+        state.setdefault("writer_acks", {})
+        state.setdefault("startup_reconstruction", {})
+        for key in (
+            "claims",
+            "leases",
+            "fencing",
+            "retired_commands",
+            "writer_acks",
+            "startup_reconstruction",
+        ):
             if not isinstance(state.get(key), dict):
                 raise DurableStateError("durable state field {0} is not a mapping".format(key))
         return state
@@ -261,3 +273,69 @@ class DurableStateStore(object):
             }
 
         return self.transaction(mutate)
+
+    def reconcile_canonical_once(self, fingerprint, records, retired_command_ids=None):
+        """Atomically apply one exact canonical snapshot, without replay churn.
+
+        A previously applied fingerprint returns under the same OS lock without
+        rewriting the state file. This makes startup reconstruction safe to run
+        on every process entry while preserving byte-for-byte zero mutation for
+        an already reconstructed retired replay.
+        """
+        if not fingerprint:
+            raise DurableStateError("canonical reconstruction requires a fingerprint")
+        retired_command_ids = tuple(retired_command_ids or ())
+        records = tuple(records or ())
+        with self._locked():
+            state = self._read_unlocked()
+            existing = state["startup_reconstruction"].get(fingerprint)
+            if existing is not None:
+                return dict(existing)
+            for command_id in retired_command_ids:
+                state["retired_commands"].setdefault(
+                    command_id,
+                    {
+                        "command_id": command_id,
+                        "evidence": {"source": "canonical_reconstruction"},
+                        "retired": True,
+                    },
+                )
+            for record in records:
+                if not isinstance(record, dict):
+                    raise DurableStateError("reconciliation record is not a mapping")
+                key = record.get("claim_key")
+                sentinel = record.get("terminal_sentinel")
+                if not key or not sentinel:
+                    continue
+                existing_claim = state["claims"].get(key)
+                rebuilt = {
+                    "key": key,
+                    "holder": record.get("holder", "reconciled"),
+                    "opened_at": record.get("opened_at", 0.0),
+                    "state": "RESOLVED",
+                    "sentinel": sentinel,
+                    "terminal_name": record.get("title") or record.get("name"),
+                    "terminal_drive_id": record.get("drive_id"),
+                    "terminal_sha256": record.get("sha256"),
+                }
+                if existing_claim and existing_claim.get("state") == "RESOLVED":
+                    if existing_claim.get("sentinel") != sentinel:
+                        raise DurableStateError(
+                            "conflicting terminal sentinels for {0}".format(key)
+                        )
+                    continue
+                if existing_claim and existing_claim.get("state") not in (
+                    "OPEN",
+                    "TERMINAL_PREPARED",
+                    "TERMINAL_UPLOADED",
+                ):
+                    raise DurableStateError("ambiguous claim state for {0}".format(key))
+                state["claims"][key] = rebuilt
+            result = {
+                "claims": len(state["claims"]),
+                "retired_commands": len(state["retired_commands"]),
+                "fingerprint": fingerprint,
+            }
+            state["startup_reconstruction"][fingerprint] = dict(result)
+            self._write_unlocked(state)
+            return result

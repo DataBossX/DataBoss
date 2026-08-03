@@ -31,11 +31,14 @@ def make(name, tmp):
     raise KeyError(f"unknown fixture {name}")
 
 
-passed = failed = errored = 0
+passed = failed = errored = skipped = 0
 fails = []
 
 for name in sorted(n for n in dir(T) if n.startswith("test_")):
     fn = getattr(T, name)
+    if getattr(fn, "__skip__", None):
+        skipped += 1
+        continue
     params = getattr(fn, "__parametrize__", None)
     if params:
         pnames, pvals = params
@@ -70,7 +73,10 @@ for name in sorted(n for n in dir(T) if n.startswith("test_")):
                 mp.undo()
 
 print(f"\n{'=' * 60}")
-print(f"passed={passed} failed={failed} errors={errored}  (total={passed + failed + errored})")
+print(
+    f"passed={passed} failed={failed} errors={errored} skipped={skipped}"
+    f"  (total={passed + failed + errored + skipped})"
+)
 for label, msg in fails[:15]:
     print(f"\n--- {label}\n{msg}")
 sys.exit(0 if not fails else 1)

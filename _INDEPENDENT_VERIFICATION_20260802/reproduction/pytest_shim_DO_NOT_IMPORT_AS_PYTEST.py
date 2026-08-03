@@ -55,7 +55,20 @@ def fixture(*a, **k):
     return deco
 
 
+class Skipped(Exception):
+    """Raised to signal a skipped test, so a skip is never counted as a pass."""
+
+
 class _Mark:
+    @staticmethod
+    def skipif(condition, reason=""):
+        def deco(fn):
+            if condition:
+                fn.__skip__ = reason or "skipif"
+            return fn
+
+        return deco
+
     @staticmethod
     def parametrize(argnames, argvalues, ids=None):
         names = [n.strip() for n in argnames.split(",")] if isinstance(argnames, str) else list(argnames)

@@ -1,0 +1,49 @@
+name: Control Tower authority gates
+
+on:
+  pull_request:
+    paths:
+      - "control_tower/**"
+      - "tests/test_control_tower*.py"
+      - "docs/control_tower_pr82/**"
+      - ".github/workflows/control-tower-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: control-tower-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  authority-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install bounded test tools
+        run: >-
+          python -m pip install
+          pytest==8.3.4
+          flake8==7.0.0
+          mypy==1.8.0
+      - name: Validate acceptance evidence
+        run: >-
+          python -m json.tool
+          docs/control_tower_pr82/CONTROL_TOWER_ACCEPTANCE_MATRIX.json
+          >/dev/null
+      - name: Strict authority-code lint
+        run: |
+          flake8 control_tower tests/test_control_tower*.py \
+            --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 control_tower tests/test_control_tower*.py \
+            --count --max-complexity=20 --max-line-length=127 --statistics
+      - name: Type-check reconstruction boundary
+        run: >-
+          mypy control_tower/reconstruction.py --ignore-missing-imports
+      - name: Run complete Control Tower suite
+        run: >-
+          python -m pytest tests/test_control_tower*.py -q

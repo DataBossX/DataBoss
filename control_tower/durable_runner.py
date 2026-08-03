@@ -27,6 +27,7 @@ from .kernel import (
     WriterACK,
     claim_key,
     derive_authority,
+    require_not_permanently_retired,
     require_mutation_allowed,
 )
 from .reconstruction import reject_noncanonical_package
@@ -223,12 +224,13 @@ class DurableGate0Runner(object):
         self.preflight()
         now = time.time() if now is None else float(now)
         reject_noncanonical_package(command_meta)
+        command_id = command_meta.get("command_id") or command_meta.get("id")
+        require_not_permanently_retired(command_id, command_meta.get("id"))
         authority_binding = self._validate_authority(
             task_envelope, writer_ack, holder, now
         )
         self._ensure_startup_reconstructed()
         authority = derive_authority(command_meta)
-        command_id = command_meta.get("command_id") or command_meta["id"]
         key = claim_key(command_id, authority["command_drive_id"], command_revision)
         receipt_name = "DBX_RECEIPT__GATE0_START_CLAIM__{0}.json".format(
             key.replace("|", "__")

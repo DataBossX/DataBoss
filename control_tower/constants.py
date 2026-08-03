@@ -21,6 +21,25 @@ WATCHER_OUTPUT_FOLDER_ID = "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC"
 # The tower polls exactly one folder. Not a list, not a glob, not a name match.
 POLLED_FOLDER_ID = QUEUE_FOLDER_ID
 
+# Commands in this registry are terminal historical facts, not queue work.
+# The registry is deliberately code-level defense in depth: it survives a
+# fresh clone, spool deletion, and complete loss of the local durable store.
+# Canonical Drive reconstruction remains mandatory for live operation and
+# supplies the evidentiary record, but it may never make these identities
+# claimable while reconstruction is unavailable or local state is empty.
+TERMINALIZED_RETIRED_COMMAND_IDENTITIES = (
+    (
+        "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+        "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    ),
+)
+PERMANENTLY_RETIRED_COMMAND_IDS = frozenset(
+    command_id for command_id, _drive_id in TERMINALIZED_RETIRED_COMMAND_IDENTITIES
+)
+PERMANENTLY_RETIRED_COMMAND_DRIVE_IDS = frozenset(
+    drive_id for _command_id, drive_id in TERMINALIZED_RETIRED_COMMAND_IDENTITIES
+)
+
 # Writes are permitted to these folders and no others.
 ALLOWED_WRITE_FOLDER_IDS = frozenset({
     RECEIPTS_FOLDER_ID,

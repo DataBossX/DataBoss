@@ -11,6 +11,8 @@ import os
 from .constants import (
     MODE_MUTATION,
     MODE_READ_ONLY,
+    PERMANENTLY_RETIRED_COMMAND_DRIVE_IDS,
+    PERMANENTLY_RETIRED_COMMAND_IDS,
     POLLED_FOLDER_ID,
     AuthorityDenied,
     ClaimConflict,
@@ -25,6 +27,20 @@ from .safety import canonical_json_bytes, redact_tree, sha256_hex, stamp_hold
 # --------------------------------------------------------------------------
 # Authority
 # --------------------------------------------------------------------------
+def require_not_permanently_retired(command_id=None, command_drive_id=None):
+    """Reject terminalized command identities without consulting local state."""
+    if command_id in PERMANENTLY_RETIRED_COMMAND_IDS:
+        raise ClaimConflict(
+            "command {0} is permanently retired and spent".format(command_id)
+        )
+    if command_drive_id in PERMANENTLY_RETIRED_COMMAND_DRIVE_IDS:
+        raise ClaimConflict(
+            "command Drive identity {0} is permanently retired and spent".format(
+                command_drive_id
+            )
+        )
+
+
 def derive_authority(file_meta):
     """Decide whether a Drive file may act as a command.
 
@@ -37,6 +53,7 @@ def derive_authority(file_meta):
     file_id = file_meta.get("id")
     if not file_id:
         raise AuthorityDenied("file has no Drive ID")
+    require_not_permanently_retired(file_meta.get("command_id"), file_id)
     if parent != POLLED_FOLDER_ID:
         raise AuthorityDenied(
             "file {0} is not in the canonical queue folder".format(file_id)
@@ -50,6 +67,7 @@ def derive_authority(file_meta):
 
 def claim_key(command_id, command_drive_id, command_revision):
     """Return the exactly-once key bound to command, Drive ID and revision."""
+    require_not_permanently_retired(command_id, command_drive_id)
     for name, value in (
         ("command_id", command_id),
         ("command_drive_id", command_drive_id),
@@ -363,6 +381,8 @@ class ClaimLedger(object):
         return {"command_id": command_id, "retired": True, "evidence": evidence or {}}
 
     def is_retired(self, command_id):
+        if command_id in PERMANENTLY_RETIRED_COMMAND_IDS:
+            return True
         if self.store is not None:
             return self.store.is_retired(command_id)
         return command_id in self._retired
@@ -370,7 +390,14 @@ class ClaimLedger(object):
     def _command_from_key(self, key):
         return str(key).split("|", 1)[0]
 
+    def _require_key_not_permanently_retired(self, key):
+        parts = str(key).split("|", 2)
+        command_id = parts[0] if parts else None
+        command_drive_id = parts[1] if len(parts) > 1 else None
+        require_not_permanently_retired(command_id, command_drive_id)
+
     def prepare_open(self, key, holder, now, receipt_name=None):
+        self._require_key_not_permanently_retired(key)
         command_id = self._command_from_key(key)
         if self.is_retired(command_id):
             raise ClaimConflict("command {0} is retired and spent".format(command_id))
@@ -433,6 +460,7 @@ class ClaimLedger(object):
 
     def open(self, key, holder, now):
         """Backward-compatible direct open used by unit tests and legacy data."""
+        self._require_key_not_permanently_retired(key)
         command_id = self._command_from_key(key)
         if self.is_retired(command_id):
             raise ClaimConflict("command {0} is retired and spent".format(command_id))

@@ -1,9 +1,12 @@
 """Exact-byte canonical startup reconstruction for the durable runner."""
 
 import json
-from typing import Any, Dict, Iterable, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
-from .constants import ControlTowerError
+from .constants import (
+    ControlTowerError,
+    TERMINALIZED_RETIRED_COMMAND_IDENTITIES,
+)
 from .safety import canonical_json_bytes, sha256_hex
 
 NONCANONICAL_SECTION32_SHA256 = (
@@ -43,6 +46,31 @@ class CanonicalStartupReconstructor(object):
     def ensure_reconstructed(self) -> Dict[str, Any]:
         if self._result is not None:
             return dict(self._result)
+        if not self.pins:
+            raise ControlTowerError(
+                "canonical reconstruction requires non-empty exact pins"
+            )
+        retirement_identities: List[Tuple[str, str]] = []
+        for pin in self.pins:
+            if pin.get("kind") == "retired_command":
+                command_id = pin.get("command_id")
+                command_drive_id = pin.get("command_drive_id")
+                if not command_id or not command_drive_id:
+                    raise ControlTowerError(
+                        "retired-command pin requires command and Drive identities"
+                    )
+                retirement_identities.append(
+                    (str(command_id), str(command_drive_id))
+                )
+        if len(retirement_identities) != len(set(retirement_identities)):
+            raise ControlTowerError("duplicate retired-command reconstruction identity")
+        missing = set(TERMINALIZED_RETIRED_COMMAND_IDENTITIES) - set(
+            retirement_identities
+        )
+        if missing:
+            raise ControlTowerError(
+                "canonical reconstruction is missing a permanent retirement pin"
+            )
         verified = []
         retired = []
         records = []

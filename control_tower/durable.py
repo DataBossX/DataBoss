@@ -18,7 +18,7 @@ import os
 import tempfile
 import time
 
-from .constants import ControlTowerError
+from .constants import ControlTowerError, PERMANENTLY_RETIRED_COMMAND_IDS
 
 _STATE_SCHEMA = "databossx.control_tower.durable_state.v1"
 
@@ -217,6 +217,8 @@ class DurableStateStore(object):
         return self.transaction(mutate)
 
     def is_retired(self, command_id):
+        if command_id in PERMANENTLY_RETIRED_COMMAND_IDS:
+            return True
         return bool(self.read()["retired_commands"].get(command_id))
 
     def reconcile(self, records, retired_command_ids=None):

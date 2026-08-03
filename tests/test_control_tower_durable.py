@@ -1,12 +1,11 @@
 """Adversarial regression tests for issue #78 durable exactly-once controls."""
 
-import os
-
 import pytest
 
 from control_tower.constants import (
     QUEUE_FOLDER_ID,
     RECEIPTS_FOLDER_ID,
+    TERMINALIZED_RETIRED_COMMAND_IDENTITIES,
     ClaimConflict,
     ControlTowerError,
     LeaseExpired,
@@ -20,6 +19,7 @@ from control_tower.kernel import AppendOnlySpool, ClaimLedger, LeaseRegistry
 
 SUCCESS = "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY"
 RETIRED = "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT"
+RETIRED_DRIVE_ID = TERMINALIZED_RETIRED_COMMAND_IDENTITIES[0][1]
 
 
 def make_stack(tmp_path, client=None):
@@ -58,6 +58,15 @@ def test_retired_command_replay_is_denied_after_restart(tmp_path):
     restarted = ClaimLedger(store=DurableStateStore(root))
     with pytest.raises(ClaimConflict):
         restarted.prepare_open(RETIRED + "|DRIVE|9", "writer", 1.0, "start.json")
+
+
+def test_original_retired_identity_is_denied_without_local_retirement_state(tmp_path):
+    store = DurableStateStore(str(tmp_path / "fresh"))
+    ledger = ClaimLedger(store=store)
+    before = open(store.path, "rb").read()
+    with pytest.raises(ClaimConflict, match="permanently retired"):
+        ledger.open(RETIRED + "|" + RETIRED_DRIVE_ID + "|4", "attacker", 1.0)
+    assert open(store.path, "rb").read() == before
 
 
 def test_fence_and_lease_are_monotonic_after_restart(tmp_path):

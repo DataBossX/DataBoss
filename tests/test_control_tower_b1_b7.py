@@ -6,6 +6,7 @@ from control_tower.constants import (
     MODE_MUTATION,
     QUEUE_FOLDER_ID,
     RECEIPTS_FOLDER_ID,
+    TERMINALIZED_RETIRED_COMMAND_IDENTITIES,
     ClaimConflict,
     ControlTowerError,
     LeaseExpired,
@@ -27,6 +28,9 @@ from control_tower.reconstruction import (
 from control_tower.safety import canonical_json_bytes, sha256_hex
 
 SUCCESS = "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY"
+ORIGINAL_COMMAND_ID, ORIGINAL_COMMAND_DRIVE_ID = (
+    TERMINALIZED_RETIRED_COMMAND_IDENTITIES[0]
+)
 
 
 def command(command_id="CMD-SUCCESSOR", **extra):
@@ -66,6 +70,37 @@ def authority(holder="writer", scope="section32", suffix="1", expires_at=100.0):
     return envelope, ack
 
 
+def canonical_retirement_startup(client, store, suffix="BASE"):
+    semantic_identity = "ORIGINAL-GATE0-PERMANENTLY-RETIRED"
+    payload = canonical_json_bytes(
+        {
+            "schema": "databossx.retirement.v1",
+            "semantic_identity": semantic_identity,
+        }
+    )
+    file_id = "PIN-ORIGINAL-RETIREMENT-" + suffix
+    name = "original-gate0-retirement-" + suffix.lower() + ".json"
+    client.seed(file_id, RECEIPTS_FOLDER_ID, name, payload)
+    return CanonicalStartupReconstructor(
+        client,
+        store,
+        [
+            {
+                "parent_id": RECEIPTS_FOLDER_ID,
+                "file_id": file_id,
+                "name": name,
+                "bytes": len(payload),
+                "sha256": sha256_hex(payload),
+                "schema": "databossx.retirement.v1",
+                "semantic_identity": semantic_identity,
+                "kind": "retired_command",
+                "command_id": ORIGINAL_COMMAND_ID,
+                "command_drive_id": ORIGINAL_COMMAND_DRIVE_ID,
+            }
+        ],
+    )
+
+
 def stack(tmp_path, client=None, startup=None):
     store = DurableStateStore(str(tmp_path / "state"))
     leases = LeaseRegistry(store=store)
@@ -73,8 +108,8 @@ def stack(tmp_path, client=None, startup=None):
     client = client or OfflineDriveClient()
     spool = AppendOnlySpool(str(tmp_path / "spool"))
     writer = SafeDriveWriter(client, spool, leases=leases)
-    if startup == "empty":
-        startup = CanonicalStartupReconstructor(client, store, [])
+    if startup == "pinned":
+        startup = canonical_retirement_startup(client, store)
     runner = DurableGate0Runner(
         writer, ledger, leases, startup_reconstructor=startup
     )
@@ -99,6 +134,45 @@ def test_b1_retired_replay_has_byte_for_byte_zero_state_delta(tmp_path):
     assert state_bytes(store) == before
     assert spool.read_journal() == before_journal
     assert client._files == before_drive
+
+
+def test_b1_original_retirement_survives_fresh_and_wiped_store(tmp_path):
+    root = tmp_path / "state"
+    store = DurableStateStore(str(root))
+    ledger = ClaimLedger(store=store)
+    assert store.is_retired(ORIGINAL_COMMAND_ID) is True
+    before = state_bytes(store)
+    key = ORIGINAL_COMMAND_ID + "|" + ORIGINAL_COMMAND_DRIVE_ID + "|4"
+    with pytest.raises(ClaimConflict, match="permanently retired"):
+        ledger.open(key, "attacker", now=1.0)
+    assert state_bytes(store) == before
+
+    for child in root.iterdir():
+        child.unlink()
+    root.rmdir()
+    wiped = DurableStateStore(str(root))
+    wiped_ledger = ClaimLedger(store=wiped)
+    assert wiped.is_retired(ORIGINAL_COMMAND_ID) is True
+    before_wiped_attempt = state_bytes(wiped)
+    with pytest.raises(ClaimConflict, match="permanently retired"):
+        wiped_ledger.prepare_open(key, "attacker", 2.0, "start.json")
+    assert state_bytes(wiped) == before_wiped_attempt
+
+
+def test_b1_original_drive_identity_cannot_be_relabelled_and_claimed(tmp_path):
+    store, _leases, _ledger, client, spool, _writer, runner = stack(tmp_path)
+    before = state_bytes(store)
+    with pytest.raises(ClaimConflict, match="permanently retired"):
+        runner.claim(
+            command("RELABELLED", id=ORIGINAL_COMMAND_DRIVE_ID),
+            4,
+            "attacker",
+            now=1.0,
+            ttl_seconds=10,
+        )
+    assert state_bytes(store) == before
+    assert client._files == {}
+    assert spool.read_journal() == []
 
 
 def test_b2_stale_lease_cannot_prepare_terminal_or_freeze_fields(tmp_path):
@@ -162,7 +236,7 @@ def test_b4_live_transition_requires_and_single_uses_exact_envelope_ack(tmp_path
 
     client = LiveClient()
     store, _leases, _ledger, _client, _spool, _writer, runner = stack(
-        tmp_path, client=client, startup="empty"
+        tmp_path, client=client, startup="pinned"
     )
     before = state_bytes(store)
     with pytest.raises(ControlTowerError):
@@ -201,7 +275,7 @@ def test_b4_empty_hash_bindings_fail_before_state_mutation(tmp_path, field):
 
     client = LiveClient()
     store, _leases, _ledger, _client, _spool, _writer, runner = stack(
-        tmp_path, client=client, startup="empty"
+        tmp_path, client=client, startup="pinned"
     )
     envelope, ack = authority()
     envelope.body[field] = {}
@@ -233,7 +307,7 @@ def test_b5_live_terminal_entry_requires_startup_reconstruction(tmp_path):
 
     client = LiveClient()
     store, leases, ledger, _client, spool, _writer, runner = stack(
-        tmp_path, client=client, startup="empty"
+        tmp_path, client=client, startup="pinned"
     )
     envelope, ack = authority()
     claimed = runner.claim(
@@ -270,7 +344,7 @@ def test_b5_startup_reconstruction_exact_pins_and_duplicate_fail_closed(tmp_path
     payload = canonical_json_bytes(
         {
             "schema": "databossx.retirement.v1",
-            "semantic_identity": "RETIRE-CMD-1",
+            "semantic_identity": "ORIGINAL-GATE0-PERMANENTLY-RETIRED",
         }
     )
     client = OfflineDriveClient()
@@ -283,13 +357,14 @@ def test_b5_startup_reconstruction_exact_pins_and_duplicate_fail_closed(tmp_path
         "bytes": len(payload),
         "sha256": sha256_hex(payload),
         "schema": "databossx.retirement.v1",
-        "semantic_identity": "RETIRE-CMD-1",
+        "semantic_identity": "ORIGINAL-GATE0-PERMANENTLY-RETIRED",
         "kind": "retired_command",
-        "command_id": "CMD-RETIRED",
+        "command_id": ORIGINAL_COMMAND_ID,
+        "command_drive_id": ORIGINAL_COMMAND_DRIVE_ID,
     }
     result = CanonicalStartupReconstructor(client, store, [pin]).ensure_reconstructed()
     assert result["verified"] == 1
-    assert store.is_retired("CMD-RETIRED") is True
+    assert store.is_retired(ORIGINAL_COMMAND_ID) is True
 
     other = DurableStateStore(str(tmp_path / "other"))
     client.seed("PIN-2", RECEIPTS_FOLDER_ID, "retired.json", payload)
@@ -299,6 +374,15 @@ def test_b5_startup_reconstruction_exact_pins_and_duplicate_fail_closed(tmp_path
     assert state_bytes(other) == before
 
 
+def test_b5_empty_reconstruction_pin_set_fails_without_state_mutation(tmp_path):
+    client = OfflineDriveClient()
+    store = DurableStateStore(str(tmp_path / "state"))
+    before = state_bytes(store)
+    with pytest.raises(ControlTowerError, match="non-empty exact pins"):
+        CanonicalStartupReconstructor(client, store, []).ensure_reconstructed()
+    assert state_bytes(store) == before
+
+
 def test_b1_live_retired_replay_after_reconstruction_has_zero_state_delta(tmp_path):
     class LiveClient(OfflineDriveClient):
         is_offline = False
@@ -306,7 +390,7 @@ def test_b1_live_retired_replay_after_reconstruction_has_zero_state_delta(tmp_pa
     payload = canonical_json_bytes(
         {
             "schema": "databossx.retirement.v1",
-            "semantic_identity": "RETIRE-LIVE",
+            "semantic_identity": "ORIGINAL-GATE0-PERMANENTLY-RETIRED",
         }
     )
     client = LiveClient()
@@ -319,9 +403,10 @@ def test_b1_live_retired_replay_after_reconstruction_has_zero_state_delta(tmp_pa
         "bytes": len(payload),
         "sha256": sha256_hex(payload),
         "schema": "databossx.retirement.v1",
-        "semantic_identity": "RETIRE-LIVE",
+        "semantic_identity": "ORIGINAL-GATE0-PERMANENTLY-RETIRED",
         "kind": "retired_command",
-        "command_id": "RETIRED-LIVE",
+        "command_id": ORIGINAL_COMMAND_ID,
+        "command_drive_id": ORIGINAL_COMMAND_DRIVE_ID,
     }
     CanonicalStartupReconstructor(client, store, [pin]).ensure_reconstructed()
     leases = LeaseRegistry(store=store)
@@ -338,7 +423,7 @@ def test_b1_live_retired_replay_after_reconstruction_has_zero_state_delta(tmp_pa
     before_drive = dict(client._files)
     with pytest.raises(ClaimConflict, match="retired"):
         runner.claim(
-            command("RETIRED-LIVE"),
+            command(ORIGINAL_COMMAND_ID, id=ORIGINAL_COMMAND_DRIVE_ID),
             1,
             "writer",
             now=1.0,

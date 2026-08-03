@@ -1,0 +1,242 @@
+{
+  "schema": "databossx.agent_provider_registry.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-08-03T17:20:00Z",
+  "authority": {
+    "canonical_system": "DataBossX",
+    "external_provider_role": "candidate_worker_only",
+    "forbidden_capabilities": [
+      "activate_command",
+      "issue_writer_ack",
+      "issue_lease",
+      "issue_fence",
+      "emit_start_claim",
+      "emit_terminal",
+      "write_protected_workbook",
+      "promote_artifact",
+      "remove_hold",
+      "release_external"
+    ]
+  },
+  "lifecycle_states": [
+    "research",
+    "lab_only",
+    "pilot",
+    "production_candidate",
+    "enabled",
+    "retired"
+  ],
+  "providers": [
+    {
+      "id": "flowise",
+      "display_name": "Flowise",
+      "state": "pilot",
+      "role": "visual_agent_lab",
+      "required": false,
+      "data_classes_allowed": [
+        "synthetic",
+        "public",
+        "deidentified"
+      ],
+      "network_policy": "loopback_or_isolated_private_network",
+      "direct_writes_allowed": false,
+      "credentials_allowed": [
+        "synthetic_only"
+      ],
+      "promotion_rule": "export_hash_evaluate_then_reimplement_or_keep_lab_only",
+      "gates": [
+        "pin_image_and_dependency_digest",
+        "disable_public_sharing",
+        "no_production_credentials",
+        "schema_and_provenance_tests",
+        "prompt_injection_and_egress_tests",
+        "timeout_retry_cost_tests",
+        "operator_value_scorecard"
+      ]
+    },
+    {
+      "id": "llamafactory",
+      "display_name": "LLaMA-Factory",
+      "state": "research",
+      "role": "isolated_fine_tuning_lab",
+      "required": false,
+      "data_classes_allowed": [
+        "synthetic",
+        "public",
+        "licensed",
+        "irreversibly_deidentified_reviewed"
+      ],
+      "network_policy": "isolated_training_environment",
+      "direct_writes_allowed": false,
+      "credentials_allowed": [],
+      "promotion_rule": "baseline_eval_train_independent_eval_human_enablement",
+      "gates": [
+        "task_specific_baseline",
+        "reviewed_dataset_manifest",
+        "license_and_retention_review",
+        "fixed_untouched_test_split",
+        "prompting_and_retrieval_baseline",
+        "privacy_and_memorization_eval",
+        "adversarial_and_regression_eval",
+        "adapter_manifest_and_rollback"
+      ]
+    },
+    {
+      "id": "lmstudio",
+      "display_name": "LM Studio",
+      "state": "pilot",
+      "role": "local_openai_compatible_inference",
+      "required": false,
+      "data_classes_allowed": [
+        "synthetic",
+        "public",
+        "internal",
+        "confidential_if_project_policy_allows_local_processing"
+      ],
+      "network_policy": "loopback_only",
+      "direct_writes_allowed": false,
+      "credentials_allowed": [],
+      "promotion_rule": "capability_benchmark_and_policy_adapter",
+      "gates": [
+        "model_hash",
+        "context_limit",
+        "structured_output_eval",
+        "tool_call_eval",
+        "resource_limit",
+        "shutdown_test"
+      ]
+    },
+    {
+      "id": "ollama",
+      "display_name": "Ollama",
+      "state": "pilot",
+      "role": "local_openai_compatible_inference",
+      "required": false,
+      "data_classes_allowed": [
+        "synthetic",
+        "public",
+        "internal",
+        "confidential_if_project_policy_allows_local_processing"
+      ],
+      "network_policy": "loopback_only",
+      "direct_writes_allowed": false,
+      "credentials_allowed": [],
+      "promotion_rule": "capability_benchmark_and_policy_adapter",
+      "gates": [
+        "model_digest",
+        "structured_output_eval",
+        "tool_call_eval",
+        "resource_limit",
+        "shutdown_test"
+      ]
+    },
+    {
+      "id": "vllm",
+      "display_name": "vLLM",
+      "state": "research",
+      "role": "linux_gpu_inference_server",
+      "required": false,
+      "data_classes_allowed": [
+        "synthetic",
+        "public",
+        "internal",
+        "confidential_if_project_policy_allows_local_processing"
+      ],
+      "network_policy": "private_worker_network",
+      "direct_writes_allowed": false,
+      "credentials_allowed": [],
+      "promotion_rule": "hardware_exists_and_benchmark_passes",
+      "gates": [
+        "pinned_container",
+        "model_hash",
+        "load_and_concurrency_test",
+        "cancellation_test",
+        "egress_test"
+      ]
+    },
+    {
+      "id": "amd_ryzen_ai_halo",
+      "display_name": "AMD Ryzen AI Halo worker",
+      "state": "research",
+      "role": "optional_local_compute_worker",
+      "required": false,
+      "data_classes_allowed": [
+        "synthetic",
+        "public",
+        "internal",
+        "confidential_if_project_policy_allows_local_processing"
+      ],
+      "network_policy": "outbound_only_worker",
+      "direct_writes_allowed": false,
+      "credentials_allowed": [
+        "leased_task_scoped_only"
+      ],
+      "promotion_rule": "purchase_only_after_current_machine_and_cloud_scorecard",
+      "gates": [
+        "current_machine_baseline",
+        "representative_workload_benchmark",
+        "quality_latency_throughput_energy_scorecard",
+        "three_year_total_cost",
+        "lease_heartbeat_expiry_test",
+        "credential_isolation",
+        "operator_purchase_approval"
+      ]
+    }
+  ],
+  "invocation_contract": {
+    "required_fields": [
+      "project_id",
+      "task_id",
+      "task_envelope_sha256",
+      "input_manifest_sha256",
+      "data_classification",
+      "egress_decision",
+      "capability",
+      "provider_id",
+      "provider_revision",
+      "model_id",
+      "model_revision",
+      "adapter_version",
+      "prompt_version",
+      "tool_versions",
+      "policy_version",
+      "input_schema_version",
+      "output_schema_version",
+      "lease_id",
+      "fence",
+      "expires_at",
+      "time_budget_seconds",
+      "token_budget",
+      "cost_budget_usd"
+    ],
+    "required_result_fields": [
+      "outcome_id",
+      "status",
+      "output_manifest_sha256",
+      "evidence_locators",
+      "schema_valid",
+      "provenance_valid",
+      "evaluation_results",
+      "tokens",
+      "latency_ms",
+      "cost_usd",
+      "retries",
+      "provider_request_id",
+      "requires_human_review"
+    ]
+  },
+  "long_running_worker_controls": [
+    "durable_checkpoint",
+    "idempotency_key",
+    "expiring_lease",
+    "monotonic_fence",
+    "heartbeat",
+    "cancellation",
+    "bounded_retry",
+    "circuit_breaker",
+    "dead_letter_review",
+    "time_token_cost_budgets",
+    "restart_reconciliation"
+  ],
+  "default_decision": "deny_unregistered_provider_or_capability"
+}

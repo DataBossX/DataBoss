@@ -25,8 +25,9 @@ DESIGN NOTE
 
 
 class _Raises:
-    def __init__(self, expected):
+    def __init__(self, expected, match=None):
         self.expected = expected
+        self.match = match
         self.value = None  # populated on exit, so `excinfo.value` works
 
     def __enter__(self):
@@ -35,14 +36,24 @@ class _Raises:
     def __exit__(self, exc_type, exc, tb):
         if exc_type is None:
             raise AssertionError(f"DID NOT RAISE {self.expected}")
-        if issubclass(exc_type, self.expected):
-            self.value = exc
-            return True  # swallow: this is the expected refusal
-        return False  # propagate: wrong exception type -> test errors
+        if not issubclass(exc_type, self.expected):
+            return False  # propagate: wrong exception type -> test errors
+        if self.match is not None:
+            # Real pytest semantics: re.search against str(exception). Enforced,
+            # not ignored -- swallowing a non-matching message would silently
+            # weaken the assertion the test is making.
+            import re
+
+            if re.search(self.match, str(exc)) is None:
+                raise AssertionError(
+                    f"exception message {str(exc)!r} does not match {self.match!r}"
+                )
+        self.value = exc
+        return True  # swallow: this is the expected refusal
 
 
-def raises(expected):
-    return _Raises(expected)
+def raises(expected, match=None):
+    return _Raises(expected, match=match)
 
 
 def fixture(*a, **k):

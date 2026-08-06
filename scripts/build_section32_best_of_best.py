@@ -18,7 +18,7 @@ from pathlib import Path
 from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.pagebreak import ColBreak, RowBreak
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, range_boundaries
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import letter
@@ -44,6 +44,7 @@ V7_DUMP = (
 )
 V10_ROOT = BACKUPS / "v10/_TASKS/SECTION32_V10_CLAUDE_CURRENT_DATA_RESEARCH_20260806"
 V10_OWNER_MASTER = V10_ROOT / "03_CURRENT_OWNER_RESEARCH/SECTION32_CURRENT_OWNER_MASTER.csv"
+V10_WELL_MASTER = V10_ROOT / "06_WELL_OCC_RESEARCH/SECTION32_CURRENT_WELL_MASTER.csv"
 
 MODEL = "GPT-5-6-SOL"
 REPORT_STEM = f"Section_32-11N-25W_Beckham_Co_Diversified_Cursory_Report_{MODEL}_TOURNAMENT_20260806"
@@ -71,11 +72,31 @@ QUALIFICATION = (
     "applicable records."
 )
 TITLE_CURRENCY = (
-    "Mineral-title instrument review stops at Book 2400/Page 551 (March 2, 2023). Later index/public-"
-    "metadata leads extend through Book 2490/Page 471, but their recorded faces and Section 32 effects "
+    "Mineral-title instrument review stops at Book 2400/Page 551 (March 2, 2023). The index/public-"
+    "metadata continuation extends through July 9, 2026 (Book 2490/Page 471), but later recorded faces and Section 32 effects "
     "were not verified. Well rows contain source-specific production updates through April/May 2026; "
     "well activity is not lease-specific HBP proof."
 )
+POOLING_NOTE = (
+    "OCC Order 156126 pools listed formations across Section 32; owner-specific pooling election "
+    "status was not located, so 'no active OGL located' does not mean the interest is unburdened or open to lease."
+)
+
+OGL_NUMBER_BY_REFERENCE = {
+    "63/33": 1,
+    "264/345": 2,
+    "307/31": 3,
+    "340/302": 4,
+    "340/304": 5,
+    "340/323": 6,
+    "342/564": 7,
+    "342/566": 8,
+    "352/719": 9,
+    "352/721": 10,
+    "376/369": 11,
+    "332/74-75": 12,
+    "341/538": 13,
+}
 
 SOURCES = {
     "FV": "FINAL_VERIFIED workbook (2026-07-11), direct-image and official-record synthesis",
@@ -118,6 +139,22 @@ def partition_owner_rows(owners: list[dict]) -> tuple[list[dict], list[dict]]:
     return present_owners, audit_owners
 
 
+def normalize_ogl_reference(value: str) -> str:
+    references = re.findall(r"\d+/\d+(?:-\d+)?", value)
+    if references and all(reference in OGL_NUMBER_BY_REFERENCE for reference in references):
+        numbers = ", ".join(str(OGL_NUMBER_BY_REFERENCE[reference]) for reference in references)
+        return f"{numbers} ({'; '.join(references)})"
+    return value.replace("None active", "None located")
+
+
+def normalize_address(value: str) -> str:
+    if value.startswith("407 N. Broadway, Sayre, Oklahoma"):
+        return "407 N. Broadway, Sayre, Oklahoma (1947 lease recital; current address not independently confirmed)"
+    if value.startswith("Hobbs, New Mexico"):
+        return "Hobbs, New Mexico (historic city recital per MD 89/428; current address not independently confirmed)"
+    return value
+
+
 def parse_v7_title() -> list[dict]:
     """Extract the seven fee-tract ending schedules from the preserved V7 text dump."""
     groups: list[dict] = []
@@ -150,6 +187,7 @@ def parse_v7_title() -> list[dict]:
         except (ValueError, IndexError):
             continue
         status = cells[4]
+        pooling_exposure = "Unleased" in status or status in {"Open", "Unresolved"} or "None active" in cells[3]
         if "HBP" in status:
             royalty = status.split(";")[0].strip()
             status = f"{royalty}; assumed effective for cursory reporting; HBP not independently confirmed"
@@ -161,6 +199,8 @@ def parse_v7_title() -> list[dict]:
         note = cells[6]
         if "ASSUMED:" not in note:
             note = f"EST. last located record owner; {note}"
+        if pooling_exposure:
+            note = f"{note} {POOLING_NOTE}"
         update = owner_updates.get((current["tract"].upper(), owner, round(net_acres, 6)))
         is_audit_only = False
         if update:
@@ -169,20 +209,20 @@ def parse_v7_title() -> list[dict]:
             source_instrument = update["Source_Instrument"]
             note += (
                 f" V10 STATUS: {current_status}. Vesting/source reference: {source_instrument}. "
-                "Forward record search stops 03/02/2023; current status at 08/06/2026 is not confirmed."
+                "Mineral-title face review stops 03/02/2023; later index leads are unverified and current status is not confirmed."
             )
             is_audit_only = current_status.startswith("SUPERSEDED")
-            address = update["Address_Display"] or cells[5] or "Address not located"
-            if "historic recital" in update["Address_Type"].lower():
+            address = normalize_address(update["Address_Display"] or cells[5] or "Address not located")
+            if "historic recital" in update["Address_Type"].lower() and "current address not independently confirmed" not in address:
                 address = f"{address} (historic recital address; current address not independently confirmed)"
         else:
             note += " Current status is not confirmed through the report effective date."
-            address = cells[5] or "Address not located"
+            address = normalize_address(cells[5] or "Address not located")
         current["owners"].append(
             {
                 "owner": owner,
                 "nma": net_acres,
-                "ogl": cells[3].replace("None active", "None located"),
+                "ogl": normalize_ogl_reference(cells[3]),
                 "status": status,
                 "address": address,
                 "note": note,
@@ -322,8 +362,8 @@ def build_overview(wb):
     ws._images = []
     ws["Q3"] = "32-11N-25W / Diversified / OK48147.001.1"
     ws["S48"] = datetime(2026, 8, 6)
-    ws["S50"] = "Mineral-title face review through 03/02/2023; later index leads through 2490/471 remain unverified"
-    ws["AC48"] = "Public/index metadata through 2490/471; well-specific production through Apr/May 2026"
+    ws["S50"] = "Mineral-title face review through 03/02/2023; index continuation through 07/09/2026 (2490/471), later faces unverified"
+    ws["AC48"] = "Public/index metadata through 07/09/2026 (2490/471); well-specific production through Apr/May 2026"
     ws["B53"] = (
         "CONTROLLING CONCLUSION: Diversified Production LLC is the last claimant supported by the reviewed "
         "asset schedule at Bk 2400/Pgs 551-567 (asset line at Pg 566), not a confirmed current claimant. "
@@ -372,8 +412,9 @@ def build_overview(wb):
     ws["AF12"] = "N ▲"
     style_cell(ws["AF12"], bold=True, size=10, align="center")
     ws["B55"] = (
-        "PRIORITY CURE: obtain complete 1697/236 Exhibit A; 2340/403 and /490 schedules; 2371/470-533; "
-        "2395/415-464; 2400/551-567; 2434/751 first; 2451/4; 2476/121; 2480/824; the full 1016 assignment "
+        "PRIORITY CURE: obtain complete 1697/236 Exhibit A; 2340/403 and /490 schedules; separate "
+        "2371/470-494, /495-513, /514-532, and /533-553 instruments; "
+        "2395/415-464; 2400/551-567; 2434/751 first; 2451/4; 2464/200; 2476/121; 2480/824 and /903; the full 1016 assignment "
         "series; Crook probate 845/150-157; and "
         "the SE/4 Biggs patent. Resolve Tapstone/OCM Denali, Unbridled/MNR, Linn and Canvas/DP Ponies "
         "branches before stating a final decimal."
@@ -397,7 +438,8 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
     ws.merge_cells("B2:G2")
     ws["B2"] = (
         "Client focus: Diversified • Effective August 6, 2026 • EST. = cursory estimate / last "
-        "located record owner, not confirmed present title"
+        "located record owner, not confirmed present title • Fee T1-T7 are the PLAT/Title/OGL tract IDs; "
+        "report tabs Tract 1-4 consolidate those fee tracts by quarter section, while report tab Tract 5 is the modern leasehold chain"
     )
     style_cell(ws["B2"], bold=True, size=9, align="center", fill="D9EAF7")
     row = 4
@@ -487,7 +529,7 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
         [
             "OCM Denali Holdings LLC",
             "48.75% parallel branch",
-            "Bk 2371/Pgs 470-514",
+            "Bk 2371/Pgs 470-494 assignment",
             "Separate claimant; not Diversified",
             "No address of record located",
             "Keep separate. Missing schedules prevent present allocation.",
@@ -563,7 +605,8 @@ def build_plat(wb):
     ws["B37"] = (
         "Leasehold overlays: OGL 63/33 is E/2 SE/4; deep Union/Leede schedule covers 560 unique "
         "nominal acres with overlaps and an 80-acre S/2 NW/4 gap. Modern all-section index marks "
-        "show gross scope only, not 640 NMA or 100% WI."
+        "show gross scope only, not 640 NMA or 100% WI. Fee IDs T1-T7 shown here are consolidated "
+        "by quarter section on report tabs Tract 1-4; report tab Tract 5 is a leasehold-chain tab."
     )
     style_cell(ws["B37"], size=9, align="center", fill="FFF2CC")
     set_print(ws, "$A$1:$AF$39", landscape=True, fit_height=1)
@@ -597,6 +640,9 @@ def build_ogl(wb, lineage):
     write_table_header(ws, 1, headers)
     row_border = Border(bottom=Side(style="hair", color="B7B7B7"))
     for row_index, values in enumerate(leases, 2):
+        for column_index in (22, 23, 24):
+            if values[column_index] in (None, ""):
+                values[column_index] = "Not determined"
         write_styled_row(
             ws,
             row_index,
@@ -631,10 +677,23 @@ def build_ogl(wb, lineage):
 
 def append_runsheet_items(wb, lineage):
     ws = wb["Runsheet"]
-    existing = {str(ws.cell(row, 4).value) for row in range(2, ws.max_row + 1)}
+
     def row_has_data(row):
         return any(ws.cell(row, col).value not in (None, "") for col in range(1, 12))
 
+    for retained_row in range(2, ws.max_row + 1):
+        reference = str(ws.cell(retained_row, 4).value or "")
+        if reference == "2371/495; 2371/514":
+            ws.cell(retained_row, 3, "Assignment")
+            ws.cell(retained_row, 4, "2371/495-513; I-2022-000153")
+            ws.cell(retained_row, 7, "Tapstone Energy LLC; Tapstone Midstream LLC")
+            ws.cell(retained_row, 8, "OCM Denali Holdings LLC")
+            ws.cell(retained_row, 10, "Parallel OCM Denali assignment; schedules not reviewed")
+        elif reference == "2371/533":
+            ws.cell(retained_row, 4, "2371/533-553; I-2022-000155")
+            ws.cell(retained_row, 10, "Relationship notice; not a conveyance without operative language")
+
+    existing = {str(ws.cell(row, 4).value) for row in range(2, ws.max_row + 1)}
     last_data_row = max(
         row
         for row in range(1, ws.max_row + 1)
@@ -649,10 +708,13 @@ def append_runsheet_items(wb, lineage):
         ("1016/33", "Assignment", "McCall, Jack C. et al.", "Leede Exploration", "Section 32; exact legal requires face", "1016 series; index lead, face not held"),
         ("1016/90", "Assignment", "Leede Exploration et al.", "Enco Gas Gathering Co.", "Section 32; exact legal requires face", "1016 series; index lead, face not held"),
         ("1697/236", "Assignment", "Staghorn Resources LLC", "Chesapeake Exploration Limited Partnership", "Section 32; Exhibit A controls", "Recorded-face lead; required bridge into modern chain"),
+        ("2371/514-532; I-2022-000154", "Agreement", "Tapstone Energy LLC", "OCM Denali Holdings LLC", "Section 32 index entry; complete legal requires face", "Separate agreement; not automatically a conveyance"),
         ("2434/751", "Assignment", "Diversified Production LLC; DP Legacy Central LLC", "Teocalli Exploration LLC", "Section 32 exact legal not extracted; recorded face controls", "CRITICAL post-cutoff index lead; may convey the reported Diversified branch out"),
         ("2451/4", "Memorandum", "Diversified Energy Company PLC", "Public", "Section 32 exact legal not extracted; recorded face controls", "Post-cutoff corporate filing; asset-specific effect unknown"),
+        ("2464/200", "Wellbore Assignment", "Stephens Production / Continental Properties names", "Grantee not reliably extracted", "Long description; Section 32 applicability not confirmed", "Potential acquisition lead with ambiguous Diversified-related metadata; instrument and schedule required"),
         ("2476/121", "Memorandum", "Diversified Production LLC; DP American Pharoah LLC; DP Poni", "DE American Pharoah LLC; Diversified Production LLC; DP Poni", "Section 32 exact legal not extracted; recorded face controls", "Post-cutoff intra-family restructuring lead; schedule required"),
         ("2480/824", "Affidavit", "Diversified Production LLC; DP Legacy Central LLC", "Public", "Section 32 exact legal not extracted; recorded face controls", "Post-cutoff notice lead; recitals and asset effect unknown"),
+        ("2480/903", "Merger", "Diversified Gas and Oil Corp.; Diversified Production; DP/Canvas affiliates", "Public", "No legal description; corporate plan/certificate controls", "Post-cutoff merger lead; survivor and Section 32 asset effect unknown"),
     ]
     for retained_row in range(2, last_data_row + 1):
         if not row_has_data(retained_row):
@@ -706,8 +768,8 @@ def tract_chain_data(groups):
     return [
         {
             "sheet": "Tract 1",
-            "title": "TRACT 1 — NE/4 FEE / MINERAL CHAIN",
-            "scope": "NE/4, nominal 160 acres",
+            "title": "REPORT TAB TRACT 1 — NE/4 FEE / MINERAL CHAIN",
+            "scope": "Consolidates fee tract T1 only: NE/4, nominal 160 acres",
             "owners": owner_summary["NE/4"],
             "chain": [
                 ["PAT", "P-001 / Img 0003", "Patent 3/469", "1907-03-22 / rec. 1907-06-08", "United States", "Cornelius B. Cornelius", "Sovereign inception; no mineral reservation apparent", "98%"],
@@ -722,8 +784,8 @@ def tract_chain_data(groups):
         },
         {
             "sheet": "Tract 2",
-            "title": "TRACT 2 — NW/4 FEE / MINERAL CHAIN",
-            "scope": "N/2 NW/4 and S/2 NW/4, nominal 160 acres",
+            "title": "REPORT TAB TRACT 2 — NW/4 FEE / MINERAL CHAIN",
+            "scope": "Consolidates fee tracts T2 and T3: N/2 NW/4 + S/2 NW/4, nominal 160 acres",
             "owners": owner_summary["NW/4"],
             "chain": [
                 ["FR", "P-003 / Img 0005", "Final Receiver Receipt 3894", "1905-05-04 / rec. 1905-05-12", "United States Land Office", "Herman Stevens", "Earliest located NW/4 evidence; patent not located", "90% identity / 0% patent"],
@@ -735,8 +797,8 @@ def tract_chain_data(groups):
         },
         {
             "sheet": "Tract 3",
-            "title": "TRACT 3 — SW/4 FEE / MINERAL CHAIN",
-            "scope": "N/2 SW/4 and S/2 SW/4, nominal 160 acres",
+            "title": "REPORT TAB TRACT 3 — SW/4 FEE / MINERAL CHAIN",
+            "scope": "Consolidates fee tracts T4 and T5: N/2 SW/4 + S/2 SW/4, nominal 160 acres",
             "owners": owner_summary["SW/4"],
             "chain": [
                 ["FR", "P-004 / Img 0006", "Final Receiver Receipt 3895", "1905-05-04 / rec. 1905-05-12", "United States Land Office", "Augustus P. Stevens", "Earliest located SW/4 evidence; patent not located", "90% identity / 0% patent"],
@@ -748,8 +810,8 @@ def tract_chain_data(groups):
         },
         {
             "sheet": "Tract 4",
-            "title": "TRACT 4 — SE/4 FEE / MINERAL CHAIN",
-            "scope": "E/2 SE/4 and W/2 SE/4, nominal 160 acres",
+            "title": "REPORT TAB TRACT 4 — SE/4 FEE / MINERAL CHAIN",
+            "scope": "Consolidates fee tracts T6 and T7: E/2 SE/4 + W/2 SE/4, nominal 160 acres",
             "owners": owner_summary["SE/4"],
             "chain": [
                 ["FR", "P-002 / Img 0004", "Final Receiver Receipt", "1906-06-28 / stamp 1906-08-08", "United States Land Office", "Velmore Biggs", "Earliest located SE/4 evidence; Biggs/Bigge patent remains missing", "90% identity / 0% patent"],
@@ -761,8 +823,8 @@ def tract_chain_data(groups):
         },
         {
             "sheet": "Tract 5",
-            "title": "TRACT 5 — MODERN DIVERSIFIED-AFFILIATED LEASEHOLD BRANCH",
-            "scope": "All Section 32 index scope; exact tracts, depths and quantum not proved",
+            "title": "REPORT TAB TRACT 5 — MODERN DIVERSIFIED-AFFILIATED LEASEHOLD BRANCH (NOT FEE T5)",
+            "scope": "Leasehold-chain tab only; fee T5 is S/2 SW/4 and is included on report tab Tract 3",
             "owners": [],
             "chain": [
                 ["ASG", "Recorded face / Exhibit A required", "1697/236", "2001", "Staghorn Resources LLC", "Chesapeake Exploration LP", "Scheduled predecessor lead; full Exhibit A controls", "Medium"],
@@ -823,7 +885,11 @@ def build_tracts(wb, groups, lineage):
                     owner["status"],
                     owner["address"],
                     owner["note"],
-                    "No complete forward chain through effective date",
+                    (
+                        "No complete forward chain; Order 156126 pooled-election status not determined"
+                        if POOLING_NOTE in owner["note"]
+                        else "No complete forward chain through effective date"
+                    ),
                     "V7 ending schedule; V10 qualification",
                 ]
                 write_styled_row(ws, row, values, font_size=7, height=38)
@@ -853,6 +919,7 @@ def build_tracts(wb, groups, lineage):
         style_cell(ws.cell(row, 1), bold=True, size=8, fill="FFF2CC")
         ws.row_dimensions[row].height = 36
         ws.freeze_panes = "A5"
+        ws.auto_filter.ref = None
         set_print(ws, f"$A$1:$H${row + 1}", landscape=True)
 
 
@@ -875,7 +942,7 @@ def build_wi(wb, lineage):
         [6, "2395/415-464", "DP Legacy Tapstone LLC", "Diversified ABS VI Upstream; DP Sooner HoldCo", "Allocation not shown", "OK48147.001.1 at 2395/462", "Asset identity supported", "Estate/depth/quantum blank"],
         [7, "2400/551-567", "DP Sooner HoldCo LLC", "Diversified Production LLC", "Allocation not shown", "OK48147.001.1 at 2400/566", "Last claimant supported by reviewed schedule", "Not confirmed current; later filings control"],
         [8, "2434/751", "Diversified Production LLC; DP Legacy Central LLC", "Teocalli Exploration LLC", "Unknown until face/schedule read", "Post-cutoff assignment index lead", "Potential conveyance out", "CRITICAL — read first"],
-        [9, "2451/4; 2476/121; 2480/824", "Diversified/DP entities", "Public / affiliates", "Not proved", "Post-cutoff index leads", "Later context only", "Read complete instruments and schedules"],
+        [9, "2451/4; 2464/200; 2476/121; 2480/824; 2480/903", "Diversified/DP and other indexed entities", "Public / affiliates / unverified parties", "Not proved", "Post-cutoff index leads", "Later context only", "Read complete instruments and schedules"],
     ]
     for row_index, values in enumerate(rows, 5):
         write_styled_row(wi1, row_index, values, font_size=8, height=43)
@@ -884,7 +951,7 @@ def build_wi(wb, lineage):
     write_table_header(wi1, summary_row, ["Item", "Value", "Use", "Status", "Address", "Supporting Reference", "Limitation", "Result"])
     summaries = [
         ["Diversified transaction branch", "51.25%", "Identity/branch context only", "Supported on acquired branch", "1600 Corporate Drive, Birmingham, AL 35242", "2371/470-494", "Missing exhibits and later allocation", "Do not report as current WI"],
-        ["OCM Denali parallel branch", "48.75%", "Separate claimant", "Not Diversified", "No address of record located", "2371/470-514", "Missing exhibits", "Keep separate"],
+        ["OCM Denali parallel branch", "48.75%", "Separate claimant", "Not Diversified", "No address of record located", "2371/470-494 assignment", "Separate 2371/495-513 assignment and 2371/514-532 agreement require independent treatment", "Keep separate"],
         ["Arithmetic product", "15.000875%", "29.27% × 51.25%", "Arithmetic only", "N/A", "V7 WI summary", "No established 8/8 baseline", "Not WI/NRI/ORRI/NMA"],
         ["Current WI/NRI", "Not calculable", "Cursory conclusion", "Open", "N/A", "2395/462; 2400/566; 2434/751 lead", "Missing schedules; possible Teocalli conveyance out", "Qualified estimate only"],
     ]
@@ -892,6 +959,7 @@ def build_wi(wb, lineage):
         write_styled_row(wi1, index, values, font_size=8, height=42)
     for col, width in enumerate([8, 18, 27, 30, 22, 25, 48, 28], 1):
         wi1.column_dimensions[get_column_letter(col)].width = width
+    wi1.auto_filter.ref = None
     set_print(wi1, "$A$1:$H$20", landscape=True, fit_height=1)
 
     wi2 = wb["WI 2"]
@@ -917,6 +985,7 @@ def build_wi(wb, lineage):
         lineage.append({"sheet": "WI 2", "cell": f"A{row_index}:H{row_index}", "conclusion": str(values[6]), "source": "FV, V7, V10, MT", "reference": str(values[1]), "treatment": str(values[7])})
     for col, width in enumerate([24, 18, 28, 34, 25, 34, 32, 40], 1):
         wi2.column_dimensions[get_column_letter(col)].width = width
+    wi2.auto_filter.ref = None
     set_print(wi2, "$A$1:$H$12", landscape=True, fit_height=1)
 
 
@@ -924,18 +993,58 @@ def update_wells(wb, lineage):
     ws = wb["Well 1"]
     ws["A1"] = "WELLS — SECTION 32-11N-25W (REGULATORY CONTEXT; NOT LEASE-SPECIFIC HBP PROOF)"
     ws.sheet_state = "visible"
+    with V10_WELL_MASTER.open(newline="", encoding="utf-8-sig") as handle:
+        well_updates = {row["API"]: row for row in csv.DictReader(handle)}
     for row in range(3, ws.max_row + 1):
-        if ws.cell(row, 2).value:
-            lineage.append(
-                {
-                    "sheet": "Well 1",
-                    "cell": f"A{row}:Q{row}",
-                    "conclusion": f"{ws.cell(row, 4).value} / {ws.cell(row, 2).value}",
-                    "source": "FV official OCC/OTC synthesis; V10 well register",
-                    "reference": str(ws.cell(row, 15).value or ws.cell(row, 12).value),
-                    "treatment": "Operator/status are regulatory context only; lease-specific HBP not independently confirmed",
-                }
+        api = str(ws.cell(row, 2).value or "")
+        if not api:
+            continue
+        update = well_updates.get(api)
+        if update:
+            ws.cell(row, 6, update["Legal_Location"])
+            cutoff = update["Last_Production"]
+            ws.cell(
+                row,
+                17,
+                f"V10 tract/lease relation: {update['Relation_To_Leases']} "
+                f"V10 production series cutoff: {cutoff}. Decision: {update['Decision']}. "
+                f"{update['Reason']}",
             )
+        if api == "35-009-21923":
+            ws.cell(row, 3, "Not established")
+            ws.cell(row, 4, "Carlson 32-11-25 7H — EXCLUDED / LOCATION UNCONFIRMED")
+            ws.cell(row, 6, "Section 32 connection not established by the reviewed corpus")
+            ws.cell(row, 15, "No verified production or Section 32 allocation located")
+            ws.cell(row, 16, "EXCLUDED")
+            ws.cell(
+                row,
+                17,
+                "Excluded from the Section 32 roster by V10: zero reviewed corpus pages tie this API to "
+                "Section 32; the well name alone is not location, title, allocation, or HBP proof. "
+                "The 2183/174 and 2185/639 carve references remain schedule leads only.",
+            )
+        elif api in {"35-009-21893", "35-009-21933"}:
+            ws.cell(
+                row,
+                17,
+                "Regulatory lead only. Source-specific completion/operator data do not establish mineral title, "
+                "lease allocation, or lease-specific HBP. Confirm current OCC location, trajectory, and Section 32 connection.",
+            )
+        if api in {"35-009-21893", "35-009-21923", "35-009-21933"}:
+            for column in (7, 8, 10, 13):
+                if ws.cell(row, column).value in (None, ""):
+                    ws.cell(row, column, "OPEN")
+        lineage.append(
+            {
+                "sheet": "Well 1",
+                "cell": f"A{row}:Q{row}",
+                "conclusion": f"{ws.cell(row, 4).value} / {api}",
+                "source": "FV official OCC/OTC synthesis; V10 well register",
+                "reference": str(ws.cell(row, 15).value or ws.cell(row, 12).value),
+                "treatment": str(ws.cell(row, 17).value),
+            }
+        )
+    ws.auto_filter.ref = f"A2:Q{ws.max_row}"
     set_print(ws, f"$A$1:$Q${ws.max_row}", landscape=True)
     ws.freeze_panes = "A3"
 
@@ -1093,15 +1202,17 @@ def build_boss_pdf():
             table,
             Paragraph("Wells and leases", styles["Section"]),
             Paragraph(
-                "Latigo is carried as operator for the three Carlson horizontal wells; BCE-Mach II is carried "
-                "for its separate Section 32 wells. Diversified is not shown as well operator. Well activity "
-                "is regulatory context only and is not treated as lease-specific HBP proof.",
+                "Carlson 12H and 10H are retained only as qualified regulatory leads; Carlson 7H is visibly "
+                "excluded because the reviewed corpus did not establish its Section 32 connection. BCE-Mach II "
+                "is carried for separate Section 32 wells. Diversified is not shown as well operator. No well "
+                "activity is treated as mineral-title, allocation, or lease-specific HBP proof.",
                 styles["BodyCompact"],
             ),
             Paragraph("Priority unresolved items", styles["Section"]),
             Paragraph(
-                "Complete 1697/236 Exhibit A; 2340/403 and 2340/490 schedules; 2371/470-533; 2395/415-464; "
-                "2400/551-567; 2434/751 first; 2451/4; 2476/121; 2480/824; the 1016 assignment series; "
+                "Complete 1697/236 Exhibit A; 2340/403 and 2340/490 schedules; separately read 2371/470-494, "
+                "2371/495-513, 2371/514-532 and 2371/533-553; 2395/415-464; 2400/551-567; 2434/751 first; "
+                "2451/4; 2464/200; 2476/121; 2480/824 and /903; the 1016 assignment series; "
                 "Crook probate 845/150-157; the SE/4 Biggs patent; "
                 "and lease-specific production/savings-clause evidence.",
                 styles["BodyCompact"],
@@ -1155,6 +1266,28 @@ def workbook_checks(path: Path) -> list[tuple[str, str, str]]:
             "No hidden columns containing report information",
             "PASS" if not hidden_material_columns else "FAIL",
             ", ".join(hidden_material_columns) or "None",
+        )
+    )
+    truncated_filters = []
+    for ws in wb.worksheets:
+        if not ws.auto_filter.ref:
+            continue
+        _, _, _, filter_last_row = range_boundaries(ws.auto_filter.ref)
+        last_data_row = max(
+            (
+                row
+                for row in range(1, ws.max_row + 1)
+                if any(ws.cell(row, col).value not in (None, "") for col in range(1, ws.max_column + 1))
+            ),
+            default=1,
+        )
+        if filter_last_row < last_data_row:
+            truncated_filters.append(f"{ws.title}:{ws.auto_filter.ref} < row {last_data_row}")
+    checks.append(
+        (
+            "Autofilters do not truncate data",
+            "PASS" if not truncated_filters else "FAIL",
+            ", ".join(truncated_filters) or "All active filters cover their data",
         )
     )
     error_cells = []
@@ -1235,17 +1368,19 @@ def conflict_rows():
         {"id": "C-01", "issue": "V7 names estimated owners and closes each tract arithmetically, while its hidden QA says no tract is documentarily closed.", "evidence": "V7 Title ending schedules; V10 PRESENT VESTING CONTROL and TITLE CHAIN QA", "treatment": "Owners retained as estimated last-located record owners. Every owner and tract total is visibly qualified.", "status": "Complete forward county/probate search through effective date."},
         {"id": "C-02", "issue": "V7 labels several leases HBP; FV warns section-level production is not lease-specific HBP proof.", "evidence": "V7 Title/OGL/Well; FV Conclusion C8; user controlling logic", "treatment": "All statuses changed to 'HBP not independently confirmed,' 'status not determined,' or assumed potentially effective.", "status": "Lease-by-lease savings-clause and production analysis."},
         {"id": "C-03", "issue": "51.25% Diversified transaction figure can be mistaken for current Section 32 WI.", "evidence": "2371/470 branch split in V7/V10; missing exhibits; LC chain", "treatment": "Shown only as a transaction branch. 48.75% OCM Denali is separate. 15.000875% is labeled arithmetic only.", "status": "Obtain complete exhibits A/B/C and excluded-asset schedules."},
-        {"id": "C-04", "issue": "Missing Tapstone/KL CHK/asset bridge and co-assignee allocation.", "evidence": "2340/403, 2340/490, 2371/470-533; LC/V10", "treatment": "No exact current WI/NRI or net leasehold acres stated.", "status": "Pull and abstract complete schedules and incorporated agreements."},
+        {"id": "C-04", "issue": "Missing Tapstone/KL CHK/asset bridge and co-assignee allocation.", "evidence": "2340/403, 2340/490, and distinct 2371/470-494, /495-513, /514-532, /533-553 instruments; LC/V10", "treatment": "The assignment, separate assignment, agreement and memorandum are not conflated; no exact current WI/NRI or net leasehold acres is stated.", "status": "Pull and abstract each instrument, schedule and incorporated agreement separately."},
         {"id": "C-05", "issue": "Modern asset schedule supports OK48147.001.1 but legal/interest fields are blank.", "evidence": "2395/462 and 2400/566 reviewed schedule pages", "treatment": "Diversified is the last claimant supported by the reviewed 2400 schedule, not a confirmed current or 640-acre/100% owner.", "status": "Read complete 2395/415-464 and 2400/551-567."},
         {"id": "C-06", "issue": "Book 1697/Page 236 versus separate 1697/Page 574 references.", "evidence": "LC backward chain; FV Runsheet; V7 chain", "treatment": "Both are kept distinct; 1697/236 is the asset-reference bridge lead and its Exhibit A is required.", "status": "Pull both complete instruments and reconcile schedules."},
         {"id": "C-07", "issue": "Crook probate and NE/4 current vesting remain incomplete.", "evidence": "845/150-157 V7 extraction; FV open requirements", "treatment": "Five 8-NMA rows carried as estimated last-located record owners; residual branches remain assumed.", "status": "Acquire complete Crook probate and forward conveyances."},
         {"id": "C-08", "issue": "SE/4 sovereign inception is only a receiver receipt; Biggs/Bigge name and patent are unresolved.", "evidence": "P-002 Image 0004; FV Runsheet", "treatment": "Velmore Biggs receiver receipt shown as earliest located evidence; no patent conclusion.", "status": "Locate certified SE/4 patent and reconcile spelling."},
-        {"id": "C-09", "issue": "Carlson well evidence conflicts across prior candidates.", "evidence": "FV official OCC/OTC synthesis includes 12H/7H/10H; V10 reports incomplete corpus crosswalk for 7H.", "treatment": "All three are retained as Section 32 regulatory leads with Latigo operator and explicit no-title/no-HBP limitation.", "status": "Reconfirm current OCC well and operator records and legal descriptions."},
+        {"id": "C-09", "issue": "Carlson well evidence conflicts across prior candidates.", "evidence": "FV official OCC/OTC synthesis includes 12H/7H/10H; V10 says zero reviewed pages establish the 7H Section 32 connection.", "treatment": "12H and 10H remain qualified regulatory leads. 7H is visibly excluded/location-unconfirmed; no Carlson row is title, allocation, or HBP proof.", "status": "Reconfirm OCC location, trajectory, operator and legal description for each API."},
         {"id": "C-10", "issue": "Google Drive and Dropbox authoritative roots were identified but connectors were unavailable in this run.", "evidence": "authoritative_source_set.md; MCP catalog check", "treatment": "Repository-preserved candidates, extracts, manifests and source backups were used; access limitation disclosed.", "status": "Independent audit against Drive folder and Dropbox /11N 25W 32."},
         {"id": "C-11", "issue": "Map in prior workbook was hidden or too small.", "evidence": "FV PLAT hidden; prior QA instruction", "treatment": "PLAT rebuilt as a visible one-page seven-tract diagram using template palette.", "status": "Confirm final Excel desktop print rendering."},
         {"id": "C-12", "issue": "The 11 historic Union/Leede lease rows overlap.", "evidence": "MT acreage reconciliation: 1,360 row acres; 560 unique; 800 overlap; 80 gap", "treatment": "No additive lease-acre or net-acre conclusion; overlap and S/2 NW/4 gap disclosed.", "status": "Map each operative modern schedule lease-by-lease."},
         {"id": "C-13", "issue": "Bk 2434/751 may convey Diversified/DP Legacy Central interests to Teocalli after the reviewed-title cutoff.", "evidence": "V10 county-index lead; recorded face and schedule unavailable", "treatment": "Diversified is described only as the last claimant supported by the reviewed 2400 schedule. Current claimant status is expressly unconfirmed.", "status": "CRITICAL — read 2434/751 first and determine whether Section 32/OK48147.001.1 is included."},
         {"id": "C-14", "issue": "Viersen OGL 332/74-75 has no lessor-mineral vesting crosswalk to the estimated NE/4 owners.", "evidence": "V10 lease-to-owner coverage audit; OGL face reviewed", "treatment": "Coverage gap is visible on OGL and Tract 1; no current leasehold conclusion is drawn.", "status": "Establish Viersen lessor vesting and reconcile it to the NE/4 title schedule."},
+        {"id": "C-15", "issue": "FV reports source-specific JGL/Carlson production into 2026, while the V10 OTC series ends 2022-08.", "evidence": "FV Well 1 source notes versus V10 current well master", "treatment": "Both source scopes are visible. Later figures are not treated as lease-specific HBP or a universal production continuation.", "status": "Pull current official OCC/OTC production by API/PUN and reconcile the datasets."},
+        {"id": "C-16", "issue": "Fee tract IDs T1-T7 differ from the five template tract-tab labels.", "evidence": "Template has five tract tabs; PLAT/Title/OGL use seven fee tracts", "treatment": "Title, PLAT and every tract-tab heading visibly explain that report tabs 1-4 consolidate fee tracts by quarter and report tab 5 is leasehold-only.", "status": "Use fee IDs T1-T7 for land references; use 'report tab' when referring to workbook tabs."},
     ]
 
 
@@ -1348,20 +1483,24 @@ def finalize():
                 "- Seven fee-tract geometry and 640 nominal gross-acre section scope.",
                 "- Historic patent/receiver-receipt inception evidence as identified.",
                 "- Historic OGL faces and listed terms for the reviewed leases.",
-                "- Diversified Production LLC as the last claimant supported by the reviewed asset schedule at Bk 2400/Pgs 551-567; current claimant status is not confirmed.",
-                "- Separate Latigo and BCE-Mach II regulatory operator contexts.",
+                "- Bk 2400/Pgs 551-567 reviewed schedule names Diversified Production LLC for asset OK48147.001.1; it does not prove current ownership.",
+                "- BCE-Mach II regulatory context and qualified Carlson 12H/10H leads; Carlson 7H is excluded/location-unconfirmed.",
                 "",
                 "ESTIMATED:",
                 "- Mineral-owner names and NMA are estimated last-located record-owner schedules; arithmetic closure is not current-title proof.",
                 "- Lease effectiveness is qualified; HBP is not independently confirmed lease-by-lease.",
                 "- Diversified branch identity is supported, but exact WI/NRI/ORRI/net leasehold acres are not calculable.",
+                "- Diversified is only the last claimant supported by a reviewed schedule; current claimant status is open.",
                 "",
                 "UNRESOLVED:",
                 "- Complete forward mineral chains, probates and current addresses.",
                 "- Tapstone/KL CHK/OCM Denali and later Diversified asset allocations.",
                 "- Bk 2434/Pg 751 assignment lead to Teocalli; if Section 32 is included, the reported Diversified branch was conveyed out.",
+                "- Countywide 2464/200, 2480/824 and 2480/903 filings; Section 32 applicability and asset effect are unverified.",
                 "- 1697/236 Exhibit A, the 1016 assignment series, and complete 2020-2026 schedules.",
                 "- SE/4 Biggs patent; depth/wellbore overlaps; payout/reversion; lease-specific HBP.",
+                "- Order 156126 pooling elections for owners without a located active OGL.",
+                "- FV 2026 well-production notes versus the V10 OTC series ending 2022-08.",
                 "- Independent parity audit against unavailable Google Drive and Dropbox authoritative roots.",
                 "",
                 "SUITABILITY:",
@@ -1397,9 +1536,13 @@ def finalize():
         "- Added estimated last-located owners, addresses, NMA and visible current-status qualifications.",
         "- Replaced unsupported HBP conclusions with lease-specific qualifications.",
         "- Kept 51.25% Diversified and 48.75% OCM Denali branches separate.",
-        "- Added the critical 2434/751 Teocalli assignment lead and three later Diversified-family filings.",
+        "- Added the critical 2434/751 Teocalli lead plus 2451/4, 2464/200, 2476/121, 2480/824 and 2480/903 filings.",
         "- Separated the 03/02/2023 mineral-title face cutoff, later index leads and well-specific 2026 production updates.",
         "- Made the Viersen lease-to-owner coverage gap visible and extended lineage/filtering across the full Runsheet.",
+        "- Added Order 156126 pooling-election warnings to owners without a located active OGL.",
+        "- Reconciled fee tract IDs T1-T7 to the five template tract tabs and corrected stale OGL numbers.",
+        "- Added V10 well locations/tract conflicts, excluded Carlson 7H, qualified Carlson 12H/10H, and exposed the production-source conflict.",
+        "- Removed truncated autofilters, filled unknown OGL fields explicitly, normalized addresses and separated the 2371 instruments.",
         "- Preserved missing Tapstone bridge and all major title/lease/depth conflicts.",
         "",
         "REMAINING QUALIFICATIONS:",

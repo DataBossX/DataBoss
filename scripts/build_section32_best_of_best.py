@@ -71,9 +71,10 @@ QUALIFICATION = (
     "applicable records."
 )
 TITLE_CURRENCY = (
-    "Record/index evidence was searched through Book 2400/Page 551 (March 2, 2023); no live county "
-    "or probate search from that date through August 6, 2026 was available. Production evidence "
-    "reviewed in the source packet ends August 2022."
+    "The recorded corpus and reviewed modern asset schedules run through Book 2400/Page 551 "
+    "(March 2, 2023); later Drive/OCR index-only evidence runs through Book 2490/Page 471. "
+    "No complete live county/probate face review through August 6, 2026 was available. "
+    "Production evidence reviewed in the V10 source packet ends August 2022."
 )
 
 SOURCES = {
@@ -168,7 +169,8 @@ def parse_v7_title() -> list[dict]:
             source_instrument = update["Source_Instrument"]
             note += (
                 f" V10 STATUS: {current_status}. Vesting/source reference: {source_instrument}. "
-                "Forward record search stops 03/02/2023; current status at 08/06/2026 is not confirmed."
+                "Complete corpus/face review stops 03/02/2023; later Drive/OCR index-only evidence "
+                "through Bk 2490/Pg 471 does not confirm current status at 08/06/2026."
             )
             is_audit_only = current_status.startswith("SUPERSEDED")
             address = update["Address_Display"] or cells[5] or "Address not located"
@@ -321,7 +323,7 @@ def build_overview(wb):
     ws._images = []
     ws["Q3"] = "32-11N-25W / Diversified / OK48147.001.1"
     ws["S48"] = datetime(2026, 8, 6)
-    ws["S50"] = "Record/index corpus through 03/02/2023; no live county continuation search thereafter"
+    ws["S50"] = "Reviewed corpus/schedules through 03/02/2023; index-only leads through Bk 2490/Pg 471"
     ws["B53"] = (
         "CONTROLLING CONCLUSION: Diversified Production LLC is the latest supported named claimant "
         "for asset OK48147.001.1 through Bk 2400/Pg 551-567 (asset line at Pg 566). The record "
@@ -657,6 +659,7 @@ def append_runsheet_items(wb, lineage):
         )
         row += 1
     ws.print_area = f"$A$1:$K${row - 1}"
+    ws.auto_filter.ref = f"A1:K{row - 1}"
     ws.freeze_panes = "A2"
     set_print(ws, ws.print_area, landscape=True)
 

@@ -4,14 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import re
 import shutil
+import subprocess
+import tempfile
+import zipfile
 from copy import copy
 from datetime import datetime, timezone
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.worksheet.pagebreak import ColBreak, RowBreak
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from reportlab.lib import colors
@@ -38,6 +43,7 @@ V7_DUMP = (
     "01_INPUT_INVENTORY/V7_WORKBOOK_DUMP.txt"
 )
 V10_ROOT = BACKUPS / "v10/_TASKS/SECTION32_V10_CLAUDE_CURRENT_DATA_RESEARCH_20260806"
+V10_OWNER_MASTER = V10_ROOT / "03_CURRENT_OWNER_RESEARCH/SECTION32_CURRENT_OWNER_MASTER.csv"
 
 MODEL = "GPT-5-6-SOL"
 REPORT_STEM = f"Section_32-11N-25W_Beckham_Co_Diversified_Cursory_Report_{MODEL}_TOURNAMENT_20260806"
@@ -64,6 +70,11 @@ QUALIFICATION = (
     "subject to verification by complete examination of the county, probate, regulatory, and other "
     "applicable records."
 )
+TITLE_CURRENCY = (
+    "Record/index evidence was searched through Book 2400/Page 551 (March 2, 2023); no live county "
+    "or probate search from that date through August 6, 2026 was available. Production evidence "
+    "reviewed in the source packet ends August 2022."
+)
 
 SOURCES = {
     "FV": "FINAL_VERIFIED workbook (2026-07-11), direct-image and official-record synthesis",
@@ -88,10 +99,20 @@ def split_markdown_row(line: str) -> list[str]:
     return [cell.strip().replace(r"\*", "*") for cell in line.strip().strip("|").split("|")]
 
 
+def v10_owner_updates() -> dict[tuple[str, str, float], dict]:
+    updates = {}
+    with V10_OWNER_MASTER.open(newline="", encoding="utf-8-sig") as handle:
+        for row in csv.DictReader(handle):
+            key = (row["Tract"].upper(), row["Displayed_Owner"], round(float(row["NMA"]), 6))
+            updates[key] = row
+    return updates
+
+
 def parse_v7_title() -> list[dict]:
     """Extract the seven fee-tract ending schedules from the preserved V7 text dump."""
     groups: list[dict] = []
     current: dict | None = None
+    owner_updates = v10_owner_updates()
     for line in V7_DUMP.read_text(encoding="utf-8").splitlines()[60:200]:
         cells = split_markdown_row(line)
         if len(cells) < 7:
@@ -130,15 +151,32 @@ def parse_v7_title() -> list[dict]:
         note = cells[6]
         if "ASSUMED:" not in note:
             note = f"EST. last located record owner; {note}"
-        note += " Current status is not confirmed through the report effective date."
+        update = owner_updates.get((current["tract"].upper(), owner, round(net_acres, 6)))
+        audit_only = False
+        if update:
+            owner = update["Recommended_Current_Display"]
+            current_status = update["Current_Status"]
+            source = update["Source_Instrument"]
+            note += (
+                f" V10 STATUS: {current_status}. Vesting/source reference: {source}. "
+                "Forward record search stops 03/02/2023; current status at 08/06/2026 is not confirmed."
+            )
+            audit_only = current_status.startswith("SUPERSEDED")
+            address = update["Address_Display"] or cells[5] or "Address not located"
+            if "historic recital" in update["Address_Type"].lower():
+                address = f"{address} (historic recital address; current address not independently confirmed)"
+        else:
+            note += " Current status is not confirmed through the report effective date."
+            address = cells[5] or "Address not located"
         current["owners"].append(
             {
                 "owner": owner,
                 "nma": net_acres,
                 "ogl": cells[3].replace("None active", "None located"),
                 "status": status,
-                "address": cells[5] or "Address not located",
+                "address": address,
                 "note": note,
+                "audit_only": audit_only,
             }
         )
     if len(groups) != 7:
@@ -184,7 +222,59 @@ def set_print(ws, area: str, *, landscape=False, fit_height=0):
     ws.page_setup.orientation = "landscape" if landscape else "portrait"
     ws.page_setup.paperSize = ws.PAPERSIZE_LETTER
     ws.sheet_view.showGridLines = False
+    ws.row_breaks = RowBreak()
+    ws.col_breaks = ColBreak()
+    ws.oddHeader.left.text = ""
+    ws.oddHeader.center.text = "Section 32-11N-25W • Diversified cursory report"
+    ws.oddHeader.right.text = ""
+    ws.evenHeader = copy(ws.oddHeader)
+    ws.firstHeader = copy(ws.oddHeader)
     ws.oddFooter.center.text = "Section 32-11N-25W • Cursory report • Not a title opinion"
+    ws.oddFooter.left.text = ""
+    ws.oddFooter.right.text = ""
+    ws.evenFooter = copy(ws.oddFooter)
+    ws.firstFooter = copy(ws.oddFooter)
+
+
+def sanitize_workbook_metadata(wb):
+    properties = wb.properties
+    properties.creator = "GPT-5.6 Sol"
+    properties.lastModifiedBy = "GPT-5.6 Sol"
+    properties.title = "Section 32-11N-25W Beckham County Diversified Cursory Report"
+    properties.subject = "Qualified cursory mineral-title and leasehold report"
+    properties.description = (
+        "Best-of-best Section 32 synthesis. Estimates and unresolved matters are visibly qualified; "
+        "this workbook is not a title opinion."
+    )
+    properties.keywords = "Section 32, Beckham County, Diversified, cursory title"
+    properties.category = "Cursory title report"
+    properties.contentStatus = "Qualified internal review"
+    properties.identifier = "OK48147.001.1"
+    properties.language = "en-US"
+    properties.version = "20260806"
+
+
+def render_full_pdf():
+    FULL_PDF.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(prefix="section32-pdf-") as output_dir:
+        subprocess.run(
+            [
+                "soffice",
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                output_dir,
+                str(REPORT_XLSX),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        rendered = Path(output_dir) / f"{REPORT_XLSX.stem}.pdf"
+        if not rendered.exists() or rendered.stat().st_size == 0:
+            raise RuntimeError("LibreOffice did not produce a non-empty full internal-review PDF")
+        shutil.move(rendered, FULL_PDF)
 
 
 def write_table_header(ws, row: int, headers: list[str], start_col=1):
@@ -219,9 +309,10 @@ def write_styled_row(
 
 def build_overview(wb):
     ws = wb["Overview"]
+    ws._images = []
     ws["Q3"] = "32-11N-25W / Diversified / OK48147.001.1"
     ws["S48"] = datetime(2026, 8, 6)
-    ws["S50"] = "County/index evidence reviewed through available 2026 continuation records"
+    ws["S50"] = "Record/index corpus through 03/02/2023; no live county continuation search thereafter"
     ws["B53"] = (
         "CONTROLLING CONCLUSION: Diversified Production LLC is the latest supported named claimant "
         "for asset OK48147.001.1 through Bk 2400/Pg 551-567 (asset line at Pg 566). The record "
@@ -231,14 +322,52 @@ def build_overview(wb):
     ws["B54"] = (
         "CURRENT-OWNER METHOD: Fee owners are shown as estimated last-located record owners from the "
         "V7 ending schedules, corrected by the V10 qualification register. No tract is documentarily "
-        "closed. HBP is not independently confirmed lease-by-lease."
+        "closed. HBP is not independently confirmed lease-by-lease. Production evidence ends 08/2022."
     )
+    for merged in list(ws.merged_cells.ranges):
+        if merged.min_row <= 41 and merged.max_row >= 10 and merged.min_col <= 36 and merged.max_col >= 2:
+            ws.unmerge_cells(str(merged))
+    for row in ws.iter_rows(min_row=10, max_row=41, min_col=2, max_col=36):
+        for cell in row:
+            cell.value = None
+            cell.fill = PatternFill(fill_type=None)
+            cell.border = Border()
+    overview_tracts = [
+        ("TRACT 2\nN/2 NW/4\n80 ac", 12, 6, 18, 17, "D9EAF7"),
+        ("TRACT 3\nS/2 NW/4\n80 ac", 19, 6, 25, 17, "E2F0D9"),
+        ("TRACT 1\nNE/4\n160 ac", 12, 18, 25, 29, "BDD7EE"),
+        ("TRACT 4\nN/2 SW/4\n80 ac", 26, 6, 32, 17, "FFF2CC"),
+        ("TRACT 5\nS/2 SW/4\n80 ac", 33, 6, 39, 17, "FCE4D6"),
+        ("TRACT 7\nW/2 SE/4\n80 ac", 26, 18, 39, 23, "E4DFEC"),
+        ("TRACT 6\nE/2 SE/4\n80 ac", 26, 24, 39, 29, "DDEBF7"),
+    ]
+    medium = Side(style="medium", color="1F4E78")
+    for label, r1, c1, r2, c2, fill in overview_tracts:
+        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+        cell = ws.cell(r1, c1, label)
+        cell.fill = PatternFill("solid", fgColor=fill)
+        cell.font = Font(name="Arial", size=11, bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        for map_row in range(r1, r2 + 1):
+            for map_col in range(c1, c2 + 1):
+                ws.cell(map_row, map_col).border = Border(
+                    left=medium if map_col == c1 else Side(),
+                    right=medium if map_col == c2 else Side(),
+                    top=medium if map_row == r1 else Side(),
+                    bottom=medium if map_row == r2 else Side(),
+                )
+    ws["AF12"] = "N ▲"
+    style_cell(ws["AF12"], bold=True, size=10, align="center")
     ws["B55"] = (
         "PRIORITY CURE: obtain complete 1697/236 Exhibit A; 2340/403 and /490 schedules; 2371/470-533; "
         "2395/415-464; 2400/551-567; the full 1016 assignment series; Crook probate 845/150-157; and "
         "the SE/4 Biggs patent. Resolve Tapstone/OCM Denali, Unbridled/MNR, Linn and Canvas/DP Ponies "
         "branches before stating a final decimal."
     )
+    ws.merge_cells("B55:AH55")
+    for row in (53, 54, 55):
+        style_cell(ws.cell(row, 2), size=8, fill="FFF2CC" if row == 55 else None)
+        ws.row_dimensions[row].height = 48
     ws["F56"] = "GPT-5.6 Sol — best-of-best tournament synthesis"
     set_print(ws, "$A$1:$AH$57", landscape=True, fit_height=1)
 
@@ -270,7 +399,9 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
             2,
         )
         row += 1
-        for owner in group["owners"]:
+        present_owners = [owner for owner in group["owners"] if not owner["audit_only"]]
+        audit_owners = [owner for owner in group["owners"] if owner["audit_only"]]
+        for owner in present_owners:
             values = [
                 owner["owner"],
                 owner["nma"],
@@ -300,13 +431,30 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
                 }
             )
             row += 1
-        total = sum(owner["nma"] for owner in group["owners"])
+        total = sum(owner["nma"] for owner in present_owners)
         ws.cell(row, 2, "ESTIMATED TRACT TOTAL")
         ws.cell(row, 3, total)
         ws.cell(row, 3).number_format = "0.000000"
         ws.cell(row, 7, "Arithmetic closure is not proof of current title.")
         for col in range(2, 8):
             style_cell(ws.cell(row, col), bold=True, size=8, fill="D9EAF7")
+        if audit_owners:
+            row += 1
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
+            ws.cell(row, 2, "SUPERSEDED / AUDIT-ONLY ROWS — EXCLUDED FROM PRESENT-OWNER SCHEDULE")
+            style_cell(ws.cell(row, 2), bold=True, size=8, fill="D9D9D9")
+            for owner in audit_owners:
+                row += 1
+                values = [
+                    owner["owner"],
+                    owner["nma"],
+                    owner["ogl"],
+                    owner["status"],
+                    owner["address"],
+                    owner["note"],
+                ]
+                write_styled_row(ws, row, values, font_size=7, height=36, start_col=2)
+                ws.cell(row, 3).number_format = "0.000000"
         row += 2
     ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
     ws.cell(row, 2, "DIVERSIFIED LEASEHOLD / WORKING-INTEREST FOCUS")
@@ -344,7 +492,7 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
         write_styled_row(ws, row, values, font_size=8, height=42, start_col=2)
     row += 2
     ws.merge_cells(start_row=row, start_column=2, end_row=row + 2, end_column=7)
-    ws.cell(row, 2, QUALIFICATION)
+    ws.cell(row, 2, f"{QUALIFICATION} {TITLE_CURRENCY}")
     style_cell(ws.cell(row, 2), bold=True, size=9, fill="FFF2CC")
     ws.row_dimensions[row].height = 52
     set_print(ws, f"$B$1:$G${row + 2}", landscape=False)
@@ -354,6 +502,7 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
 
 def build_plat(wb):
     ws = wb["PLAT"]
+    ws._images = []
     clear_values(ws, max_row=45, max_col=32)
     for col in range(1, 33):
         ws.column_dimensions[get_column_letter(col)].width = 3.3
@@ -460,6 +609,11 @@ def build_ogl(wb, lineage):
 def append_runsheet_items(wb, lineage):
     ws = wb["Runsheet"]
     existing = {str(ws.cell(row, 4).value) for row in range(2, ws.max_row + 1)}
+    last_data_row = max(
+        row
+        for row in range(1, ws.max_row + 1)
+        if any(ws.cell(row, col).value not in (None, "") for col in range(1, 12))
+    )
     additions = [
         ("1016/7", "Assignment", "Ray, Charles E.", "Leede Exploration", "Section 32; exact legal requires face", "1016 series; index lead, face not held"),
         ("1016/13", "Assignment", "Frazier, Robert H.", "Leede Exploration", "Section 32; exact legal requires face", "1016 series; index lead, face not held"),
@@ -470,7 +624,7 @@ def append_runsheet_items(wb, lineage):
         ("1016/90", "Assignment", "Leede Exploration et al.", "Enco Gas Gathering Co.", "Section 32; exact legal requires face", "1016 series; index lead, face not held"),
         ("1697/236", "Assignment", "Staghorn Resources LLC", "Chesapeake Exploration Limited Partnership", "Section 32; Exhibit A controls", "Recorded-face lead; required bridge into modern chain"),
     ]
-    row = max(ws.max_row, 103) + 1
+    row = last_data_row + 1
     seq = max(
         (ws.cell(r, 1).value for r in range(2, ws.max_row + 1) if isinstance(ws.cell(r, 1).value, int)),
         default=0,
@@ -612,7 +766,9 @@ def build_tracts(wb, groups, lineage):
             style_cell(ws.cell(row, 1), bold=True, size=9, fill="5B9BD5", color="FFFFFF")
             row += 1
             write_table_header(ws, row, ["Owner", "EST. NMA", "OGL", "Status", "Address", "Vesting Basis / Note", "Current Limitation", "Source"])
-            for owner in data["owners"]:
+            present_owners = [owner for owner in data["owners"] if not owner["audit_only"]]
+            audit_owners = [owner for owner in data["owners"] if owner["audit_only"]]
+            for owner in present_owners:
                 row += 1
                 values = [
                     owner["owner"],
@@ -626,6 +782,25 @@ def build_tracts(wb, groups, lineage):
                 ]
                 write_styled_row(ws, row, values, font_size=7, height=38)
                 ws.cell(row, 2).number_format = "0.000000"
+            if audit_owners:
+                row += 1
+                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+                ws.cell(row, 1, "SUPERSEDED / AUDIT-ONLY — NOT A PRESENT OWNER")
+                style_cell(ws.cell(row, 1), bold=True, size=8, fill="D9D9D9")
+                for owner in audit_owners:
+                    row += 1
+                    values = [
+                        owner["owner"],
+                        owner["nma"],
+                        owner["ogl"],
+                        owner["status"],
+                        owner["address"],
+                        owner["note"],
+                        "Excluded from present-owner schedule",
+                        "V7 audit row; V10 correction",
+                    ]
+                    write_styled_row(ws, row, values, font_size=7, height=38)
+                    ws.cell(row, 2).number_format = "0.000000"
         row += 2
         ws.merge_cells(start_row=row, start_column=1, end_row=row + 1, end_column=8)
         ws.cell(row, 1, QUALIFICATION)
@@ -903,8 +1078,39 @@ def workbook_checks(path: Path) -> list[tuple[str, str, str]]:
     error_cells = []
     external_formulas = []
     stale_tokens = []
-    donor_tokens = ["Section 27", "Roger Mills County", "Kunu", "Greenhead", "Aztek", "Phillips 66"]
+    donor_tokens = [
+        "Section 27",
+        "Roger Mills County",
+        "Kunu",
+        "Greenhead",
+        "Aztek",
+        "Phillips 66",
+        "New Horizon Energy",
+        "405-203-8570",
+    ]
+    with zipfile.ZipFile(path) as archive:
+        core_metadata = archive.read("docProps/core.xml").decode("utf-8", errors="replace")
+    metadata_donor_tokens = [token for token in donor_tokens if token.lower() in core_metadata.lower()]
     for ws in wb.worksheets:
+        header_footer_text = " ".join(
+            str(part.text or "")
+            for part in (
+                ws.oddHeader.left,
+                ws.oddHeader.center,
+                ws.oddHeader.right,
+                ws.evenHeader.left,
+                ws.evenHeader.center,
+                ws.evenHeader.right,
+                ws.firstHeader.left,
+                ws.firstHeader.center,
+                ws.firstHeader.right,
+                ws.oddFooter.left,
+                ws.oddFooter.center,
+                ws.oddFooter.right,
+            )
+        )
+        if any(token.lower() in header_footer_text.lower() for token in donor_tokens):
+            stale_tokens.append(f"{ws.title}:header/footer")
         for row in ws.iter_rows():
             for cell in row:
                 value = cell.value
@@ -918,6 +1124,13 @@ def workbook_checks(path: Path) -> list[tuple[str, str, str]]:
     checks.append(("No formula/error tokens", "PASS" if not error_cells else "FAIL", ", ".join(error_cells[:10]) or "None"))
     checks.append(("No external-link formulas", "PASS" if not external_formulas and not wb._external_links else "FAIL", ", ".join(external_formulas[:10]) or "None"))
     checks.append(("No identified donor tokens", "PASS" if not stale_tokens else "FAIL", ", ".join(stale_tokens[:10]) or "None"))
+    checks.append(
+        (
+            "No donor metadata in docProps/core.xml",
+            "PASS" if not metadata_donor_tokens else "FAIL",
+            ", ".join(metadata_donor_tokens) or "Metadata sanitized",
+        )
+    )
     bad_names = [name.name for name in wb.defined_names.values() if "#REF!" in (getattr(name, "attr_text", "") or "")]
     checks.append(("Defined names valid", "PASS" if not bad_names else "FAIL", ", ".join(bad_names) or "No broken names"))
     no_print = [ws.title for ws in wb.worksheets if not ws.print_area]
@@ -1006,10 +1219,12 @@ def build():
     build_wi(wb, lineage)
     update_wells(wb, lineage)
     remove_external_links_and_bad_names(wb)
+    sanitize_workbook_metadata(wb)
     for ws in wb.worksheets:
         ws.sheet_state = "visible"
     wb.save(REPORT_XLSX)
     build_lineage(lineage, conflicts)
+    render_full_pdf()
     build_boss_pdf()
     checks = workbook_checks(REPORT_XLSX)
     build_qa_pdf(checks, conflicts)

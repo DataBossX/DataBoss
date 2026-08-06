@@ -103,9 +103,18 @@ def v10_owner_updates() -> dict[tuple[str, str, float], dict]:
     updates = {}
     with V10_OWNER_MASTER.open(newline="", encoding="utf-8-sig") as handle:
         for row in csv.DictReader(handle):
-            key = (row["Tract"].upper(), row["Displayed_Owner"], round(float(row["NMA"]), 6))
+            tract = row["Tract"].upper()
+            owner = row["Displayed_Owner"]
+            net_acres = round(float(row["NMA"]), 6)
+            key = (tract, owner, net_acres)
             updates[key] = row
     return updates
+
+
+def partition_owner_rows(owners: list[dict]) -> tuple[list[dict], list[dict]]:
+    present_owners = [owner for owner in owners if not owner["audit_only"]]
+    audit_owners = [owner for owner in owners if owner["audit_only"]]
+    return present_owners, audit_owners
 
 
 def parse_v7_title() -> list[dict]:
@@ -152,16 +161,16 @@ def parse_v7_title() -> list[dict]:
         if "ASSUMED:" not in note:
             note = f"EST. last located record owner; {note}"
         update = owner_updates.get((current["tract"].upper(), owner, round(net_acres, 6)))
-        audit_only = False
+        is_audit_only = False
         if update:
             owner = update["Recommended_Current_Display"]
             current_status = update["Current_Status"]
-            source = update["Source_Instrument"]
+            source_instrument = update["Source_Instrument"]
             note += (
-                f" V10 STATUS: {current_status}. Vesting/source reference: {source}. "
+                f" V10 STATUS: {current_status}. Vesting/source reference: {source_instrument}. "
                 "Forward record search stops 03/02/2023; current status at 08/06/2026 is not confirmed."
             )
-            audit_only = current_status.startswith("SUPERSEDED")
+            is_audit_only = current_status.startswith("SUPERSEDED")
             address = update["Address_Display"] or cells[5] or "Address not located"
             if "historic recital" in update["Address_Type"].lower():
                 address = f"{address} (historic recital address; current address not independently confirmed)"
@@ -176,7 +185,7 @@ def parse_v7_title() -> list[dict]:
                 "status": status,
                 "address": address,
                 "note": note,
-                "audit_only": audit_only,
+                "audit_only": is_audit_only,
             }
         )
     if len(groups) != 7:
@@ -213,7 +222,7 @@ def clear_values(ws, min_row=1, max_row=None, min_col=1, max_col=None):
             cell.comment = None
 
 
-def set_print(ws, area: str, *, landscape=False, fit_height=0):
+def set_print(ws, area: str, *, landscape=False, fit_height=0) -> None:
     ws.print_area = area
     ws.sheet_state = "visible"
     ws.sheet_properties.pageSetUpPr.fitToPage = True
@@ -236,7 +245,7 @@ def set_print(ws, area: str, *, landscape=False, fit_height=0):
     ws.firstFooter = copy(ws.oddFooter)
 
 
-def sanitize_workbook_metadata(wb):
+def sanitize_workbook_metadata(wb) -> None:
     properties = wb.properties
     properties.creator = "GPT-5.6 Sol"
     properties.lastModifiedBy = "GPT-5.6 Sol"
@@ -254,7 +263,7 @@ def sanitize_workbook_metadata(wb):
     properties.version = "20260806"
 
 
-def render_full_pdf():
+def render_full_pdf() -> None:
     FULL_PDF.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix="section32-pdf-") as output_dir:
         subprocess.run(
@@ -271,10 +280,10 @@ def render_full_pdf():
             capture_output=True,
             text=True,
         )
-        rendered = Path(output_dir) / f"{REPORT_XLSX.stem}.pdf"
-        if not rendered.exists() or rendered.stat().st_size == 0:
+        rendered_pdf = Path(output_dir) / f"{REPORT_XLSX.stem}.pdf"
+        if not rendered_pdf.exists() or rendered_pdf.stat().st_size == 0:
             raise RuntimeError("LibreOffice did not produce a non-empty full internal-review PDF")
-        shutil.move(rendered, FULL_PDF)
+        shutil.move(rendered_pdf, FULL_PDF)
 
 
 def write_table_header(ws, row: int, headers: list[str], start_col=1):
@@ -399,8 +408,7 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
             2,
         )
         row += 1
-        present_owners = [owner for owner in group["owners"] if not owner["audit_only"]]
-        audit_owners = [owner for owner in group["owners"] if owner["audit_only"]]
+        present_owners, audit_owners = partition_owner_rows(group["owners"])
         for owner in present_owners:
             values = [
                 owner["owner"],
@@ -766,8 +774,7 @@ def build_tracts(wb, groups, lineage):
             style_cell(ws.cell(row, 1), bold=True, size=9, fill="5B9BD5", color="FFFFFF")
             row += 1
             write_table_header(ws, row, ["Owner", "EST. NMA", "OGL", "Status", "Address", "Vesting Basis / Note", "Current Limitation", "Source"])
-            present_owners = [owner for owner in data["owners"] if not owner["audit_only"]]
-            audit_owners = [owner for owner in data["owners"] if owner["audit_only"]]
+            present_owners, audit_owners = partition_owner_rows(data["owners"])
             for owner in present_owners:
                 row += 1
                 values = [
@@ -1068,6 +1075,24 @@ def build_boss_pdf():
     doc.build(story)
 
 
+def worksheet_header_footer_text(ws) -> str:
+    parts = (
+        ws.oddHeader.left,
+        ws.oddHeader.center,
+        ws.oddHeader.right,
+        ws.evenHeader.left,
+        ws.evenHeader.center,
+        ws.evenHeader.right,
+        ws.firstHeader.left,
+        ws.firstHeader.center,
+        ws.firstHeader.right,
+        ws.oddFooter.left,
+        ws.oddFooter.center,
+        ws.oddFooter.right,
+    )
+    return " ".join(str(part.text or "") for part in parts)
+
+
 def workbook_checks(path: Path) -> list[tuple[str, str, str]]:
     wb = load_workbook(path, data_only=False)
     checks: list[tuple[str, str, str]] = []
@@ -1092,23 +1117,7 @@ def workbook_checks(path: Path) -> list[tuple[str, str, str]]:
         core_metadata = archive.read("docProps/core.xml").decode("utf-8", errors="replace")
     metadata_donor_tokens = [token for token in donor_tokens if token.lower() in core_metadata.lower()]
     for ws in wb.worksheets:
-        header_footer_text = " ".join(
-            str(part.text or "")
-            for part in (
-                ws.oddHeader.left,
-                ws.oddHeader.center,
-                ws.oddHeader.right,
-                ws.evenHeader.left,
-                ws.evenHeader.center,
-                ws.evenHeader.right,
-                ws.firstHeader.left,
-                ws.firstHeader.center,
-                ws.firstHeader.right,
-                ws.oddFooter.left,
-                ws.oddFooter.center,
-                ws.oddFooter.right,
-            )
-        )
+        header_footer_text = worksheet_header_footer_text(ws)
         if any(token.lower() in header_footer_text.lower() for token in donor_tokens):
             stale_tokens.append(f"{ws.title}:header/footer")
         for row in ws.iter_rows():

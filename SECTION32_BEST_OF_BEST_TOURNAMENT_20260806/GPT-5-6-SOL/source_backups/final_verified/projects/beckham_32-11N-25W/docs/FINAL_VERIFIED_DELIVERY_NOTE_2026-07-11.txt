@@ -1,0 +1,63 @@
+SECTION 32-11N-25W, BECKHAM COUNTY, OKLAHOMA
+DIVERSIFIED CURSORY TITLE REPORT - FINAL VERIFIED BUILD
+Build date: 2026-07-11 (cloud session)
+
+DELIVERABLE
+  32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_FINAL_VERIFIED_2026-07-11.xlsx
+  SHA-256: 253137847290aef5148aadd6da2d1ff665153fd288736fcfe07e7503471b7053
+  Size: 654,243 bytes | 13 template sheets, exact order, PLAT hidden, plat/parcel images intact
+
+WHERE THE FILE IS
+  The workbook binary is committed to GitHub (the cloud session cannot push a
+  650 KB binary through the Drive connector in one call):
+  Repo: DataBossX/DataBoss, branch claude/kimi-section31-qa-audit-5lccqy
+  Path: beckham32/final_delivery/32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_FINAL_VERIFIED_2026-07-11.xlsx
+  Download it and drop it into this folder; verify the SHA-256 above matches.
+
+WHAT WAS BUILT (all additions transcribed from the visually-verified evidence
+register and the official OCC order PDF; nothing invented):
+  - Runsheet expanded 46 -> 93 chronological rows: the complete historic
+    Crook/Hunt lease 66032-21-1 branch (Hartman ORRI 376/287; Hunt allocation
+    407/676; GAEC 25% 430/416 with duplicate 440/269 flagged; GAEC formula ORRI
+    431/674; FNB Dallas lien family 423/238-335 with amendments through
+    568/191; DAE-II 546/68; Hassie Hunt 568/26; Petro-Hunt/Rosewood 678/777;
+    ENI/Quinoco 792/51 and 792/72; OCC Order 156126) plus modern branch fill
+    (Fortune/FourPoint, BP/Ellipse 2327/1+108, Latigo lien family, Teocalli
+    2401/214, MNR/UMB 2415/410-617, JPM releases, Canvas/DP Ponies 2475/943-
+    2476/130, 2480/903, 2487/28, post-cutoff 2490/469 and 2490/471) and the
+    seven 2011-2012 index-gap-fill records.
+  - OGL sheet: root lease 66032-21-1 (Minton-Hartman, 341/538) added as
+    OGL #12, RECITED tier, executed copy flagged OPEN.
+  - Title sheet: C9 (verified OCC formation-specific order stack; Order 156126
+    executed 8/6/1979) and C10 (historic branch fully abstracted; burdens
+    carried) added; Requirement 11 updated for the closed continuation.
+  - Well 1: verified production (JGL 4/2026 = 2,367 MCF; Carlson 12H 5/2026 =
+    2,113 MCF), Crook Latigo-to-Complete transfer 12/3/2025, verified MU
+    orders, Carlson 12H/7H/10H rows - regulatory context only.
+  - Overview: continuation through 7/9/2026, index defect (logical p.48
+    missing / p.54 triplicated), tax-roll duplicate (identical SHA-256),
+    verified order stack.
+
+QA (all gates PASS)
+  Prior-project residue (Section 27 / 15N-24W / 448.333333 / 377.53845154 /
+  2237-381 / 2572-490 / 2610-574 / Roger Mills / Cherokee / Presidio): 0 hits
+  Negative values: 0 | Formula errors: 0 | External links: 0
+  Sheet structure: identical to Template (13 sheets, PLAT hidden)
+
+FINAL ANSWERS
+  Exact Diversified decimal established: NO (correctly withheld - the
+    controlling post-1988 schedules and exhibits are unreviewed)
+  Current vested entity established: NO (three separate Diversified-related
+    portfolios carried: Tapstone/Sooner, Unbridled/Maverick, Canvas/DP Ponies)
+  Direct-image cutoff: Bk 1014/75, recorded 04/26/1988
+  Index certification: 2026-07-01; continuation closed through 2026-07-09;
+    last entry Bk 2490/471-473 (WD, recorded 2026-07-07)
+  Directly reviewed instruments: historic branch via images 0001-4893
+    (visually verified rows) + official OCC Order 156126 PDF read this session
+  Index-only instruments: every post-4/26/1988 row, stamped on its face
+  QA: PASS
+
+NEXT EXACT ACTION
+  Approve the $8.80 / 22-instrument Tier 1 OKCountyRecords queue, pull every
+  exhibit and schedule, populate tract/WI decimals only from those reviewed
+  instruments, and rerun the continuation on 7/17/2026 before delivery to Dan.

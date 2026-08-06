@@ -1,0 +1,35 @@
+09_FACE_READS — EMPTY BY NECESSITY
+
+No instrument face was read from an image during this session.
+
+The Google Drive image corpus Images_Archives_0001-4893
+(folder id 1Q3ZmwoPLWZbm-xC3jYUrFVShMipP4Svs, 4,893 title images) was located and
+listed but not paged. The two Beckham County index volumes in Drive
+(Protocoled Index.pdf, 101,161,176 bytes; Blank Index.pdf, 99,971,473 bytes)
+exceed what could be retrieved and rendered in this session.
+
+Every face-read citation appearing in this research packet is therefore CARRIED
+FORWARD from the V7 workbook's own annotations, not independently re-read here.
+Where the V7 workbook says "Recorded face reviewed" this packet repeats that
+claim as a workbook assertion, not as an independent verification.
+
+The face reads that matter most, in priority order:
+
+  1. Book 2434/751  — Assignment, Diversified Production LLC + DP Legacy Central
+                      LLC to Teocalli Exploration LLC. Determines whether
+                      Diversified still holds the asset at the effective date.
+  2. Book 2451/4, 2476/121, 2480/824 — remaining post-cutoff Diversified filings.
+  3. Book 341/538   — OGL 4, never face-reviewed, displayed as retained/active.
+  4. Book 340/323   — OGL 5, never face-reviewed, displayed as HBP depth-limited.
+  5. Book 352/719 and 352/721 — OGL 6 and OGL 7, lessor names themselves estimated.
+  6. Book 376/369   — OGL 8, never face-reviewed.
+  7. Book 267/638   — competing out-conveyance that would defeat OGL 8 and the
+                      Great Western 10 NMA Title row.
+  8. Book 63/33 img 0353 — OGL 1 term, royalty and filing date never extracted.
+  9. Book 845/47    — the 1/8 ORRI reservation flagged EST.* and never confirmed.
+ 10. Image 1794     — grantee name of the F. L. Randel 1.5-acre deed, currently
+                      carried as an unnamed "Grantee of the F. L. Randel deed" row.
+
+These should be executed from an authorized workstation with Drive image access
+or Beckham County Clerk access, and the results recorded in this folder before
+any Title, OGL or WI conclusion in the V10 report is treated as face-supported.

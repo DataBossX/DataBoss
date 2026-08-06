@@ -512,6 +512,10 @@ def build_plat(wb):
     ws = wb["PLAT"]
     ws._images = []
     clear_values(ws, max_row=45, max_col=32)
+    for row in ws.iter_rows(min_row=1, max_row=45, min_col=1, max_col=32):
+        for cell in row:
+            cell.fill = PatternFill(fill_type=None)
+            cell.border = Border()
     for col in range(1, 33):
         ws.column_dimensions[get_column_letter(col)].width = 3.3
     for row in range(1, 41):
@@ -614,6 +618,9 @@ def build_ogl(wb, lineage):
     last_row = len(leases) + 1
     ws.auto_filter.ref = f"A1:AB{last_row}"
     set_print(ws, f"$A$1:$AB${last_row}", landscape=True)
+    # Preserve all template columns but allow a two-page-wide internal render;
+    # squeezing 28 substantive columns onto one letter page is not reviewable.
+    ws.page_setup.fitToWidth = 2
 
 
 def append_runsheet_items(wb, lineage):
@@ -955,7 +962,11 @@ def build_lineage(lineage: list[dict], conflicts: list[dict]):
             cell.alignment = Alignment(vertical="top", wrap_text=True)
 
     ws3 = wb.create_sheet("Component Selection")
-    write_table_header(ws3, 1, ["Champion Component", "Winning Candidate", "Why Selected", "Merged Additions"])
+    write_table_header(
+        ws3,
+        1,
+        ["Champion Component", "Contestant Supplier", "Winning Candidate Inputs", "Why Selected", "Merged Additions"],
+    )
     selections = [
         ["Overview", "FV + V10", "FV has template parity and strongest controlling qualification", "Effective date, estimated-owner method and cure list from V10"],
         ["PLAT", "V7 geometry rebuilt in FV style", "Seven fee tracts cover the section and are readable at one-page scale", "Leasehold-overlay warning from MT/LC"],
@@ -969,8 +980,8 @@ def build_lineage(lineage: list[dict], conflicts: list[dict]):
         ["Well 1", "FV", "Strongest official OCC/OTC reconciliation", "V10 conflict and HBP limitation retained"],
     ]
     for row in selections:
-        ws3.append(row)
-    for col, width in enumerate([24, 30, 70, 70], 1):
+        ws3.append([row[0], MODEL, *row[1:]])
+    for col, width in enumerate([24, 24, 35, 70, 70], 1):
         ws3.column_dimensions[get_column_letter(col)].width = width
     for row in ws3.iter_rows(min_row=2):
         for cell in row:

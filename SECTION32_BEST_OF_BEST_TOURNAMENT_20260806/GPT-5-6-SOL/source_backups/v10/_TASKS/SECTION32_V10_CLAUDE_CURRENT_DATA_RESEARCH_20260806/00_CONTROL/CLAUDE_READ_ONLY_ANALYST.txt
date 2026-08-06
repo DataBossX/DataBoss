@@ -1,0 +1,89 @@
+CLAUDE CODE — READ-ONLY ANALYST CONTROL RECORD
+Section 32, T11N, R25W, Beckham County, Oklahoma
+Diversified Production LLC — Asset OK48147.001.1 — Effective 08/05/2026
+Status: FOR REVIEW — HOLD, NO EXTERNAL RELEASE
+
+ROLE
+READ-ONLY ANALYST. Evidence researcher only. Not the workbook writer.
+
+EXECUTION IDENTITY
+PID:        9039
+Hostname:   vm
+User:       root
+Platform:   Linux 6.18.5-fc-v18 x86_64
+Start time: 2026-08-06T09:46:13Z (UTC)
+Model:      claude-opus-5 (Claude Code, remote cloud container)
+
+WORKSPACE PATH DEVIATION — MATERIAL, DISCLOSED
+The task specified C:\DataBoss\_TASKS\SECTION32_V10_CLAUDE_CURRENT_DATA_RESEARCH_20260806\.
+This session does NOT run on the Windows workstation. It runs in an ephemeral
+Linux container (no C: or D: drive, no drive mounts, no Dropbox client, no Excel,
+no LibreOffice). The required folder tree was therefore created at:
+  /home/user/DataBoss/_TASKS/SECTION32_V10_CLAUDE_CURRENT_DATA_RESEARCH_20260806/
+All twelve required subfolders exist there. Cursor Control must relocate this
+packet to the Windows path before use.
+
+SOURCE LOCATIONS SEARCHED
+1. /home/user/DataBoss  (GitHub DataBossX/DataBoss, branch claude/section32-v10-current-data-w0hnr6)
+   - projects/OK-BECKHAM-32-11N-25W/project_manifest.json          (git 4b39726)
+   - projects/OK-BECKHAM-32-11N-25W/authoritative_source_set.md    (git 82c189b)
+   - projects/OK-BECKHAM-32-11N-25W/verified_gap_list.md           (git f496cc2)
+   - horizon/controlled_loop.py, horizon/CONTROLLED_LOOP.md
+   - git log --all, git ls-remote --heads origin (18 Section 32 / Beckham branches)
+   RESULT: governance and manifest material only. NO workbook, NO PDF, NO county
+   image, NO index, NO receipt is tracked in this repository. Client evidence was
+   deliberately removed from the public repo (commits ad02fde, 5aba3eb, and branch
+   security/sanitize-public-beckham-example-20260722).
+2. Filesystem-wide sweep for *.xlsx / *.xlsm across all mounted volumes — ZERO hits.
+   /mnt/attach empty; /mnt/user-data/working empty; no /mnt/c; no removable media.
+3. Google Drive (MCP connector, account ryangille02@aol.com) — REACHABLE.
+   - Project source folder 1WiB-VquRfVjbDdyxfvL66hDxYfuC2AJO (Index, Section Notes,
+     Plat Map, Tax Roll, Images_Archives_0001-4893, drive_command_center,
+     SOURCE_PACKAGE_SHA256SUMS.txt, MASTER TITLE ABSTRACT sheet)
+   - Root and working folders 0APmjo072BS3FUk9PVA, 1MC3FzIljRpC06aedpMa6WCjAxot6rF5m,
+     1WOWq1o_73_G8VzgYUjFpC0EE2kuEyvyD, 17JbTaRJC5hQk8JhhFTXvCWJ5KACTi7jF,
+     1HMP383dO5fMB6hvyxcBsizWJ2nWOSi_A, 1eYGzDORl36490YbvmlqS4zMb50Zm4dtX
+   - 30+ Section 32 workbook candidates, receipts, QA PDFs, adjudication docs.
+4. Dropbox source root "/11N 25W 32" — NOT REACHABLE. No Dropbox connector is
+   attached to this session and no Dropbox client exists in this container.
+
+EGRESS / CURRENT-DATA CAPABILITY — HARD BLOCKER
+Outbound HTTPS is denied by this environment's network policy for ALL hosts.
+Verified 2026-08-06:
+  curl https://example.com            -> CONNECT tunnel failed, response 403
+  curl https://okcountyrecords.com    -> CONNECT tunnel failed, response 403
+  WebFetch https://okcountyrecords.com/search/beckham            -> HTTP 403
+  WebFetch https://oklahoma.gov/occ/divisions/oil-and-gas.html   -> HTTP 403
+  WebFetch https://gisdata-occokc.opendata.arcgis.com/           -> HTTP 403
+  WebFetch https://www.deeds.com/recorder/oklahoma/beckham/      -> HTTP 403
+  Proxy status: enabled, selective=false, recentRelayFailures=[]
+Per /root/.ccr/README.md, 403 from the proxy is an organization policy denial and
+must be reported, not retried or bypassed. TLS verification was never disabled and
+HTTPS_PROXY was never unset.
+
+CONSEQUENCE: Evidence tiers 1, 2, 3, 4, 6 and 7 could NOT be exercised live.
+No Beckham County Clerk index or image, no OCC order or RBDMS record, no OTC
+production series, no Oklahoma Secretary of State record, no SEC or company
+filing was retrieved during this session. Every "current" fact in this packet is
+therefore carried from held project evidence with its own capture date stated, or
+is marked NOT FOUND / CURATIVE REQUIRED.
+
+WRITE ACTIVITY — CONFIRMATION OF NO XLSX MODIFICATION
+No XLSX, XLSM, XLTX or ODS file was created, edited, recalculated, saved,
+converted, renamed, moved, overwritten, uploaded or deleted by this session.
+No Excel COM, LibreOffice, openpyxl, pandas, xlsxwriter, pyexcel, or ZIP/XML
+part-replacement operation was performed. No Google Sheet was written.
+Google Drive was accessed with read-only calls only (search_files,
+get_file_metadata, read_file_content, download_file_content). No Drive
+create_file, copy_file or permission call was made.
+Files written by this session are confined to the twelve research subfolders
+listed above and are plain text, CSV and Markdown only.
+
+LINEAGE HASH RECONCILIATION — FAILED, SEE INPUT LEDGER
+Neither declared control file was located in any reachable source:
+  V7 lineage control     expected c04f49bd...d22e6900, 726,715 bytes  -> NOT LOCATED
+  Newest visual donor    expected 5166b700...0f29265c419a, 548,120 bytes -> NOT LOCATED
+The V7 receipt held in Drive declares a DIFFERENT V7 artifact:
+  Section_32-11N-25W_..._BACKWARDS_TITLE_V7.xlsx
+  a0bff0eb205e0c8d152f36aaddb738fe6dc0604f01189f772359041fa6f28fe9, 551,877 bytes
+This is an unreconciled lineage conflict and is logged as UNRESOLVED-01.

@@ -1,0 +1,37 @@
+{
+  "workbook": "32-11N-25W_Beckham_Co_Diversified_Cursory_Title_Report_BEST_AVAILABLE_2026-07-10.xlsx",
+  "sha256": "30894717755CC6A0354A46D26E5A130F728D08CE53DE4347A4B5001805A1913D",
+  "bytes": 714753,
+  "internal_qa": {
+    "passed": true,
+    "sheet_count": 13,
+    "sheet_order_ok": true,
+    "defined_names": 0,
+    "external_links": 0,
+    "formula_cells": 12,
+    "formula_error_tokens": 0,
+    "stale_term_hits": 0,
+    "runsheet_hyperlinks": 34,
+    "missing_required_instrument_tokens": 0,
+    "direct_image_corrections_present": true
+  },
+  "native_excel": {
+    "open_calculate_save_close_reopen": "PASS",
+    "calculation_state": "complete",
+    "formula_error_cells": 0,
+    "external_links_reported": 0
+  },
+  "visual_html": {
+    "Overview": {"measured_text_overflow_cells": 0},
+    "Title": {"measured_text_overflow_cells": 0},
+    "Runsheet": {"measured_text_overflow_cells": 0},
+    "OGL": {"measured_text_overflow_cells": 0},
+    "Tract 5": {"measured_text_overflow_cells": 0},
+    "Well 1": {"measured_text_overflow_cells": 0}
+  },
+  "limitations": [
+    "No printer driver was available, so no final PDF export was produced.",
+    "Static tract/WI matrices intentionally replace unsupported present-ownership calculations.",
+    "This QA validates workbook mechanics and source-limited presentation; it does not cure missing operative title instruments or schedules."
+  ]
+}

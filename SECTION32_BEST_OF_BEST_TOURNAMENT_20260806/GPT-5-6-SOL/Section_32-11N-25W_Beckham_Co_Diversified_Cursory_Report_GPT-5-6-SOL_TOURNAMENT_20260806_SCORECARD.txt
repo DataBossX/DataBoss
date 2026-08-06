@@ -1,0 +1,16 @@
+SECTION 32 BEST-OF-BEST CONTESTANT SCORECARD
+Model: GPT-5-6-SOL
+Overall: 91.2/100
+
+Section 32 factual completeness: 91/100
+Current-owner completeness: 82/100
+Lease completeness: 91/100
+Assignment-chain completeness: 88/100
+Calculation quality: 93/100
+Template visual parity: 90/100
+Transparency of assumptions: 98/100
+Client usefulness: 92/100
+Technical workbook integrity: 96/100
+
+Primary deduction: exact present mineral vesting and Diversified WI/NRI remain source-limited.
+Release posture: suitable for qualified cursory client review; not a full title opinion.

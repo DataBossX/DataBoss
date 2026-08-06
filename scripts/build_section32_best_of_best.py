@@ -1046,6 +1046,7 @@ def update_wells(wb, lineage):
         )
     ws.auto_filter.ref = f"A2:Q{ws.max_row}"
     set_print(ws, f"$A$1:$Q${ws.max_row}", landscape=True)
+    ws.page_setup.fitToWidth = 2
     ws.freeze_panes = "A3"
 
 

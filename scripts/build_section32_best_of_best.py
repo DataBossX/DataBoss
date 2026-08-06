@@ -325,8 +325,9 @@ def build_overview(wb):
     ws["B53"] = (
         "CONTROLLING CONCLUSION: Diversified Production LLC is the latest supported named claimant "
         "for asset OK48147.001.1 through Bk 2400/Pg 551-567 (asset line at Pg 566). The record "
-        "supports a material Section 32 leasehold branch, but not an exact current WI, NRI, ORRI, "
-        "net leasehold acreage, or mineral ownership decimal. Post-cutoff Bk 2434/Pg 751 names "
+        "supports a record-derived claimant identity and an interest of undetermined estate and quantum, "
+        "but not an exact current WI, NRI, ORRI, net leasehold acreage, or mineral ownership decimal. "
+        "Post-cutoff Bk 2434/Pg 751 names "
         "Diversified/DP Legacy Central as assignor to Teocalli; its unread schedule may affect this asset."
     )
     ws["B54"] = (
@@ -1024,8 +1025,9 @@ def build_boss_pdf():
         Paragraph(
             "Diversified Production LLC is the latest supported named claimant for asset OK48147.001.1 "
             "through Book 2400, Pages 551-567 (asset line at Page 566), subject to the unread schedule "
-            "in the later Teocalli assignment at Book 2434, Page 751. The evidence supports a material "
-            "Section 32 leasehold branch but does not support an exact current WI, NRI, ORRI, net leasehold "
+            "in the later Teocalli assignment at Book 2434, Page 751. The evidence supports a record-derived "
+            "claimant identity and an interest of undetermined estate and quantum, but not an exact current "
+            "WI, NRI, ORRI, net leasehold "
             "acreage, or mineral ownership decimal.",
             styles["BodyCompact"],
         ),

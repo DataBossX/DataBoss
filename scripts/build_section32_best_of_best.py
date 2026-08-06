@@ -683,7 +683,7 @@ def tract_chain_data(groups):
             "owners": owner_summary["NE/4"],
             "chain": [
                 ["PAT", "P-001 / Img 0003", "Patent 3/469", "1907-03-22 / rec. 1907-06-08", "United States", "Cornelius B. Cornelius", "Sovereign inception; no mineral reservation apparent", "98%"],
-                ["WD", "V7 direct-face register", "Roger Mills 11/214", "1907-07-16 / rec. 1907-07-18", "Cornelius and Margreta Cornelius", "Jacob Bollenbach", "NE/4 fee; no reservation apparent", "98%"],
+                ["WD", "V7 direct-face register", "Roger Mills Co. 11/214 (pre-Beckham record)", "1907-07-16 / rec. 1907-07-18", "Cornelius and Margreta Cornelius", "Jacob Bollenbach", "Section 32 NE/4 fee; no reservation apparent", "98%"],
                 ["WD", "V7 direct-face register", "10/255", "1910-01-31", "Jacob Bollenbach", "Adolf Bollenbach", "Fee to Adolf; downstream chain incomplete", "High"],
                 ["DECR", "V7 probate extraction", "83/259", "Date not extracted", "Estate of Ellen W. Crook", "Thirteen heirs", "Collective mineral vesting; allocations require decree", "High"],
                 ["DECR", "V7 probate extraction", "845/150-157", "1985-10-23", "Crook estates", "C.B. Crook Jr.; Hanks; Lenderman; Bryan; Higgenbotham", "Five 8-NMA estimated last-located interests", "High quantum / current status open"],

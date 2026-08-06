@@ -326,7 +326,8 @@ def build_overview(wb):
         "CONTROLLING CONCLUSION: Diversified Production LLC is the latest supported named claimant "
         "for asset OK48147.001.1 through Bk 2400/Pg 551-567 (asset line at Pg 566). The record "
         "supports a material Section 32 leasehold branch, but not an exact current WI, NRI, ORRI, "
-        "net leasehold acreage, or mineral ownership decimal."
+        "net leasehold acreage, or mineral ownership decimal. Post-cutoff Bk 2434/Pg 751 names "
+        "Diversified/DP Legacy Central as assignor to Teocalli; its unread schedule may affect this asset."
     )
     ws["B54"] = (
         "CURRENT-OWNER METHOD: Fee owners are shown as estimated last-located record owners from the "
@@ -475,8 +476,8 @@ def build_title(wb, groups: list[dict], lineage: list[dict]):
             "51.25% transaction branch",
             "OK48147.001.1 / base OGL not conclusively identified",
             "Identity supported; current WI/NRI not proved",
-            "1600 Corporate Drive, Birmingham, Alabama 35242",
-            "Latest supported named claimant through Bk 2400/Pg 551-567; do not use 51.25% as current Section 32 WI.",
+            "1600 Corporate Drive, Birmingham, Alabama 35242 (current address not independently confirmed)",
+            "Latest supported named claimant through Bk 2400/Pg 551-567, subject to unread Teocalli schedule at Bk 2434/Pg 751; do not use 51.25% as current Section 32 WI.",
         ],
         [
             "OCM Denali Holdings LLC",
@@ -834,8 +835,9 @@ def build_wi(wb, lineage):
         [4, "2371/470-494", "KL CHK SPV LLC", "Diversified Production LLC; OCM Denali", "51.25% / 48.75% transaction branches", "Exhibits control", "Keep branches separate", "Not current Section 32 WI"],
         [5, "2389/500-580", "Diversified/DP merger parties", "DP Legacy Tapstone LLC", "Unquantified", "Corporate succession", "Merger path", "Certificate and schedules absent"],
         [6, "2395/415-464", "DP Legacy Tapstone LLC", "Diversified ABS VI Upstream; DP Sooner HoldCo", "Allocation not shown", "OK48147.001.1 at 2395/462", "Asset identity supported", "Estate/depth/quantum blank"],
-        [7, "2400/551-567", "DP Sooner HoldCo LLC", "Diversified Production LLC", "Allocation not shown", "OK48147.001.1 at 2400/566", "Latest supported named claimant", "Later filings and exact quantum open"],
-        [8, "2451/4-23; 2476/121", "Diversified/DP entities", "Public / same group", "Not a proven transfer", "Corporate filings", "Later context only", "Read complete instruments"],
+        [7, "2400/551-567", "DP Sooner HoldCo LLC", "Diversified Production LLC", "Allocation not shown", "OK48147.001.1 at 2400/566", "Latest supported named claimant through search cutoff", "Later filings and exact quantum open"],
+        [8, "2434/751", "Diversified/DP Legacy Central", "Teocalli", "Schedule unread", "Asset/legal schedule controls", "Potential post-cutoff divestiture; Section 32 effect unknown", "Read complete assignment and schedule before calling Diversified current"],
+        [9, "2451/4-23; 2476/121", "Diversified/DP entities", "Public / same group", "Not a proven transfer", "Corporate filings", "Later context only", "Read complete instruments"],
     ]
     for row_index, values in enumerate(rows, 5):
         write_styled_row(wi1, row_index, values, font_size=8, height=43)
@@ -843,7 +845,7 @@ def build_wi(wb, lineage):
     summary_row = 15
     write_table_header(wi1, summary_row, ["Item", "Value", "Use", "Status", "Address", "Supporting Reference", "Limitation", "Result"])
     summaries = [
-        ["Diversified transaction branch", "51.25%", "Identity/branch context only", "Supported on acquired branch", "1600 Corporate Drive, Birmingham, AL 35242", "2371/470-494", "Missing exhibits and later allocation", "Do not report as current WI"],
+        ["Diversified transaction branch", "51.25%", "Identity/branch context only", "Supported on acquired branch", "1600 Corporate Drive, Birmingham, AL 35242 (current address unconfirmed)", "2371/470-494", "Missing exhibits, 2434/751 schedule and later allocation", "Do not report as current WI"],
         ["OCM Denali parallel branch", "48.75%", "Separate claimant", "Not Diversified", "No address of record located", "2371/470-514", "Missing exhibits", "Keep separate"],
         ["Arithmetic product", "15.000875%", "29.27% × 51.25%", "Arithmetic only", "N/A", "V7 WI summary", "No established 8/8 baseline", "Not WI/NRI/ORRI/NMA"],
         ["Current WI/NRI", "Not calculable", "Cursory conclusion", "Open", "N/A", "2395/462; 2400/566", "Missing A/B/C and excluded-asset schedules", "Qualified estimate only"],
@@ -1021,7 +1023,8 @@ def build_boss_pdf():
         Paragraph("Bottom line", styles["Section"]),
         Paragraph(
             "Diversified Production LLC is the latest supported named claimant for asset OK48147.001.1 "
-            "through Book 2400, Pages 551-567 (asset line at Page 566). The evidence supports a material "
+            "through Book 2400, Pages 551-567 (asset line at Page 566), subject to the unread schedule "
+            "in the later Teocalli assignment at Book 2434, Page 751. The evidence supports a material "
             "Section 32 leasehold branch but does not support an exact current WI, NRI, ORRI, net leasehold "
             "acreage, or mineral ownership decimal.",
             styles["BodyCompact"],
@@ -1057,7 +1060,8 @@ def build_boss_pdf():
             Paragraph("Priority unresolved items", styles["Section"]),
             Paragraph(
                 "Complete 1697/236 Exhibit A; 2340/403 and 2340/490 schedules; 2371/470-533; 2395/415-464; "
-                "2400/551-567; the 1016 assignment series; Crook probate 845/150-157; the SE/4 Biggs patent; "
+                "2400/551-567; the 2434/751 Teocalli schedule; the 1016 assignment series; Crook probate "
+                "845/150-157; the SE/4 Biggs patent; "
                 "and lease-specific production/savings-clause evidence.",
                 styles["BodyCompact"],
             ),
@@ -1187,6 +1191,7 @@ def conflict_rows():
         {"id": "C-10", "issue": "Google Drive and Dropbox authoritative roots were identified but connectors were unavailable in this run.", "evidence": "authoritative_source_set.md; MCP catalog check", "treatment": "Repository-preserved candidates, extracts, manifests and source backups were used; access limitation disclosed.", "status": "Independent audit against Drive folder and Dropbox /11N 25W 32."},
         {"id": "C-11", "issue": "Map in prior workbook was hidden or too small.", "evidence": "FV PLAT hidden; prior QA instruction", "treatment": "PLAT rebuilt as a visible one-page seven-tract diagram using template palette.", "status": "Confirm final Excel desktop print rendering."},
         {"id": "C-12", "issue": "The 11 historic Union/Leede lease rows overlap.", "evidence": "MT acreage reconciliation: 1,360 row acres; 560 unique; 800 overlap; 80 gap", "treatment": "No additive lease-acre or net-acre conclusion; overlap and S/2 NW/4 gap disclosed.", "status": "Map each operative modern schedule lease-by-lease."},
+        {"id": "C-13", "issue": "Post-cutoff Bk 2434/Pg 751 assigns assets from Diversified/DP Legacy Central to Teocalli, but its schedule is unread.", "evidence": "V10 current-WI master; post-03/02/2023 index metadata", "treatment": "Diversified is described only as the latest supported named claimant through Bk 2400/Pg 551-567, subject to this potential later divestiture.", "status": "Read the complete 2434/751 assignment and determine whether Section 32 or OK48147.001.1 is included."},
     ]
 
 
@@ -1277,7 +1282,7 @@ def finalize():
                 "- Seven fee-tract geometry and 640 nominal gross-acre section scope.",
                 "- Historic patent/receiver-receipt inception evidence as identified.",
                 "- Historic OGL faces and listed terms for the reviewed leases.",
-                "- Diversified Production LLC as latest supported named claimant for asset OK48147.001.1 through Bk 2400/Pgs 551-567.",
+                "- Diversified Production LLC as latest supported named claimant for asset OK48147.001.1 through Bk 2400/Pgs 551-567, subject to unread later schedules.",
                 "- Separate Latigo and BCE-Mach II regulatory operator contexts.",
                 "",
                 "ESTIMATED:",
@@ -1288,6 +1293,7 @@ def finalize():
                 "UNRESOLVED:",
                 "- Complete forward mineral chains, probates and current addresses.",
                 "- Tapstone/KL CHK/OCM Denali and later Diversified asset allocations.",
+                "- Bk 2434/Pg 751 Teocalli assignment schedule; it may include Section 32 or OK48147.001.1.",
                 "- 1697/236 Exhibit A, the 1016 assignment series, and complete 2020-2026 schedules.",
                 "- SE/4 Biggs patent; depth/wellbore overlaps; payout/reversion; lease-specific HBP.",
                 "- Independent parity audit against unavailable Google Drive and Dropbox authoritative roots.",

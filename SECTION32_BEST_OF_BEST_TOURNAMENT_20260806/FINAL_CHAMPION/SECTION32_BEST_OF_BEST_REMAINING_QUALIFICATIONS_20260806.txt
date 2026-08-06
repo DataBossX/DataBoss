@@ -4,7 +4,7 @@ SUPPORTED:
 - Seven fee-tract geometry and 640 nominal gross-acre section scope.
 - Historic patent/receiver-receipt inception evidence as identified.
 - Historic OGL faces and listed terms for the reviewed leases.
-- Diversified Production LLC as latest supported named claimant for asset OK48147.001.1 through Bk 2400/Pgs 551-567.
+- Diversified Production LLC as the last claimant supported by the reviewed asset schedule at Bk 2400/Pgs 551-567; current claimant status is not confirmed.
 - Separate Latigo and BCE-Mach II regulatory operator contexts.
 
 ESTIMATED:
@@ -15,6 +15,7 @@ ESTIMATED:
 UNRESOLVED:
 - Complete forward mineral chains, probates and current addresses.
 - Tapstone/KL CHK/OCM Denali and later Diversified asset allocations.
+- Bk 2434/Pg 751 assignment lead to Teocalli; if Section 32 is included, the reported Diversified branch was conveyed out.
 - 1697/236 Exhibit A, the 1016 assignment series, and complete 2020-2026 schedules.
 - SE/4 Biggs patent; depth/wellbore overlaps; payout/reversion; lease-specific HBP.
 - Independent parity audit against unavailable Google Drive and Dropbox authoritative roots.

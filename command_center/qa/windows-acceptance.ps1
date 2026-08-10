@@ -206,7 +206,14 @@ Add-Result "6. Second START reuses exactly one verified server" `
 # ---------------------------------------------------------------------
 # 11 (setup): launch an unrelated python sleeper we must never touch
 # ---------------------------------------------------------------------
-$sleeperArgs = @($pyBaseArgs + @("-c", "import time; time.sleep(1200)"))
+# Start-Process -ArgumentList joins array elements with plain spaces
+# rather than auto-quoting elements that contain spaces themselves (that
+# richer quoting only happens with .NET's ProcessStartInfo.ArgumentList,
+# not here) -- an unquoted "-c" script argument gets split at its own
+# internal spaces by the OS command-line parser, so Python only ever saw
+# the code as "import" (a SyntaxError, silently swallowed by the hidden
+# console this used to run in). Quote the script argument explicitly.
+$sleeperArgs = @($pyBaseArgs + @("-c", '"import time; time.sleep(1200)"'))
 # -NoNewWindow (inherit this console) instead of -WindowStyle Hidden: a
 # HIDDEN window is still a real, newly allocated console, and Windows
 # delivers console-lifecycle events (Ctrl+Close etc.) to everything

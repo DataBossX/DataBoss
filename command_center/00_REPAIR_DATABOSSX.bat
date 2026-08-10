@@ -92,7 +92,9 @@ if exist "!RUNTIME_DIR!\databossx.db" (
 echo.
 if "!REPAIR_RC!"=="1" (
     echo [SAFETY REFUSAL] See message above -- a live, unowned process was left untouched.
-) else (
-    echo Repair complete. Run 00_START_DATABOSSX.bat next.
+    if "%NONINTERACTIVE%"=="0" pause
+    exit /b 1
 )
+
+echo Repair complete. Run 00_START_DATABOSSX.bat next.
 if "%NONINTERACTIVE%"=="0" pause

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from discovery import EVIDENCE_HINTS, WORKING_SUBDIR, _walk_shallow
+from discovery import DEFAULT_ROOTS, EVIDENCE_HINTS, WORKING_SUBDIR, _walk_shallow
 
 DANGEROUS_KEYWORDS = (
     "delete", "rm -rf", "format", "overwrite_source", "send_email",
@@ -23,6 +23,42 @@ DANGEROUS_KEYWORDS = (
 
 class ActionRefused(Exception):
     """Raised when an action would violate a hard safety boundary."""
+
+
+def authorize_project_dir(project_path: str, lane: str) -> Path:
+    """The only gate every action's project_path must pass through.
+
+    Resolves symlinks/junctions and requires the result to land strictly
+    inside the configured root for the *given* lane, as a direct child of
+    that root (i.e. an actually-discovered project folder, not the root
+    itself and not some deeper/escaped path). This blocks path traversal
+    ('..'), symlink/reparse-point escapes, and lane/root mismatches --
+    a caller cannot point an action at an arbitrary directory just by
+    supplying it as project_path.
+    """
+    if lane not in DEFAULT_ROOTS:
+        raise ActionRefused(
+            f"Lane '{lane}' has no configured project root; refusing filesystem action."
+        )
+    if not project_path:
+        raise ActionRefused("project_path is required.")
+    root = Path(DEFAULT_ROOTS[lane]).resolve(strict=False)
+    candidate = Path(project_path).resolve(strict=False)
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise ActionRefused(
+            f"Refusing: '{project_path}' is not inside the configured {lane} root ({root})."
+        )
+    if candidate == root:
+        raise ActionRefused("Refusing to run a project action directly on the lane root.")
+    if candidate.parent != root:
+        raise ActionRefused(
+            "Refusing: project_path must be a direct child of the lane root, not a nested or escaped path."
+        )
+    if not candidate.is_dir():
+        raise ActionRefused(f"Project path does not exist or is not a directory: {project_path}")
+    return candidate
 
 
 @dataclass
@@ -262,10 +298,25 @@ def is_dangerous(task_key: str, inputs: dict) -> bool:
     return any(kw in haystack for kw in DANGEROUS_KEYWORDS)
 
 
-def run_action(task_key: str, inputs: dict) -> ActionResult:
+def run_action(task_key: str, inputs: dict, lane: str, setup_confirmed: bool = True) -> ActionResult:
+    """Entry point every caller (HTTP handler, tests) must go through.
+
+    lane is required and is used to authorize project_path against the
+    matching configured root -- callers cannot substitute a different
+    lane's root or an arbitrary directory. setup_confirmed gates any
+    action that writes to disk until the operator has confirmed the
+    configured roots via /api/setup.
+    """
     if task_key not in REGISTRY:
         raise ActionRefused(f"Unknown action '{task_key}'. Refusing to execute arbitrary commands.")
     if is_dangerous(task_key, inputs):
         raise ActionRefused(f"Action '{task_key}' matched a hard-stop safety rule and was refused.")
     spec = REGISTRY[task_key]
-    return spec.runner(inputs)
+    if spec.write_scope != "none" and not setup_confirmed:
+        raise ActionRefused(
+            f"Action '{task_key}' writes to disk and is refused until local setup is confirmed "
+            "via /api/setup -- review the configured read/write roots first."
+        )
+    authorized_dir = authorize_project_dir(inputs.get("project_path"), lane)
+    safe_inputs = {**inputs, "project_path": str(authorized_dir)}
+    return spec.runner(safe_inputs)

@@ -105,7 +105,31 @@ async function loadWorkers() {
   return owned;
 }
 
+const WRITE_ACTIONS = new Set(["build_worklist"]);
+
+async function loadSetup() {
+  const setup = await api("/api/setup");
+  const banner = $("#setupBanner");
+  if (setup.setup_confirmed) {
+    banner.classList.add("hidden");
+  } else {
+    banner.classList.remove("hidden");
+    $("#setupBody").textContent =
+      `Configured read roots: ${JSON.stringify(setup.read_roots)}\n` +
+      `Every write lands only inside: ${setup.write_root_pattern}\n` +
+      `${setup.note}`;
+  }
+  return setup.setup_confirmed;
+}
+
+$("#setupConfirmBtn").addEventListener("click", async () => {
+  await api("/api/setup/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  showToast("Setup confirmed -- write actions enabled.");
+  loadState();
+});
+
 async function loadState() {
+  const setupConfirmed = await loadSetup();
   const state = await api("/api/state");
   const move = state.next_best_move;
   $("#heroMove").textContent = move.project
@@ -132,6 +156,10 @@ async function loadState() {
   pill.className = "pill " + (state.local_model.available ? "ok" : "warn");
 
   document.querySelectorAll(".card-actions button").forEach((btn) => {
+    if (WRITE_ACTIONS.has(btn.dataset.action) && !setupConfirmed) {
+      btn.disabled = true;
+      btn.title = "Confirm local setup above before running write actions.";
+    }
     btn.addEventListener("click", () => runAction(btn));
   });
 }

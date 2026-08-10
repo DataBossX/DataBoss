@@ -32,6 +32,15 @@ Override with environment variables if your layout differs:
 - `DATABOSSX_PORT` (defaults to `8765`)
 - `DATABOSSX_LOCAL_MODEL_URL` (defaults to `http://127.0.0.1:11434`, Ollama's default)
 
+## First run / safe setup gate
+
+The first time you open the app, a banner shows the exact configured read
+roots and the write pattern (`<project>/_DataBossX_Working`). Any action
+that writes to disk (currently just Build Worklist) is refused with a
+clear reason until you click "Confirm Roots & Enable Write Actions" (or
+`POST /api/setup/confirm`). Read-only actions (scan/inspect/find missing
+evidence/QA) work immediately -- only writes are gated.
+
 ## What's real right now
 
 - **Discovery**: metadata-only scan (names, sizes, mtimes) of every
@@ -40,6 +49,15 @@ Override with environment variables if your layout differs:
   Build Worklist / Run QA / Open Best Candidate all execute for real
   against whatever is on disk. Every write lands only inside a project's
   own `_DataBossX_Working` subfolder -- source files are never touched.
+- **Path authorization**: every action's `project_path` must resolve
+  (symlinks/junctions included) to a direct child of the *matching*
+  lane's configured root -- traversal (`..`), lane/root mismatches, and
+  symlink escapes are refused before any code touches the filesystem.
+- **Single authoritative process identity**: the server itself writes
+  `runtime/databossx.lock` (its own PID) and `runtime/port.txt` (its
+  actual bound port) on startup. The Windows launchers read those files
+  rather than guessing a port or matching process names -- `00_STOP`
+  verifies the PID is alive *and* is a python process before touching it.
 - **Next Best Move**: a deterministic scoring pass (see `next_move.py`)
   picks the highest-value action, no model call required.
 - **AI router**: `ai_router.py` implements the deterministic -> local ->

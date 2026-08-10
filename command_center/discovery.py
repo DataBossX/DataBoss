@@ -9,11 +9,40 @@ import time
 from pathlib import Path
 
 # Roots are configurable via env vars so this runs identically on Ryan's
-# Windows box (C:\DataBoss\...) and in a dev/test sandbox.
-DEFAULT_ROOTS = {
-    "penterra": os.environ.get("DATABOSSX_PENTERRA_ROOT", r"C:\DataBoss\Penterra"),
-    "horizon": os.environ.get("DATABOSSX_HORIZON_ROOT", r"C:\DataBoss\Horizon"),
+# Windows box (C:\DataBoss\...) and in a dev/test sandbox. Read live (not
+# frozen at import time) so tests can point at a scratch directory and
+# authorization checks always see the current configuration.
+_ROOT_ENV_DEFAULTS = {
+    "penterra": ("DATABOSSX_PENTERRA_ROOT", r"C:\DataBoss\Penterra"),
+    "horizon": ("DATABOSSX_HORIZON_ROOT", r"C:\DataBoss\Horizon"),
 }
+
+
+def get_roots() -> dict:
+    return {lane: os.environ.get(var, default) for lane, (var, default) in _ROOT_ENV_DEFAULTS.items()}
+
+
+class _LiveRoots:
+    """Dict-like view so existing `DEFAULT_ROOTS[...]` / `in` callers keep
+    working while always reflecting the current environment."""
+
+    def __getitem__(self, key):
+        return get_roots()[key]
+
+    def __contains__(self, key):
+        return key in get_roots()
+
+    def __iter__(self):
+        return iter(get_roots())
+
+    def items(self):
+        return get_roots().items()
+
+    def keys(self):
+        return get_roots().keys()
+
+
+DEFAULT_ROOTS = _LiveRoots()
 
 EVIDENCE_HINTS = (
     "runsheet", "abstract", "report", "deed", "title", "lease",

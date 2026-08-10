@@ -104,6 +104,14 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             return {}
 
+    def _log_internal_error(self, exc: Exception) -> str:
+        """Full traceback goes to the server's own stdout/log only. The
+        browser gets a bounded message plus an ID to correlate against
+        runtime\\server.log -- never a stack trace or local path dump."""
+        error_id = str(uuid.uuid4())[:8]
+        print(f"[error {error_id}] {exc}\n{traceback.format_exc()}", file=sys.stderr)
+        return error_id
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -126,10 +134,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_receipts()
             elif path == "/api/workers":
                 self._handle_workers()
+            elif path == "/api/setup":
+                self._handle_get_setup()
             else:
                 self._send_json({"error": "not found"}, 404)
         except Exception as exc:  # noqa: broad-except - never crash the loop
-            self._send_json({"error": str(exc), "trace": traceback.format_exc()}, 500)
+            error_id = self._log_internal_error(exc)
+            self._send_json({"error": "internal_error", "error_id": error_id}, 500)
 
     def do_POST(self):
         parsed = urlparse(self.path)
@@ -144,12 +155,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_set_mode(body)
             elif path == "/api/discover":
                 self._send_json({"lanes": _discover_and_cache()})
+            elif path == "/api/setup/confirm":
+                self._handle_confirm_setup(body)
             else:
                 self._send_json({"error": "not found"}, 404)
         except actions.ActionRefused as refused:
             self._send_json({"ok": False, "refused": True, "reason": str(refused)}, 403)
         except Exception as exc:  # noqa: broad-except
-            self._send_json({"error": str(exc), "trace": traceback.format_exc()}, 500)
+            error_id = self._log_internal_error(exc)
+            self._send_json({"error": "internal_error", "error_id": error_id}, 500)
 
     # ------------------------------------------------------------------
     def _handle_state(self):
@@ -172,6 +186,7 @@ class Handler(BaseHTTPRequestHandler):
             "lanes": lanes,
             "next_best_move": move,
             "ai_mode": mode,
+            "setup_confirmed": bool(db.get_setting(conn, "setup_confirmed", False)),
             "local_model": local_model,
             "recent_receipts": recent_receipts,
             "active_jobs": active_jobs,
@@ -199,15 +214,41 @@ class Handler(BaseHTTPRequestHandler):
             "observed": workers.list_observed_processes(),
         })
 
+    def _handle_get_setup(self):
+        conn = get_conn()
+        confirmed = db.get_setting(conn, "setup_confirmed", False)
+        self._send_json({
+            "setup_confirmed": bool(confirmed),
+            "read_roots": dict(discovery.DEFAULT_ROOTS),
+            "write_root_pattern": "<project>/" + discovery.WORKING_SUBDIR,
+            "note": (
+                "Read-only actions work before confirmation. Any action that "
+                "writes to disk (e.g. Build Worklist) is refused until you "
+                "confirm these roots are correct via POST /api/setup/confirm."
+            ),
+        })
+
+    def _handle_confirm_setup(self, body: dict):
+        conn = get_conn()
+        db.set_setting(conn, "setup_confirmed", True)
+        self._send_json({"ok": True, "setup_confirmed": True})
+
     def _handle_run_action(self, body: dict):
         task_key = body.get("task")
         project_path = body.get("project_path")
-        lane = body.get("lane", "any")
+        lane = body.get("lane")
         project = body.get("project", "")
         if not task_key or not project_path:
             self._send_json({"ok": False, "error": "task and project_path are required"}, 400)
             return
+        if lane not in discovery.DEFAULT_ROOTS:
+            self._send_json({
+                "ok": False, "refused": True,
+                "reason": f"lane must be one of {sorted(discovery.DEFAULT_ROOTS)}; got {lane!r}",
+            }, 403)
+            return
         conn = get_conn()
+        setup_confirmed = bool(db.get_setting(conn, "setup_confirmed", False))
         job_id = str(uuid.uuid4())
         now = time.strftime("%Y-%m-%dT%H:%M:%S")
         spec = actions.REGISTRY.get(task_key)
@@ -219,7 +260,10 @@ class Handler(BaseHTTPRequestHandler):
         )
         conn.commit()
         try:
-            result = actions.run_action(task_key, {"project_path": project_path, **body.get("inputs", {})})
+            result = actions.run_action(
+                task_key, {"project_path": project_path, **body.get("inputs", {})},
+                lane=lane, setup_confirmed=setup_confirmed,
+            )
         except actions.ActionRefused:
             conn.execute("UPDATE jobs SET status='refused', ended_at=? WHERE id=?", (now, job_id))
             conn.commit()
@@ -230,7 +274,8 @@ class Handler(BaseHTTPRequestHandler):
                 (time.strftime("%Y-%m-%dT%H:%M:%S"), str(exc), job_id),
             )
             conn.commit()
-            self._send_json({"ok": False, "error": str(exc)}, 500)
+            error_id = self._log_internal_error(exc)
+            self._send_json({"ok": False, "error": "internal_error", "error_id": error_id}, 500)
             return
         ended = time.strftime("%Y-%m-%dT%H:%M:%S")
         conn.execute(
@@ -311,6 +356,11 @@ def main():
     lock_path = _acquire_single_instance_lock()
     get_conn()  # init DB eagerly so startup errors surface immediately
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    # Authoritative port record for launchers -- the .bat scripts must never
+    # guess/hard-code a port, since find_free_port() may have moved on from
+    # the preferred one.
+    port_path = DB_PATH.parent / "port.txt"
+    port_path.write_text(str(port))
     print(f"DataBossX Command Center running at http://127.0.0.1:{port}")
     try:
         server.serve_forever()
@@ -319,6 +369,7 @@ def main():
     finally:
         server.server_close()
         lock_path.unlink(missing_ok=True)
+        port_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

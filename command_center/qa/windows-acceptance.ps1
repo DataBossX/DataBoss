@@ -62,8 +62,18 @@ function Invoke-Launcher {
     $tag = "$($BatName -replace '\.bat$','')-$($script:LauncherCallIndex)"
     $outLog = Join-Path $script:LogDir "$tag.out.log"
     $errLog = Join-Path $script:LogDir "$tag.err.log"
+    # Pass $Root as a plain array element -- Start-Process's own argument
+    # encoding already quotes it correctly if it contains spaces. Manually
+    # wrapping it in literal `"..."` characters here (as this used to do)
+    # embeds extra quote characters into the argument's actual VALUE. For
+    # a .bat target, Start-Process launches it through the .bat file
+    # association's own "cmd /c ""%1" %*" template, and those extra
+    # embedded quotes desync that template's quote counting badly enough
+    # that %~dp0 inside the launched script resolves to nonsense (it was
+    # observed picking up the parent directory of $Root instead of the
+    # batch file's own directory) -- not just a bad argument value.
     $p = Start-Process -FilePath (Join-Path $RepoRoot $BatName) `
-        -ArgumentList "--sandbox-root", "`"$Root`"" -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden `
+        -ArgumentList "--sandbox-root", $Root -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden `
         -RedirectStandardOutput $outLog -RedirectStandardError $errLog
     $p.WaitForExit()
     $outTail = if (Test-Path $outLog) { Get-Content $outLog -Raw } else { "" }

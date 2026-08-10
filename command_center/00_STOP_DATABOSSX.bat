@@ -2,46 +2,75 @@
 setlocal enabledelayedexpansion
 title DataBossX Command Center - Stop
 cd /d "%~dp0"
+
+set "SANDBOX_MODE=0"
+set "SANDBOX_ROOT="
+:parse_args
+if "%~1"=="" goto args_done
+if /I "%~1"=="--sandbox" (
+    set "SANDBOX_MODE=1"
+    shift
+    goto parse_args
+)
+if /I "%~1"=="--sandbox-root" (
+    set "SANDBOX_MODE=1"
+    set "SANDBOX_ROOT=%~2"
+    shift
+    shift
+    goto parse_args
+)
+shift
+goto parse_args
+:args_done
+
+set "NONINTERACTIVE=0"
+if /I "%DATABOSSX_NONINTERACTIVE%"=="1" set "NONINTERACTIVE=1"
+
+if "%SANDBOX_MODE%"=="1" (
+    if "%SANDBOX_ROOT%"=="" set "SANDBOX_ROOT=%LOCALAPPDATA%\DataBossX\FirstRunSandbox"
+    set "RUNTIME_DIR=!SANDBOX_ROOT!\runtime"
+) else (
+    set "RUNTIME_DIR=%~dp0runtime"
+)
+
 echo Stopping DataBossX Command Center...
 
-rem Identity comes ONLY from runtime\databossx.lock -- the PID the server
-rem itself wrote at startup. We never guess by process name; a Python
-rem process that happens to be running something else is left alone.
-if not exist "%~dp0runtime\databossx.lock" (
-    echo No lock file found -- no DataBossX Command Center server appears to be running.
-    pause
-    exit /b 0
+set "PY_CMD="
+where py >nul 2>nul
+if !ERRORLEVEL!==0 (
+    py -3 --version >nul 2>nul
+    if !ERRORLEVEL!==0 set "PY_CMD=py -3"
 )
-
-set /p PID=<"%~dp0runtime\databossx.lock"
-
-rem Verify the PID is actually alive AND is a python process before touching it.
-set IS_PYTHON=0
-for /f "tokens=1" %%n in ('tasklist /FI "PID eq %PID%" /FO CSV /NH 2^>nul') do (
-    echo %%n | findstr /i "python" >nul && set IS_PYTHON=1
+if "!PY_CMD!"=="" (
+    where python >nul 2>nul
+    if !ERRORLEVEL!==0 (
+        python --version >nul 2>nul
+        if !ERRORLEVEL!==0 set "PY_CMD=python"
+    )
 )
-
-tasklist /FI "PID eq %PID%" 2>nul | findstr /r "%PID%" >nul
-if %ERRORLEVEL% neq 0 (
-    echo Lock file points at PID %PID%, but that process is not running ^(stale lock^).
-    del "%~dp0runtime\databossx.lock" >nul 2>nul
-    if exist "%~dp0runtime\port.txt" del "%~dp0runtime\port.txt" >nul 2>nul
-    echo Cleared stale lock. Nothing to stop.
-    pause
-    exit /b 0
-)
-
-if "%IS_PYTHON%"=="0" (
-    echo [SAFETY] PID %PID% is running but is NOT a python.exe/pythonw.exe process.
-    echo Refusing to kill it -- this would not be our server. Investigate manually.
-    pause
+if "!PY_CMD!"=="" (
+    echo [ERROR] No working Python interpreter found on PATH.
+    if "%NONINTERACTIVE%"=="0" pause
     exit /b 1
 )
 
-echo Stopping PID %PID% ^(verified python process^)...
-taskkill /PID %PID% /F >nul 2>nul
+rem Identity comes ONLY from the shared identity_cli.py validator -- the
+rem same one START/REPAIR/DIAGNOSTICS and the server's own single-instance
+rem lock use. It only ever terminates a PID whose creation time,
+rem executable, server path, and runtime dir all match our own receipt --
+rem never a bare PID or "looks like python.exe" match.
+!PY_CMD! "%~dp0identity_cli.py" --runtime-dir "!RUNTIME_DIR!" stop > "!RUNTIME_DIR!\_stop_result.json" 2>nul
+set "STOP_RC=!ERRORLEVEL!"
+type "!RUNTIME_DIR!\_stop_result.json" 2>nul
+del "!RUNTIME_DIR!\_stop_result.json" >nul 2>nul
 
-del "%~dp0runtime\databossx.lock" >nul 2>nul
-if exist "%~dp0runtime\port.txt" del "%~dp0runtime\port.txt" >nul 2>nul
+if "!STOP_RC!"=="1" (
+    echo.
+    echo [SAFETY REFUSAL] See message above -- no process was touched.
+    if "%NONINTERACTIVE%"=="0" pause
+    exit /b 1
+)
+
+echo.
 echo Done.
-pause
+if "%NONINTERACTIVE%"=="0" pause

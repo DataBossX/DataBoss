@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to main content</a>
 <header class="topbar">
   <div class="brand">
     <!-- Approved DataBossX mark, copied from website/public/favicon.svg.
@@ -17,6 +18,7 @@
     <span class="brand-text">DATA BOSS X<span class="brand-sub">Command Center</span></span>
   </div>
   <div class="topbar-right">
+    <label class="visually-hidden" for="modeSelect">AI routing mode</label>
     <select id="modeSelect" class="mode-select" title="AI routing mode">
       <option value="LOCAL_ONLY">LOCAL ONLY</option>
       <option value="SAVE_CREDITS" selected>SAVE CREDITS</option>
@@ -29,17 +31,20 @@
 </header>
 
 <main id="main">
-  <section class="setup-banner hidden" id="setupBanner">
+  <h1 class="page-heading">DataBossX Command Center</h1>
+  <div id="sandboxBanner" class="sandbox-banner hidden" role="status" aria-live="polite"></div>
+  <section class="setup-banner hidden" id="setupBanner" role="status" aria-live="polite">
     <div class="setup-title">LOCAL SETUP NOT CONFIRMED</div>
     <div class="setup-body" id="setupBody"></div>
     <button class="primary-btn" id="setupConfirmBtn" type="button">CONFIRM ROOTS &amp; ENABLE WRITE ACTIONS</button>
   </section>
 
   <section class="command-bar">
+    <label class="visually-hidden" for="commandInput">Command input</label>
     <input id="commandInput" type="text" placeholder="Tell DataBossX what you want done...">
     <button id="commandBtn" type="button">Interpret</button>
   </section>
-  <div id="commandResult" class="command-result hidden"></div>
+  <div id="commandResult" class="command-result hidden" role="status" aria-live="polite"></div>
 
   <section class="hero">
     <div class="hero-question">WHAT SHOULD I DO RIGHT NOW?</div>
@@ -79,7 +84,7 @@
   </section>
 </main>
 
-<div id="toast" class="toast hidden"></div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 <script src="/static/app.js"></script>
 </body>
 </html>

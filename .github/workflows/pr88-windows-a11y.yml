@@ -1,0 +1,102 @@
+name: PR88 Command Center - Windows & Accessibility Evidence
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "command_center/**"
+      - ".github/workflows/pr88-windows-a11y.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-acceptance:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Command Center unit + identity tests (Windows, real interpreter)
+        working-directory: command_center
+        run: python -m unittest tests.test_command_center tests.test_identity -v
+
+      - name: command_center pytest suite (Windows)
+        run: python -m pip install --upgrade pip pytest && python -m pytest command_center
+
+      - name: Real-Windows launcher acceptance (PowerShell)
+        shell: pwsh
+        run: |
+          $env:RUNNER_TEMP = "${{ runner.temp }}"
+          ./command_center/qa/windows-acceptance.ps1 -RepoRoot "${{ github.workspace }}\command_center"
+
+      - name: Upload Windows acceptance receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-acceptance-receipts
+          path: |
+            ${{ runner.temp }}/DataBossX_PR88/receipts/windows-acceptance.json
+            ${{ runner.temp }}/DataBossX_PR88/receipts/windows-acceptance.md
+          if-no-files-found: warn
+
+      - name: Upload sandbox server logs (no client data -- synthetic sandbox only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-sandbox-server-logs
+          path: |
+            ${{ runner.temp }}/DataBossX_PR88/runtime/server.log
+            ${{ runner.temp }}/DataBossX_PR88/sandbox2/runtime/server.log
+          if-no-files-found: ignore
+
+  viewport-a11y-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install QA dependencies
+        working-directory: command_center/qa
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: command_center/qa
+        run: npx playwright install --with-deps chromium
+
+      - name: Run viewport + axe-core evidence suite against the real server
+        working-directory: command_center/qa
+        run: ./run-qa.sh
+
+      - name: Upload full screenshot set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr88-viewport-screenshots
+          path: command_center/qa/artifacts/screenshots
+          if-no-files-found: warn
+
+      - name: Upload axe-core JSON results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr88-axe-results
+          path: command_center/qa/artifacts/axe
+          if-no-files-found: warn

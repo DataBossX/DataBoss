@@ -21,12 +21,16 @@ import actions
 import ai_router
 import db
 import discovery
+import identity
 import next_move
 import workers
 
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 DB_PATH = Path(os.environ.get("DATABOSSX_DB_PATH", str(BASE_DIR / "runtime" / "databossx.db")))
+SERVER_PATH = Path(__file__).resolve()
+
+_IDENTITY = None
 
 _conn = None
 _conn_lock = threading.Lock()
@@ -125,7 +129,7 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/static/logo.svg":
                 self._send_file(STATIC_DIR / "logo.svg", "image/svg+xml")
             elif path == "/api/health":
-                self._send_json({"status": "ok", "version": "0.1.0"})
+                self._handle_health()
             elif path == "/api/state":
                 self._handle_state()
             elif path == "/api/jobs":
@@ -166,6 +170,22 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": "internal_error", "error_id": error_id}, 500)
 
     # ------------------------------------------------------------------
+    def _handle_health(self):
+        import hashlib
+        payload = {"status": "ok", "version": "0.1.0"}
+        if _IDENTITY is not None:
+            # Non-secret fingerprint only -- lets a caller correlate this
+            # response with a specific identity.json without the raw
+            # instance_id (nonce) ever appearing in an HTTP response.
+            fingerprint = hashlib.sha256(_IDENTITY["instance_id"].encode()).hexdigest()[:12]
+            payload.update({
+                "pid": _IDENTITY["pid"],
+                "port": _IDENTITY["port"],
+                "instance_fingerprint": fingerprint,
+                "started_at": _IDENTITY["started_at"],
+            })
+        self._send_json(payload)
+
     def _handle_state(self):
         conn = get_conn()
         lanes = _discover_and_cache()
@@ -186,6 +206,7 @@ class Handler(BaseHTTPRequestHandler):
             "lanes": lanes,
             "next_best_move": move,
             "ai_mode": mode,
+            "sandbox_mode": os.environ.get("DATABOSSX_SANDBOX_MODE", "0") == "1",
             "setup_confirmed": bool(db.get_setting(conn, "setup_confirmed", False)),
             "local_model": local_model,
             "recent_receipts": recent_receipts,
@@ -219,6 +240,7 @@ class Handler(BaseHTTPRequestHandler):
         confirmed = db.get_setting(conn, "setup_confirmed", False)
         self._send_json({
             "setup_confirmed": bool(confirmed),
+            "sandbox_mode": os.environ.get("DATABOSSX_SANDBOX_MODE", "0") == "1",
             "read_roots": dict(discovery.DEFAULT_ROOTS),
             "write_root_pattern": "<project>/" + discovery.WORKING_SUBDIR,
             "note": (
@@ -333,42 +355,54 @@ def find_free_port(preferred: int) -> int:
 def _acquire_single_instance_lock() -> Path:
     """Refuse to start a second instance against the same runtime dir --
     two writers on one SQLite file is exactly the collision this app must
-    never create."""
-    lock_path = DB_PATH.parent / "databossx.lock"
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    if lock_path.exists():
-        try:
-            pid = int(lock_path.read_text().strip())
-            os.kill(pid, 0)  # raises OSError if the PID is not alive
-            raise RuntimeError(
-                f"DataBossX Command Center is already running (PID {pid}). "
-                "Close it first, or run 00_STOP_DATABOSSX.bat."
-            )
-        except (ValueError, ProcessLookupError, OSError):
-            pass  # stale lock from a crashed run -- safe to reclaim
-    lock_path.write_text(str(os.getpid()))
-    return lock_path
+    never create.
+
+    Uses identity.identity_status() -- the same validator START/STOP/
+    REPAIR/DIAGNOSTICS use -- instead of a bare PID-alive check. A PID
+    that is alive but does not match our recorded identity (creation
+    time, executable, server path, runtime dir) is a reused PID, not a
+    running instance of us, and must not block startup.
+    """
+    runtime_dir = DB_PATH.parent
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    receipt_path = runtime_dir / "identity.json"
+    status, existing = identity.identity_status(
+        receipt_path, expect_server_path=SERVER_PATH, expect_runtime_dir=runtime_dir
+    )
+    if status == identity.RUNNING:
+        raise RuntimeError(
+            f"DataBossX Command Center is already running (PID {existing['pid']}, "
+            f"port {existing['port']}). Close it first, or run 00_STOP_DATABOSSX.bat."
+        )
+    # ABSENT / STALE / MALFORMED / MISMATCHED all mean "not verifiably us" --
+    # safe to reclaim the receipt file without touching whatever PID (if
+    # any) it names.
+    identity.clear_identity(receipt_path)
+    return receipt_path
 
 
 def main():
+    global _IDENTITY
     preferred = int(os.environ.get("DATABOSSX_PORT", "8765"))
     port = find_free_port(preferred)
-    lock_path = _acquire_single_instance_lock()
+    receipt_path = _acquire_single_instance_lock()
     get_conn()  # init DB eagerly so startup errors surface immediately
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    # Authoritative port record for launchers -- the .bat scripts must never
-    # guess/hard-code a port, since find_free_port() may have moved on from
-    # the preferred one.
+    # Authoritative identity+port record for launchers -- the .bat scripts
+    # must never guess/hard-code a port, since find_free_port() may have
+    # moved on from the preferred one.
+    _IDENTITY = identity.build_identity(port, SERVER_PATH, DB_PATH.parent)
+    identity.write_identity_atomic(_IDENTITY, receipt_path)
     port_path = DB_PATH.parent / "port.txt"
     port_path.write_text(str(port))
-    print(f"DataBossX Command Center running at http://127.0.0.1:{port}")
+    print(f"DataBossX Command Center running at http://127.0.0.1:{port} (pid {os.getpid()})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         server.server_close()
-        lock_path.unlink(missing_ok=True)
+        identity.clear_identity(receipt_path)
         port_path.unlink(missing_ok=True)
 
 

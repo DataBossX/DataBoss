@@ -1,0 +1,14 @@
+{
+  "name": "databossx-command-center-qa",
+  "private": true,
+  "version": "0.0.0",
+  "description": "QA-only dependency metadata for PR #88 viewport/accessibility evidence. Not part of the Command Center runtime -- never imported by server.py or the browser app.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.62.1",
+    "axe-core": "4.12.1"
+  }
+}

@@ -67,12 +67,20 @@ android-sdk/
 _synthetic_corpus/
 .pytest_cache/
 runtime/
+command_center/qa/artifacts/
+command_center/qa/test-results/
+command_center/qa/playwright-report/
 
 # Client-specific operations data must stay in approved private systems
 projects/OK-*/
 private_projects/
 client_work/
 evidence/
+# QA-generated PR evidence (screenshots/axe JSON from our own synthetic
+# sandbox, never client data) is an intentional exception to the blanket
+# evidence/ ignore above.
+!command_center/evidence/
+!command_center/evidence/**
 **/final_delivery/
 **/*FINAL*.xlsx
 **/*CLIENT*.xlsx

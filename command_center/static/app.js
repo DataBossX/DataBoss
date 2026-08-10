@@ -20,18 +20,29 @@ function renderLane(laneKey, projects) {
     el.innerHTML = `<div class="empty">No projects discovered yet in this lane.</div>`;
     return;
   }
+  const ACTION_LABELS = {
+    scan_project: "Update Me",
+    inspect_project: "Inspect Project",
+    find_missing_evidence: "Find Missing Evidence",
+    build_worklist: "Build Worklist",
+    run_qa: "Run QA",
+    inspect_candidates: "Open Best Candidate",
+  };
+  const actionButton = (action, p) =>
+    `<button data-action="${action}" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}" ` +
+    `aria-label="${ACTION_LABELS[action]} for ${p.project}">${ACTION_LABELS[action]}</button>`;
   el.innerHTML = projects.map((p) => `
     <div class="card">
       <div class="card-title">${p.project}</div>
       <div class="card-meta">${p.file_count} files &middot; last activity ${p.last_mtime_iso || "unknown"}
         &middot; evidence: ${p.evidence_present && p.evidence_present.length ? p.evidence_present.join(", ") : "none detected"}</div>
       <div class="card-actions">
-        <button data-action="scan_project" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}">Update Me</button>
-        <button data-action="inspect_project" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}">Inspect Project</button>
-        <button data-action="find_missing_evidence" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}">Find Missing Evidence</button>
-        <button data-action="build_worklist" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}">Build Worklist</button>
-        <button data-action="run_qa" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}">Run QA</button>
-        <button data-action="inspect_candidates" data-path="${p.path}" data-lane="${laneKey}" data-project="${p.project}">Open Best Candidate</button>
+        ${actionButton("scan_project", p)}
+        ${actionButton("inspect_project", p)}
+        ${actionButton("find_missing_evidence", p)}
+        ${actionButton("build_worklist", p)}
+        ${actionButton("run_qa", p)}
+        ${actionButton("inspect_candidates", p)}
       </div>
     </div>
   `).join("");
@@ -119,6 +130,17 @@ async function loadSetup() {
       `Every write lands only inside: ${setup.write_root_pattern}\n` +
       `${setup.note}`;
   }
+
+  const sandboxBanner = $("#sandboxBanner");
+  if (setup.sandbox_mode) {
+    sandboxBanner.classList.remove("hidden");
+    sandboxBanner.textContent =
+      `SANDBOX MODE -- NO CLIENT DATA. Penterra: ${setup.read_roots.penterra} ` +
+      `&middot; Horizon: ${setup.read_roots.horizon}`.replace("&middot;", "·");
+  } else {
+    sandboxBanner.classList.add("hidden");
+  }
+
   return setup.setup_confirmed;
 }
 
@@ -158,7 +180,12 @@ async function loadState() {
   document.querySelectorAll(".card-actions button").forEach((btn) => {
     if (WRITE_ACTIONS.has(btn.dataset.action) && !setupConfirmed) {
       btn.disabled = true;
+      btn.setAttribute("aria-disabled", "true");
       btn.title = "Confirm local setup above before running write actions.";
+      btn.setAttribute(
+        "aria-label",
+        `${btn.getAttribute("aria-label") || btn.textContent} (disabled until local setup is confirmed)`
+      );
     }
     btn.addEventListener("click", () => runAction(btn));
   });

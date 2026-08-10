@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070b12">
+<title>DataBossX Command Center</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <!-- Approved DataBossX mark, copied from website/public/favicon.svg.
+         Drop a higher-resolution asset at this same path with no code change. -->
+    <img class="brand-mark" src="/static/logo.svg" alt="DataBossX" width="28" height="28">
+    <span class="brand-text">DATA BOSS X<span class="brand-sub">Command Center</span></span>
+  </div>
+  <div class="topbar-right">
+    <select id="modeSelect" class="mode-select" title="AI routing mode">
+      <option value="LOCAL_ONLY">LOCAL ONLY</option>
+      <option value="SAVE_CREDITS" selected>SAVE CREDITS</option>
+      <option value="NORMAL">NORMAL</option>
+      <option value="DEEP_QA">DEEP QA</option>
+    </select>
+    <span class="pill" id="localModelPill">LOCAL MODEL: --</span>
+    <button class="icon-btn" id="refreshBtn" type="button" aria-label="Refresh">&#8635;</button>
+  </div>
+</header>
+
+<main id="main">
+  <section class="command-bar">
+    <input id="commandInput" type="text" placeholder="Tell DataBossX what you want done...">
+    <button id="commandBtn" type="button">Interpret</button>
+  </section>
+  <div id="commandResult" class="command-result hidden"></div>
+
+  <section class="hero">
+    <div class="hero-question">WHAT SHOULD I DO RIGHT NOW?</div>
+    <div class="hero-move" id="heroMove">Loading...</div>
+    <div class="hero-why" id="heroWhy"></div>
+    <button class="primary-btn" id="doNextBtn" type="button">DO NEXT BEST MOVE</button>
+  </section>
+
+  <section class="lanes" id="lanes">
+    <div class="lane-column" data-lane="penterra">
+      <h2>PENTERRA</h2>
+      <div class="lane-cards" id="lane-penterra"></div>
+    </div>
+    <div class="lane-column" data-lane="horizon">
+      <h2>HORIZON</h2>
+      <div class="lane-cards" id="lane-horizon"></div>
+    </div>
+    <div class="lane-column" data-lane="databossx">
+      <h2>DATABOSSX</h2>
+      <div class="lane-cards" id="lane-databossx"></div>
+    </div>
+  </section>
+
+  <section class="lower-grid">
+    <div class="panel">
+      <h3>Active Jobs</h3>
+      <ul id="activeJobs" class="list"></ul>
+    </div>
+    <div class="panel">
+      <h3>Recent Receipts</h3>
+      <ul id="recentReceipts" class="list"></ul>
+    </div>
+    <div class="panel">
+      <h3>Workers</h3>
+      <div id="workersPanel"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

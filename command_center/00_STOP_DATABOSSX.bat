@@ -5,21 +5,26 @@ cd /d "%~dp0"
 
 set "SANDBOX_MODE=0"
 set "SANDBOX_ROOT="
+rem NOTE: plain "shift" in cmd.exe shifts %0 too (it starts shifting AT
+rem argument 0), not just %1/%2/... -- that silently corrupts every later
+rem %~dp0 reference in this script to the shifted-in argument's own path.
+rem "shift /1" starts shifting at %1 instead, leaving %0 (and therefore
+rem %~dp0) untouched.
 :parse_args
 if "%~1"=="" goto args_done
 if /I "%~1"=="--sandbox" (
     set "SANDBOX_MODE=1"
-    shift
+    shift /1
     goto parse_args
 )
 if /I "%~1"=="--sandbox-root" (
     set "SANDBOX_MODE=1"
     set "SANDBOX_ROOT=%~2"
-    shift
-    shift
+    shift /1
+    shift /1
     goto parse_args
 )
-shift
+shift /1
 goto parse_args
 :args_done
 

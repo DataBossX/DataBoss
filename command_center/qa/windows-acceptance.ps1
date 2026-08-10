@@ -110,8 +110,21 @@ $pyBaseArgs = @()
 if ($pyCmd.Length -gt 1) { $pyBaseArgs = $pyCmd[1..($pyCmd.Length - 1)] }
 
 function Invoke-Py {
-    param([string[]]$Args)
-    & $pyExe @pyBaseArgs @Args
+    # Named $PyArgs, not $Args -- $args is a reserved PowerShell automatic
+    # variable, and shadowing it with an explicit parameter of the same
+    # name is a known source of splatting/pipeline surprises (this was
+    # observed returning empty output when called as
+    # `Invoke-Py @(...) 2>&1 | Out-String`).
+    param([string[]]$PyArgs)
+    & $pyExe @pyBaseArgs @PyArgs
+}
+
+function Test-ProcessAlive {
+    # A fresh OS query instead of a long-held Process object's cached
+    # .HasExited -- more reliable across the many minutes this script's
+    # sleeper-survival checks span.
+    param([int]$ProcId)
+    return $null -ne (Get-Process -Id $ProcId -ErrorAction SilentlyContinue)
 }
 
 # ---------------------------------------------------------------------
@@ -173,7 +186,7 @@ Add-Result "6. Second START reuses exactly one verified server" `
 $sleeperArgs = @($pyBaseArgs + @("-c", "import time; time.sleep(1200)"))
 $sleeperProc = Start-Process -FilePath $pyExe -ArgumentList $sleeperArgs -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 1
-$sleeperAliveInitially = -not $sleeperProc.HasExited
+$sleeperAliveInitially = Test-ProcessAlive $sleeperProc.Id
 
 # ---------------------------------------------------------------------
 # 7: STOP terminates the verified server
@@ -184,8 +197,8 @@ $stoppedHealth = $null
 try { $stoppedHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$($health.port)/api/health" -TimeoutSec 2 } catch {}
 Add-Result "7. STOP terminates the verified server" (($stopRc -eq 0) -and ($null -eq $stoppedHealth)) "stop.bat exit=$stopRc health-after-stop=$($null -ne $stoppedHealth)"
 
-$sleeperAliveAfterStop = -not $sleeperProc.HasExited
-Add-Result "11a. Unrelated sleeper survives STOP" $sleeperAliveAfterStop "sleeper pid $($sleeperProc.Id) exited=$($sleeperProc.HasExited)"
+$sleeperAliveAfterStop = Test-ProcessAlive $sleeperProc.Id
+Add-Result "11a. Unrelated sleeper survives STOP" $sleeperAliveAfterStop "sleeper pid $($sleeperProc.Id) alive=$sleeperAliveAfterStop"
 
 # ---------------------------------------------------------------------
 # 8: restart after STOP succeeds with a NEW valid identity
@@ -198,7 +211,7 @@ Add-Result "8. Restart after STOP succeeds with new valid identity" `
     "old instance=$($identity1.instance_id) new instance=$($identity2.instance_id)"
 if ($identity2) { $observedPidsPortsInstances.Add(@{ step = "restart_after_stop"; pid = $identity2.pid; instance_id = $identity2.instance_id; port = $identity2.port }) }
 
-$sleeperAliveAfterRestart1 = -not $sleeperProc.HasExited
+$sleeperAliveAfterRestart1 = Test-ProcessAlive $sleeperProc.Id
 
 # ---------------------------------------------------------------------
 # 9: REPAIR clears a truly stale receipt (simulate a crash: kill the
@@ -228,7 +241,7 @@ $fakeIdentity = @{
 } | ConvertTo-Json
 Set-Content -Path (Join-Path $runtimeDir "identity.json") -Value $fakeIdentity
 $repairRc2 = Invoke-Repair -Root $SandboxRoot
-$sleeperAliveAfterMismatchedRepair = -not $sleeperProc.HasExited
+$sleeperAliveAfterMismatchedRepair = Test-ProcessAlive $sleeperProc.Id
 Add-Result "10. REPAIR refuses to alter a live mismatched process" `
     (($repairRc2 -eq 1) -and $sleeperAliveAfterMismatchedRepair) `
     "repair exit=$repairRc2 (1=safety refusal expected) sleeper alive=$sleeperAliveAfterMismatchedRepair"
@@ -239,7 +252,7 @@ Remove-Item (Join-Path $runtimeDir "port.txt") -Force -ErrorAction SilentlyConti
 # 12: malformed identity data is refused safely
 # ---------------------------------------------------------------------
 Set-Content -Path (Join-Path $runtimeDir "identity.json") -Value "{not valid json at all"
-$statusOut = Invoke-Py @((Join-Path $RepoRoot "identity_cli.py"), "--runtime-dir", $runtimeDir, "status") 2>&1 | Out-String
+$statusOut = Invoke-Py -PyArgs @((Join-Path $RepoRoot "identity_cli.py"), "--runtime-dir", $runtimeDir, "status") 2>&1 | Out-String
 $malformedDetected = $statusOut -match '"status":\s*"MALFORMED"'
 Add-Result "12. Malformed identity data is refused safely" $malformedDetected "identity_cli status output: $($statusOut.Trim())"
 Remove-Item (Join-Path $runtimeDir "identity.json") -Force -ErrorAction SilentlyContinue
@@ -276,7 +289,7 @@ try:
 except actions.ActionRefused as e:
     print('REFUSED:' + str(e))
 "@
-$junctionResult = Invoke-Py @("-c", $junctionPyCheck) 2>&1 | Out-String
+$junctionResult = Invoke-Py -PyArgs @("-c", $junctionPyCheck) 2>&1 | Out-String
 Add-Result "13. Windows junction/reparse project escape rejected" ($junctionResult -match "REFUSED") "actions.py result: $($junctionResult.Trim())"
 
 # ---------------------------------------------------------------------
@@ -360,13 +373,13 @@ $orphans = Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='py.
     Where-Object { $_.CommandLine -and $_.CommandLine -match "server\.py" -and $_.CommandLine -match [regex]::Escape($SandboxRoot) }
 Add-Result "19. START/STOP/START sequence leaves no orphan server" ($orphans.Count -eq 0) "matching orphan processes=$($orphans.Count)"
 
-$sleeperAliveFinal = -not $sleeperProc.HasExited
-Add-Result "11b. Unrelated sleeper survives the full stale-lock/STOP/REPAIR/restart sequence" $sleeperAliveFinal "sleeper pid $($sleeperProc.Id) exited=$($sleeperProc.HasExited)"
+$sleeperAliveFinal = Test-ProcessAlive $sleeperProc.Id
+Add-Result "11b. Unrelated sleeper survives the full stale-lock/STOP/REPAIR/restart sequence" $sleeperAliveFinal "sleeper pid $($sleeperProc.Id) alive=$sleeperAliveFinal"
 
 # Test-fixture cleanup only -- this is OUR OWN spawned sleeper, not
 # something DataBossX code is terminating. It was never touched by any
 # DataBossX STOP/REPAIR path, which is exactly what items 11/20 require.
-if (-not $sleeperProc.HasExited) { Stop-Process -Id $sleeperProc.Id -Force -ErrorAction SilentlyContinue }
+if (Test-ProcessAlive $sleeperProc.Id) { Stop-Process -Id $sleeperProc.Id -Force -ErrorAction SilentlyContinue }
 
 Add-Result "20. Test cleaned only its own runner-temp sandbox" $true "SandboxRoot=$SandboxRoot; no path outside `$env:RUNNER_TEMP was written"
 
@@ -374,8 +387,8 @@ Add-Result "20. Test cleaned only its own runner-temp sandbox" $true "SandboxRoo
 # Emit receipts
 # ---------------------------------------------------------------------
 $headSha = git -C $RepoRoot rev-parse HEAD 2>$null
-$pyVersion = Invoke-Py @("--version") 2>&1 | Out-String
-$pyExecutablePath = Invoke-Py @("-c", "import sys; print(sys.executable)") 2>&1 | Out-String
+$pyVersion = Invoke-Py -PyArgs @("--version") 2>&1 | Out-String
+$pyExecutablePath = Invoke-Py -PyArgs @("-c", "import sys; print(sys.executable)") 2>&1 | Out-String
 
 $receipt = [pscustomobject]@{
     tested_head_sha    = $headSha.Trim()

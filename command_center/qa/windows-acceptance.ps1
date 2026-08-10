@@ -52,28 +52,42 @@ function Wait-Health {
     return $null
 }
 
+$script:LogDir = Join-Path $SandboxRoot "launcher-logs"
+New-Item -ItemType Directory -Path $script:LogDir -Force | Out-Null
+$script:LauncherCallIndex = 0
+
+function Invoke-Launcher {
+    param([string]$BatName, [string]$Root)
+    $script:LauncherCallIndex++
+    $tag = "$($BatName -replace '\.bat$','')-$($script:LauncherCallIndex)"
+    $outLog = Join-Path $script:LogDir "$tag.out.log"
+    $errLog = Join-Path $script:LogDir "$tag.err.log"
+    $p = Start-Process -FilePath (Join-Path $RepoRoot $BatName) `
+        -ArgumentList "--sandbox-root", "`"$Root`"" -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+    $p.WaitForExit()
+    $outTail = if (Test-Path $outLog) { Get-Content $outLog -Raw } else { "" }
+    $errTail = if (Test-Path $errLog) { Get-Content $errLog -Raw } else { "" }
+    if ($p.ExitCode -ne 0) {
+        Write-Host "---- $tag stdout ----"; Write-Host $outTail
+        Write-Host "---- $tag stderr ----"; Write-Host $errTail
+    }
+    return $p.ExitCode
+}
+
 function Invoke-Start {
     param([string]$Root)
-    $p = Start-Process -FilePath (Join-Path $RepoRoot "00_START_DATABOSSX.bat") `
-        -ArgumentList "--sandbox-root", "`"$Root`"" -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden
-    $p.WaitForExit()
-    return $p.ExitCode
+    return Invoke-Launcher -BatName "00_START_DATABOSSX.bat" -Root $Root
 }
 
 function Invoke-Stop {
     param([string]$Root)
-    $p = Start-Process -FilePath (Join-Path $RepoRoot "00_STOP_DATABOSSX.bat") `
-        -ArgumentList "--sandbox-root", "`"$Root`"" -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden
-    $p.WaitForExit()
-    return $p.ExitCode
+    return Invoke-Launcher -BatName "00_STOP_DATABOSSX.bat" -Root $Root
 }
 
 function Invoke-Repair {
     param([string]$Root)
-    $p = Start-Process -FilePath (Join-Path $RepoRoot "00_REPAIR_DATABOSSX.bat") `
-        -ArgumentList "--sandbox-root", "`"$Root`"" -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden
-    $p.WaitForExit()
-    return $p.ExitCode
+    return Invoke-Launcher -BatName "00_REPAIR_DATABOSSX.bat" -Root $Root
 }
 
 function Get-PyCmd {
@@ -260,18 +274,25 @@ Add-Result "13. Windows junction/reparse project escape rejected" ($junctionResu
 #     lane-root-itself -- exercised directly against the real server API
 # ---------------------------------------------------------------------
 function Post-Json($Uri, $Obj) {
+    # PowerShell 7's Invoke-WebRequest throws HttpResponseException on non-2xx,
+    # whose .Exception.Response is a System.Net.Http.HttpResponseMessage (no
+    # GetResponseStream()) -- unlike Windows PowerShell 5.1's HttpWebResponse.
+    # $_.ErrorDetails.Message carries the response body on both versions, so
+    # use that instead of touching the response stream directly.
     $json = $Obj | ConvertTo-Json
     try {
         $resp = Invoke-WebRequest -UseBasicParsing -Uri $Uri -Method Post -Body $json -ContentType "application/json" -TimeoutSec 5
         return @{ code = $resp.StatusCode; body = ($resp.Content | ConvertFrom-Json) }
     } catch {
-        $r = $_.Exception.Response
-        if ($r) {
-            $stream = $r.GetResponseStream(); $reader = New-Object System.IO.StreamReader($stream)
-            $body = $reader.ReadToEnd() | ConvertFrom-Json
-            return @{ code = [int]$r.StatusCode; body = $body }
+        $statusCode = 0
+        if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+            $statusCode = [int]$_.Exception.Response.StatusCode
         }
-        return @{ code = 0; body = $null }
+        $body = $null
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+            try { $body = $_.ErrorDetails.Message | ConvertFrom-Json } catch { $body = $null }
+        }
+        return @{ code = $statusCode; body = $body }
     }
 }
 $baseUrl = "http://127.0.0.1:$($finalHealth.port)"

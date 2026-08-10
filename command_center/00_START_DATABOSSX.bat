@@ -125,9 +125,18 @@ rem file, it never touches that process.
 !PY_CMD! "%~dp0identity_cli.py" --runtime-dir "!RUNTIME_DIR!" repair >nul 2>nul
 if exist "!RUNTIME_DIR!\port.txt" del "!RUNTIME_DIR!\port.txt" >nul 2>nul
 
-rem --- 7. Start exactly one instance ---
+rem --- 7. Start exactly one instance. Written to a small generated .bat
+rem     instead of an inline "cmd /c "...with its own quotes..."" --
+rem     nested double quotes inside a start/cmd /c argument are notoriously
+rem     unreliable to parse correctly, especially once !RUNTIME_DIR! itself
+rem     needs quoting for spaces. A standalone .bat file sidesteps that. ---
 echo Starting server...
-start "DataBossX Command Center Server" /min cmd /c "!PY_CMD! server.py > "!RUNTIME_DIR!\server.log" 2>&1"
+> "!RUNTIME_DIR!\_run_server.bat" (
+    echo @echo off
+    echo cd /d "%~dp0"
+    echo !PY_CMD! server.py ^> "!RUNTIME_DIR!\server.log" 2^>^&1
+)
+start "DataBossX Command Center Server" /min "!RUNTIME_DIR!\_run_server.bat"
 
 rem --- 8. Wait (bounded) for BOTH the authoritative identity receipt AND a
 rem     successful /api/health response from that same instance -- never

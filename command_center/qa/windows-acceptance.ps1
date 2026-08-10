@@ -52,16 +52,12 @@ function Wait-Health {
     return $null
 }
 
-$script:LogDir = Join-Path $SandboxRoot "launcher-logs"
-New-Item -ItemType Directory -Path $script:LogDir -Force | Out-Null
 $script:LauncherCallIndex = 0
 
 function Invoke-Launcher {
     param([string]$BatName, [string]$Root)
     $script:LauncherCallIndex++
     $tag = "$($BatName -replace '\.bat$','')-$($script:LauncherCallIndex)"
-    $outLog = Join-Path $script:LogDir "$tag.out.log"
-    $errLog = Join-Path $script:LogDir "$tag.err.log"
     # Pass $Root as a plain array element -- Start-Process's own argument
     # encoding already quotes it correctly if it contains spaces. Manually
     # wrapping it in literal `"..."` characters here (as this used to do)
@@ -72,15 +68,23 @@ function Invoke-Launcher {
     # that %~dp0 inside the launched script resolves to nonsense (it was
     # observed picking up the parent directory of $Root instead of the
     # batch file's own directory) -- not just a bad argument value.
+    #
+    # No -RedirectStandardOutput/-RedirectStandardError here (there used
+    # to be, for diagnosing the %~dp0 bug above -- now fixed and no longer
+    # needed). Piped/redirected stdio makes .NET's Process class create
+    # extra pipe-handling plumbing around the child; on Windows that is
+    # one plausible way an unrelated sibling process (this script's own
+    # "unrelated sleeper" test fixture, launched via a separate plain
+    # Start-Process with no redirection) could end up entangled with this
+    # child's process/job lifecycle. Removing it is also just simpler now
+    # that the launch bug itself is fixed -- failures still show via a
+    # non-zero exit code, and the server's own actual output already goes
+    # to runtime\server.log regardless.
     $p = Start-Process -FilePath (Join-Path $RepoRoot $BatName) `
-        -ArgumentList "--sandbox-root", $Root -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden `
-        -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+        -ArgumentList "--sandbox-root", $Root -WorkingDirectory $RepoRoot -PassThru -WindowStyle Hidden
     $p.WaitForExit()
-    $outTail = if (Test-Path $outLog) { Get-Content $outLog -Raw } else { "" }
-    $errTail = if (Test-Path $errLog) { Get-Content $errLog -Raw } else { "" }
     if ($p.ExitCode -ne 0) {
-        Write-Host "---- $tag stdout ----"; Write-Host $outTail
-        Write-Host "---- $tag stderr ----"; Write-Host $errTail
+        Write-Host "---- $tag exit code $($p.ExitCode) (no stdout/stderr capture -- see runtime\server.log) ----"
     }
     return $p.ExitCode
 }

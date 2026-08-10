@@ -135,24 +135,24 @@ if ($identity1) { $observedPidsPortsInstances.Add(@{ step = "first_launch"; pid 
 
 # ---------------------------------------------------------------------
 # 5: occupy 8765, force fallback port on a second sandbox instance
+#
+# No separate TcpListener needed to simulate "occupied" -- the FIRST
+# sandbox's server (step 1-4, not stopped until step 7) is already a
+# real, legitimate listener on 8765 at this point. Binding a second
+# TcpListener to the same port here would itself fail with "address
+# already in use" (that exact crash is what an earlier version of this
+# script hit), so this step relies on the real server instead.
 # ---------------------------------------------------------------------
-$blockerListener = $null
 $fallbackHealth = $null
-try {
-    $blockerListener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 8765)
-    $blockerListener.Start()
-    $sandboxRoot2 = Join-Path $SandboxRoot "sandbox2"
-    New-Item -ItemType Directory -Path $sandboxRoot2 -Force | Out-Null
-    $runtimeDir2 = Join-Path $sandboxRoot2 "runtime"
-    Invoke-Start -Root $sandboxRoot2 | Out-Null
-    $fallbackHealth = Wait-Health -RuntimeDir $runtimeDir2
-    Add-Result "5. Occupied 8765 forces fallback port, health OK on fallback" `
-        (($null -ne $fallbackHealth) -and ([int]$fallbackHealth.port -ne 8765)) `
-        $(if ($fallbackHealth) { "fallback port $($fallbackHealth.port)" } else { "no health" })
-    Invoke-Stop -Root $sandboxRoot2 | Out-Null
-} finally {
-    if ($blockerListener) { $blockerListener.Stop() }
-}
+$sandboxRoot2 = Join-Path $SandboxRoot "sandbox2"
+New-Item -ItemType Directory -Path $sandboxRoot2 -Force | Out-Null
+$runtimeDir2 = Join-Path $sandboxRoot2 "runtime"
+Invoke-Start -Root $sandboxRoot2 | Out-Null
+$fallbackHealth = Wait-Health -RuntimeDir $runtimeDir2
+Add-Result "5. Occupied 8765 forces fallback port, health OK on fallback" `
+    (($null -ne $fallbackHealth) -and ([int]$fallbackHealth.port -ne 8765)) `
+    $(if ($fallbackHealth) { "fallback port $($fallbackHealth.port)" } else { "no health" })
+Invoke-Stop -Root $sandboxRoot2 | Out-Null
 
 # ---------------------------------------------------------------------
 # 6: second START reuses exactly one verified server

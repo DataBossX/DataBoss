@@ -207,7 +207,15 @@ Add-Result "6. Second START reuses exactly one verified server" `
 # 11 (setup): launch an unrelated python sleeper we must never touch
 # ---------------------------------------------------------------------
 $sleeperArgs = @($pyBaseArgs + @("-c", "import time; time.sleep(1200)"))
-$sleeperLauncherProc = Start-Process -FilePath $pyExe -ArgumentList $sleeperArgs -PassThru -WindowStyle Hidden
+# -NoNewWindow (inherit this console) instead of -WindowStyle Hidden: a
+# HIDDEN window is still a real, newly allocated console, and Windows
+# delivers console-lifecycle events (Ctrl+Close etc.) to everything
+# attached to a console -- a plausible way for a freshly spawned, hidden
+# console process to die within seconds for reasons having nothing to do
+# with anything this script's STOP/REPAIR logic does. This was confirmed
+# by the "11-setup" baseline check reporting the sleeper already dead
+# ~1 second after launch, before STOP is even called.
+$sleeperLauncherProc = Start-Process -FilePath $pyExe -ArgumentList $sleeperArgs -PassThru -NoNewWindow
 Start-Sleep -Seconds 1
 $sleeperPid = Resolve-RealWorkerPid $sleeperLauncherProc.Id
 $sleeperAliveInitially = Test-ProcessAlive $sleeperPid

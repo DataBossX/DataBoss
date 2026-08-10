@@ -131,6 +131,25 @@ function Test-ProcessAlive {
     return $null -ne (Get-Process -Id $ProcId -ErrorAction SilentlyContinue)
 }
 
+function Resolve-RealWorkerPid {
+    # The Python launcher (py.exe) can be a trampoline that spawns a
+    # CHILD python.exe and, depending on version/console-handle
+    # configuration, does not stay resident for that child's whole
+    # lifetime -- so a Process object for py.exe itself can report exited
+    # within seconds even though the actual long-running interpreter is
+    # still alive. If $LauncherPid spawned such a child, track the CHILD
+    # instead; otherwise $LauncherPid already IS the real worker (e.g.
+    # when Get-PyCmd fell back to plain "python").
+    param([int]$LauncherPid)
+    for ($i = 0; $i -lt 10; $i++) {
+        $child = Get-CimInstance Win32_Process -Filter "ParentProcessId=$LauncherPid AND (Name='python.exe' OR Name='py.exe')" |
+            Select-Object -First 1
+        if ($child) { return [int]$child.ProcessId }
+        Start-Sleep -Milliseconds 200
+    }
+    return $LauncherPid
+}
+
 # ---------------------------------------------------------------------
 # 1/2/3/4: Clean first launch, health, identity match, port-derived URL
 # ---------------------------------------------------------------------
@@ -188,9 +207,12 @@ Add-Result "6. Second START reuses exactly one verified server" `
 # 11 (setup): launch an unrelated python sleeper we must never touch
 # ---------------------------------------------------------------------
 $sleeperArgs = @($pyBaseArgs + @("-c", "import time; time.sleep(1200)"))
-$sleeperProc = Start-Process -FilePath $pyExe -ArgumentList $sleeperArgs -PassThru -WindowStyle Hidden
+$sleeperLauncherProc = Start-Process -FilePath $pyExe -ArgumentList $sleeperArgs -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 1
-$sleeperAliveInitially = Test-ProcessAlive $sleeperProc.Id
+$sleeperPid = Resolve-RealWorkerPid $sleeperLauncherProc.Id
+$sleeperAliveInitially = Test-ProcessAlive $sleeperPid
+Add-Result "11-setup. Sleeper is alive right after launch (baseline)" $sleeperAliveInitially `
+    "launcher pid $($sleeperLauncherProc.Id), tracked worker pid $sleeperPid"
 
 # ---------------------------------------------------------------------
 # 7: STOP terminates the verified server
@@ -201,8 +223,8 @@ $stoppedHealth = $null
 try { $stoppedHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$($health.port)/api/health" -TimeoutSec 2 } catch {}
 Add-Result "7. STOP terminates the verified server" (($stopRc -eq 0) -and ($null -eq $stoppedHealth)) "stop.bat exit=$stopRc health-after-stop=$($null -ne $stoppedHealth)"
 
-$sleeperAliveAfterStop = Test-ProcessAlive $sleeperProc.Id
-Add-Result "11a. Unrelated sleeper survives STOP" $sleeperAliveAfterStop "sleeper pid $($sleeperProc.Id) alive=$sleeperAliveAfterStop"
+$sleeperAliveAfterStop = Test-ProcessAlive $sleeperPid
+Add-Result "11a. Unrelated sleeper survives STOP" $sleeperAliveAfterStop "sleeper pid $($sleeperPid) alive=$sleeperAliveAfterStop"
 
 # ---------------------------------------------------------------------
 # 8: restart after STOP succeeds with a NEW valid identity
@@ -215,7 +237,7 @@ Add-Result "8. Restart after STOP succeeds with new valid identity" `
     "old instance=$($identity1.instance_id) new instance=$($identity2.instance_id)"
 if ($identity2) { $observedPidsPortsInstances.Add(@{ step = "restart_after_stop"; pid = $identity2.pid; instance_id = $identity2.instance_id; port = $identity2.port }) }
 
-$sleeperAliveAfterRestart1 = Test-ProcessAlive $sleeperProc.Id
+$sleeperAliveAfterRestart1 = Test-ProcessAlive $sleeperPid
 
 # ---------------------------------------------------------------------
 # 9: REPAIR clears a truly stale receipt (simulate a crash: kill the
@@ -239,13 +261,13 @@ Add-Result "9. REPAIR clears a truly stale receipt" (($repairRc1 -eq 0) -and $st
 # ---------------------------------------------------------------------
 New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
 $fakeIdentity = @{
-    schema = 1; pid = $sleeperProc.Id; create_time = 1.0
+    schema = 1; pid = $sleeperPid; create_time = 1.0
     python_exe = "C:\not\real\python.exe"; server_path = "C:\not\real\server.py"
     runtime_dir = $runtimeDir; instance_id = "deadbeef"; port = 59999; started_at = "2000-01-01T00:00:00"
 } | ConvertTo-Json
 Set-Content -Path (Join-Path $runtimeDir "identity.json") -Value $fakeIdentity
 $repairRc2 = Invoke-Repair -Root $SandboxRoot
-$sleeperAliveAfterMismatchedRepair = Test-ProcessAlive $sleeperProc.Id
+$sleeperAliveAfterMismatchedRepair = Test-ProcessAlive $sleeperPid
 Add-Result "10. REPAIR refuses to alter a live mismatched process" `
     (($repairRc2 -eq 1) -and $sleeperAliveAfterMismatchedRepair) `
     "repair exit=$repairRc2 (1=safety refusal expected) sleeper alive=$sleeperAliveAfterMismatchedRepair"
@@ -377,13 +399,13 @@ $orphans = Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='py.
     Where-Object { $_.CommandLine -and $_.CommandLine -match "server\.py" -and $_.CommandLine -match [regex]::Escape($SandboxRoot) }
 Add-Result "19. START/STOP/START sequence leaves no orphan server" ($orphans.Count -eq 0) "matching orphan processes=$($orphans.Count)"
 
-$sleeperAliveFinal = Test-ProcessAlive $sleeperProc.Id
-Add-Result "11b. Unrelated sleeper survives the full stale-lock/STOP/REPAIR/restart sequence" $sleeperAliveFinal "sleeper pid $($sleeperProc.Id) alive=$sleeperAliveFinal"
+$sleeperAliveFinal = Test-ProcessAlive $sleeperPid
+Add-Result "11b. Unrelated sleeper survives the full stale-lock/STOP/REPAIR/restart sequence" $sleeperAliveFinal "sleeper pid $($sleeperPid) alive=$sleeperAliveFinal"
 
 # Test-fixture cleanup only -- this is OUR OWN spawned sleeper, not
 # something DataBossX code is terminating. It was never touched by any
 # DataBossX STOP/REPAIR path, which is exactly what items 11/20 require.
-if (Test-ProcessAlive $sleeperProc.Id) { Stop-Process -Id $sleeperProc.Id -Force -ErrorAction SilentlyContinue }
+if (Test-ProcessAlive $sleeperPid) { Stop-Process -Id $sleeperPid -Force -ErrorAction SilentlyContinue }
 
 Add-Result "20. Test cleaned only its own runner-temp sandbox" $true "SandboxRoot=$SandboxRoot; no path outside `$env:RUNNER_TEMP was written"
 

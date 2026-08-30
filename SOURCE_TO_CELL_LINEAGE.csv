@@ -1,0 +1,15 @@
+Sheet Name,Cell / Range,Reported Item / Value,Primary Source Instrument,Book / Page / Locator,Evidence Tier,Verification Status,Examiner Notes
+Overview,D5,"Section 32, T11N, R25W",Patent 3/469 & Land Office Records,Patent Bk 3/469,Tier 1 (Direct Image),VERIFIED,Sovereign township and range survey.
+Overview,D6,640.00 Gross Acres,U.S. GLO Township Plat,GLO Survey 1905,Tier 1 (Official GLO),VERIFIED,Nominal section acreage.
+Title ,C6,65.000000 NMA (Bollenbach),Warranty Deed,Bk 10/Pg 255,Tier 1 (Direct Image),VERIFIED (Lineage),Residual after unproved downstream conveyances.
+Title ,C7:C11,40.000000 NMA (Crook Heirs),Final Decree of Distribution,Bk 845/Pg 150-157,Tier 1 (Direct Image),VERIFIED (Quantum),8.000000 NMA to each of 5 issue.
+Title ,C12,3.000000 NMA (Randel),Mineral Deed,Bk 92/Pg 47,Tier 1 (Direct Image),VERIFIED (Quantum),1.500000 NMA each to F.L. and J.L. Randel.
+Title ,C13,10.000000 NMA (Great Western),Mineral Deed,Bk 367/Pg 632,Tier 1 (Direct Image),VERIFIED (Quantum),10.000000 NMA mineral conveyance.
+Title ,C23,640.000000 NMA (Section Total),Formula: =SUM(C5:C22),Calculated Cell,Tier 1 (Deterministic),VERIFIED (Formula),Arithmetic balance; not unclouded title proof.
+OGL,A5:N5,OGL 1 (Garrett Lease),Oil and Gas Lease,Bk 63/Pg 33,Tier 1 (Direct Face),VERIFIED (Terms),"10-yr primary term, 1/8 royalty."
+OGL,A6:N6,OGL 2 (Crook Lease),Oil and Gas Lease,Bk 264/Pg 345,Tier 1 (Direct Face),VERIFIED (Terms),"5-yr primary term, 1/8 royalty."
+WI 1,B5:H5,Step 1 (Staghorn to CHK),Assignment of OGL,Bk 1697/Pg 236,Tier 1 (Direct Image),VERIFIED (Lineage),Exhibit A required for full schedule.
+WI 1,B8:H8,Step 4 (KL CHK to Diversified/OCM),Assignment and Conveyance,Bk 2371/Pg 470,Tier 1 (Direct Image),VERIFIED (Lineage),51.25% / 48.75% transaction split.
+WI 1,B11:H11,Step 7 (DP Sooner to Diversified),Conveyance,Bk 2400/Pg 551,Tier 1 (Direct Image),VERIFIED (Lineage),Asset line OK48147.001.1 at Pg 566.
+WI 1,B18,Current WI: NOT DETERMINED,Asset Schedule & Teocalli Lead,Bk 2400/566 & 2434/751,Tier 1 (Epistemic Rule),VERIFIED (Honest),Blank schedule quantum + divestiture lead.
+Well 1,B5:I5,Crook 1-32 (API 35-009-20312),OCC Well Records & OTC,OCC Form 1002A,Tier 1 (Official OCC),VERIFIED (Regulatory),Granite Wash producer spud 1980-01-26.

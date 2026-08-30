@@ -67,6 +67,8 @@ android-sdk/
 _synthetic_corpus/
 .pytest_cache/
 runtime/
+*.egg-info/
+
 
 # Client-specific operations data must stay in approved private systems
 projects/OK-*/

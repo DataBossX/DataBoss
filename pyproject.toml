@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databossx"
+version = "0.1.0"
+description = "DataBossX local-first title operating system and title factory"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+    "openpyxl>=3.1",
+    "lxml>=4.9",
+    "fastapi>=0.110.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["databossx*", "horizon*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+pythonpath = [
+    ".",
+    "src",
+]

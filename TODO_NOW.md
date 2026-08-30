@@ -1,4 +1,9 @@
-# TODO NOW — Grocery Report (to Monday, July 6 2026)
+# TODO NOW — Operating Priorities & Best Moves Status
+
+> **Status 2026-08-30:** All automated cloud-executable best moves have been executed and verified.
+> Full pytest suite: **154 passed, 0 failed**. Pipeline `--self-test`: **PASS**.
+> Section 32 Challenger Package: **Completed, verified, and packaged**.
+> See detailed report in `docs/BEST_MOVES_2026-08-30.md`.
 
 ## For Rodney (must happen on the machine with the documents)
 1. **[BLOCKER] Run the pipeline on the real folder.** One command:
@@ -22,13 +27,13 @@
       API key in the environment and `--use-llm`; always writes confidence + audit note.
 
 ## Done this session
-- [x] Inventoried repo; determined pipeline state (no ingestion pipeline existed).
-- [x] Built `grocery_report_pipeline.py` (stages A–I), rerunnable & non-destructive.
-- [x] Synthetic corpus + 10 passing end-to-end tests.
-- [x] Planning docs, QA checklist, runbook, requirements.
+- [x] Standardized `pyproject.toml` and root `pytest.ini` for reproducible environments.
+- [x] Added FastAPI control plane tests (`tests/test_databossx_api.py`) and Section 32 Challenger tests (`tests/test_section32_challenger.py`).
+- [x] Executed full workspace test suite: 154 passed.
+- [x] Verified `grocery_report_pipeline.py --self-test` end-to-end.
+- [x] Produced Section 32 13-sheet challenger workbook, dual PDFs, 11 CSV ledgers, and comprehensive qualification reports.
+- [x] Published `docs/BEST_MOVES_2026-08-30.md` triaging PR backlog and detailing next operator steps.
 
-## Risk (Monday)
-**YELLOW.** Machinery complete and verified on synthetic data. Delivery gated on running
-against the real documents locally + human review of flagged items. Turns **RED** only if
-the source folder cannot be located or is unreadable; **GREEN** once the real run shows no
-red validation issues and the review pass is signed off.
+## Risk
+**GREEN (Cloud Machinery) / YELLOW (Physical Corpus Ingestion).** All cloud machinery is healthy and verified across 154 tests. Physical delivery remains gated on running against the real Windows documents locally.
+

@@ -1,0 +1,7 @@
+Defect ID,Tract,Instrument / Reference,Defect Description,Severity,Impacted NMA,Required Curative Action
+DEF-01,Tract 1 (NE/4),Bk 10/Pg 255 (1910),Downstream mineral chain break from Adolf Bollenbach; no chain-out to present.,CRITICAL,65.000000,Perform exhaustive probate and heirship search for Adolf Bollenbach in Beckham County.
+DEF-02,Tract 1 (NE/4),Bk 83/Pg 259,Ellen W. Crook probate decree recites collective vesting without individual allocations.,HIGH,40.000000,Retrieve full county court case file to establish individual fractional shares.
+DEF-03,Tract 1 (NE/4),Image 1794,F.L. Randel 1.5-acre deed has unextracted grantee name from recorded image.,MEDIUM,1.500000,Obtain certified courthouse copy of recorded deed face to identify grantee.
+DEF-04,Tract 2 (N/2 NW/4),"P-76-78, Pgs 349-350",Ola Keathley probate decree incomplete on recorded face; residual assumed.,HIGH,20.000000,Acquire complete probate final decree and order allowing final account.
+DEF-05,Tract 5 (SE/4),Image 0004,"Velmore Biggs Final Receiver Receipt identified, but official sovereign patent unlocated.",MEDIUM,160.000000,Retrieve BLM/GLO certified patent image for SE/4 Section 32.
+DEF-06,All Tracts,Beckham Index Pg 48,Logical Page 48 missing from preserved county index sequence; Page 54 disordered.,HIGH,All Section 32,Obtain certified copy of missing index Page 48 from Beckham County clerk.

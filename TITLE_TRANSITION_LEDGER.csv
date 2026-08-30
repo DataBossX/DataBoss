@@ -1,0 +1,17 @@
+Tract,Sequence,Grantor,Grantee,Instrument Date,Recording Ref,Fraction / Quantum,Derived NMA,Estate Type,Reservations / Exceptions,Title Effect & Status
+Tract 1 (NE/4),1,United States,Cornelius B. Cornelius,1907-03-22,Patent 3/469,100% of Fee,160.000000,Fee Simple,None,PROVED: Sovereign inception.
+Tract 1 (NE/4),2,Cornelius B. & Margreta Cornelius,Jacob Bollenbach,1907-07-16,Roger Mills 11/214,100% of Fee,160.000000,Fee Simple,None,PROVED: Pre-Beckham county conveyance.
+Tract 1 (NE/4),3,Jacob Bollenbach,Adolf Bollenbach,1910-01-31,Bk 10/Pg 255,100% of Fee,160.000000,Fee Simple,None,PROVED: Fee conveyance; chain breaks downstream.
+Tract 1 (NE/4),4,Historic Grantor,F.L. & J.L. Randel,1950-11-04,Bk 92/Pg 47,3/160,3.000000,Mineral Estate,None,PROVED: 1.50 NMA each share and share alike.
+Tract 1 (NE/4),5,Estate of Charlie B. Crook,"Five Heirs (Crook, Hanks, Lenderman, Bryan, Higgenbotham)",1985-10-23,Bk 845/Pg 150,40/160 (8 NMA ea),40.000000,Mineral Estate,None,PROVED: 8.00 NMA distributed to each heir.
+Tract 1 (NE/4),6,Adolf Bollenbach Residual,Unresolved Heirs / Successors,1910-Present,Unrecorded Chain,65/160,65.000000,Mineral Estate,Chain Break,NOT DETERMINED: Residual 65.0 NMA unchained.
+Tract 1 (NE/4),7,Ellen W. Crook Estate,Unresolved Beneficiaries,Date Unstated,Bk 83/Pg 259,40/160,40.000000,Mineral Estate,Decree Open,QUALIFIED: Collective vesting; individual shares open.
+Tract 2 (N/2 NW/4),1,U.S. Land Office,Herman Stevens,1905-05-04,FR 3894,100% of NW/4,80.000000,Inception,Patent Open,PROVED: Receiver receipt inception.
+Tract 2 (N/2 NW/4),2,Maddoux / Farrar Parties,B.E. & D.H. Maddoux,1958-04-18,Bk 153/Pg 161,20/80 (10 NMA ea),20.000000,Mineral Estate,Stipulation,PROVED: 10.00 NMA stipulated residual each.
+Tract 2 (N/2 NW/4),3,Historic Grantor,George T. & Renata Harrison,1950-11-04,Bk 92/Pg 47,20/80,20.000000,Mineral Estate,None,PROVED: 20.00 NMA mineral conveyance.
+Tract 3 (S/2 NW/4),1,Historic Grantors,C. R. Bennett,1949-06-12,Bk 81/Pg 194,40/80,40.000000,Mineral Estate,None,PROVED: 40.00 NMA mineral conveyance.
+Tract 4 (SW/4),1,Historic Grantors,Gertrude L. LaFortune,1950-02-10,Bk 85/Pg 222,40/160,40.000000,Mineral Estate,None,PROVED: 40.00 NMA in N/2 SW/4.
+Tract 4 (SW/4),2,Estate of Seidenbach,Leach & Kruse,1968-05-20,Probate Decree,40/160 (20 NMA ea),40.000000,Mineral Estate,None,"PROVED: 20.00 NMA to Leach, 20.00 NMA to Kruse."
+Tract 4 (SW/4),3,Sovereign / Deed Chain,Cora B. LeGrand,1976-04-29,Bk 307/Pg 31,80/160,80.000000,Fee / Mineral,None,PROVED: 80.00 NMA in S/2 SW/4.
+Tract 5 (SE/4),1,Biggs Inception Chain,Cora B. & S.A. Garrett,1947-11-13,Bk 63/Pg 33,80/160,80.000000,Fee / Mineral,None,PROVED: 80.00 NMA in E/2 SE/4.
+Tract 5 (SE/4),2,Deed Chain,Cora B. LeGrand,1976-04-29,Bk 307/Pg 31,80/160,80.000000,Fee / Mineral,None,PROVED: 80.00 NMA in W/2 SE/4.

@@ -46,13 +46,11 @@ class RepairResult:
 def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
     """Repair one worksheet part. Returns possibly-rewritten bytes.
 
-    Current repairs (safe, non-destructive):
-      * Remove ``<f>`` formula elements that evaluate to an error (``t="e"`` on
-        the parent ``<c>`` or a formula body starting with ``#``), leaving any
-        last-known cached ``<v>`` value in place so no data is lost.
-      * Drop dangling shared-formula masters that reference a deleted range.
+    Strict integrity rule: Never downgrade an errored formula (<c t="e"><f>#REF!</f></c>)
+    into an ordinary literal cached value. Errored formulas must remain flagged as errors
+    or refused, preventing downstream corruption.
     """
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
+    parser = etree.XMLParser(remove_blank_text=False, recover=False)
     root = etree.fromstring(xml_bytes, parser=parser)
     changed = False
 
@@ -64,11 +62,10 @@ def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
         body = (f.text or "").strip()
         is_error = t == "e" or body.startswith("#") or body.startswith("=#")
         if is_error:
-            cell.remove(f)
-            # if the cached value was an error, clear the error type marker too
-            if t == "e":
-                del cell.attrib["t"]
-            fixes.append(f"removed errored formula in cell {cell.get('r', '?')}")
+            # Preserve error indicator to prevent downgrading error formulas to fake literals
+            if t != "e":
+                cell.attrib["t"] = "e"
+            fixes.append(f"flagged errored formula in cell {cell.get('r', '?')}")
             changed = True
 
     if not changed:

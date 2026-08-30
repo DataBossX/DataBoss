@@ -820,7 +820,7 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
-_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{4,9})", re.I)
+_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{1,9})", re.I)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
@@ -893,15 +893,15 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         setv("decedent_heir_devisee", _capture_party(text, ["decedent", "deceased",
              "estate of", "devisee", "heir"]), 0.5)
 
-        # dates -- label-scoped where possible
+        # dates -- label-scoped where possible. Never fabricate recording_date from unrelated text.
         for key, kw in [("effective_date", r"effective\s+date"),
                         ("execution_date", r"(?:executed|dated|execution\s+date)"),
                         ("recording_date", r"(?:recorded|recording\s+date|filed)")]:
             m = re.search(rf"{kw}[^\n]{{0,40}}", text, re.I)
             d = parse_date(m.group(0)) if m else None
             setv(key, d, 0.6 if d else 0.0)
-        if "recording_date" not in v:
-            setv("recording_date", parse_date(text), 0.4)
+
+        _DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{1,9})", re.I)
 
         m = _INSTR_RX.search(text)
         if m:

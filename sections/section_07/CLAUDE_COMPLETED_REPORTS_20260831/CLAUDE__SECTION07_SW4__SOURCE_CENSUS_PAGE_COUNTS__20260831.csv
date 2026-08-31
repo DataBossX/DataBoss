@@ -1,0 +1,20 @@
+instrument,book_pages,page_count,verified_this_session,bytes,sha256_prefix,status
+I-2025-004050,2466/252-533,282,no(recorded),35322248,5bddaf,raw reviewed; A-1+A-2+plugged target-negative
+2025-004094,2466/732-801,70,no(recorded),,,A-1-only complete target-negative
+I-2023-003027,2409/483-538,56,no(recorded),,,complete target-negative per control
+I-2023-003028,2409/539-553,15,YES,1065441,167e8e81,official PDF banked; target-negative (Exhibit A = Sec 14-9N-21W only)
+I-2009-002020,1973/221-231,11,no(recorded),,,direct body+exhibit reviewed (Haddad lease listed)
+I-2024-003493,2437/52-59,8,no(recorded),,,FACE REQUIRED (wellbore-only hold)
+I-2009-001902,1972/907-912,6,no(recorded),,,FACE REQUIRED (Chesapeake release)
+I-1994-007284,1395/136-140,5,YES,354036,cf7587c1,banked final decree (Haddad 10 NMA to trustee)
+I-2009-002476,1974/637-641,5,YES,389016,dd486be3,banked; proved target-negative for OGL32
+I-2009-002475,1974/634-636,3,no(recorded),,,reviewed (OGL3 to Burlington)
+I-2008-006885,1957/614-616,3,no(recorded),,,OGL3 recorded face proved (3/16; 100-ft depth term)
+I-2008-007165,1958/373-375,3,no(recorded),,,FACE REBINDING REQUIRED (OGL10 Haddad)
+I-2009-002398,1974/396-398,3,no(recorded),,,OGL29 direct face proved (3/16; 3yr+2yr option)
+I-2011-009941,2072/463-464,2,no(recorded),97620,e8848491,banked (Juanita to Family Trust)
+I-1997-004260,1517/346,1,no(recorded),70910,2ff8795d,banked (trustee to individual; item2 = target 10 NMA)
+I-2025-004449,2468/74-204,131,no(recorded),,,corporate merger context only
+2026-000411,2477/1-444,444,no(recorded),,,corrective context only
+I-2022-004277,2393/1-698,698,no(recorded),,,historical schedule reviewed (to DP Legacy)
+HANDWRITTEN_INDEX_WORKBOOK,,38,no(recorded),,,county index scan set

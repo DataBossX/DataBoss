@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DataBossXOwnerRulingRecord",
+  "type": "object",
+  "required": [
+    "schema",
+    "ruling_id",
+    "record_class",
+    "release_state",
+    "GOVERNING_RULING",
+    "actor",
+    "hold"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["databossx.owner_ruling_record.v1"]
+    },
+    "ruling_id": {
+      "type": "string"
+    },
+    "record_class": {
+      "type": "string"
+    },
+    "release_state": {
+      "type": "string",
+      "enum": ["FOR REVIEW - HOLD NO EXTERNAL RELEASE"]
+    },
+    "IS_GATE0_START_CLAIM_RECEIPT": {
+      "type": "boolean"
+    },
+    "IS_GATE0_TERMINAL_RECEIPT": {
+      "type": "boolean"
+    },
+    "IS_EXECUTABLE_COMMAND": {
+      "type": "boolean"
+    },
+    "supersedes": {
+      "type": "object"
+    },
+    "conflict_that_prompted_this_record": {
+      "type": "object"
+    },
+    "GOVERNING_RULING": {
+      "type": "object",
+      "required": ["decision", "source_of_authority", "terms"],
+      "properties": {
+        "decision": { "type": "string" },
+        "source_of_authority": { "type": "string" },
+        "terms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "pull_request_status_affirmed": { "type": "string" },
+        "next_permitted_action": { "type": "string" }
+      }
+    },
+    "WHAT_CHANGES_FOR_THIS_LANE": {
+      "type": "object"
+    },
+    "CORRECTIVE_PACKAGE_REQUIREMENTS_AND_WHO_CAN_SATISFY_THEM": {
+      "type": "array"
+    },
+    "findings_status": {
+      "type": "object"
+    },
+    "actor": {
+      "type": "object"
+    },
+    "mutation_ledger": {
+      "type": "object"
+    },
+    "hold": {
+      "type": "string",
+      "enum": ["FOR REVIEW - HOLD NO EXTERNAL RELEASE"]
+    }
+  },
+  "additionalProperties": true
+}

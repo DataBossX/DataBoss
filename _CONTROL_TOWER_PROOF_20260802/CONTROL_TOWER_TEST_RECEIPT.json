@@ -1,0 +1,31 @@
+{
+  "schema": "databossx.control_tower_test_receipt.v1",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "generated_at_utc": "2026-08-02T15:41:47Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "status": "NOT_RUN",
+  "reason": "No Control Tower implementation exists to test. Zero test files, zero modules, and zero run_control_tower.bat were located in any scope searched.",
+  "claimed": {
+    "tests": "27/27",
+    "modules": 9,
+    "lines": 2046
+  },
+  "observed": {
+    "tests_executed": 0,
+    "passed": 0,
+    "failed": 0,
+    "modules_found": 0,
+    "lines_found": 0
+  },
+  "selftest": {
+    "command": "run_control_tower.bat selftest",
+    "status": "NOT_EXECUTABLE",
+    "cause": "run_control_tower.bat does not exist on this host or in any repository branch; additionally .bat is a Windows entrypoint and this lane is Linux",
+    "exit_code": null,
+    "stdout_sha256": null,
+    "stderr": null
+  },
+  "drive_writes_during_test": 0,
+  "protected_artifact_mutations_during_test": 0,
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

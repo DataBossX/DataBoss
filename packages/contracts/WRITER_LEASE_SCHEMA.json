@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://databossx.local/contracts/writer-lease/1.0.0",
+  "title": "WriterLease",
+  "description": "Exactly one ACTIVE lease may exist per protected resource scope. Enforced by a database partial-unique constraint and compare-and-swap claim, never by UI state or an in-memory boolean.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "lease_id",
+    "resource_scope",
+    "writer_identity",
+    "state",
+    "fencing_sequence",
+    "issued_at",
+    "expires_at",
+    "heartbeat_interval_seconds",
+    "stale_threshold_seconds"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "lease_id": { "type": "string", "pattern": "^lease_[0-9a-f]{32}$" },
+    "resource_scope": { "type": "string" },
+    "writer_identity": {
+      "type": "string",
+      "description": "Identity of the sole writer. A watcher identity can never appear here."
+    },
+    "state": { "enum": ["ACTIVE", "RELEASED", "EXPIRED", "FORCE_RELEASED"] },
+    "fencing_sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Incremented monotonically on every successful claim for the scope. Never reused, never decremented."
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "last_heartbeat_at": { "type": ["string", "null"], "format": "date-time" },
+    "heartbeat_interval_seconds": { "type": "integer", "minimum": 1 },
+    "stale_threshold_seconds": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "Missed heartbeats beyond this make the lease claimable by another writer; the stale holder's writes then fail on the fencing check."
+    },
+    "released_at": { "type": ["string", "null"], "format": "date-time" },
+    "release_reason": {
+      "enum": ["NORMAL", "EXPIRY", "FORCE_RELEASE", "HEARTBEAT_LOST", null]
+    },
+    "force_released_by": {
+      "type": ["string", "null"],
+      "description": "Force release requires a separately authorized human action and always emits a FORCE_RELEASE audit event."
+    }
+  }
+}

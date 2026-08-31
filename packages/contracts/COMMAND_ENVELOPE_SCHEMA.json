@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://databossx.local/contracts/command-envelope/1.0.0",
+  "title": "CommandEnvelope",
+  "description": "Immutable record of a confirmed human request. Creation requires explicit confirmation of the transcript AND the parsed intent. A CommandEnvelope never carries execution authority by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "command_id",
+    "idempotency_key",
+    "created_at",
+    "actor",
+    "source",
+    "transcript",
+    "intent",
+    "risk_class",
+    "status",
+    "content_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "command_id": { "type": "string", "pattern": "^cmd_[0-9a-f]{32}$" },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "description": "Client-supplied. Duplicate taps, retries, and repeated voice submissions MUST reuse this key and MUST NOT create a second command."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id", "role", "session_id", "device_id"],
+      "properties": {
+        "user_id": { "type": "string" },
+        "role": { "enum": ["OWNER", "OPERATOR", "REVIEWER", "VIEWER", "RUNNER"] },
+        "session_id": { "type": "string" },
+        "device_id": { "type": "string" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel"],
+      "properties": {
+        "channel": { "enum": ["VOICE", "TEXT", "DRIVE_INBOX", "IMPORTED_CONVERSATION"] },
+        "provider": { "type": ["string", "null"], "description": "Speech or import provider identifier." },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "external_ref": { "type": ["string", "null"] }
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "sha256", "captured_at"],
+      "description": "Raw human language. Deliberately separated from `intent`. Raw audio is NOT retained after successful transcription.",
+      "properties": {
+        "text": { "type": "string", "maxLength": 8000 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "audio_retained": { "type": "boolean", "default": false }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["goal", "operation", "unresolved"],
+      "description": "Structured interpretation. Dangerous missing fields are NEVER inferred; they are listed in `unresolved` and block dispatch.",
+      "properties": {
+        "goal": { "type": "string", "maxLength": 500 },
+        "operation": { "type": "string", "maxLength": 120 },
+        "target_project": { "type": ["string", "null"] },
+        "target_resource": { "type": ["string", "null"], "description": "Logical resource ID only. Absolute filesystem paths are rejected." },
+        "constraints": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "urgency": { "enum": ["LOW", "NORMAL", "HIGH", "CRITICAL"], "default": "NORMAL" },
+        "source_references": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "unresolved": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Non-empty means the command cannot be classified as executable."
+        }
+      }
+    },
+    "risk_class": {
+      "enum": ["READ_ONLY", "SIMULATION", "APPROVAL_REQUIRED", "PROHIBITED"],
+      "description": "Assigned by the deterministic policy engine only. A model may never set or raise this."
+    },
+    "status": {
+      "enum": ["DRAFT", "TRANSCRIBED", "INTERPRETED", "CONFIRMED", "CLASSIFIED", "DISPATCHED", "CANCELLED", "REJECTED", "EXPIRED", "QUARANTINED"]
+    },
+    "policy_version": { "type": ["string", "null"] },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Canonical-JSON hash of the envelope excluding this field. Any later mutation invalidates it."
+    }
+  }
+}

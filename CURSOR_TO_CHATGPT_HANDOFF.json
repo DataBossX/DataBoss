@@ -1,0 +1,113 @@
+{
+  "schema": "databossx.cursor_to_chatgpt_handoff.v1",
+  "handoff_timestamp_utc": "2026-08-31T20:58:00Z",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "executing_environment": {
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "operating_system": "Linux 6.12.94+ x86_64",
+    "hostname": "cursor",
+    "user": "ubuntu",
+    "worktree_path": "/workspace",
+    "is_authorized_windows_control_tower": false,
+    "c_databoss_accessible": false,
+    "google_drive_auth_available": false
+  },
+  "git_state": {
+    "repository": "DataBossX/DataBoss",
+    "base_branch": "main",
+    "base_commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "working_branch": "cursor/control-tower-s32-recovery-b204",
+    "inspected_pr_heads": {
+      "PR_66": "65f48d367cbb7bb11bd87715d3679d7df8c5e234",
+      "PR_74": "39f1f404fe151171541f60fc00f9d455fdd4eeb5",
+      "PR_76": "41f64ad6fffb63db96bc48c63264275a9153ca83",
+      "PR_77": "122d5dc5f9442f0b1d757bea716719f2c66709a2"
+    }
+  },
+  "controlling_authority": {
+    "governing_ruling": "DBX-RULING-R01-GATE0-COMMAND-SPENT-20260802T1213CDT",
+    "owner_ruling_drive_id": "1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM",
+    "retired_gate0_command_drive_id": "1C0C8ERuCYm6Rqso0ahLXMifhXqlYjinOlFkN5k29NCE",
+    "retired_gate0_command_id": "DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT",
+    "spent_terminal_receipt_drive_id": "1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE",
+    "successor_gate0_draft_drive_id": "1VfdAVRX8zG8Elzi_ucsOkM-Gy27JHrH_pitfg9oLY3E",
+    "bridge_restore_envelope": "TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT",
+    "bridge_restore_activation_drive_id": "1MABO3IlrAeR6q4nxJLT7xSBeYiLQJdrL0cAUXaj8cqg"
+  },
+  "test_results": {
+    "control_tower_pytest": {
+      "passed": 168,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "full_repo_pytest": {
+      "passed": 314,
+      "skipped": 3,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "cli_selftest": {
+      "passed": 26,
+      "total": 26,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "cli_canary": {
+      "passed": 7,
+      "total": 7,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "cli_audit": {
+      "completeness": "PARTIAL_HOST_MISMATCH",
+      "v12_ruling": "NOT_VERIFIED_UNREACHABLE",
+      "exit_code": 2
+    },
+    "cli_reconcile": {
+      "status": "GOVERNING_RULING_CONFIRMED",
+      "exit_code": 0
+    }
+  },
+  "protected_baselines": {
+    "v10_expected_sha256": "79668279F0CF1A49CDF6F599F611C7BE058D40D43FA54372F6B559E60D9E7F4C",
+    "v11_expected_sha256": "81AE7941DC62C748CBAA57A0FCEEB77F24828440F3A954173284ED3DB0DB0369",
+    "v12_expected_sha256": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+    "v13_wip_expected_sha256": "FF8D6CF349CCEE753FA62F5213F152C0F3B17D7B18A57E1BA7A1A63DB6CEBC58",
+    "terminal_receipt_1110cdt_expected_sha256": "52A969007216A3CE32305B030B520376734250B01CBB282C96451343A72C9708"
+  },
+  "completed_deliverables": [
+    "control_tower/constants.py - Pinned anchors, spent commands, protected baselines",
+    "control_tower/safety.py - Fail-closed guards, output allowlist, redaction, sidecar generator",
+    "control_tower/kernel.py - Monotonic fencing, lease registry, state machines, heartbeats, stop flag, recovery spool",
+    "control_tower/drive.py - Outbound SafeDriveWriter with sidecar support and crash recovery",
+    "control_tower/drive_google.py - REST client with URL allowlisting and credential scrubbing",
+    "control_tower/tower.py - 26 fail-closed invariants in selftest, offline canary, Gate0Runner",
+    "control_tower/audit.py - Read-only host audit reporting PARTIAL_HOST_MISMATCH on Linux",
+    "control_tower/reconcile.py - Deterministic current-authority reconciliation",
+    "control_tower/cli.py - Subcommands {selftest, canary, audit, reconcile}",
+    "control_tower/schemas/* - Strict JSON schemas for start claims, terminals, commands, rulings",
+    "control_tower/WINDOWS_OPERATOR_PACKET_V2.md - Step-by-step Windows operator commands",
+    "control_tower/SUCCESSOR_GATE0_COMMAND_DRAFT.json - Clean successor command binding all cures",
+    "control_tower/SECTION32_READ_ONLY_ANALYSIS.md - 3-model read-only analytical synthesis & source census",
+    "tests/test_control_tower_hardened.py - 49 new concurrency, adversarial, recovery tests",
+    "CURSOR_STATUS.md - Comprehensive markdown status report",
+    "CURSOR_TO_CHATGPT_HANDOFF.json - Machine-readable handoff"
+  ],
+  "safety_verifications": {
+    "excel_opened": false,
+    "workbooks_mutated": false,
+    "competing_control_planes_created": false,
+    "spent_commands_claimed_or_reopened": false,
+    "hold_altered_or_removed": false,
+    "unredacted_secrets_committed": false
+  },
+  "exact_blockers_requiring_windows_or_owner": [
+    "Host-bound: Execution of TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT on Windows PC",
+    "Host-bound: Quiescing / binding Cursor worker PID 49548 without workbook access",
+    "Host-bound: Terminalizing and releasing containment lease LEASE-DBX-V13-MULTI-WRITER-CONTAINMENT-20260801",
+    "Host-bound: Hashing returned bytes of Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE to publish .sha256 sidecar",
+    "Host-bound: Hashing V12 (D3937F46...8D5D) and quarantined V13 WIP (FF8D6CF3...BC58) on C:\\DataBoss",
+    "Owner action: Express owner activation of successor Gate 0 command before queue placement"
+  ],
+  "terminal_status": "CURSOR_MAXIMUM_SAFE_PROGRESS_COMPLETED"
+}

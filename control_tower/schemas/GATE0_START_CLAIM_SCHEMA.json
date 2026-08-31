@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DataBossXGate0StartClaimReceipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "receipt_type",
+    "command_id",
+    "command_drive_id",
+    "command_revision",
+    "authority_source",
+    "claim_key",
+    "lease_id",
+    "lease_expires_at",
+    "fencing_sequence",
+    "mode",
+    "mutation_permitted",
+    "process",
+    "started_at_epoch",
+    "allowed_write_folder_ids",
+    "stop_conditions",
+    "hold"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["databossx.gate0_start_claim.v1"]
+    },
+    "receipt_type": {
+      "type": "string",
+      "enum": ["GATE0_START_CLAIM"]
+    },
+    "command_id": {
+      "type": "string"
+    },
+    "command_drive_id": {
+      "type": "string"
+    },
+    "command_revision": {
+      "type": ["integer", "string"]
+    },
+    "authority_source": {
+      "type": "string"
+    },
+    "title_considered_for_authority": {
+      "type": "boolean",
+      "enum": [false]
+    },
+    "claim_key": {
+      "type": "string"
+    },
+    "lease_id": {
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "type": "number"
+    },
+    "fencing_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["READ_ONLY"]
+    },
+    "mutation_permitted": {
+      "type": "boolean",
+      "enum": [false]
+    },
+    "process": {
+      "type": "object",
+      "required": ["hostname", "system", "user", "pid"],
+      "properties": {
+        "hostname": { "type": "string" },
+        "system": { "type": "string" },
+        "is_windows": { "type": "boolean" },
+        "user": { "type": "string" },
+        "pid": { "type": "integer" },
+        "ppid": { "type": ["integer", "null"] },
+        "executable": { "type": "string" }
+      }
+    },
+    "started_at_epoch": {
+      "type": "number"
+    },
+    "allowed_write_folder_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "stop_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "hold": {
+      "type": "string",
+      "enum": ["FOR REVIEW - HOLD NO EXTERNAL RELEASE"]
+    }
+  },
+  "additionalProperties": false
+}

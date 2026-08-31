@@ -1,0 +1,136 @@
+{
+  "schema": "databossx.correction_record.v1",
+  "correction_id": "DBX-CORR-02-CT-BUILD-EXISTS-20260802T1145CDT",
+  "record_class": "APPEND_ONLY_SUPERSEDING_CORRECTION",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "IS_GATE0_START_CLAIM_RECEIPT": false,
+  "IS_GATE0_TERMINAL_RECEIPT": false,
+  "GATE0_CLAIM_ATTEMPTED_BY_THIS_LANE": false,
+  "COMPETING_CONTROL_PLANE_CREATED": false,
+
+  "supersedes_fields_of": {
+    "record_drive_id": "1iMUL_pEYIP1VX6zDOoWOws0mIkGbuRex",
+    "record_title": "QC_REVIEW__S32_GATE0_TERMINAL_RECEIPT__INDEPENDENT_READ_ONLY_REVIEW__20260802T1121CDT.json",
+    "record_sha256": "81E9D50E8F141FE1A6FFFFEE87E4BBEF81195BFC18426E5F40E3078DAB16CB24",
+    "edited_or_overwritten": false,
+    "note": "The referenced review record was NOT edited and NOT overwritten. It remains byte-identical at its published hash. This record corrects two of its fields going forward, per the append-only rule and following the DBX_CORRECTION_01 precedent."
+  },
+
+  "why_the_correction_is_needed": "The 1121CDT review searched the repository only at branch tip 582d951 and at draft PR 66. It did not enumerate every open draft pull request. Draft PR 74, opened 2026-08-02T15:54:24Z on branch claude/databossx-section32-recovery-ouyziy, contains a purpose-built DataBossX Control Tower. The prior record therefore understated what exists. The R-01 through R-04 findings of that record are unaffected and still stand.",
+
+  "corrected_fields": {
+    "repository_state.search_result": {
+      "was": "No Drive watcher, no TaskEnvelope implementation, no WriterACK implementation, no lease or fencing store, no receipt uploader, and no claim ledger exist on branch 582d951. ... The donor control kernel lives only in unmerged draft PR 66 at head 65f48d3.",
+      "now": "Accurate as stated FOR BRANCH 582d951, which remains true. INCOMPLETE as to the repository as a whole: draft PR 74 (head fb4186e) contains a complete, standard-library-only DataBossX Control Tower - 8 implementation modules, 1773 implementation lines, 604 test lines, a Windows entrypoint run_control_tower.bat, and a portable entrypoint python -m control_tower.cli with selftest, canary, and audit subcommands. PR 66 is a separate and larger donor kernel; PR 74 is the one purpose-built for this control plane."
+    },
+    "control_tower_recovery_outcome.selected": {
+      "was": "D-for-this-host / B-for-the-matter",
+      "now": "A-for-the-code / C-for-the-matter. Outcome A: an existing runnable Control Tower was located and this lane independently ran it end to end. Outcome C: its Drive-watcher and Windows-host integration remain unproven, because it has never been executed on the authorized workstation that owns C:\\DataBoss. Outcome D is withdrawn."
+    }
+  },
+
+  "independent_verification_performed_by_this_lane": {
+    "method": "Fetched origin/claude/databossx-section32-recovery-ouyziy, extracted head fb4186e with git archive into an isolated scratch directory. No worktree was created, no branch was checked out, no merge occurred, and the reviewer branch was not modified. Ran the shipped entrypoints directly.",
+    "host": "vm - Linux ephemeral cloud container, Python 3.11.15, no third-party packages installed",
+    "results": [
+      {
+        "check": "python -m control_tower.cli selftest",
+        "claimed": "18/18, exit 0, zero Drive writes",
+        "observed": "18/18 passed, 0 failed, exit 0",
+        "result": "CONFIRMED",
+        "report_sha256": "786FBFDFF016362E760FE7BC13B1CFDA9E4FAEC2D97E764D6D17B0800B7C74D7",
+        "named_properties_exercised": [
+          "only_canonical_queue_polled",
+          "filename_text_grants_no_authority",
+          "write_outside_approved_folders_denied",
+          "mutation_denied_without_activated_envelope",
+          "exactly_once_key_binds_revision",
+          "unresolved_claim_blocks_second_claim",
+          "stale_lease_cannot_write",
+          "monotonic_fencing_enforced",
+          "spool_append_only_and_collision_safe",
+          "drive_outage_does_not_drop_or_overwrite",
+          "secrets_redacted",
+          "protected_artifacts_cannot_be_uploaded",
+          "hold_immutable",
+          "canonical_urls_from_verified_ids_only",
+          "non_google_urls_never_trusted",
+          "read_outside_control_package_denied",
+          "verified_round_trip_succeeds",
+          "corrupted_readback_detected"
+        ]
+      },
+      {
+        "check": "python -m control_tower.cli canary",
+        "claimed": "7/7, exit 0, zero network calls",
+        "observed": "7/7 passed, 0 failed, exit 0",
+        "result": "CONFIRMED",
+        "report_sha256": "0AA2C695BC717AC0E226A82C181CDA4ED0ECE6E5E6B4A813E5FCA02D492400A2"
+      },
+      {
+        "check": "python -m control_tower.cli audit",
+        "claimed": "exit 2, PARTIAL_HOST_MISMATCH, V12 NOT_VERIFIED_UNREACHABLE",
+        "observed": "exit 2; completeness PARTIAL_HOST_MISMATCH; v12 ruling NOT_VERIFIED_UNREACHABLE; unreachable set drive_surface, processes, repository, services_and_tasks, v12, workbook_locks; workbook opened False",
+        "result": "CONFIRMED",
+        "report_sha256": "9A4BF19A1D21FEFFAE409DCF2E295F6AA82F260D82EF1FFEDCAC453E944E9EA1",
+        "reviewer_note": "This is the single most important behavioural result. From a host that cannot see C:\\DataBoss the tool refuses to call V12 verified and exits non-zero, rather than reporting a clean result it did not earn. That is the correct fail-closed posture and it matches how this reviewer lane independently characterised the same host limitation."
+      },
+      {
+        "check": "per-file code hash verification against BUILD_02_CODE_MANIFEST.json",
+        "observed": "12 of 12 files MATCH, 0 mismatch, 0 missing",
+        "result": "CONFIRMED - the code that ran is byte-identical to the code the manifest describes"
+      },
+      {
+        "check": "evidence artifact verification against CONTROL_TOWER_SHA256SUMS.txt",
+        "observed": "12 of 12 committed evidence artifacts OK",
+        "result": "CONFIRMED"
+      },
+      {
+        "check": "third-party dependency claim",
+        "claimed": "standard library only",
+        "observed": "dependencies.third_party is empty, and all three subcommands executed on a host with no pytest, openpyxl, pandas, fastapi, or pydantic installed",
+        "result": "CONFIRMED - this will run on the Windows workstation with nothing but Python present"
+      },
+      {
+        "check": "pytest tests/test_control_tower.py",
+        "claimed": "88 passed",
+        "observed": "NOT RUN - pytest is unavailable on this host and there is no PyPI access",
+        "result": "NOT VERIFIED. This is not a failure and must not be reported as one. The 18 selftest and 7 canary properties cover the same invariants through a different entrypoint and all passed."
+      }
+    ]
+  },
+
+  "new_finding": {
+    "id": "R-05",
+    "severity": "MINOR",
+    "title": "CONTROL_TOWER_SHA256SUMS.txt references seven log files that are not committed.",
+    "detail": "Entries ./logs/audit.log, ./logs/canary.log, ./logs/env.log, ./logs/git.log, ./logs/pytest_control_tower.log, ./logs/search.log, and ./logs/selftest.log are listed in the manifest but absent from the tracked tree, so sha256sum -c reports 7 unreadable files against 12 that verify OK. A reviewer working from a fresh clone cannot fully verify the manifest and may read the warning as tampering.",
+    "why_it_matters": "Low. No committed artifact is wrong. It is a completeness and reviewability defect, not an integrity defect.",
+    "recommended_resolution": "Either commit the sanitized logs or split the manifest so committed artifacts verify cleanly on their own.",
+    "action_taken_by_this_lane": "NONE - reported only. This lane does not modify PR 74."
+  },
+
+  "unchanged_assertions": {
+    "findings_R01_through_R04_of_the_reviewed_record": "UNAFFECTED AND STILL STAND",
+    "gate0_state": "TERMINALIZED_BLOCKED per DBX_RECEIPT__S32_GATE0__AUTHORITY_REISSUE_COMPILATION_BLOCKED__20260802T1110CDT.json, Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE",
+    "gate0_claim_consumed_by_this_lane": false,
+    "gate0_terminal_receipts_issued_by_this_lane": 0,
+    "section32_completion_unlocked": false,
+    "v12_ruling": "NOT_VERIFIED_UNREACHABLE from this host; verified EXACT_MATCH by the authorized Windows host in the 1110CDT receipt",
+    "workbook_mutations": 0,
+    "source_evidence_mutations": 0,
+    "drive_deletions": 0,
+    "drive_overwrites": 0,
+    "queue_commands_added": 0,
+    "pull_requests_merged": 0,
+    "pull_request_74_modified": false,
+    "pull_request_66_modified": false,
+    "deployments": 0,
+    "hold_preserved": true
+  },
+
+  "revised_next_authorized_action": "UNCHANGED IN ORDER, IMPROVED IN MEANS. The fastest complete Gate 0 audit now available is to run the existing PR 74 Control Tower on the authorized Windows workstation. On the host that owns C:\\DataBoss: (1) check out branch claude/databossx-section32-recovery-ouyziy; (2) run run_control_tower.bat selftest and confirm 18/18, since Gate0Runner.preflight() refuses to proceed on anything less; (3) run run_control_tower.bat audit, which from that host can reach V12, Excel locks, workbook lock holders, services, and scheduled tasks that are UNREACHABLE from any cloud container, and which does not open any workbook; (4) obtain Ryan's ruling on finding R-01 before any Gate 0 claim is attempted; (5) execute the owner-activated bridge envelope TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT and quiesce the live unbound Section 32 Cursor worker PID 49548; (6) append-only terminalize and release the expired containment lease LEASE-DBX-V13-MULTI-WRITER-CONTAINMENT-20260801. Claiming remains a separate deliberate step and is not reachable from the CLI by accident. Bridge activation expires 2026-08-03 10:54 CDT.",
+
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

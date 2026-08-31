@@ -1,0 +1,141 @@
+{
+  "schema": "databossx.successor_gate0_command.v1",
+  "command_id": "DBX-CMD-S32-GATE0-SUCCESSOR-20260802T1300CDT",
+  "envelope_id": "TE-DBX-S32-GATE0-SUCCESSOR-20260802T1300CDT",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "status": "DRAFT_AWAITING_CURES_AND_OWNER_ACTIVATION",
+  "in_queue": false,
+
+  "execution_identity": {
+    "actor": "Codex / Windows Control Tower",
+    "role": "SOLE_PROTECTED_WORKBOOK_WRITER_CANDIDATE",
+    "host_requirement": "AUTHORIZED_WINDOWS_WORKSTATION_ONLY",
+    "target_machine": "RYANSPC",
+    "target_worktree": "C:\\DataBoss"
+  },
+
+  "controlling_owner_ruling": {
+    "ruling_id": "DBX-RULING-R01-GATE0-COMMAND-SPENT-20260802T1213CDT",
+    "drive_id": "1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM",
+    "sha256": "8098B2428378150AAC1915B51D87E1D1CB1CC9279C6A7319CCDE80AE36FEB909"
+  },
+
+  "prerequisites": [
+    {
+      "id": "P-01",
+      "description": "Windows outbound-only bridge restoration proven and terminalized",
+      "status_required": "MET_BY_WINDOWS_HOST",
+      "envelope_id": "TE-DBX-S32-BRIDGE-RESTORE-20260802T1043CDT",
+      "activation_drive_id": "1MABO3IlrAeR6q4nxJLT7xSBeYiLQJdrL0cAUXaj8cqg"
+    },
+    {
+      "id": "P-02",
+      "description": "Cursor worker PID 49548 quiesced or positively bound without workbook access",
+      "status_required": "MET_BY_WINDOWS_HOST"
+    },
+    {
+      "id": "P-03",
+      "description": "Containment lease LEASE-DBX-V13-MULTI-WRITER-CONTAINMENT-20260801 append-only terminalized and released",
+      "status_required": "MET_BY_WINDOWS_HOST"
+    },
+    {
+      "id": "P-04",
+      "description": "Gate 0 BLOCKED terminal receipt 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE hashed and published with .sha256 sidecar",
+      "status_required": "MET_BY_WINDOWS_HOST",
+      "expected_sha256": "52A969007216A3CE32305B030B520376734250B01CBB282C96451343A72C9708"
+    },
+    {
+      "id": "P-05",
+      "description": "F-02 scope ruling published or justified NOT RULED",
+      "status_required": "MET",
+      "status_note": "Justified as NOT RULED pending local inventory verification"
+    },
+    {
+      "id": "P-06",
+      "description": "Quarantined V13 WIP located, hashed, and dispositioned",
+      "status_required": "MET_BY_WINDOWS_HOST",
+      "expected_sha256": "FF8D6CF349CCEE753FA62F5213F152C0F3B17D7B18A57E1BA7A1A63DB6CEBC58"
+    },
+    {
+      "id": "P-07",
+      "description": "V10, V11, and V12 freshly verified; V12 matches expected hash exactly and preserved unchanged",
+      "status_required": "MET_BY_WINDOWS_HOST",
+      "v12_expected_sha256": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D"
+    },
+    {
+      "id": "P-08",
+      "description": "Control Tower hardened codebase passes full selftest (26/26) and test suite (168/168)",
+      "status_required": "MET",
+      "status_note": "Independently verified in repository test harness"
+    },
+    {
+      "id": "P-09",
+      "description": "Separate express owner activation received before queue placement",
+      "status_required": "PENDING_OWNER_ACTION"
+    }
+  ],
+
+  "protected_baselines": {
+    "v10_sha256": "79668279F0CF1A49CDF6F599F611C7BE058D40D43FA54372F6B559E60D9E7F4C",
+    "v11_sha256": "81AE7941DC62C748CBAA57A0FCEEB77F24828440F3A954173284ED3DB0DB0369",
+    "v12_sha256": "D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+    "v13_wip_sha256": "FF8D6CF349CCEE753FA62F5213F152C0F3B17D7B18A57E1BA7A1A63DB6CEBC58"
+  },
+
+  "lease_specification": {
+    "scope": "section32",
+    "ttl_seconds": 900.0,
+    "one_writer_only": true
+  },
+
+  "fencing_specification": {
+    "scope": "section32",
+    "monotonic_required": true
+  },
+
+  "allowed_inputs": [
+    "1AaeCfzx1RWE_uXU2De2KOZHorBCxpxuAQqaK_6LFVJM",
+    "1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM",
+    "1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE",
+    "1e7nFZjrHrxvXRnIGP2QD9yGj23oTeTZp",
+    "1MABO3IlrAeR6q4nxJLT7xSBeYiLQJdrL0cAUXaj8cqg"
+  ],
+
+  "allowed_outputs": [
+    "1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+    "1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+    "1y1UxIA9VaAqXfjkO1Bf-3W2M4FegCDdF",
+    "1VLvIH-_AgitAAndBBYMbtsJky-_k9i5Y",
+    "1V8M9xwCsPZBdzPY-WTvvisyTV2EvIc6N"
+  ],
+
+  "prohibited_paths": [
+    "C:\\DataBoss\\Section32\\V12_Report.xlsx",
+    "C:\\DataBoss\\Section32\\V10_*.xlsx",
+    "C:\\DataBoss\\Section32\\V11_*.xlsx",
+    "C:\\DataBoss\\Section32\\*V13*.xlsx"
+  ],
+
+  "rollback_plan": "On any preflight, fencing, lease, or readback failure, the executor immediately emits an append-only rollback event to the journal, releases any active lease, and halts without touching workbook storage.",
+
+  "stop_conditions": [
+    "Selftest failure",
+    "Hash mismatch on V12 or V13 WIP",
+    "Competing writer detected",
+    "Stale lease or fencing token",
+    "Heartbeat timeout",
+    "Emergency stop flag triggered",
+    "Byte readback mismatch",
+    "Prohibited path access attempt"
+  ],
+
+  "test_requirements": [
+    "run_control_tower.bat selftest must pass 26/26 checks",
+    "run_control_tower.bat canary must pass 7/7 checks",
+    "run_control_tower.bat audit must execute read-only"
+  ],
+
+  "terminal_slot_count": 1,
+  "required_terminal_sentinel": "S32_SUCCESSOR_GATE0_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY"
+}

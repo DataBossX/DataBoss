@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://databossx.local/contracts/verification-receipt/1.0.0",
+  "title": "VerificationReceipt",
+  "description": "Proof of what actually happened. Must be readable by a human and verifiable by a machine. Fabricating any field is prohibited; unknown values are recorded as null with a stated reason, never invented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "task_id",
+    "command_id",
+    "resource_scope",
+    "execution_mode",
+    "outcome",
+    "started_at",
+    "finished_at",
+    "fencing_sequence",
+    "lease_id",
+    "writer_identity",
+    "policy_version",
+    "holds_in_effect",
+    "checks",
+    "artifacts",
+    "plain_language_result",
+    "content_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "receipt_id": { "type": "string", "pattern": "^rcpt_[0-9a-f]{32}$" },
+    "task_id": { "type": "string" },
+    "command_id": { "type": "string" },
+    "attempt_id": { "type": ["string", "null"] },
+    "resource_scope": { "type": "string" },
+    "execution_mode": {
+      "enum": ["READ_ONLY", "SIMULATED", "REAL"],
+      "description": "SIMULATED must be surfaced verbatim in the UI. Presenting a SIMULATED result as REAL is a prohibited action."
+    },
+    "outcome": { "enum": ["COMPLETED", "FAILED", "ABORTED_FAIL_CLOSED", "ROLLED_BACK"] },
+    "failure_reason": { "type": ["string", "null"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "fencing_sequence": { "type": "integer", "minimum": 1 },
+    "lease_id": { "type": "string" },
+    "writer_identity": { "type": "string" },
+    "policy_version": { "type": "string" },
+    "holds_in_effect": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Every hold active at execution time. A receipt may never show a hold being removed by this operation."
+    },
+    "checks": {
+      "type": "array",
+      "description": "Each verification actually performed. Checks that did not run are recorded with status NOT_RUN, never PASS.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "enum": ["PASS", "FAIL", "NOT_RUN", "SKIPPED"] },
+          "detail": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["logical_id", "sha256", "byte_size", "synthetic"],
+        "properties": {
+          "logical_id": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "byte_size": { "type": "integer", "minimum": 0 },
+          "synthetic": { "type": "boolean", "description": "True for all fixtures in this lane. Real client evidence never appears here." },
+          "drive_file_id": { "type": ["string", "null"] },
+          "drive_version": { "type": ["string", "null"] },
+          "drive_mime_type": { "type": ["string", "null"] },
+          "drive_parent_id": { "type": ["string", "null"] },
+          "drive_readback_sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+          "drive_readback_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "plain_language_result": {
+      "type": "string",
+      "description": "What changed, in words Ryan can read in five seconds."
+    },
+    "next_safe_action": { "type": ["string", "null"] },
+    "content_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

@@ -1,6 +1,33 @@
 [extend]
 useDefault = true
 
+# --------------------------------------------------------------------------
+# Use the plural [[allowlists]] form only.
+#
+# The pinned CI image rejects the singular table outright:
+#   "[allowlist] is deprecated, it cannot be used alongside [[allowlists]]"
+# so the two forms must never both appear in this file.
+#
+# Be aware when reproducing locally: older gitleaks builds (8.21.2 among them)
+# silently ignore [[allowlists]] for global `commits`. On such a build this file
+# will report findings that CI does not. That direction is the safe one -- a
+# local run over-reports rather than under-reports -- but do not "fix" it by
+# adding a singular [allowlist] table, because that breaks CI hard.
+# --------------------------------------------------------------------------
+
 [[allowlists]]
 description = "Known commit that deletes the previously exposed backend credentials"
 commits = ["ad02fdebbf88945feb3c215217c1ce16286e5b5d"]
+
+# ca62cbd added Control Tower redaction tests whose fixtures were written as
+# literals: a generic-api-key match on an `api_key=<value>` pair, plus several
+# "ghp_"-shaped values. Every one is fabricated -- never issued, never valid,
+# and grants nothing. Later commits rebuild all of them at runtime, so the
+# working tree scans clean and stays clean; this entry only stops the
+# pull-request commit-range scan from re-reporting the superseded blobs.
+#
+# Scoped to the single commit on purpose. Allowlisting the test path instead
+# would leave a standing blind spot where a real credential could later hide.
+[[allowlists]]
+description = "Fabricated credential fixtures in ca62cbd, replaced by runtime construction in later commits"
+commits = ["ca62cbd080b797d74bd89e6951e56c69920f66a5"]

@@ -1,0 +1,72 @@
+{
+  "schema": "databossx.control_tower_test_receipt.v2",
+  "run_id": "DBX-S32-CT-BUILD-20260802T1600Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "status": "PASS",
+  "supersedes": {
+    "prior": "CONTROL_TOWER_TEST_RECEIPT.json",
+    "prior_status": "NOT_RUN",
+    "note": "The prior receipt was accurate: there was no build to test. Retained unmodified."
+  },
+  "environment": {
+    "python": "3.11.15",
+    "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+    "pytest": "pytest 9.0.2"
+  },
+  "pytest": {
+    "command": "pytest tests/test_control_tower.py -q",
+    "exit_code": 0,
+    "summary": [
+      "88 passed in 0.29s"
+    ],
+    "log_sha256": "A1853B876EF17552FD68E8436AEBC86DEAA6C29B19DD030B996DA79D7EF6FC4A"
+  },
+  "selftest": {
+    "command": "run_control_tower.bat selftest",
+    "portable": "python -m control_tower.cli selftest",
+    "exit_code": 0,
+    "summary": [
+      "control_tower_selftest: 18/18 passed, 0 failed",
+      "report: /tmp/claude-0/-home-user-DataBoss/b621770e-310a-5491-a3fa-e77fdec490d3/scratchpad/final_st/selftest_20260802T160821Z/selftest_report.json",
+      "sha256: 0FD85A601CB7DFCCB0201FA0580B95D1916AC3046151DD1D55BBB6A16BAF9DC0",
+      "hold:   FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+    ],
+    "log_sha256": "7356267E2AF6FF60C73E891D9DFE3B9523D7B52C1A91A09ED116B554F1C33268",
+    "drive_writes": 0,
+    "protected_artifact_mutations": 0
+  },
+  "canary": {
+    "command": "run_control_tower.bat canary",
+    "exit_code": 0,
+    "summary": [
+      "control_tower_offline_canary: 7/7 passed, 0 failed",
+      "report: /tmp/claude-0/-home-user-DataBoss/b621770e-310a-5491-a3fa-e77fdec490d3/scratchpad/final_cn/canary_20260802T160821Z/canary_report.json",
+      "sha256: 5E793F074E04D5A657D628FB9F2FAC7D12F7A6CE33865F0C6907F2070653281A",
+      "hold:   FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+    ],
+    "log_sha256": "8B5EF547831A1D09CC76A596B04DB9E247FA7E8FE90350A08F4D579C70C85467",
+    "network_calls": 0
+  },
+  "audit": {
+    "command": "run_control_tower.bat audit",
+    "exit_code": 2,
+    "expected_exit_code_on_this_host": 2,
+    "summary": [
+      "v12 ruling:         NOT_VERIFIED_UNREACHABLE",
+      "unreachable:        drive_surface, processes, services_and_tasks, v12, workbook_locks",
+      "workbook opened:    False",
+      "report: /tmp/claude-0/-home-user-DataBoss/b621770e-310a-5491-a3fa-e77fdec490d3/scratchpad/final_au/audit_20260802T160821Z/S32_GATE0_LOCAL_AUDIT.json",
+      "sha256: 0B010688EFAE24619B8C734902C1C89CC645D39D1E9A67BEF2B993DB4B37E002",
+      "hold:   FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+    ],
+    "log_sha256": "483635AA8B91D9C3B4A69EB0388140865D7FEBFCDFC8C3813A2B8BF9437932FD",
+    "ruling": "PARTIAL_HOST_MISMATCH is correct here: this Linux lane cannot see C:\\DataBoss, so V12 is NOT_VERIFIED_UNREACHABLE rather than passing.",
+    "workbook_opened": false,
+    "workbook_mutated": false
+  },
+  "regression_check": {
+    "full_repo_suite": "1 failed, 149 passed, 12 errors",
+    "attribution": "The 12 collection errors (openpyxl, pydantic, requests) and the one grocery-pipeline failure are pre-existing and reproduce identically with this change stashed. CI installs requirements.txt, so they do not appear there. This build is standard-library only and adds no dependency."
+  },
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

@@ -1,0 +1,88 @@
+{
+  "lane": "CLAUDE_CODE__H7_SOURCE_CHAIN_STEWARD",
+  "session_date_utc": "2026-08-31",
+  "mode": "READ_ONLY_VERIFICATION_AND_REPORT_BUILD",
+  "workbook_writes": 0,
+  "verified_workbooks": [
+    {
+      "drive_id": "1e6gPajod2nVkPOOqk6Zo69g1o3ELuxH9",
+      "role": "OWNER_RELEASE_GATE_HOLD_BASELINE",
+      "bytes": 355059,
+      "sha256": "eca69276cf4e89c30f3ff758d4022a01d262e4074560eb4b592aa3a187a88398",
+      "sheets": [
+        "Overview",
+        "Title ",
+        "OGL",
+        "PLAT",
+        "Runsheet",
+        "Tract 1",
+        "WI 1",
+        "WI 2",
+        "Well 1"
+      ],
+      "formulas": 2085,
+      "merged_ranges": 609,
+      "error_cells": 0,
+      "package_members": 80,
+      "result": "PASS_MATCHES_CONTROL_RECORD"
+    },
+    {
+      "drive_id": "1cu5npAqGMtn7Fg3koh5HsjHKLGKNXiMA",
+      "role": "STRUCTURAL_PREIMAGE_CURRENT_WINNER_R2",
+      "bytes": 355059,
+      "sha256": "eca69276cf4e89c30f3ff758d4022a01d262e4074560eb4b592aa3a187a88398",
+      "result": "PASS_BYTE_IDENTICAL_TO_BASELINE; filename SHA82D6367C tag is stale metadata"
+    },
+    {
+      "drive_id": "1r-9th14DUjQPD4M6kvoYVYliEbZOWmSC",
+      "role": "FORMULA_PATCHED_DONOR_19A8_COPY",
+      "bytes": 339444,
+      "sha256": "0aa1e2dde37dd3495ea3ffa08abc53c74178c243cf5936bec2f2acb33005eb5b",
+      "formulas": 2085,
+      "merged_ranges": 609,
+      "error_cells": 0,
+      "package_members": 39,
+      "result": "PASS_MATCHES_CONTROL_RECORD"
+    }
+  ],
+  "verified_pdfs": [
+    {
+      "drive_id": "1HwPJx0xEecyLzwlUWFv25k0_-K2KWhni",
+      "instrument": "I-2023-003028",
+      "bytes": 1065441,
+      "sha256": "167e8e81ffe8adf3f0e2eb8adceacaa30dede93118a82d7d4a153c05f9bfda9b",
+      "pages": 15,
+      "result": "PASS"
+    },
+    {
+      "drive_id": "1wbr1u0LTfOxXmkcMlO4hd-CGUOk6Nq3N",
+      "instrument": "I-2009-002476",
+      "bytes": 389016,
+      "sha256": "dd486be3fd3b4eac2e1dac37e09d19e567d67305a44e19170d694a8ffb45d23d",
+      "pages": 5,
+      "result": "PASS"
+    },
+    {
+      "drive_id": "12JCJVBACwBMGxBnrltSokC5z3AIPeMIW",
+      "instrument": "I-1994-007284",
+      "bytes": 354036,
+      "sha256": "cf7587c1fffcf8c6ad39872cf078629d0de2f337609d55480a7aedc00210d8bf",
+      "pages": 5,
+      "result": "PASS"
+    }
+  ],
+  "governance": {
+    "certified": false,
+    "external_release": false,
+    "unknown_is_not_zero": true,
+    "gen4_workbook_finalizer": "PENDING_CHATGPT_IN_EXCEL_ACK \u2014 not executable from this lane"
+  },
+  "next_actions_owner": [
+    "Run Gen4 ACK finalizer in existing ChatGPT-in-Excel chat",
+    "Bind 00333/00335/00339 raw images to Drive",
+    "County purchases: 007165, 001902, 003493, 004050 full, 004094, Thurmond decrees",
+    "Physical clerk: Fuchs Bk90, Waters-Duty Bk2/328, Sisson/DeBurn probates",
+    "OCC/RBDMS API 35-009-21768",
+    "Drive desktop sync of C:\\DataBoss"
+  ]
+}

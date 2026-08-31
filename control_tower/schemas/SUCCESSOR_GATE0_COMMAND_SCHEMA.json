@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DataBossXSuccessorGate0Command",
+  "type": "object",
+  "required": [
+    "schema",
+    "command_id",
+    "envelope_id",
+    "execution_identity",
+    "controlling_owner_ruling",
+    "prerequisites",
+    "protected_baselines",
+    "lease_specification",
+    "fencing_specification",
+    "allowed_inputs",
+    "allowed_outputs",
+    "prohibited_paths",
+    "rollback_plan",
+    "stop_conditions",
+    "test_requirements",
+    "terminal_slot_count",
+    "required_terminal_sentinel",
+    "hold"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["databossx.successor_gate0_command.v1"]
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^DBX-CMD-S32-GATE0-SUCCESSOR-[0-9]{8}T[0-9]{4,6}(?:CDT|Z)?$"
+    },
+    "envelope_id": {
+      "type": "string",
+      "pattern": "^TE-DBX-S32-GATE0-SUCCESSOR-[0-9]{8}T[0-9]{4,6}(?:CDT|Z)?$"
+    },
+    "execution_identity": {
+      "type": "object",
+      "required": ["actor", "role", "host_requirement"],
+      "properties": {
+        "actor": { "type": "string" },
+        "role": { "type": "string" },
+        "host_requirement": { "type": "string", "enum": ["AUTHORIZED_WINDOWS_WORKSTATION_ONLY"] }
+      }
+    },
+    "controlling_owner_ruling": {
+      "type": "object",
+      "required": ["ruling_id", "drive_id", "sha256"],
+      "properties": {
+        "ruling_id": { "type": "string" },
+        "drive_id": { "type": "string" },
+        "sha256": { "type": "string" }
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "status_required"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "status_required": { "type": "string" },
+          "artifact_drive_id": { "type": "string" },
+          "artifact_sha256": { "type": "string" }
+        }
+      }
+    },
+    "protected_baselines": {
+      "type": "object",
+      "required": ["v10_sha256", "v11_sha256", "v12_sha256", "v13_wip_sha256"],
+      "properties": {
+        "v10_sha256": { "type": "string" },
+        "v11_sha256": { "type": "string" },
+        "v12_sha256": { "type": "string" },
+        "v13_wip_sha256": { "type": "string" }
+      }
+    },
+    "lease_specification": {
+      "type": "object",
+      "required": ["scope", "ttl_seconds", "one_writer_only"],
+      "properties": {
+        "scope": { "type": "string" },
+        "ttl_seconds": { "type": "number" },
+        "one_writer_only": { "type": "boolean", "enum": [true] }
+      }
+    },
+    "fencing_specification": {
+      "type": "object",
+      "required": ["scope", "monotonic_required"],
+      "properties": {
+        "scope": { "type": "string" },
+        "monotonic_required": { "type": "boolean", "enum": [true] }
+      }
+    },
+    "allowed_inputs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "allowed_outputs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "prohibited_paths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rollback_plan": {
+      "type": "string"
+    },
+    "stop_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "test_requirements": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "terminal_slot_count": {
+      "type": "integer",
+      "enum": [1]
+    },
+    "required_terminal_sentinel": {
+      "type": "string",
+      "enum": [
+        "S32_SUCCESSOR_GATE0_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY",
+        "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY"
+      ]
+    },
+    "hold": {
+      "type": "string",
+      "enum": ["FOR REVIEW - HOLD NO EXTERNAL RELEASE"]
+    }
+  },
+  "additionalProperties": false
+}

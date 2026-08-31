@@ -76,3 +76,6 @@ evidence/
 **/final_delivery/
 **/*FINAL*.xlsx
 **/*CLIENT*.xlsx
+
+# Local test runs
+control_tower_runs/

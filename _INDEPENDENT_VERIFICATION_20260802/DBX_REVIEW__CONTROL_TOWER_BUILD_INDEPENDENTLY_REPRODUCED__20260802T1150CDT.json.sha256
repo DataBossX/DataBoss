@@ -1,0 +1,9 @@
+{
+  "schema": "databossx.receipt_sidecar.v1",
+  "describes": "DBX_REVIEW__CONTROL_TOWER_BUILD_INDEPENDENTLY_REPRODUCED__20260802T1150CDT.json",
+  "sha256": "17EB6EE3FE7DD47A5DC00CE326A47FE4FA337F7F08BA6348138EB6DA0FA8395A",
+  "byte_size": 11317,
+  "algorithm": "SHA-256",
+  "computed_on": "LINUX_EPHEMERAL_CLOUD_CONTAINER, coreutils sha256sum, over the exact local bytes prior to upload",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

@@ -1,0 +1,75 @@
+{
+  "schema": "databossx.evidence_receipt.v1",
+  "receipt_id": "DBX-RCPT-CT-BUILD-PRESENT-20260802T1625Z",
+  "receipt_type": "CONTROL_TOWER_BUILD_PRESENT_AND_PROVEN",
+  "accepted_scope": "NONTERMINAL_DIAGNOSTIC_ONLY",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "generated_at_utc": "2026-08-02T16:25:00Z",
+  "supersedes": {
+    "receipt_drive_id": "17po9fQQjB1Vtp2FbHr-LeaoOqMtKJ-F-",
+    "prior_result": "DATABOSSX_CONTROL_TOWER_BUILD_NOT_FOUND",
+    "edited_or_overwritten": false,
+    "note": "The prior receipt was accurate when written: no build existed anywhere in scope. It remains byte-identical at its published hash. This record supersedes by addition."
+  },
+  "declared_gate0_claim": false,
+  "declared_gate0_terminal": false,
+  "gate0_state": "NOT_CLAIMED_NOT_TERMINALIZED",
+  "build": {
+    "head_commit": "772cbbf",
+    "branch": "claude/databossx-section32-recovery-ouyziy",
+    "pull_request": 74,
+    "pull_request_state": "DRAFT_NOT_FOR_MERGE",
+    "entrypoint_windows": "run_control_tower.bat",
+    "entrypoint_portable": "python -m control_tower.cli",
+    "implementation_modules": 8,
+    "implementation_lines": 1773,
+    "test_lines": 604,
+    "third_party_dependencies": 0,
+    "dependency_note": "Standard library only. Runs on the authorized Windows workstation with nothing but Python installed."
+  },
+  "verification_local": {
+    "pytest": {"passed": 88, "exit_code": 0},
+    "selftest": {"passed": 18, "total": 18, "exit_code": 0, "drive_writes": 0},
+    "canary": {"passed": 7, "total": 7, "exit_code": 0, "network_calls": 0},
+    "audit": {"exit_code": 2, "completeness": "PARTIAL_HOST_MISMATCH", "v12_ruling": "NOT_VERIFIED_UNREACHABLE"},
+    "gitleaks_dir_scan": "no leaks found",
+    "flake8_hard_gate": "clean"
+  },
+  "audit_exit_code_ruling": "Exit 2 is the correct result on this host. A Linux lane cannot see C:\\DataBoss, so every Windows-local item is UNREACHABLE and V12 is not called verified. The tower refuses to report a clean result it did not earn.",
+  "properties_enforced_and_tested": [
+    "only the canonical 01_QUEUED folder is polled; the folder ID is pinned, not name-matched",
+    "filename text never grants authority; authority is folder membership by pinned ID",
+    "writes outside approved folders fail closed",
+    "mutation denied without an activated mutation TaskEnvelope",
+    "the exactly-once key binds command ID, Drive ID, and Drive revision",
+    "an unresolved claim prevents a second claim",
+    "a stale lease cannot write",
+    "monotonic fencing enforced; a zombie with an unexpired lease but a superseded token is refused",
+    "the spool is append-only and collision-safe via exclusive create",
+    "a Drive outage drops nothing and overwrites nothing; spool precedes the network call",
+    "secret values are redacted while keys remain readable",
+    "protected workbooks and source evidence cannot be uploaded, by digest, suffix, mime type, and ZIP signature",
+    "the HOLD cannot be removed or altered by any code path",
+    "canonical Drive URLs are rebuilt from verified IDs; metadata viewUrl is never reused",
+    "no non-Google URL is followed or trusted; docichat.com and livepolls.app are explicitly denied"
+  ],
+  "secret_scan_incident": {
+    "summary": "Committing the build tripped the repository secret scanner three times before going green. All values involved were fabricated test fixtures; no real credential was ever committed or exposed.",
+    "root_cause_1": "redaction fixtures written as literals, including a generic-api-key match on an api_key=<value> pair",
+    "root_cause_2": "the gitleaks allowlist form differs by version; the pinned CI image requires the plural [[allowlists]] table and errors out if a singular [allowlist] table is also present",
+    "latent_defect_found": "the repository's pre-existing ad02fdeb allowlist entry sits in a form that older local gitleaks builds ignore, so a local reproduction over-reports relative to CI",
+    "resolution": "all fixtures are built at runtime, parametrise with explicit ids so values never reach caches or CI logs, and the config uses the plural form only",
+    "process_note": "The first two diagnoses were reasoned from rule definitions rather than reproduced, and both were wrong. The fix was only correct once a local gitleaks binary reproduced both CI steps."
+  },
+  "mutations_performed": {
+    "workbook_mutations": 0,
+    "source_evidence_mutations": 0,
+    "drive_deletions": 0,
+    "drive_overwrites": 0,
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "hold_changes": 0
+  },
+  "next_permitted_action": "Copy the repository to the authorized Windows workstation, run run_control_tower.bat selftest and confirm 18/18, then run run_control_tower.bat audit with DBX_V12_PATH set to the pinned V12 path. Only if that audit returns exit 0 with v12_ruling VERIFIED_EXACT may Gate 0 be claimed, and claiming remains a separate deliberate step requiring owner direction.",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

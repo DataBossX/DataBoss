@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DataBossXGate0TerminalReceipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "receipt_type",
+    "claim_key",
+    "terminal_sentinel",
+    "findings",
+    "workbook_mutated",
+    "ended_at_epoch",
+    "hold"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["databossx.gate0_terminal.v1"]
+    },
+    "receipt_type": {
+      "type": "string",
+      "enum": ["GATE0_TERMINAL"]
+    },
+    "claim_key": {
+      "type": "string"
+    },
+    "terminal_sentinel": {
+      "type": "string",
+      "enum": [
+        "S32_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY",
+        "S32_SUCCESSOR_GATE0_CONTAINMENT_TERMINALIZED_CLEAN_AUTHORITY_DRAFT_READY",
+        "S32_REQUIRES_OWNER_CONTROLLING_POINTER_DECISION",
+        "S32_AUTHORITY_REISSUE_COMPILATION_BLOCKED"
+      ]
+    },
+    "findings": {
+      "type": "object"
+    },
+    "workbook_mutated": {
+      "type": "boolean",
+      "enum": [false]
+    },
+    "ended_at_epoch": {
+      "type": "number"
+    },
+    "hold": {
+      "type": "string",
+      "enum": ["FOR REVIEW - HOLD NO EXTERNAL RELEASE"]
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,140 @@
+{
+  "schema": "databossx.control_tower_code_manifest.v2",
+  "run_id": "DBX-S32-CT-BUILD-20260802T1600Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "result": "CONTROL_TOWER_BUILD_PRESENT_AND_PROVEN",
+  "supersedes": {
+    "manifest": "CONTROL_TOWER_CODE_MANIFEST.json",
+    "prior_result": "DATABOSSX_CONTROL_TOWER_BUILD_NOT_FOUND",
+    "note": "The prior manifest was accurate when written: no build existed. This manifest records the build that now exists. The prior file is retained unmodified."
+  },
+  "repository": {
+    "path": "/home/user/DataBoss",
+    "branch": "claude/databossx-section32-recovery-ouyziy",
+    "head_commit_before_build": "944d6d81ed778ac74577f77f5197886cd919d57b"
+  },
+  "entrypoint": {
+    "windows": "run_control_tower.bat",
+    "portable": "python -m control_tower.cli",
+    "sha256": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
+    "subcommands": [
+      "selftest",
+      "canary",
+      "audit"
+    ],
+    "exit_codes": {
+      "0": "pass/complete",
+      "1": "check failed - do not claim",
+      "2": "audit ran but target unreachable"
+    }
+  },
+  "implementation_modules": 9,
+  "implementation_lines": 2026,
+  "test_lines": 863,
+  "total_files": 14,
+  "total_lines": 3098,
+  "total_bytes": 113340,
+  "per_file": {
+    ".gitleaks.toml": {
+      "sha256": "D8C335AF3859785F6E7E017B5854ECFD70C06B74232A18C3DE395D71F8423382",
+      "lines": 33,
+      "bytes": 1747
+    },
+    "control_tower/README.md": {
+      "sha256": "9DECF7C419EB477720F0403547029092E75D6D224E110D68530DE67C45B89DB2",
+      "lines": 133,
+      "bytes": 6155
+    },
+    "control_tower/__init__.py": {
+      "sha256": "A3877A8B80F11B82F91BBED1664BD35B74997E4345AF3446EA7357866418E325",
+      "lines": 56,
+      "bytes": 1513
+    },
+    "control_tower/audit.py": {
+      "sha256": "B18915F8CE6474F962D9E74F1CB43240AEE94EA307AA4B14738687591EDF5EF6",
+      "lines": 219,
+      "bytes": 7423
+    },
+    "control_tower/cli.py": {
+      "sha256": "A4226B36D7A5774A36D5CDFB5E64FF1764CA232581391B27AF664DA0B657ABCE",
+      "lines": 135,
+      "bytes": 4911
+    },
+    "control_tower/constants.py": {
+      "sha256": "B0D8597CE712D472E959AD19E5BACDE4CEFDA18DCC206BF2FACE6B85339B12E2",
+      "lines": 151,
+      "bytes": 5331
+    },
+    "control_tower/drive.py": {
+      "sha256": "68D677C942B0CAA53CA10A1EC15FFFBB362F27BB98AB53CA00EB503925C5C1C5",
+      "lines": 213,
+      "bytes": 7194
+    },
+    "control_tower/drive_google.py": {
+      "sha256": "0F4664CA02E1B186E18E62F004318F58EC39BCD456B66396107671F8012AB2FD",
+      "lines": 236,
+      "bytes": 9565
+    },
+    "control_tower/kernel.py": {
+      "sha256": "E3FCDB3D2113E91761947B159C6F8F9B705F8CA93D9604DE2F9E30DBD7968D86",
+      "lines": 339,
+      "bytes": 12308
+    },
+    "control_tower/safety.py": {
+      "sha256": "81747DDB5DE7CAB6264D2C82C1CD108F64EB2B327FBA97513048308A8A439E78",
+      "lines": 205,
+      "bytes": 7352
+    },
+    "control_tower/tower.py": {
+      "sha256": "77E24EFB2AFE85D999C82E9767BE830DD7CEF91387A93BEE978763813F8033D4",
+      "lines": 472,
+      "bytes": 17456
+    },
+    "run_control_tower.bat": {
+      "sha256": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
+      "lines": 43,
+      "bytes": 1073
+    },
+    "tests/test_control_tower.py": {
+      "sha256": "A9747545F299C1B60BAA0509528405C010727A7D78F16117158B99B82CB6DE8C",
+      "lines": 604,
+      "bytes": 21758
+    },
+    "tests/test_control_tower_drive_google.py": {
+      "sha256": "C28BB9F30D4C6A5DE51DA087C4F03DEF897768667209089FCB835F9E10D9A111",
+      "lines": 259,
+      "bytes": 9554
+    }
+  },
+  "dependencies": {
+    "third_party": [],
+    "note": "Standard library only. Adds no entry to requirements.txt and no new CI install step.",
+    "python_built_with": "3.11.15",
+    "python_min_supported": "3.8"
+  },
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "secret_scanner_note": "Credential-shaped test fixtures are constructed at runtime rather than written as literals, so the repository secret scanner stays fully armed. No gitleaks allowlist entry was added, because an allowlisted path is a blind spot where a real credential could hide.",
+  "secret_scanner_verification": {
+    "ci_image": "pinned gitleaks digest, newer than 8.21.2",
+    "local_tool": "gitleaks 8.21.2",
+    "config_form": "[[allowlists]] plural only; the CI image errors out if the singular [allowlist] table is also present",
+    "dir_scan_tracked_tree": "no leaks found",
+    "range_scan_local": "8 findings, all confined to the allowlisted commit ca62cbd",
+    "version_caveat": "older local builds ignore [[allowlists]] for global commits and therefore over-report; that is the safe direction and must not be 'fixed' by adding a singular table"
+  },
+  "drive_client": {
+    "module": "control_tower/drive_google.py",
+    "api": "Google Drive v3 REST over urllib",
+    "third_party_dependencies": 0,
+    "opt_in_flag": "--drive",
+    "token_env": "DBX_DRIVE_ACCESS_TOKEN",
+    "guarantees": [
+      "create refuses to replace an existing name",
+      "every request URL checked against the trusted-host allowlist",
+      "token scrubbed by exact value then by pattern",
+      "outages distinguished from refusals so spooled evidence survives",
+      "Google-native docs exported rather than fetched"
+    ],
+    "tests": "30, all with an injected transport and zero network"
+  }
+}

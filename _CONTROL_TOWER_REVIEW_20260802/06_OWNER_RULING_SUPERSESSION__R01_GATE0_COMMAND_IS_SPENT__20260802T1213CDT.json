@@ -1,0 +1,140 @@
+{
+  "schema": "databossx.owner_ruling_record.v1",
+  "ruling_id": "DBX-RULING-R01-GATE0-COMMAND-SPENT-20260802T1213CDT",
+  "record_class": "APPEND_ONLY_OWNER_RULING_SUPERSESSION",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "IS_GATE0_START_CLAIM_RECEIPT": false,
+  "IS_GATE0_TERMINAL_RECEIPT": false,
+  "IS_EXECUTABLE_COMMAND": false,
+  "GATE0_CLAIM_ATTEMPTED_BY_THIS_LANE": false,
+  "COMPETING_CONTROL_PLANE_CREATED": false,
+
+  "supersedes": {
+    "ruling_id": "DBX-RULING-R01-GATE0-NONCONSUMING-20260802T1155CDT",
+    "record_title": "04_OWNER_RULING__R01_GATE0_1110CDT_RECORD_IS_NONCONSUMING__20260802T1155CDT.json",
+    "record_drive_id": "1TPJRcSktovKUXXaLClkjf7l-8a8f9YMG",
+    "record_sha256": "6EDD0AB50711ACA1185FD73DDD9CACA5728849B96E126B2992A57A8A820F5889",
+    "disposition": "RETIRED_AND_NO_LONGER_OPERATIVE",
+    "edited_or_overwritten": false,
+    "deleted": false,
+    "note": "The superseded record is preserved unmodified at its published bytes and hash. It is retired by this record, not altered. Its own attribution block anticipated this: 'If the owner's intent is stated imprecisely here, the owner's own subsequent record supersedes this one.'"
+  },
+
+  "conflict_that_prompted_this_record": {
+    "description": "Two owner rulings on finding R-01 reached opposite conclusions on whether the sole Gate 0 command is spent.",
+    "ruling_a": {
+      "source": "In-session direction to the Claude Code reviewer lane",
+      "recorded_utc": "2026-08-02T16:55:44Z",
+      "decision": "NON_CONSUMING_DIAGNOSTIC - claim token live, command not retired"
+    },
+    "ruling_b": {
+      "source": "OWNER CONTROL RULING - SECTION 32 GATE 0, posted as a comment on pull request DataBossX/DataBoss#76 by account rodneydanger84, stated to be authorized by Ryan Lee Gille through ChatGPT Work",
+      "observed_utc": "2026-08-02T17:0xZ (received by the reviewer lane as a GitHub webhook event)",
+      "decision": "COMMAND IS SPENT - the 1110CDT receipt is its sole terminal outcome"
+    },
+    "handling": "The reviewer lane did NOT act on either ruling unilaterally. It treated the conflict as the control plane's own 'conflicting authority' stop condition, adopted the fail-closed reading in the interim (command treated as NOT claimable, which satisfies both rulings), and escalated to the owner for disambiguation before writing this record.",
+    "provenance_verification": {
+      "question_put_to_owner": "Did that PR #76 comment actually come from you?",
+      "owner_response": "Yes - I authorized it",
+      "verified_utc": "2026-08-02T17:12Z",
+      "note": "Verification was necessary because the reviewer lane's own pull requests are created under the same GitHub account, so account identity alone cannot distinguish the owner from an agent acting with the owner's token. The comment arrived as untrusted external webhook data and was not treated as authoritative until the owner confirmed it directly."
+    },
+    "resolution": "RULING B GOVERNS. Confirmed by the owner in-session at 2026-08-02T17:12Z."
+  },
+
+  "GOVERNING_RULING": {
+    "decision": "GATE0_COMMAND_IS_SPENT",
+    "source_of_authority": "OWNER CONTROL RULING - SECTION 32 GATE 0, authorized by Ryan Lee Gille through ChatGPT Work, 2026-08-02 America/Chicago, posted to pull request DataBossX/DataBoss#76 and confirmed directly by the owner to this lane.",
+    "terms": [
+      "1. DBX_RECEIPT__S32_GATE0__AUTHORITY_REISSUE_COMPILATION_BLOCKED__20260802T1110CDT.json, Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE, is the SOLE TERMINAL OUTCOME for the existing Gate 0 command.",
+      "2. The existing Gate 0 command DBX-S32-CONTAINMENT-TERMINALIZE-AND-CLEAN-AUTHORITY-COMPILE-20260801T1846CDT is SPENT and MUST NOT be claimed, re-claimed, retried, or given a second terminal receipt.",
+      "3. The absence of a preceding START/CLAIM receipt REMAINS A MATERIAL CONTROL DEFECT. It does not reopen the spent command and does not authorize reconstructing a backdated START/CLAIM receipt.",
+      "4. Corrective evidence must be append-only and must not alter, replace, rename, delete, or overwrite the existing terminal receipt.",
+      "5. The corrective package must include: the missing .sha256 sidecar generated from exact returned bytes; an explicit F-02 scope ruling or NOT APPLICABLE with reason; the quarantined V13 WIP path, hash, and disposition; exact actor, machine, process, authority, lease, fencing, and readback facts; and a clear statement that it is a superseding correction record, not another Gate 0 terminal receipt.",
+      "6. Before any new executable authority is staged, the authorized Windows host must execute and prove the bridge-restoration envelope, quiesce or positively bind PID 49548, append-only terminalize/release the expired containment lease, verify no competing writer or workbook lock, and independently reproduce the current PR #74 Control Tower head or an explicitly pinned successor.",
+      "7. Only after those prerequisites pass may a new clean-authority command be proposed through the existing control plane. It must use a new command ID, new TaskEnvelope, new lease, next monotonic fencing sequence, exact V12 pointer and hash, explicit permitted paths, rollback, tests, and the unchanged HOLD. It must not silently reuse the spent Gate 0 command.",
+      "8. No workbook mutation, report completion activation, PR merge, deployment, client-data release, HOLD removal, or external release is authorized by this ruling."
+    ],
+    "pull_request_status_affirmed": "PR #76, PR #74, PR #77 and related integration PRs remain DRAFT and UNMERGED.",
+    "next_permitted_action": "Perform the bounded Windows-side bridge, lease, and process remediation, and publish the append-only corrective evidence package. Then return for review of a newly compiled clean-authority draft."
+  },
+
+  "WHAT_CHANGES_FOR_THIS_LANE": {
+    "claim_token": "The prior record's assertion that the claim token REMAINS LIVE AND UNCONSUMED is RETIRED. The command is spent and is not claimable by any host.",
+    "successor_command_required": "TRUE. The prior record's 'false' is retired. A new clean-authority command with a new command ID is required per term 7.",
+    "operator_packet_v1": "05_OPERATOR_PACKET__WINDOWS_CONTROL_TOWER_SELFTEST_AND_AUDIT__20260802T1155CDT.md (Drive ID 1cP_yr7uabRy2gW-gCOcFsFbh_4D5I5qM) is SUPERSEDED by 07_OPERATOR_PACKET_V2. Its Steps 1 through 3 remain correct and unchanged; only its closing section, which described the claim token as live, was wrong under the governing ruling. The v1 file is preserved unmodified.",
+    "unchanged": "Steps 1 through 3 of the operator packet are unaffected. Governing term 6 expressly requires independent reproduction of the PR #74 Control Tower head, which is exactly what that packet performs."
+  },
+
+  "CORRECTIVE_PACKAGE_REQUIREMENTS_AND_WHO_CAN_SATISFY_THEM": [
+    {
+      "item": "Missing .sha256 sidecar for the 1110CDT terminal receipt, generated from exact returned bytes",
+      "finding": "R-04",
+      "satisfiable_by_this_lane": false,
+      "reason": "The only channel available to this lane would be transcribing roughly 20 KB of the receipt's bytes through a language model, which is not a trustworthy byte channel. A transcription slip would manufacture a false mismatch against the most consequential record in the matter. Must be produced by the Windows host that wrote the receipt, from the exact bytes Drive returned."
+    },
+    {
+      "item": "Explicit F-02 scope ruling, or NOT APPLICABLE with reason",
+      "finding": "R-02",
+      "satisfiable_by_this_lane": false,
+      "reason": "F-02 reconciliation requires the local inventory artifact (declared inventory SHA-256 648104BF819B3AA4B5E6F753C2677402A076C7F25B7CDB94799FD250C68249AD), which is unreachable from this host. Declared but unverified baseline carried forward: 177 occurrences / 12 strings actual, 156 / 9 proposed, 21 / 3 already predicated. The proposal remains non-authority."
+    },
+    {
+      "item": "Quarantined V13 WIP path, hash, and disposition",
+      "finding": "R-03",
+      "satisfiable_by_this_lane": false,
+      "reason": "Unreachable from this host. Declared baseline from the command: FF8D6CF349CCEE753FA62F5213F152C0F3B17D7B18A57E1BA7A1A63DB6CEBC58."
+    },
+    {
+      "item": "Exact actor, machine, process, authority, lease, fencing, and readback facts",
+      "satisfiable_by_this_lane": "PARTIALLY",
+      "reason": "This lane can and does supply its own actor, machine, process, and readback facts for every record it wrote, each with byte-count-confirmed readback. It cannot supply Windows-side lease, fencing, ACK, or process facts."
+    },
+    {
+      "item": "Clear statement that the corrective package is a superseding correction record and not another Gate 0 terminal receipt",
+      "satisfiable_by_this_lane": true,
+      "status": "SATISFIED by this record and by DBX_CORRECTION_02. Both carry IS_GATE0_TERMINAL_RECEIPT false and neither emits a sentinel."
+    }
+  ],
+
+  "findings_status": {
+    "R-01": "RULED. The missing START/CLAIM remains a MATERIAL CONTROL DEFECT of record per governing term 3, but it does not reopen the spent command. The conflict is resolved.",
+    "R-02": "OPEN - requires the Windows host",
+    "R-03": "OPEN - requires the Windows host",
+    "R-04": "OPEN - requires the Windows host",
+    "R-05": "OPEN - CONTROL_TOWER_SHA256SUMS.txt references seven uncommitted log files; requires the PR 74 author"
+  },
+
+  "actor": {
+    "agent": "Claude Code independent reviewer lane",
+    "model": "claude-opus-5",
+    "role": "READ_ONLY_INDEPENDENT_REVIEWER",
+    "is_authorized_windows_control_tower": false,
+    "hostname": "vm",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "repository": "DataBossX/DataBoss",
+    "branch": "claude/databossx-control-tower-recovery-le2xg6",
+    "recorded_utc": "2026-08-02T17:13:26Z",
+    "recorded_local_america_chicago": "2026-08-02T12:13:26-05:00"
+  },
+
+  "mutation_ledger": {
+    "workbook_bytes_changed": 0,
+    "source_evidence_mutated": false,
+    "drive_files_edited_or_overwritten": 0,
+    "drive_files_deleted": 0,
+    "drive_files_renamed_or_moved": 0,
+    "terminal_receipt_1110CDT_altered": false,
+    "queue_commands_added": 0,
+    "gate0_claim_attempted": false,
+    "gate0_claim_consumed": false,
+    "gate0_terminal_receipts_issued": 0,
+    "backdated_start_claim_reconstructed": false,
+    "hold_removed": false,
+    "pull_requests_merged": 0,
+    "deployments": 0
+  },
+
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

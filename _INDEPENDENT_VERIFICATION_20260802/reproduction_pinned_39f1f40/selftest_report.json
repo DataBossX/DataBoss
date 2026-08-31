@@ -1,0 +1,104 @@
+{
+  "checks": [
+    {
+      "detail": "polled 1 file(s) from the pinned queue folder only",
+      "name": "only_canonical_queue_polled",
+      "passed": true
+    },
+    {
+      "detail": "refused as required",
+      "name": "filename_text_grants_no_authority",
+      "passed": true
+    },
+    {
+      "detail": "refused as required",
+      "name": "write_outside_approved_folders_denied",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; refused as required; refused as required; activated envelope accepted",
+      "name": "mutation_denied_without_activated_envelope",
+      "passed": true
+    },
+    {
+      "detail": "revision change yields a distinct key; refused as required",
+      "name": "exactly_once_key_binds_revision",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; after terminalization: refused as required",
+      "name": "unresolved_claim_blocks_second_claim",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; lease valid inside its window",
+      "name": "stale_lease_cannot_write",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; sequence advanced 1 -> 2",
+      "name": "monotonic_fencing_enforced",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; original bytes preserved",
+      "name": "spool_append_only_and_collision_safe",
+      "passed": true
+    },
+    {
+      "detail": "spooled before upload, marked pending, and re-emit refused to overwrite",
+      "name": "drive_outage_does_not_drop_or_overwrite",
+      "passed": true
+    },
+    {
+      "detail": "values removed, keys retained",
+      "name": "secrets_redacted",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; refused as required; refused as required",
+      "name": "protected_artifacts_cannot_be_uploaded",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; refused as required",
+      "name": "hold_immutable",
+      "passed": true
+    },
+    {
+      "detail": "refused as required",
+      "name": "canonical_urls_from_verified_ids_only",
+      "passed": true
+    },
+    {
+      "detail": "refused as required; refused as required",
+      "name": "non_google_urls_never_trusted",
+      "passed": true
+    },
+    {
+      "detail": "refused as required",
+      "name": "read_outside_control_package_denied",
+      "passed": true
+    },
+    {
+      "detail": "uploaded and read back 72 bytes",
+      "name": "verified_round_trip_succeeds",
+      "passed": true
+    },
+    {
+      "detail": "refused as required",
+      "name": "corrupted_readback_detected",
+      "passed": true
+    }
+  ],
+  "drive_writes": 0,
+  "ended_at_epoch": 1785694457.7319279,
+  "failed": 0,
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "ok": true,
+  "passed": 18,
+  "protected_artifact_mutations": 0,
+  "started_at_epoch": 1785694457.706046,
+  "suite": "control_tower_selftest",
+  "total": 18
+}

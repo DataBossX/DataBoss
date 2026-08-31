@@ -1,0 +1,14 @@
+{
+  "schema": "databossx.control_tower_canary_receipt.v1",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "generated_at_utc": "2026-08-02T15:41:47Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "status": "NOT_RUN",
+  "claimed": "7/7 offline canary",
+  "observed": {
+    "canaries_executed": 0,
+    "passed": 0
+  },
+  "reason": "No canary harness exists in any scope searched.",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

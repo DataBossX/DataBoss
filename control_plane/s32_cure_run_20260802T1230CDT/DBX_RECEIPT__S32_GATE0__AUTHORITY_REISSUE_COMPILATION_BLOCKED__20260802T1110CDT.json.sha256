@@ -1,0 +1,61 @@
+DBX REPRODUCIBLE SHA-256 SIDECAR
+
+RECORD CLASS: APPEND_ONLY_DIGEST_SIDECAR
+RELEASE STATE: FOR REVIEW - HOLD NO EXTERNAL RELEASE
+AUTHORITY     : 04_OWNER_RULING__RETIRE_ORIGINAL_S32_GATE0_COMMAND_AND_REQUIRE_SUCCESSOR__20260802T1210CDT
+                Drive ID 1lgcSJItqzXZ-FbHt1Tm65Jly9WEv-imD33_QSzINXBM, MANDATORY CURE D
+RUN ID        : DBX-S32-CURE-RUN-20260802T1230CDT
+
+AUTHORITATIVE DIGEST
+
+52a969007216a3ce32305b030b520376734250b01cbb282c96451343a72c9708  DBX_RECEIPT__S32_GATE0__AUTHORITY_REISSUE_COMPILATION_BLOCKED__20260802T1110CDT.json
+
+  Drive file ID : 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE
+  Parent folder : 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR (02_RECEIPTS)
+  Bytes         : 19946 retrieved, 19946 reported by Drive
+  Created (UTC) : 2026-08-02T16:14:31.469Z
+  Stored object : application/json, raw upload, not a Google-native export
+  SHA-256 upper : 52A969007216A3CE32305B030B520376734250B01CBB282C96451343A72C9708
+  SHA-512       : ad25111f495892bd32de7d8a96ffd1cffb1c305c46ce10ad463dfe3658234dd0110a4f09880442755e01d358d7779d1d180e8b6e0d3e1a943bee30b726808f0e
+  MD5           : bb2909150e700f5fb52b6e89b9d428fc
+
+REPRODUCTION
+
+  1. Retrieve the raw stored object for Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE.
+     Do not apply any Google-native export conversion.
+  2. Confirm the retrieved object is exactly 19946 bytes.
+  3. Compute SHA-256 over those bytes with no normalisation: no newline
+     translation, no whitespace stripping, no JSON re-serialisation.
+  4. The digest must equal the value above.
+  5. Any mismatch is a fail-closed stop condition. Escalate; do not work around it.
+
+INTEGRITY CHECKS BRACKETING THE RETRIEVAL
+
+  base64 decode                                  PASS  clean, no alphabet or padding error
+  decoded length == Drive-declared fileSize      PASS  19946 == 19946
+  decoded bytes parse as valid UTF-8 JSON        PASS  25 top-level keys
+  semantic anchors exact                         PASS  receipt_id and terminal_state both exact
+
+  These four checks are published because a prior independent review (finding R-04,
+  QC_REVIEW__S32_GATE0_TERMINAL_RECEIPT__INDEPENDENT_READ_ONLY_REVIEW__20260802T1121CDT.json,
+  Drive ID 1iMUL_pEYIP1VX6zDOoWOws0mIkGbuRex) declined to publish this digest on the
+  ground that a transcription slip could manufacture a false mismatch against the most
+  consequential record in the matter. That concern is answered by detection rather than
+  by assertion: a corrupted byte would break the decode, or change the decoded length,
+  or break the JSON parse, or break the anchors. All four pass simultaneously.
+
+RESOLVES
+
+  Finding R-04 - the 1110CDT terminal asserted exact-byte readback verification of
+  itself but published nothing that let a third party reproduce it. It now has a
+  reproducible sidecar.
+
+UNCHANGED BY THIS RECORD
+
+  Retired Gate 0 command claimed        : false
+  Terminal issued against it            : false
+  Bridge envelope terminal slot consumed: false
+  Workbook mutations                    : 0
+  Drive deletions / overwrites / moves  : 0
+  Commands added to 01_QUEUED           : 0
+  Hold preserved                        : FOR REVIEW - HOLD NO EXTERNAL RELEASE

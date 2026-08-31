@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://databossx.local/contracts/approval/1.0.0",
+  "title": "ApprovalChallenge / ApprovalToken",
+  "description": "Human authorization for exactly one operation on exactly one resource with exactly these parameters. Single-use, scope-limited, expiring, nonce-bound, and hash-bound to its TaskEnvelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "approval_id",
+    "state",
+    "actor_user_id",
+    "operation",
+    "resource_scope",
+    "parameters_sha256",
+    "task_envelope_sha256",
+    "policy_version",
+    "nonce",
+    "issued_at",
+    "expires_at",
+    "single_use"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "approval_id": { "type": "string", "pattern": "^apr_[0-9a-f]{32}$" },
+    "state": {
+      "enum": ["NONE", "REQUESTED", "CHALLENGE_ISSUED", "SIGNED_BY_HUMAN", "VALIDATED_BY_RUNNER", "CONSUMED", "REVOKED", "TIMED_OUT", "REJECTED", "EXPIRED"]
+    },
+    "actor_user_id": {
+      "type": "string",
+      "description": "The approving human. A writer may not approve its own release or final legal conclusion; a watcher may never approve at all."
+    },
+    "actor_role": { "enum": ["OWNER", "OPERATOR"] },
+    "step_up_method": {
+      "enum": ["WEBAUTHN", "PASSPHRASE_REPEAT", "NONE"],
+      "description": "Consequential approvals require step-up. NONE is only valid for READ_ONLY."
+    },
+    "operation": { "type": "string", "description": "Exact adapter operation. An approval for operation A can never authorize operation B." },
+    "resource_scope": { "type": "string", "description": "Exact scope. Scope confusion must fail closed." },
+    "parameters_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Binds the exact parameters. Changing parameters after approval invalidates it."
+    },
+    "task_envelope_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "input_hashes_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Binds the artifact state observed at approval time. If an artifact changed after approval, execution aborts."
+    },
+    "policy_version": { "type": "string", "description": "A policy version change invalidates outstanding approvals." },
+    "nonce": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "single_use": { "const": true },
+    "consumed_at": { "type": ["string", "null"], "format": "date-time" },
+    "consumed_by_attempt_id": { "type": ["string", "null"] }
+  }
+}

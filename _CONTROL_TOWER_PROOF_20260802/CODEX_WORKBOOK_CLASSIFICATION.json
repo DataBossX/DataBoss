@@ -1,0 +1,58 @@
+{
+  "schema": "databossx.artifact_classification.v1",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "generated_at_utc": "2026-08-02T15:41:47Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "classification": "NONCONTROLLING_V10_BASED_EVIDENCE_AND_QA_DONOR",
+  "artifacts": [
+    {
+      "title": "SECTION32_CURSORY_TITLE__OPENAI_CODEX__20260802_005007__FOR_REVIEW_HOLD.xlsx",
+      "drive_id": "1O00dLFq4yGCVhKAzV0KatpEdIGoBhlDD",
+      "bytes": 442996,
+      "created_utc": "2026-08-02T06:04:47.745Z",
+      "modified_utc": "2026-08-02T06:04:47.745Z",
+      "canonical_url": "https://drive.google.com/file/d/1O00dLFq4yGCVhKAzV0KatpEdIGoBhlDD/view"
+    },
+    {
+      "title": "SECTION32_QA_REPORT__OPENAI_CODEX__20260802_005007.md",
+      "drive_id": "1cyeKJtRfR7DtSs2MwPjm7TJolE7srr05",
+      "bytes": 6082,
+      "created_utc": "2026-08-02T06:05:02.928Z",
+      "modified_utc": "2026-08-02T06:05:02.928Z",
+      "canonical_url": "https://drive.google.com/file/d/1cyeKJtRfR7DtSs2MwPjm7TJolE7srr05/view"
+    }
+  ],
+  "preservation": "PRESERVED_UNMODIFIED - read-only metadata inspection only; no download-and-save, no edit, no move, no rename, no permission change",
+  "recorded_deficiencies": [
+    "The workbook has 20 sheets rather than the required 13.",
+    "Seven control sheets were added.",
+    "V12 was not reviewed.",
+    "Current ownership and HBP remain unproved.",
+    "Current mineral, leasehold, WI, and NRI interests remain unallocated.",
+    "Native print-area and page-setup verification remains incomplete."
+  ],
+  "verification_basis": {
+    "independently_verified_by_this_lane": [
+      "existence",
+      "Drive ID",
+      "byte size",
+      "created/modified timestamps",
+      "parent folder",
+      "owner"
+    ],
+    "not_independently_reverified_by_this_lane": [
+      "20-sheet count",
+      "seven added control sheets",
+      "V10 lineage",
+      "print-area/page-setup state"
+    ],
+    "note": "The deficiency list is recorded as directed by the owner and carried forward as owner-verified. This lane did not download or open the workbook, so it does not add independent confirmation of the sheet-level findings."
+  },
+  "prohibitions_observed": [
+    "not promoted",
+    "not overwritten",
+    "not released",
+    "not used as controlling successor"
+  ],
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

@@ -1,0 +1,157 @@
+{
+  "schema": "databossx.independent_review_record.v1",
+  "record_id": "DBX-QCREV-CT-BUILD-REPRODUCED-20260802T1150CDT",
+  "record_type": "INDEPENDENT_REPRODUCTION_OF_A_SELF_REPORTED_BUILD_VERIFICATION",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+
+  "IS_GATE0_START_CLAIM_RECEIPT": false,
+  "IS_GATE0_TERMINAL_RECEIPT": false,
+  "GATE0_CLAIM_ATTEMPTED_BY_THIS_LANE": false,
+  "GATE0_TERMINAL_SENTINEL_EMITTED_BY_THIS_LANE": "NOT APPLICABLE - exactly one Gate 0 terminal receipt already exists (Drive ID 1qwdfvWUGJiWmzEc6Ll4_BdD2z3kvcGwE). A second is forbidden. This record carries no sentinel and changes no control state.",
+  "COMPETING_CONTROL_PLANE_CREATED": false,
+
+  "purpose": "DBX_RECEIPT__CONTROL_TOWER_BUILD_PRESENT__20260802T1625Z.json (Drive ID 1XCMJBy5XrHRdWOuEugBFdF4yV4-yUpdU) reports four verification gates as passing. Those results were self-reported by the same lane that authored the code, and nothing had independently reproduced them. The owner authorization names Claude Code as the independent read-only reviewer. This record supplies that reproduction on a different host, with an independently written test runner.",
+
+  "actor": {
+    "agent": "Claude Code independent reviewer lane",
+    "role": "READ_ONLY_INDEPENDENT_REVIEWER",
+    "is_authorized_windows_control_tower": false,
+    "hostname": "vm",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "os_kernel": "Linux 6.18.5 x86_64",
+    "python": "3.11.15",
+    "repository": "DataBossX/DataBoss",
+    "branch": "claude/databossx-s32-gate0-recovery-52jb55",
+    "worktree": "/home/user/DataBoss (single worktree)"
+  },
+
+  "subject_under_verification": {
+    "build_commit": "fb4186e77612e6c81bdab819a78b9b79457edde9",
+    "build_commit_time_utc": "2026-08-02T16:24:04Z",
+    "branch": "claude/databossx-section32-recovery-ouyziy",
+    "pull_request": 74,
+    "pull_request_state": "DRAFT_NOT_FOR_MERGE",
+    "extraction_method": "git archive of the remote ref into an isolated scratch directory. The repository working tree was not modified and the build was not executed from inside the repository.",
+    "module_sha256": {
+      "control_tower/__init__.py": "A3877A8B80F11B82F91BBED1664BD35B74997E4345AF3446EA7357866418E325",
+      "control_tower/audit.py": "B18915F8CE6474F962D9E74F1CB43240AEE94EA307AA4B14738687591EDF5EF6",
+      "control_tower/cli.py": "84A610DB7855E5CDF00F2645CA97EF9CA253D77526B97A94C8CDA27CEA7419A5",
+      "control_tower/constants.py": "B0D8597CE712D472E959AD19E5BACDE4CEFDA18DCC206BF2FACE6B85339B12E2",
+      "control_tower/drive.py": "68D677C942B0CAA53AC10A1EC15FFFBB362F27BB98AB53CA00EB503925C5C1C5",
+      "control_tower/kernel.py": "E3FCDB3D2113E91761947B159C6F8F9B705F8CA93D9604DE2F9E30DBD7968D86",
+      "control_tower/safety.py": "81747DDB5DE7CAB6264D2C82C1CD108F64EB2B327FBA97513048308A8A439E78",
+      "control_tower/tower.py": "77E24EFB2AFE85D999C82E9767BE830DD7CEF91387A93BEE978763813F8033D4",
+      "run_control_tower.bat": "EA0982EB26986A7810EF09658B50F8BAB6A1C3A11CAC7986613E109D86C7A322",
+      "tests/test_control_tower.py": "A9747545F299C1B60BAA0509528405C010727A7D78F16117158B99B82CB6DE8C"
+    }
+  },
+
+  "reproduction_results": [
+    {
+      "gate": "pytest suite",
+      "self_reported": "88 passed, exit 0",
+      "independently_observed": "88 passed, 0 failed, 0 errors",
+      "verdict": "REPRODUCED_EXACTLY",
+      "method_caveat": "pytest is not installed on this host and this environment has no PyPI access (pip reports 'no versions available'). The suite was executed under a purpose-written stdlib shim implementing only the surface the suite uses: pytest.raises, pytest.mark.parametrize, pytest.fixture, tmp_path, and monkeypatch. The shim is deliberately strict: raises() asserts DID NOT RAISE when no exception occurs and propagates any non-matching exception, so a shim bug surfaces as a failure or error rather than a false pass. The 88 count arises as 63 test functions expanded by 8 parametrize decorators. This is a faithful reproduction, not a run of upstream pytest, and should be read as such."
+    },
+    {
+      "gate": "control_tower.cli selftest",
+      "self_reported": "18/18 passed, exit 0, drive_writes 0",
+      "independently_observed": "18/18 passed, 0 failed, exit 0",
+      "verdict": "REPRODUCED_EXACTLY",
+      "local_report_sha256": "EE0FA365E42D4674720DEE5A95DF981A354F5019D81185AE3740196BF3B62278"
+    },
+    {
+      "gate": "control_tower.cli canary",
+      "self_reported": "7/7 passed, exit 0, network_calls 0",
+      "independently_observed": "7/7 passed, 0 failed, exit 0",
+      "verdict": "REPRODUCED_EXACTLY",
+      "local_report_sha256": "63ED9FDBA336732AF4D44B4C1302C55A36AE42313D257DB18C202F52EDB2E959"
+    },
+    {
+      "gate": "control_tower.cli audit",
+      "self_reported": "exit 2, PARTIAL_HOST_MISMATCH, v12_ruling NOT_VERIFIED_UNREACHABLE",
+      "independently_observed": "exit 2, completeness PARTIAL_HOST_MISMATCH, v12_ruling NOT_VERIFIED_UNREACHABLE, unreachable = drive_surface, processes, repository, services_and_tasks, v12, workbook_locks; workbook_opened false",
+      "verdict": "REPRODUCED_EXACTLY",
+      "local_report_sha256": "5615A6B1B09151287968F7FB517E6289238DC3AA27468BA29FAEAC7A97C2F9D6",
+      "significance": "This is the most important of the four. Given a V12 path that does not exist, the tower refused to certify V12 and returned a non-zero exit rather than reporting a clean result it had not earned. The fail-closed posture is real and executable, not merely documented."
+    }
+  ],
+
+  "offline_property_independently_confirmed": {
+    "claim": "the build performs no network I/O",
+    "method": "static search across all eight modules for urlopen, http.client, requests, and socket call sites",
+    "result": "CONFIRMED - the only socket reference in the entire package is socket.gethostname() in tower.py for host identity. There is no HTTP client, no URL fetch, and no outbound call path anywhere in the implementation. The selftest and canary Drive surfaces are in-process offline doubles.",
+    "third_party_dependencies": 0,
+    "consequence": "The build runs on the authorized Windows workstation with nothing installed but Python. This removes the dependency barrier that blocked earlier lanes."
+  },
+
+  "pinned_constant_authenticity": {
+    "why_this_check_exists": "The test suite imports the same constants module it asserts against, so a substituted folder ID would pass all 88 tests. This check compares the pinned constants against the owner-authorized values taken from the owner supplement and the Gate 0 command, not from the code under test.",
+    "QUEUE_FOLDER_ID": "MATCH - 1aLfAZdOvhAbBzg_pTluH12X4yoZ3u_JC",
+    "RECEIPTS_FOLDER_ID": "MATCH - 1G8qW5lQCSuT8nEvSTOzHFVdH-EN3r5yR",
+    "WATCHER_OUTPUT_FOLDER_ID": "MATCH - 1EX7ye_MrwACJaS9f9E2bcSo7w4TW3kVC",
+    "V12_EXPECTED_SHA256": "MATCH - D3937F46B3130A25719BB82CDAC702CECAA131BA5C5AACD4142BD346987D8D5D",
+    "HOLD": "MATCH - FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+    "ALLOWED_WRITE_FOLDER_IDS": "AUTHENTIC - five entries: 02_RECEIPTS, 09_WATCHER_OUTPUT, 03_STATUS, 04_BLOCKED, 07_HUMAN_APPROVAL. 04_BLOCKED and 07_HUMAN_APPROVAL are expressly named as write destinations by Gate 0 REQUIRED ACTION 9. No unauthorized folder is writable. 01_QUEUED is read-only and 05_COMPLETED is not writable.",
+    "verdict": "ALL PINNED CONSTANTS AUTHENTIC"
+  },
+
+  "observations_not_defects": [
+    {
+      "id": "O-01",
+      "observation": "emit_record takes the destination folder as a caller argument and validates it against ALLOWED_WRITE_FOLDER_IDS. The allowlist is enforced structurally, but per-record-type routing (receipt to 02_RECEIPTS, heartbeat to 09_WATCHER_OUTPUT) is the caller's responsibility rather than a structural invariant.",
+      "severity": "OBSERVATION_ONLY",
+      "why_not_a_defect": "The security boundary is the allowlist, and it is correct. Misrouting between two authorized control lanes would be untidy, not a containment breach.",
+      "suggestion": "If cheap, bind record type to destination in emit_record so misrouting is impossible by construction."
+    }
+  ],
+
+  "what_this_record_does_not_establish": [
+    "It does not verify V12. The V12 path is on the Windows host and is unreachable from here.",
+    "It does not prove the tower works against the live Google Drive API. Both selftest and canary use in-process offline doubles. The real Drive leg remains unproven for this build.",
+    "It does not claim, terminalize, or alter Gate 0 in any way.",
+    "It does not resolve finding R-01 from QC_REVIEW__S32_GATE0_TERMINAL_RECEIPT (Drive ID 1iMUL_pEYIP1VX6zDOoWOws0mIkGbuRex), which requires an owner ruling.",
+    "It does not supply the missing .sha256 sidecar for the Gate 0 terminal receipt (finding R-04). That must come from the Windows host that wrote those bytes."
+  ],
+
+  "mutation_ledger": {
+    "workbook_bytes_changed": 0,
+    "client_artifact_bytes_changed": 0,
+    "source_evidence_mutated": false,
+    "v9_v10_v11_v12_v13_touched": false,
+    "drive_files_edited_or_overwritten": 0,
+    "drive_files_deleted": 0,
+    "drive_files_moved": 0,
+    "queue_commands_added": 0,
+    "gate0_claim_consumed": false,
+    "gate0_terminal_receipts_issued": 0,
+    "competing_queue_or_control_plane_created": false,
+    "pull_requests_merged": 0,
+    "deployments": 0,
+    "hold_removed": false,
+    "inbound_ports_opened": 0,
+    "connection_direction": "OUTBOUND_ONLY",
+    "secrets_present": false,
+    "client_evidence_present": false,
+    "build_executed_in_isolated_scratch_directory": true,
+    "repository_working_tree_modified_by_execution": false
+  },
+
+  "rollback": {
+    "required": false,
+    "reason": "No protected artifact, workbook, evidence file, Drive record, or control record was mutated. The build was executed from an isolated scratch extraction, not from the repository. This record is a new append-only file.",
+    "reversal_if_owner_wishes": "Delete this record and its .sha256 sidecar by Drive ID, and revert the corresponding commit on branch claude/databossx-s32-gate0-recovery-52jb55."
+  },
+
+  "consequence_for_recovery_outcome": {
+    "prior_determination": "D - no usable implementation (correct when written; no build existed)",
+    "current_determination": "A - an existing runnable Control Tower now exists and is independently proven to run",
+    "qualification": "Outcome A applies to the artifact, not to the matter. The build is real, executable, dependency-free, and fail-closed. What remains unproven is its live Drive leg and everything that requires the Windows host. The repair is now a deployment step, not a construction step."
+  },
+
+  "next_permitted_action": "On the authorized Windows workstation that owns C:\\DataBoss: copy the repository at commit fb4186e, run run_control_tower.bat selftest and confirm 18/18, then run run_control_tower.bat audit with DBX_V12_PATH set to the pinned V12 path. Only if that audit returns exit 0 with v12_ruling VERIFIED_EXACT may a Gate 0 claim be considered, and per finding R-01 a Gate 0 claim must not be attempted at all until Ryan rules on whether the 1110CDT BLOCKED terminal consumed the command's single terminal slot.",
+
+  "review_verdict": "BUILD_PRESENT_RECEIPT_CORROBORATED_ALL_FOUR_GATES_REPRODUCED_NO_DEFECTS_FOUND",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

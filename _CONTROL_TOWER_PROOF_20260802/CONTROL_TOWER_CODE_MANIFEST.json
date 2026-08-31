@@ -1,0 +1,100 @@
+{
+  "schema": "databossx.control_tower_code_manifest.v1",
+  "run_id": "DBX-S32-CT-BUILDPROOF-20260802T1539Z",
+  "generated_at_utc": "2026-08-02T15:41:47Z",
+  "release_state": "FOR REVIEW - HOLD NO EXTERNAL RELEASE",
+  "result": "DATABOSSX_CONTROL_TOWER_BUILD_NOT_FOUND",
+  "actor": {
+    "lane": "Claude Code supervisory lane (read-only, non-claiming)",
+    "host_class": "LINUX_EPHEMERAL_CLOUD_CONTAINER",
+    "hostname": "vm",
+    "is_authorized_windows_control_tower": false,
+    "pid": 5339,
+    "ppid": 4983,
+    "python": "Python 3.11.15",
+    "python_path": "/usr/local/bin/python3",
+    "os": "Linux 6.18.5"
+  },
+  "repository": {
+    "path": "/home/user/DataBoss",
+    "toplevel": "/home/user/DataBoss",
+    "branch": "claude/databossx-section32-recovery-ouyziy",
+    "head_commit": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "head_subject": "Merge pull request #50 from DataBossX/copilot/build-the-data-boss-x-system",
+    "working_tree_clean": true,
+    "worktrees": [
+      "/home/user/DataBoss  582d951 [claude/databossx-section32-recovery-ouyziy]"
+    ],
+    "designated_branch": "claude/databossx-section32-recovery-ouyziy",
+    "designated_branch_exists_on_origin": false,
+    "designated_branch_local_head": "582d95161cf8220fb37f5224e21e57dcc5c3121c",
+    "designated_branch_commits_ahead_of_main": 0
+  },
+  "claimed_artifacts_under_test": {
+    "claim": "nine modules, 2046 lines, 27/27 tests, 7/7 offline canary, run_control_tower.bat",
+    "verdict": "UNSUPPORTED_BY_ANY_ARTIFACT_IN_SCOPE"
+  },
+  "search_methodology": [
+    {
+      "scope": "local filesystem, whole root",
+      "cmd": "find / -iname '*control_tower*'",
+      "matches_excluding_this_package": 0
+    },
+    {
+      "scope": "local filesystem",
+      "cmd": "find / -iname 'run_control_tower.bat'",
+      "matches": 0
+    },
+    {
+      "scope": "local filesystem",
+      "cmd": "find / for tower|watcher|gate0|TaskEnvelope|WriterACK|fencing|S32_|SECTION32",
+      "matches_in_user_space": 0,
+      "note": "only unrelated toolchain/vendor files matched"
+    },
+    {
+      "scope": "git working tree",
+      "result": "clean, zero modified, zero untracked (before this package)"
+    },
+    {
+      "scope": "git stash",
+      "entries": 0
+    },
+    {
+      "scope": "git reflog",
+      "entries": "checkout-only, no commits created in this container"
+    },
+    {
+      "scope": "ALL remote branches",
+      "branches_fetched": 121,
+      "unique_paths_across_all_trees": 2107,
+      "cmd": "git ls-tree -r --name-only over every refs/remotes/origin/*",
+      "matches_for": [
+        "control_tower",
+        "run_control_tower",
+        "S32_GATE0",
+        "WATCHER_OUTPUT",
+        "TaskEnvelope",
+        "WriterACK"
+      ],
+      "matches": 0
+    },
+    {
+      "scope": "GitHub code search",
+      "query": "repo:DataBossX/DataBoss control_tower",
+      "total_count": 0
+    }
+  ],
+  "files_created_or_modified_by_the_claimed_build": [],
+  "total_line_count": 0,
+  "per_file_sha256": {},
+  "test_commands_executed": [],
+  "canary_command_executed": null,
+  "run_control_tower_bat": {
+    "located": false,
+    "path": null,
+    "sha256": null
+  },
+  "uncommitted_or_untracked_or_outside_repo": "none attributable to the claimed build; the only new local files are this proof package",
+  "conclusion": "No Control Tower implementation exists on this host, in this working tree, in any commit reachable from any of the 121 remote branches, or in GitHub code search. The build cannot be proven because it does not exist in any artifact within reach of this lane. Sections B, C, and D of the directive (review, selftest, audit) are unreachable: there is no binary to review, no selftest to run, and no run_control_tower.bat to invoke.",
+  "hold": "FOR REVIEW - HOLD NO EXTERNAL RELEASE"
+}

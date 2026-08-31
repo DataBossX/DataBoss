@@ -67,6 +67,9 @@ android-sdk/
 _synthetic_corpus/
 .pytest_cache/
 runtime/
+PC_Storage/
+Google_Drive_Storage/
+sync_output/
 
 # Client-specific operations data must stay in approved private systems
 projects/OK-*/

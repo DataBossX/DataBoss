@@ -33,7 +33,7 @@ This report consolidates everything currently proved, everything currently assum
 
 | # | Instrument | What it does |
 |---|---|---|
-| 00006 | **Patent, Book 29/467 (1901-06-17)** — United States of America to **Neivor Tubbs**. | Conveys the federal fee in Lots 3 and 4 of Section 7 (plus separate Section 12 lands). Federal root of the Lots 3 & 4 half. No reservations noted on the reviewed face. |
+| 00006 | **Patent dated 1900-03-17 (GLO cash entry, Act of April 24, 1820); county-recorded 1901-06-17 in Book 29/467** — United States of America to **Neivor Tubbs**. | Conveys the federal fee in Lots 3 and 4 of Section 7 — 77.49 acres of a 157.49-acre patent whose balance lies in Sec. 12-10N-24W. Federal root of the Lots 3 & 4 half. No mineral reservation appears on the face. |
 | I-1899-000101 | POA, MIS001/451 (12/11/1899) — Newor Tubbs to P. S. Doxey. | Index locator only: appoints Doxey attorney-in-fact. The full face is still needed to prove authority and limits. |
 | I-1899-000056 | WD, D00001/177 (12/11/1899) — Nevin Tubbs (through Doxey) to **B. W. Waters**. | Index + fragment: conveys the Lots 3 & 4 interest to Waters. Full face still required for complete legal and any reservations. |
 | 00028 | QCD/Ratification, 1 Misc./500 — Nevior Smiley (formerly Tubbs) and W. H. Smiley to B. W. Waters. | Direct face. Ratifies/confirms the Tubbs→Doxey→Waters conveyance — quitclaims all right, title and interest in Lots 3 and 4 to Waters, curing the POA question in practical effect. |
@@ -72,7 +72,7 @@ This report consolidates everything currently proved, everything currently assum
 | 00334 | Mineral Deed, 95 Mineral/82 (exec 1951-06-04, rec 1951-06-06) — the Thurmonds to **W. B. Carman**. | Conveys an undivided **5 NMA**. Start of the Carman/Sisson/DeBurn branch. |
 | 00333 | Mineral Deed, 95 Misc./81 (exec 1951-06-04, rec 1951-06-06) — W. B. and Edna Earle Carman to **Geo. F. Sisson and May S. Sisson**. | Conveys the **5 NMA jointly to husband and wife**. Under Oklahoma law, tenancy in common is presumed absent express joint tenancy (Clinton v. Clinton; Kilgore v. Parrott; Swanson v. Swanson) — so treat it as **2.5 NMA each**. |
 | 00339 | Mineral Deed, 106/419 (exec 1952-11-19, rec 1952-11-20) — Geo. F. Sisson, **a widower**, to **Nell Blanche DeBurn, a widow**. | The face **purports to convey the full undivided 5/157.49** with no reservations. Chain-safe effect: only Geo's proved **2.5 NMA** passes; May S. Sisson's 2.5 NMA passes **only if** her disposition to Geo (probate, survivorship, or deed) is proved — it is not. The "widower" recital is not authority. May died 1952-05-28 (newspaper chronology, lead only). |
-| 00389 | Mineral Deed, 128 Misc./462 (exec 1955-06-28, rec 1955-07-09) — the Thurmonds to **Pamela Shadid and Cheryl Shadid, in equal shares**. | Conveys an undivided **12.5 NMA, half to each** (6.25 NMA apiece), in the target. Start of the Shadid branch (Pamela later appears as Pamela Shadid Schulte). |
+| 00389 | Mineral Deed, 128 Misc./465 (face page; the older /462 index citation is superseded) (exec 1955-06-28, rec 1955-07-09) — the Thurmonds to **Pamela Shadid and Cheryl Shadid, in equal shares**. | Conveys an undivided **12.5 NMA, half to each** (6.25 NMA apiece), in the target; the face recites "This is not a sale, but a Division of interest." Start of the Shadid branch (Pamela later appears as Pamela Shadid Schulte). |
 
 **Arithmetic note (labeled, not merged):** 40 NMA went into Thurmond; 10 + 5 + 12.5 = 27.5 NMA are proved out; if no other Thurmond outbound conveyance exists, **12.5 NMA remained in Thurmond** — but the record shows unread Thurmond estate decrees (1990-002747, Bk 1146/37-42; and 2023-003807, Bk 2412/910-916 for Arthur L. Thurmond III), so the Thurmond residual is an open estate branch, not a proved holding. The other ~117.49 acres of mineral fee (157.49 − 40) presumptively remained with the surface owners (Hollaway/Fuchs → 1962 contract-for-deed toward Lloyd Joe and Wanda L. Patton), which is consistent with Patton and Fuchs both appearing later as lessors — but the Patton vesting deed itself (escrow deed under the 1962 contract) is not in the record. ASSUMPTION only.
 
@@ -104,7 +104,7 @@ This report consolidates everything currently proved, everything currently assum
 | OGL | Lease | Terms on the face |
 |---|---|---|
 | **OGL 3** | I-2008-006885, Bk 1957/614-616 — **Lloyd Joe Patton and Wanda L. Patton to R. D. Davis & Associates, Inc.** (exec 2008-07-29, rec 2008-08-29). | Covers the exact target, 157.49 acres. **3-year primary term + production; 3/16 royalty; shut-in limitation; 100-foot depth-termination clause per face.** Assigned to **Burlington Resources Oil & Gas Co., LP** by I-2009-002475 (Bk 1974/634-636; Exhibit A lists this lease). Current holder/HBP NOT DETERMINED. |
-| **OGL 10** | I-2008-007165, Bk 1958/373-375 — **Juanita Haddad to R. D. Davis & Associates, LLC** (exec 2008-08-20, rec 2008-09-09). | Historical identity proved via I-2009-002020 (Bk 1973/221-231 assignment to Burlington, Exhibit A lists this lease). **The complete 3-page direct face still requires rebinding** before its royalty/depth/savings clauses are treated as proved in the current chain. |
+| **OGL 10** | I-2008-007165, Bk 1958/373-375 — **Juanita Haddad to R. D. Davis & Associates, LLC** (exec 2008-08-20, rec 2008-09-09). | **Face now banked.** Paid-up lease on the exact target: **3-year primary term; 3/16 royalty; depth limitation (rights below 100 feet under the deepest formation penetrated terminate as provided); shut-in limited to two consecutive years beyond the primary term; no-warranty clause.** Assigned to Burlington via I-2009-002020 (Bk 1973/221-231; Exhibit A lists this lease). Later disposition does not appear in the 2025 Burlington-to-Windsor conveyances of record. |
 | **OGL 29** | I-2009-002398, Bk 1974/396-398 — **John Pete Thurmond II, Trustee of the A. L. Thurmond Jr. Revocable Trust, to R. D. Davis & Associates, LLC** (exec 2009-01-23, rec 2009-04-23). | Exact target, 157.49 acres. **3-year primary term + production, with a two-year extension option per face; 3/16 royalty; no separate depth clause established.** Successor chain after 2009 open. |
 | **OGL 32** | **Actual carrier not proved.** | The alleged 2009-04-06 Schulte Family Trust → Burlington lease has never been located as a recorded face. **I-2009-002476 (Bk 1974/637-641, 5 pages) was read in full and its Exhibit A omits the target — it is a proved target-negative, not the carrier.** A different operative source is required. |
 
@@ -136,9 +136,9 @@ This report consolidates everything currently proved, everything currently assum
 
 | Instrument | Lessor | Lessee | Lease date | Term | Royalty | Coverage |
 |---|---|---|---|---|---|---|
-| **I-2026-000197** | **Fishel** | Jenkins Energy Partners LLC | 2025-10-28 | 3 yr | **3/16** | exact target, 157.49 |
-| **I-2026-000199** | **Terrance J. Bolinger** | Jenkins Energy Partners LLC | 2025-10-17 | 3 yr | **1/5** | exact target, 157.49 |
-| **I-2026-002031** | **Lyla Rousseau, as Trustee (Lyla Rousseau Living Trust)** | Jenkins Energy Partners LLC | 2025-12-19 | 3 yr | **3/16** | exact target, 157.49 |
+| **I-2026-000197** (Bk 2475/862-864, rec 2026-01-22) | **Fishel** | Jenkins Energy Partners LLC | 2025-10-28 | 3 yr | **3/16** | all of lessor's interest in the target, 157.49 gross |
+| **I-2026-000199** (Bk 2475/868-870, rec 2026-01-22) | **Terrance J. Bolinger** | Jenkins Energy Partners LLC | 2025-10-17 | 3 yr | **1/5** | all of lessor's interest in the target, 157.49 gross |
+| **I-2026-002031** (Bk 2484/426-428, rec 2026-04-24) | **Lyla Rousseau, as Trustee (Lyla Rousseau Living Trust)** | Jenkins Energy Partners LLC | 2025-12-19 | 3 yr | **3/16** | all of lessor's interest in the target, 157.49 gross |
 
 Ten other 2026 Section 7 leases (000192-000196, 000198, 002026-002029) are proved target-negative by legal. A lease is a claimant's assertion, not vesting — but three separate parties leasing the exact target to the same lessee in late 2025 is the strongest current-ownership signal in the record and drives the assumption table below.
 
@@ -194,12 +194,12 @@ Structural parse of the baseline: **9 sheets in exact order** — Overview, `Tit
 | I-2023-003028 (DP Legacy→Anadarko mineral deed) | 2409/539-553 | **15** ✔ re-verified | Official PDF banked; target-negative |
 | I-2009-002020 (Davis→Burlington assignment) | 1973/221-231 | 11 | Direct body + exhibit reviewed |
 | I-2024-003493 (→Avalanche wellbore assignment) | 2437/52-59 | **8** | FACE REQUIRED (P5) |
-| I-2009-001902 (Chesapeake release) | 1972/907-912 | **6** | FACE REQUIRED (P3) |
+| I-2009-001902 (Chesapeake release) | 1972/907-912 | **6** | Raw face banked (releases nine caption-land leases, 1977-2003 vintages; Chesapeake's interest only) |
 | I-1994-007284 (Haddad decree) | 1395/136-140 | **5** ✔ re-verified | Banked |
 | I-2009-002476 (target-negative assignment) | 1974/637-641 | **5** ✔ re-verified | Banked |
 | I-2009-002475 (OGL 3 assignment) | 1974/634-636 | 3 | Reviewed |
 | I-2008-006885 (OGL 3 lease) | 1957/614-616 | 3 | Recorded face proved |
-| I-2008-007165 (OGL 10 lease) | 1958/373-375 | **3** | FACE REBINDING REQUIRED (P4) |
+| I-2008-007165 (OGL 10 lease) | 1958/373-375 | **3** | Raw face banked (3/16 royalty; 3-yr term; below-deepest-formation depth termination; 2-year shut-in limit; no-warranty clause) |
 | I-2009-002398 (OGL 29 lease) | 1974/396-398 | 3 | Direct 3-page face proved |
 | I-2011-009941 (Haddad QCMD) | 2072/463-464 | **2** (97,620 bytes, SHA e8848491…) | Banked |
 | I-1997-004260 (Trustee QCD) | 1517/346 | **1** (70,910 bytes, SHA 2ff8795d…) | Banked |
@@ -220,7 +220,7 @@ The handwritten county index workbook is 38 pages. The local image corpus (00006
 **You (Ryan) — the only actions I cannot do from here:**
 1. **Run the Gen4 finalizer** in the SAME existing ChatGPT-in-Excel H7 chat: fresh-read TaskEnvelope `1YKFe…` (revision-sealed, 45,560 bytes / SHA 96f7…), publish the ACK with the four READ=YES flags, execute the one CREATE_NEW_ONLY successor, run native Excel QA / Print Preview / private PDF / hash readback. This is the single blocker to the terminal workbook.
 2. **Bind 00333 / 00335 / 00339 raw images to Drive** (upload originals, record bytes+SHA).
-3. **County purchases (digital, ~$0.40/instrument watermarked):** I-2008-007165 (3 pp), I-2009-001902 (6 pp), I-2024-003493 (8 pp), full custody of I-2025-004050 (282 pp) and 2025-004094 (70 pp), Thurmond decrees 1990-002747 and 2023-003807, and the three Jenkins lease faces if not yet banked raw.
+3. **County purchases (digital, ~$0.40/instrument watermarked):** I-2024-003493 (8 pp, wellbore-assignment exhibits) and the Thurmond decrees 1990-002747 and 2023-003807. (Now banked and no longer needed: I-2008-007165, I-2009-001902, 2025-004094, and the three Jenkins lease faces — all raw-bound per the current note allowlist.)
 4. **Physical Beckham County Clerk trip:** Book 90 vicinity Fuchs deed (~pp. 150-160), Waters→Duty Book 2/328, May Sisson probate (1952-53), DeBurn probate (1964+).
 5. **OCC/RBDMS pull** for API 35-009-21768 current status/last production + spacing/pooling orders per formation (HBP analysis input).
 6. **Drive sync on the PC:** install/verify Google Drive for desktop, sync `C:\DataBoss\Horizon\Section_07_SW4` ↔ the SECTION_07_SW4 Drive folder so chats' local outputs auto-land in Drive.

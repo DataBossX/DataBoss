@@ -966,18 +966,16 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
     headers = ["source_file", "source_page", *FACT_FIELDS, "overall_confidence",
                "review_flags", "categories", "snippet"]
     rows = []
-    for f in facts:
-        cats = "; ".join(classes.get_by_relpath(f.source_file) if hasattr(classes, "get_by_relpath") else [])
-        rows.append([
-            f.source_file, f.source_page,
-            *[f.values.get(k, "") for k in FACT_FIELDS],
-            f.overall_confidence, "; ".join(f.review_flags), "", f.snippet])
     # categories by rel_path
     rel_to_cats = {}
     for r in recs:
         rel_to_cats[r.rel_path] = "; ".join(classes.get(r.path, []))
-    for row, f in zip(rows, facts):
-        row[-2] = rel_to_cats.get(f.source_file, "")
+    for f in facts:
+        cats_str = rel_to_cats.get(f.source_file, "")
+        rows.append([
+            f.source_file, f.source_page,
+            *[f.values.get(k, "") for k in FACT_FIELDS],
+            f.overall_confidence, "; ".join(f.review_flags), cats_str, f.snippet])
     write_csv(output_dir / "extracted_facts.csv", headers, rows)
     write_xlsx(output_dir / "extracted_facts.xlsx", [("facts", headers, rows)], log)
     log(f"Extracted structured facts from {len(facts)} documents "

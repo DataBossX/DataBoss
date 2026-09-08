@@ -263,3 +263,88 @@ on all six members with per-file PDF page counts and hashes, and
 READY_FOR_OWNER_EXAMINER_REVIEW / NOT_CERTIFIED.
 
 REPORT_WRITES=0 · SPEND=0
+
+---
+
+# Campbell Section 13 (45N-76W) — read-only source/cell preparation
+
+No production mutation. Section 15 writer is not released, per the standing
+instruction, so this lane is preparation only.
+
+## FLAG 1 — two same-day control docs disagree on the source denominator
+
+| Doc | Time | County source PDFs |
+|---|---|---|
+| `SECTION13_COMPLETION_QA__20260908` | 13:41 | **325** files / 23,921 pages |
+| `P13_SECTION13_COMPLETION_CONTROL__20260908` | 13:50 | **326** files "physically enumerated" |
+
+Written nine minutes apart, differing by one file. This is the denominator every
+tract-index hit must be dispositioned against, so it has to be reconciled by a
+physical re-enumeration before any row is added or excluded. UNKNOWN != ZERO —
+do not silently adopt either number.
+
+## FLAG 2 — the two docs also disagree on the WYW-047318 part census
+
+The 13:41 QA doc states a complete four-part census WITH SHA-256 per part:
+
+| Part | Pages | SHA-256 |
+|---|---|---|
+| 1 of 4 | 189 | B33E37EB38CEEA630D70F44DAA035912FBF9467B33BC626854E3029A527D615C |
+| 2 of 4 | 177 | 7DCA2BBAA0192E09734E5924223D662E1428C4208C1BC7538592009364A53FB5 |
+| 3 of 4 | 94 | D537DBBC89E302E585C2E4499B35BCF0A3FAB31BEAE5B699BDDE0B62DE2CAD4A |
+| 4 of 4 | 2 | D25B0DE9772BA9C746637ACB17D1B9D3A6592464B1076266180E0737FEBE6CF7 |
+| **total** | **462** | |
+| SRP 8/4/2026 | 5 | AD92AC670DE3665C663CF2DDAFE009E69C4C4B34A6058DF8E61EFA5A7D7D6CBB |
+
+The LATER 13:50 control doc contradicts this: it says Part 2's terminus is not
+proven by receipts, Part 1's "actual source PDF must still be checked for
+terminal page count," and "No Part 4 source/receipt was located in the present
+verification pass; do not invent a page count."
+
+Not resolved unilaterally here. Note for the adjudicator: the 13:41 doc carries
+per-part SHA-256 hashes of actual source files, which is materially harder
+evidence than the 13:50 doc's narrative caution — but the 13:50 doc is newer.
+A hash re-verification of the four parts settles it in one pass.
+
+## The single remaining gap blocking promotion
+
+The richer federal candidate matches the required Section 2 A:J layout and
+carries **34 source-bound federal rows** against the incumbent **2-row
+summary**. It is NOT promotable yet. Proven reviewed:
+
+- Part 1 pp. 81-189
+- Part 2 pp. 1-177 (all)
+- Part 3 pp. 1-94 (all)
+- Part 4 - 2 administrative pages
+
+**Open: Part 1 pp. 1-80.** One coherent source-review/referee closure over those
+80 pages is the only thing standing between the candidate and promotion.
+
+## Other source gates carried forward (unchanged, not reopened)
+
+- Reconcile all 13 tract-index pages against the county source folder and the
+  20 report rows.
+- Re-read 2021-01976 Exhibit D p.136/148; preserve surface-use-only treatment
+  unless source pixels contradict.
+- Re-read 2023-01321 Schedule EA p.88/93; align index/checklist/letter with the
+  excluded-asset finding if confirmed.
+- Keep 932916 / Bk2479 p91 and 2026-00020 as narrow source holds.
+- Do NOT resurrect stale holds on 2025-06702 or 2026-00429 absent contradictory
+  source.
+
+## Format target (style only, no Section 2 facts)
+
+County index and Section 2 already share the same nine client columns.
+Federal donor is the Section 2 WYW-048009 workbook: A:J = Document Type,
+Grantor, Grantee, File No, Page, Date of Doc, Rec Date, Comments, Legal
+Description, Part; Calibri 11; bold row-9 header; thin black borders;
+wrapped/top-aligned; landscape; fit-to-width; repeating row 9; print area
+through true last row.
+
+Note this donor spec says **landscape + fit-to-width + repeating row 9 + print
+area** — consistent with the Section 11 receipt's account of Section 2, and
+again inconsistent with the bare `scale=34` in `add_xlsx_page_setup.ps1`.
+That is now three independent artifacts pointing away from the .ps1 as the
+current Section 2 page-mechanics authority.
+
+REPORT_WRITES=0 · PACKAGE_WRITES=0 · CANONICAL_WRITES=0

@@ -16,13 +16,25 @@ import re, shutil, sys, zipfile, os
 
 SHEET = "xl/worksheets/sheet1.xml"
 HAS_PAGESETUP = re.compile(r'<(?:[A-Za-z]+:)?pageSetup(?:\s|/)')
+# --- Donor profiles -----------------------------------------------------
+# ps1_*  : verbatim from add_xlsx_page_setup.ps1 (2026-09-02 intermediate).
+# bob_*  : the Section 2 "Best of the Best" values as enumerated by the
+#          2026-09-08 P11 terminal receipt (P11_SECTION11_TERMINAL_RECEIPT).
+#          That receipt is newer and exact-target, so under the control law
+#          it outranks the .ps1 for what Section 2 actually looks like.
+#          It is still a REPORT about Section 2, not Section 2 itself --
+#          inspect the real Best-of-Best workbook before treating as final.
 FITWIDTH  = '<x:pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>'
 CHECKLIST = '<x:pageSetup scale="34"/>'
+CHECKLIST_BOB = '<x:pageSetup orientation="landscape" scale="45"/>'
+CHECKLIST_BOB_PRINT_AREA = "$A$1:$L$12"
 
 def repair(src, dst, mode):
     if os.path.exists(dst):
         raise SystemExit(f"Refusing to overwrite existing output: {dst}")
-    setup = FITWIDTH if mode == "FitWidth" else CHECKLIST
+    setup = {"FitWidth": FITWIDTH,
+             "Checklist": CHECKLIST,
+             "ChecklistBoB": CHECKLIST_BOB}[mode]
     injected = False
     with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
@@ -54,12 +66,12 @@ def main(argv):
         return 0
     if len(argv) != 4:
         print(__doc__)
-        print("usage: xlsx_pagesetup_repair.py <in.xlsx> <out.xlsx> <FitWidth|Checklist>")
+        print("usage: xlsx_pagesetup_repair.py <in.xlsx> <out.xlsx> <FitWidth|Checklist|ChecklistBoB>")
         print("       xlsx_pagesetup_repair.py --audit <file.xlsx>")
         return 2
     src, dst, mode = argv[1], argv[2], argv[3]
-    if mode not in ("FitWidth", "Checklist"):
-        raise SystemExit("mode must be FitWidth or Checklist")
+    if mode not in ("FitWidth", "Checklist", "ChecklistBoB"):
+        raise SystemExit("mode must be FitWidth, Checklist or ChecklistBoB")
     print("BEFORE:", audit(src))
     print("injected:", repair(src, dst, mode))
     print("AFTER :", audit(dst))

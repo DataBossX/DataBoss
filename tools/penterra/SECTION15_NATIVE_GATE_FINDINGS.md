@@ -142,3 +142,55 @@ Preview every page — cannot be executed in this Linux container. It requires t
 existing Codex-driven native harness on the Windows host
 (Excel 16.0 build 20326), the same one that produced the Section 1 `native_excel_r6b`
 receipts.
+
+---
+
+# Johnson County Section 13 (47N-77W) — read-only lane result
+
+Asked: find authenticated source faces/pages for the seven instruments and
+return source-backed cell proposals; UNKNOWN remains UNKNOWN.
+
+**Result: no authenticated source faces exist. No cell proposals are possible.**
+
+Three independent confirmations:
+
+1. `JOHNSON13_EXACT_SOURCE_ACQUISITION_CHECKLIST.csv` — all seven rows carry
+   `request_state = STAGED_NOT_SENT` and
+   `exact_legal_and_operative_content = "Unknown until actual recorded face is
+   obtained and reviewed"`. The requests were never sent.
+2. `CODEX_READONLY__JOHNSON_P13_SEVEN_FACE_CUSTODY__HOLD_NO_RAW_FACES__20260903`
+   — `STATUS: HOLD_NO_RAW_FACES`. Both local handoffs record
+   `faces_attached=0`, `source_bytes=null`, `source_sha256=null`,
+   `provider_id=null` for every one of the seven.
+3. Independent Drive title search for 162995 / 163000 / 163002 / 163698 in this
+   session returned zero matching source objects (only false positives on an
+   unrelated `...20260725T163000Z` timestamp).
+
+## What IS source-backed (index register metadata only)
+
+| Instrument | Indexed date | Type | Parties | Pages |
+|---|---|---|---|---|
+| 162995 | 2017-05-15 | Corner Record | Loren K. Shanks -> The Public | 1 |
+| 163000 | 2017-05-15 | Corner Record | Loren K. Shanks -> The Public | 1 |
+| 163002 | 2017-05-15 | Corner Record | Loren K. Shanks -> The Public | 1 |
+| 163698 | 2017-06-09 | Corner Record | Loren K. Shanks -> The Public | 1 |
+| 163699 | 2017-06-09 | Corner Record | Loren K. Shanks -> The Public | 1 |
+| 163705 | 2017-06-09 | Corner Record | Loren K. Shanks -> The Public | 1 |
+| 163706 | 2017-06-09 | Corner Record | Loren K. Shanks -> The Public | 1 |
+
+Book/page is not supplied for these seven in the exact register; they must be
+requested by instrument number.
+
+**Index metadata is not a source face.** Legal description, monument/survey
+content, Section 13 effect, and row impact are NOT DETERMINED for all seven.
+No report row may be populated or modified from these locators. Every affected
+field stays source-held/UNKNOWN.
+
+## Next action (owner-gated, no spend)
+
+The existing authenticated Johnson County / iDoc actor may test one exact
+document at a time under its current entitlement. If fee, authentication, or
+access escalation is required, return the gate without purchasing. Do not open
+another county session or start a parallel source-hunt lane.
+
+REPORT_WRITES=0 · PACKAGE_WRITES=0 · CANONICAL_WRITES=0 · SPEND=0

@@ -194,3 +194,72 @@ access escalation is required, return the gate without purchasing. Do not open
 another county session or start a parallel source-hunt lane.
 
 REPORT_WRITES=0 · PACKAGE_WRITES=0 · CANONICAL_WRITES=0 · SPEND=0
+
+---
+
+# Section 3 (45N-76W) — read-only lane result
+
+Asked: work only the three unresolved items; do not redo banked closures; use
+only genuinely distinct authenticated/free/held source routes.
+
+## Two of three are already banked — not redone
+
+`SECTION3_FINAL_QA_RECEIPT__20260908_R1.json` (2026-09-08 14:45, the newest
+exact-target Section 3 receipt) records:
+
+    "verified_true_source_hold": ["875529"]
+
+875529 is the **only** entry. Per the 875529 acquisition handoff, the internal
+verification receipt `SECTION3_SOURCE_FACE_VERIFICATION__20260907_1425CDT.md`
+records **2021-07060** and **2022-05910** as direct, complete source-face
+verifications. Both are closed. Not reopened here.
+
+## 875529 — still open, exact target
+
+| Field | Value |
+|---|---|
+| Instrument | 875529 |
+| County | Campbell County, Wyoming |
+| Locator | Book 2178, Page 226 |
+| Parties (per locator evidence) | Howell Petroleum Corp. -> Anadarko Petroleum Corp. |
+| Expected length | 1 page (unverified until the face is retrieved) |
+
+### Distinct routes attempted this session (all read-only, no spend)
+
+| Route | Result |
+|---|---|
+| Drive fullText `Howell Petroleum` | 5 hits, **none** the county face — all federal casefile material (WYW-051704 P3 p23 evidence card, wyw72485 part1/part2 page dumps) |
+| Drive fullText `2178` + `226` | No recorded face; only the handoff itself and unrelated control diffs |
+| Drive title search for the instrument number | No match |
+
+Prior lanes had already tried `875529`, `2178 226`, `2178-0226`, and combined
+party/locator terms. The two fullText routes above are distinct from those and
+still produced nothing.
+
+### Explicitly NOT proposed as closure
+
+Howell -> Anadarko material **does** exist in already-held federal casefile
+pages. It is not the county recorded face of instrument 875529, and the
+handoff's own acceptance rule forbids using it: "An index hit, filename
+resemblance, party-name search result, or inferred title effect is
+insufficient." The hold stands.
+
+### Only remaining route is owner-gated
+
+Campbell County directs recorded-document access to iDoc Market, which requires
+a registered account plus county subscription or day pass. No login was
+attempted and nothing was purchased. Closure requires an authorized county
+records user to pull the image and record an intake receipt (source/service id,
+retrieval time, size, SHA-256, physical page count, recording stamp,
+instrument, Book/Page, grantor, grantee, separately printed
+execution/effective/recording dates, every legal-description and exhibit page).
+If parties, Book/Page or recording stamp disagree -> MISMATCH, hold retained.
+
+## Note: Section 3 native QA already passed
+
+Unlike Section 15, the Section 3 package records `native_office_qa` reopen PASS
+on all six members with per-file PDF page counts and hashes, and
+`drive_sync_all_match: true` across all eight objects. Status is
+READY_FOR_OWNER_EXAMINER_REVIEW / NOT_CERTIFIED.
+
+REPORT_WRITES=0 · SPEND=0

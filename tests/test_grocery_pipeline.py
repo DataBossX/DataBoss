@@ -234,6 +234,8 @@ def test_negated_all_owners_phrase_is_not_treated_as_complete(tmp_path):
     "NOT A COMPLETE OWNER SET",
     "NOT THE COMPLETE OWNER SET",
     "CANNOT BE CONSIDERED A COMPLETE OWNER SET",
+    "ALL OWNERS ARE NOT LISTED",
+    "OWNER LIST DOESN'T INCLUDE ALL OWNERS",
 ])
 def test_negated_complete_owner_set_is_not_treated_as_complete(
     tmp_path, heading

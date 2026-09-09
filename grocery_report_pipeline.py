@@ -831,10 +831,10 @@ _DECIMAL_TOTAL_RX = re.compile(
     re.I,
 )
 _DECIMAL_SET_COMPLETE_RX = re.compile(
-    r"\b(?:complete\s+(?:owner|ownership)\s+set|"
-    r"all\s+(?:mineral\s+)?owners|"
-    r"total\s+(?:decimal\s+interest|ownership))\b",
-    re.I,
+    r"^\s*(?:complete\s+(?:owner|ownership)\s+set|"
+    r"(?:owner|ownership)\s+set\s+complete)"
+    r"(?:\s*:\s*(?:yes|true))?\s*$",
+    re.I | re.M,
 )
 _DECIMAL_SET_INCOMPLETE_RX = re.compile(
     r"\b(?:(?:(?:not|never|cannot|can't|isn't|is\s+not)\b"

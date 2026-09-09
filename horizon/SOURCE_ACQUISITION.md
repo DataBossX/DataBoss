@@ -166,8 +166,10 @@ their source kind: `pc`, `drive`, `chat`, or a suffixed form such as `drive_2`.
 A passing receipt proves only that externally authorized source categories were
 copied byte-exact into the recorded read-only snapshot after repeated full
 hashes and without same-path conflicts. Downstream work must use that snapshot,
-not live Drive/PC paths. The receipt does not prove the legal facts inside the
-files. Next run
+not live Drive/PC paths, and must call `verify_snapshot(receipt)` immediately
+before reading it. File modes are defense in depth, not the trust decision; a
+snapshot fails if any authorized byte or its snapshot-manifest hash changes.
+The receipt does not prove the legal facts inside the files. Next run
 OCR/extraction, row-level provenance and confidence, master/index
 reconciliation, strict workbook QA, native Excel Print Preview, Drive readback,
 and the hash-bound human release gate.

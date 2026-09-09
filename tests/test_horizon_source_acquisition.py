@@ -18,6 +18,7 @@ from horizon.source_acquisition import (
     build_receipt,
     detect_section,
     main,
+    verify_snapshot,
     write_receipt,
 )
 
@@ -158,6 +159,7 @@ def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None
     assert (
         snapshot / "pc" / "Section 15" / "Master Abstract.xlsx"
     ).read_bytes() == b"master"
+    assert verify_snapshot(receipt)
 
 
 def test_same_relative_path_with_different_hash_blocks_intake(
@@ -184,6 +186,30 @@ def test_same_relative_path_with_different_hash_blocks_intake(
         and comparison.relative_path == "Section 15/Master Abstract.xlsx"
         for comparison in receipt.path_comparisons
     )
+
+
+def test_snapshot_verification_detects_post_receipt_tampering(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    snapshot_file = (
+        Path(receipt.snapshot_root)
+        / "pc"
+        / "Section 15"
+        / "Master Abstract.xlsx"
+    )
+    snapshot_file.chmod(0o600)
+    snapshot_file.write_bytes(b"tampered")
+
+    assert not verify_snapshot(receipt)
 
 
 def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
@@ -825,3 +851,48 @@ def test_receipt_cannot_alias_authority_manifest(
 
     assert result == 1
     assert authority_path.read_bytes() == original
+
+
+def test_receipt_failure_removes_private_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    authority_path = tmp_path / "authority.json"
+    _write_authority_manifest(
+        authority_path,
+        _authorities(root, "pc", 15),
+    )
+    project_path = tmp_path / "project_manifest.json"
+    _write_project_manifest(project_path, authority_path)
+    output = tmp_path / "receipt.json"
+    snapshot = tmp_path / "snapshot"
+
+    def fail_receipt_write(*args, **kwargs):
+        raise SourceAcquisitionError("simulated receipt failure")
+
+    monkeypatch.setattr(
+        source_acquisition,
+        "write_receipt",
+        fail_receipt_write,
+    )
+
+    result = main(
+        [
+            "--root",
+            f"pc={root}",
+            "--section",
+            "15",
+            "--authority-manifest",
+            str(authority_path),
+            "--project-manifest",
+            str(project_path),
+            "--snapshot-directory",
+            str(snapshot),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result == 1
+    assert not snapshot.exists()

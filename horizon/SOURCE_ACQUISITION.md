@@ -1,9 +1,10 @@
 # Section Source Acquisition
 
-Run source acquisition where Google Drive for Desktop and the local project
-folders are visible. The gate only reads and hashes source files, then writes a
-receipt outside the source roots. It never copies, deletes, renames, uploads,
-or chooses an authoritative file.
+Run source acquisition from Linux or WSL where Google Drive for Desktop and
+the local project folders are visible. Phase 1 only reads and hashes live
+sources. Phase 2 copies exact authorized bytes into a new private, read-only
+snapshot for downstream extraction. It never deletes, renames, uploads, or
+chooses an authoritative file.
 
 ## Prepare private source roots
 
@@ -24,17 +25,22 @@ D:\DataBossX\Projects\                 local working files
 G:\My Drive\DataBossX\Projects\        Google Drive for Desktop
 D:\DataBossX\PrivateChatExports\       Slack/Notion exports
 D:\DataBossX\AcquisitionReceipts\      generated JSON receipts
+D:\DataBossX\AcquisitionSnapshots\     new immutable intake snapshots
 ```
+
+Use the corresponding WSL paths (`/mnt/d/...`, `/mnt/g/...`). Secure
+descriptor-relative snapshot and receipt operations fail closed when the host
+Python runtime does not support them.
 
 ## Phase 1: inventory candidates
 
-```bat
-py -m horizon.source_acquisition ^
-  --root "pc=D:\DataBossX\Projects" ^
-  --root "drive=G:\My Drive\DataBossX\Projects" ^
-  --root "chat=D:\DataBossX\PrivateChatExports" ^
-  --section 15 --section 13 --section 11 ^
-  --output "D:\DataBossX\AcquisitionReceipts\sections-15-13-11.json"
+```bash
+python3 -m horizon.source_acquisition \
+  --root "pc=/mnt/d/DataBossX/Projects" \
+  --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
+  --root "chat=/mnt/d/DataBossX/PrivateChatExports" \
+  --section 15 --section 13 --section 11 \
+  --output "/mnt/d/DataBossX/AcquisitionReceipts/sections-15-13-11.json"
 ```
 
 This first receipt is expected to exit `2`. Filename classification is only a
@@ -93,22 +99,23 @@ manifest:
 }
 ```
 
-```bat
-py -m horizon.source_acquisition ^
-  --root "pc=D:\DataBossX\Projects" ^
-  --root "drive=G:\My Drive\DataBossX\Projects" ^
-  --root "chat=D:\DataBossX\PrivateChatExports" ^
-  --section 15 --section 13 --section 11 ^
-  --authority-manifest "D:\DataBossX\Controls\source-authority.json" ^
-  --project-manifest "D:\DataBossX\Controls\project_manifest.json" ^
-  --output "D:\DataBossX\AcquisitionReceipts\sections-authorized.json"
+```bash
+python3 -m horizon.source_acquisition \
+  --root "pc=/mnt/d/DataBossX/Projects" \
+  --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
+  --root "chat=/mnt/d/DataBossX/PrivateChatExports" \
+  --section 15 --section 13 --section 11 \
+  --authority-manifest "/mnt/d/DataBossX/Controls/source-authority.json" \
+  --project-manifest "/mnt/d/DataBossX/Controls/project_manifest.json" \
+  --snapshot-directory "/mnt/d/DataBossX/AcquisitionSnapshots/intake-20260909" \
+  --output "/mnt/d/DataBossX/AcquisitionReceipts/sections-authorized.json"
 ```
 
 Exit codes:
 
-- `0`: every requested section has hash-matched authority assertions for all
-  required roles and no path conflicts, rejected links, unstable files, or
-  traversal failures.
+- `0`: every requested section has hash-matched authority assertions and a
+  verified private snapshot for all required roles, with no path conflicts,
+  rejected links, unstable files, or traversal failures.
 - `2`: a receipt was written, but intake is blocked.
 - `1`: CLI controls, roots, authority manifest, or output location are unsafe
   or malformed; no receipt is promised.
@@ -121,18 +128,19 @@ The default required roles are:
 
 Require an explicit handwritten index when the project calls for one:
 
-```bat
-py -m horizon.source_acquisition ^
-  --root "pc=D:\DataBossX\Projects" ^
-  --root "drive=G:\My Drive\DataBossX\Projects" ^
-  --section 15 ^
-  --authority-manifest "D:\DataBossX\Controls\section-15-authority.json" ^
-  --project-manifest "D:\DataBossX\Controls\project_manifest.json" ^
-  --require-role source_document ^
-  --require-role master_workbook ^
-  --require-role index ^
-  --require-role handwritten_index ^
-  --output "D:\DataBossX\AcquisitionReceipts\section-15.json"
+```bash
+python3 -m horizon.source_acquisition \
+  --root "pc=/mnt/d/DataBossX/Projects" \
+  --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
+  --section 15 \
+  --authority-manifest "/mnt/d/DataBossX/Controls/section-15-authority.json" \
+  --project-manifest "/mnt/d/DataBossX/Controls/project_manifest.json" \
+  --snapshot-directory "/mnt/d/DataBossX/AcquisitionSnapshots/section-15" \
+  --require-role source_document \
+  --require-role master_workbook \
+  --require-role index \
+  --require-role handwritten_index \
+  --output "/mnt/d/DataBossX/AcquisitionReceipts/section-15.json"
 ```
 
 Folders or filenames must explicitly identify the section, for example
@@ -155,10 +163,11 @@ their source kind: `pc`, `drive`, `chat`, or a suffixed form such as `drive_2`.
 - missing required role: add a valid authority assertion; renaming a candidate
   does not satisfy the gate.
 
-A passing receipt proves only that externally authorized source categories are
-present, byte-accounted across repeated full hashes, stable during the
-point-in-time scan, and free of same-path conflicts. It does not prove the
-legal facts inside them. Next run
+A passing receipt proves only that externally authorized source categories were
+copied byte-exact into the recorded read-only snapshot after repeated full
+hashes and without same-path conflicts. Downstream work must use that snapshot,
+not live Drive/PC paths. The receipt does not prove the legal facts inside the
+files. Next run
 OCR/extraction, row-level provenance and confidence, master/index
 reconciliation, strict workbook QA, native Excel Print Preview, Drive readback,
 and the hash-bound human release gate.

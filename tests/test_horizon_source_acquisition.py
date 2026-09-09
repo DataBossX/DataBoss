@@ -144,6 +144,7 @@ def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None
         requested_sections=[15],
         authority_assertions=_authorities(pc, "pc", 15),
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert receipt.technical_pass
@@ -152,6 +153,11 @@ def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None
         "exact_match"
     }
     assert len(receipt.duplicate_content) == 3
+    snapshot = Path(receipt.snapshot_root)
+    assert receipt.snapshot_manifest_sha256
+    assert (
+        snapshot / "pc" / "Section 15" / "Master Abstract.xlsx"
+    ).read_bytes() == b"master"
 
 
 def test_same_relative_path_with_different_hash_blocks_intake(
@@ -168,6 +174,7 @@ def test_same_relative_path_with_different_hash_blocks_intake(
         requested_sections=[15],
         authority_assertions=_authorities(pc, "pc", 15),
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -187,6 +194,7 @@ def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
         [SourceRoot("pc", root)],
         authority_assertions=_authorities(root, "pc", 15),
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -227,6 +235,7 @@ def test_handwritten_index_satisfies_index_role(tmp_path: Path) -> None:
             }.items()
         ],
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert receipt.technical_pass
@@ -381,6 +390,7 @@ def test_empty_source_file_blocks_intake(tmp_path: Path) -> None:
         requested_sections=[15],
         authority_assertions=_authorities(root, "pc", 15),
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -413,6 +423,7 @@ def test_source_change_during_hash_blocks_intake(
         requested_sections=[15],
         authority_assertions=authority_assertions,
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -477,6 +488,8 @@ def test_hash_bound_authority_manifest_allows_cli_pass(tmp_path: Path) -> None:
             str(authority_path),
             "--project-manifest",
             str(project_path),
+            "--snapshot-directory",
+            str(tmp_path / "snapshot"),
             "--output",
             str(output),
         ]
@@ -505,6 +518,7 @@ def test_authority_hash_mismatch_blocks_intake(tmp_path: Path) -> None:
         requested_sections=[15],
         authority_assertions=assertions,
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -531,6 +545,7 @@ def test_authority_path_traversal_is_rejected(tmp_path: Path) -> None:
             requested_sections=[15],
             authority_assertions=[assertion],
             authority_context=_context(),
+            snapshot_directory=tmp_path / "snapshot",
         )
 
 
@@ -548,6 +563,7 @@ def test_directory_symlink_is_reported_and_blocks_all_sections(
         requested_sections=[15],
         authority_assertions=_authorities(root, "pc", 15),
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -646,6 +662,7 @@ def test_one_location_cannot_authorize_multiple_roles(tmp_path: Path) -> None:
             requested_sections=[15],
             authority_assertions=assertions,
             authority_context=_context(),
+            snapshot_directory=tmp_path / "snapshot",
         )
 
 
@@ -676,6 +693,7 @@ def test_second_full_scan_detects_added_source(
         requested_sections=[15],
         authority_assertions=assertions,
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -724,6 +742,7 @@ def test_final_rehash_detects_metadata_preserving_mutation(
         requested_sections=[15],
         authority_assertions=assertions,
         authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
     )
 
     assert not receipt.technical_pass
@@ -758,6 +777,8 @@ def test_project_manifest_hash_prevents_authority_substitution(
             str(authority_path),
             "--project-manifest",
             str(project_path),
+            "--snapshot-directory",
+            str(tmp_path / "snapshot"),
             "--output",
             str(output),
         ]
@@ -795,6 +816,8 @@ def test_receipt_cannot_alias_authority_manifest(
             str(authority_path),
             "--project-manifest",
             str(project_path),
+            "--snapshot-directory",
+            str(tmp_path / "snapshot"),
             "--output",
             str(output),
         ]

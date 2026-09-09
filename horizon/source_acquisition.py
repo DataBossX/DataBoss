@@ -13,6 +13,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import stat
 import sys
 from collections import Counter, defaultdict
@@ -168,6 +169,8 @@ class AcquisitionReceipt:
     duplicate_content: List[Dict[str, object]]
     authority_matches: List[AuthorityMatch]
     authority_context: Optional[AuthorityContext]
+    snapshot_root: str
+    snapshot_manifest_sha256: str
     issues: List[SourceIssue]
     sections: List[SectionSummary]
     technical_pass: bool
@@ -189,6 +192,18 @@ def _has_symlink_component(path: Path) -> bool:
     return any(component.is_symlink() for component in (path, *path.parents))
 
 
+def _same_file_version(
+    before: os.stat_result,
+    after: os.stat_result,
+) -> bool:
+    return (
+        before.st_size == after.st_size
+        and before.st_mtime_ns == after.st_mtime_ns
+        and before.st_ino == after.st_ino
+        and before.st_dev == after.st_dev
+    )
+
+
 def _hash_regular_file(
     path: Path,
     chunk_size: int = 1024 * 1024,
@@ -202,12 +217,7 @@ def _hash_regular_file(
         for chunk in iter(lambda: handle.read(chunk_size), b""):
             digest.update(chunk)
         after = os.fstat(handle.fileno())
-    if (
-        before.st_size != after.st_size
-        or before.st_mtime_ns != after.st_mtime_ns
-        or before.st_ino != after.st_ino
-        or before.st_dev != after.st_dev
-    ):
+    if not _same_file_version(before, after):
         raise SourceAcquisitionError(f"Source changed while hashing: {path}")
     linked = path.lstat()
     if stat.S_ISLNK(linked.st_mode) or (
@@ -237,12 +247,7 @@ def _read_control_bytes(
         after = os.fstat(handle.fileno())
     if len(content) > maximum_bytes:
         raise SourceAcquisitionError("Control file exceeds the size limit")
-    if (
-        before.st_size != after.st_size
-        or before.st_mtime_ns != after.st_mtime_ns
-        or before.st_ino != after.st_ino
-        or before.st_dev != after.st_dev
-    ):
+    if not _same_file_version(before, after):
         raise SourceAcquisitionError("Control file changed while being read")
     linked = path.lstat()
     if stat.S_ISLNK(linked.st_mode) or (
@@ -806,6 +811,130 @@ def _summarize_section(
     )
 
 
+def _create_authority_snapshot(
+    snapshot_directory: Path,
+    files: Sequence[SourceFile],
+    authority_matches: Sequence[AuthorityMatch],
+    roots: Sequence[SourceRoot],
+) -> Tuple[Path, str]:
+    requested = snapshot_directory.expanduser().absolute()
+    if not requested.is_absolute() or requested.exists():
+        raise SourceAcquisitionError(
+            "Snapshot directory must be an absolute path that does not exist"
+        )
+    if not requested.parent.is_dir() or _has_symlink_component(requested.parent):
+        raise SourceAcquisitionError(
+            "Snapshot parent must be an existing no-symlink directory"
+        )
+    resolved = requested.resolve()
+    for root in roots:
+        try:
+            resolved.relative_to(root.path)
+        except ValueError:
+            continue
+        raise SourceAcquisitionError(
+            "Snapshot directory must be outside every source root"
+        )
+
+    try:
+        parent_descriptor = _open_anchored_directory(requested.parent)
+    except NotImplementedError as exc:
+        raise SourceAcquisitionError(
+            "Secure descriptor-relative snapshots are unavailable on this platform"
+        ) from exc
+    try:
+        os.mkdir(requested.name, 0o700, dir_fd=parent_descriptor)
+    finally:
+        os.close(parent_descriptor)
+
+    root_paths = {root.label: root.path for root in roots}
+    file_index = {
+        (item.root_label, item.relative_path): item for item in files
+    }
+    manifest_lines: List[str] = []
+    try:
+        for match in authority_matches:
+            if match.status != "matched":
+                continue
+            assertion = match.assertion
+            item = file_index[
+                (assertion.root_label, assertion.relative_path)
+            ]
+            source = (
+                root_paths[assertion.root_label]
+                / PurePosixPath(assertion.relative_path)
+            )
+            destination = (
+                requested
+                / assertion.root_label
+                / PurePosixPath(assertion.relative_path)
+            )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            source_descriptor = _open_readonly(source)
+            digest = hashlib.sha256()
+            with os.fdopen(source_descriptor, "rb") as source_handle, destination.open(
+                "xb"
+            ) as destination_handle:
+                before = os.fstat(source_handle.fileno())
+                if not stat.S_ISREG(before.st_mode):
+                    raise SourceAcquisitionError(
+                        f"Snapshot source is not regular: {source}"
+                    )
+                for chunk in iter(
+                    lambda: source_handle.read(1024 * 1024),
+                    b"",
+                ):
+                    digest.update(chunk)
+                    destination_handle.write(chunk)
+                destination_handle.flush()
+                os.fsync(destination_handle.fileno())
+                after = os.fstat(source_handle.fileno())
+            snapshot_digest = digest.hexdigest()
+            if (
+                not _same_file_version(before, after)
+                or snapshot_digest != item.sha256
+                or snapshot_digest != assertion.expected_sha256
+            ):
+                raise SourceAcquisitionError(
+                    f"Source changed while snapshotting: {source}"
+                )
+            snapshot_hash = sha256_file(destination)
+            if snapshot_hash != assertion.expected_sha256:
+                raise SourceAcquisitionError(
+                    f"Snapshot readback hash mismatch: {destination}"
+                )
+            destination.chmod(0o400)
+            manifest_lines.append(
+                "\0".join(
+                    (
+                        assertion.root_label,
+                        assertion.relative_path,
+                        assertion.role,
+                        snapshot_hash,
+                    )
+                )
+            )
+        if len(manifest_lines) != len(authority_matches):
+            raise SourceAcquisitionError(
+                "Every authority assertion must match before snapshot creation"
+            )
+        for directory, names, _ in os.walk(requested, topdown=False):
+            for name in names:
+                (Path(directory) / name).chmod(0o500)
+        requested.chmod(0o500)
+    except BaseException:
+        for directory, names, filenames in os.walk(requested):
+            Path(directory).chmod(0o700)
+            for filename in filenames:
+                (Path(directory) / filename).chmod(0o600)
+        shutil.rmtree(requested, ignore_errors=True)
+        raise
+    manifest_hash = hashlib.sha256(
+        "\n".join(sorted(manifest_lines)).encode("utf-8")
+    ).hexdigest()
+    return resolved, manifest_hash
+
+
 def build_receipt(
     roots: Sequence[SourceRoot],
     *,
@@ -813,6 +942,7 @@ def build_receipt(
     required_roles: Sequence[str] = DEFAULT_REQUIRED_ROLES,
     authority_assertions: Sequence[AuthorityAssertion] = (),
     authority_context: Optional[AuthorityContext] = None,
+    snapshot_directory: Optional[Path] = None,
 ) -> AcquisitionReceipt:
     if not requested_sections or any(
         type(section) is not int or section not in PRIORITY_SECTIONS
@@ -845,6 +975,10 @@ def build_receipt(
         or not _is_sha256(authority_context.source_authority_sha256)
     ):
         raise SourceAcquisitionError("Authority context is invalid")
+    if bool(authority_context) != bool(snapshot_directory):
+        raise SourceAcquisitionError(
+            "Bound authority intake requires a private snapshot directory"
+        )
 
     validated_roots = validate_roots(roots)
     first_files, first_issues = inventory_roots(
@@ -892,6 +1026,37 @@ def build_receipt(
         invalid_locations,
         issues,
     )
+    snapshot_root = ""
+    snapshot_manifest_sha256 = ""
+    if authority_context and not issues and not any(
+        comparison.status == "hash_conflict"
+        for comparison in comparisons
+    ):
+        assert snapshot_directory is not None
+        snapshot_path, snapshot_manifest_sha256 = _create_authority_snapshot(
+            snapshot_directory,
+            files,
+            authority_matches,
+            validated_roots,
+        )
+        snapshot_root = str(snapshot_path)
+        final_files, final_issues = inventory_roots(
+            validated_roots,
+            requested_sections,
+        )
+        if final_files != files or final_issues != verification_issues:
+            issues.append(
+                SourceIssue(
+                    code="source_tree_changed_after_snapshot",
+                    message=(
+                        "Source roots changed between snapshot creation and "
+                        "the final complete traversal"
+                    ),
+                )
+            )
+        for issue in final_issues:
+            if issue not in issues:
+                issues.append(issue)
     summaries = [
         _summarize_section(
             section,
@@ -913,6 +1078,8 @@ def build_receipt(
         duplicate_content=duplicate_content_groups(files),
         authority_matches=authority_matches,
         authority_context=authority_context,
+        snapshot_root=snapshot_root,
+        snapshot_manifest_sha256=snapshot_manifest_sha256,
         issues=issues,
         sections=summaries,
         technical_pass=all(summary.ready_for_extraction for summary in summaries),
@@ -984,39 +1151,6 @@ def _write_receipt_to_directory(
             pass
 
 
-def _write_receipt_fallback(
-    receipt: AcquisitionReceipt,
-    output: Path,
-) -> None:
-    parent_before = output.parent.stat()
-    if output.is_symlink() or (output.exists() and not output.is_file()):
-        raise SourceAcquisitionError(
-            "Receipt output must be a regular file path"
-        )
-    temporary = output.parent / f".{output.name}.{secrets.token_hex(16)}.tmp"
-    descriptor = os.open(
-        temporary,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-        0o600,
-    )
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(receipt.to_dict(), handle, indent=2, sort_keys=True)
-            handle.flush()
-            os.fsync(handle.fileno())
-        parent_after = output.parent.stat()
-        if (
-            parent_before.st_dev != parent_after.st_dev
-            or parent_before.st_ino != parent_after.st_ino
-        ):
-            raise SourceAcquisitionError(
-                "Receipt output directory changed during the run"
-            )
-        temporary.replace(output)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
 def write_receipt(
     receipt: AcquisitionReceipt,
     output_path: Path,
@@ -1052,9 +1186,11 @@ def write_receipt(
         directory_descriptor = _open_anchored_directory(
             requested_output.parent
         )
-    except NotImplementedError:
-        _write_receipt_fallback(receipt, requested_output)
-        return
+    except NotImplementedError as exc:
+        raise SourceAcquisitionError(
+            "Secure descriptor-relative receipt writing is unavailable "
+            "on this platform"
+        ) from exc
     try:
         _write_receipt_to_directory(
             receipt,
@@ -1114,6 +1250,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Project authority binding the source-authority manifest hash",
     )
+    parser.add_argument(
+        "--snapshot-directory",
+        type=Path,
+        help="New private directory for immutable authorized source copies",
+    )
     parser.add_argument("--output", type=Path, required=True)
     return parser
 
@@ -1121,10 +1262,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
-        if bool(args.authority_manifest) != bool(args.project_manifest):
+        phase_two_controls = (
+            args.authority_manifest,
+            args.project_manifest,
+            args.snapshot_directory,
+        )
+        if any(phase_two_controls) and not all(phase_two_controls):
             raise SourceAcquisitionError(
-                "Phase 2 requires both --authority-manifest and "
-                "--project-manifest"
+                "Phase 2 requires --authority-manifest, --project-manifest, "
+                "and --snapshot-directory"
             )
         protected_paths = []
         authority_assertions: Sequence[AuthorityAssertion] = ()
@@ -1132,9 +1278,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.authority_manifest:
             authority_path = args.authority_manifest.expanduser().absolute()
             project_path = args.project_manifest.expanduser().absolute()
-            if authority_path.is_symlink() or project_path.is_symlink():
+            if _has_symlink_component(authority_path) or _has_symlink_component(
+                project_path
+            ):
                 raise SourceAcquisitionError(
-                    "Control authority paths must not be symlinks"
+                    "Control authority paths must not contain symlink components"
                 )
             project, project_manifest_sha256 = (
                 _load_project_manifest_snapshot(project_path)
@@ -1166,6 +1314,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             required_roles=args.required_roles or DEFAULT_REQUIRED_ROLES,
             authority_assertions=authority_assertions,
             authority_context=authority_context,
+            snapshot_directory=args.snapshot_directory,
         )
         write_receipt(
             receipt,

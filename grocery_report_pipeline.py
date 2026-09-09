@@ -820,8 +820,14 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
+_DECIMAL_VALUE_PATTERN = r"(?:0?\.\d+|1\.0+)"
 _DECIMAL_RX = re.compile(
-    r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d+)",
+    rf"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*({_DECIMAL_VALUE_PATTERN})",
+    re.I,
+)
+_DECIMAL_TOTAL_RX = re.compile(
+    rf"\btotal\s+(?:decimal\s+interest|ownership)\s*(?:of|:|=)?\s*"
+    rf"({_DECIMAL_VALUE_PATTERN})",
     re.I,
 )
 _DECIMAL_SET_COMPLETE_RX = re.compile(
@@ -830,12 +836,41 @@ _DECIMAL_SET_COMPLETE_RX = re.compile(
     r"total\s+(?:decimal\s+interest|ownership))\b",
     re.I,
 )
+_DECIMAL_SET_INCOMPLETE_RX = re.compile(
+    r"\b(?:not\s+all|partial|incomplete)\s+"
+    r"(?:owner|ownership|(?:mineral\s+)?owners?)\b",
+    re.I,
+)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
 _COUNTY_RX = re.compile(r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+County\b")
 _STATE_RX = re.compile(r"\b(Oklahoma|Texas|Colorado|New Mexico|Kansas|Wyoming|"
                        r"North Dakota|Montana|Louisiana|OK|TX|CO|NM|KS|WY|ND|MT|LA)\b")
+
+
+def _extract_decimal_summary(
+    text: str,
+) -> Tuple[List[float], Optional[float], bool]:
+    """Separate owner-level decimals from declared summary totals."""
+    total_matches = list(_DECIMAL_TOTAL_RX.finditer(text))
+    total_spans = [match.span() for match in total_matches]
+    owner_decimals = [
+        float(match.group(1))
+        for match in _DECIMAL_RX.finditer(text)
+        if not any(
+            match.start() < end and match.end() > start
+            for start, end in total_spans
+        )
+    ]
+    declared_total = (
+        float(total_matches[0].group(1)) if total_matches else None
+    )
+    is_complete = bool(
+        _DECIMAL_SET_COMPLETE_RX.search(text)
+        and not _DECIMAL_SET_INCOMPLETE_RX.search(text)
+    )
+    return owner_decimals, declared_total, is_complete
 
 
 def _capture_party(text: str, roles: List[str]) -> Optional[str]:
@@ -867,6 +902,7 @@ class Fact:
     overall_confidence: float = 0.0
     snippet: str = ""
     all_decimals: List[float] = field(default_factory=list)
+    declared_decimal_total: Optional[float] = None
     decimal_set_complete: bool = False
 
 
@@ -942,11 +978,11 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         setv("net_revenue_interest", xm.group(1) if xm else None, 0.55)
         dm = _DECIMAL_RX.search(text)
         setv("decimal_interest", dm.group(1) if dm else None, 0.6)
-        # Capture EVERY decimal in the doc (e.g. multi-owner ownership sheets)
-        # while keeping completeness separate. Observed values are not assumed
-        # to represent every owner unless the source explicitly says they do.
-        f.all_decimals = [float(x) for x in _DECIMAL_RX.findall(text)]
-        f.decimal_set_complete = bool(_DECIMAL_SET_COMPLETE_RX.search(text))
+        (
+            f.all_decimals,
+            f.declared_decimal_total,
+            f.decimal_set_complete,
+        ) = _extract_decimal_summary(text)
 
         if re.search(r"depth|below|above|formation|surface\s+to", text, re.I):
             dmatch = re.search(r"(?:limited\s+to|from\s+surface\s+to|below|above)[^\n.]{0,80}",
@@ -1058,11 +1094,25 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
             for fact in group
             for decimal in fact.all_decimals
         ]
-        complete_decimal_sets = [
-            (round(sum(f.all_decimals), 8), f)
-            for f in group
-            if f.decimal_set_complete and f.all_decimals
-        ]
+        complete_decimal_sets = []
+        for fact in group:
+            if not fact.decimal_set_complete or not fact.all_decimals:
+                continue
+            owner_sum = round(sum(fact.all_decimals), 8)
+            declared_total = fact.declared_decimal_total
+            if (
+                declared_total is not None
+                and abs(owner_sum - declared_total) >= 1e-8
+            ):
+                conflicts.append([
+                    "decimal-total-mismatch",
+                    legal,
+                    f"Owner decimals sum to {owner_sum}, but source declares "
+                    f"total {declared_total}",
+                    fact.source_file,
+                ])
+                continue
+            complete_decimal_sets.append((owner_sum, fact))
         complete_decimal_sums = sorted(
             {value for value, _ in complete_decimal_sets}
         )
@@ -1095,7 +1145,9 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
                     f.source_file for _, f in complete_decimal_sets
                 ),
             ])
-        elif observed_decimals:
+        elif observed_decimals or any(
+            fact.declared_decimal_total is not None for fact in group
+        ):
             dec_sum = round(sum(decimal for decimal, _ in observed_decimals), 8)
             decimal_check = (
                 f"{REVIEW}: observed decimals sum to {dec_sum}, but source does "
@@ -1244,7 +1296,8 @@ def validate(recs: List[FileRec], texts: Dict[str, TextRec], classes: Dict[str, 
     # decimal sums / acreage mismatches from reconciliation
     for conf in recon.get("conflicts", []):
         sev = "red" if conf[0] in (
-            "decimal-sum", "decimal-set-conflict", "chain-gap"
+            "decimal-sum", "decimal-set-conflict", "decimal-total-mismatch",
+            "chain-gap"
         ) else "yellow"
         add(sev, conf[0], conf[1], conf[2], conf[3])
 

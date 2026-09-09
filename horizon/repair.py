@@ -57,21 +57,40 @@ def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
         no_network=True,
     )
     root = etree.fromstring(xml_bytes, parser=parser)
+    shared_masters = set()
+    shared_dependents = []
 
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
-        f = cell.find(f"{{{_MAIN_NS}}}f")
-        if f is None:
+        formula = cell.find(f"{{{_MAIN_NS}}}f")
+        if formula is None:
             continue
-        body = (f.text or "").strip()
+        formula_text = (formula.text or "").strip()
+        if formula.get("t") == "shared":
+            shared_index = formula.get("si")
+            if shared_index is None:
+                raise ValueError(
+                    f"Shared formula in cell {cell.get('r', '?')} has no index"
+                )
+            if formula_text or formula.get("ref"):
+                shared_masters.add(shared_index)
+            else:
+                shared_dependents.append((shared_index, cell.get("r", "?")))
         is_error = (
             cell.get("t") == "e"
-            or body.startswith("#")
-            or body.startswith("=#")
+            or formula_text.startswith("#")
+            or formula_text.startswith("=#")
         )
         if is_error:
             raise ValueError(
                 f"Unsafe errored formula in cell {cell.get('r', '?')}; "
                 "repair refused without template authority"
+            )
+
+    for shared_index, cell_reference in shared_dependents:
+        if shared_index not in shared_masters:
+            raise ValueError(
+                f"Dangling shared formula in cell {cell_reference}: "
+                f"master index {shared_index!r} is missing"
             )
 
     return xml_bytes

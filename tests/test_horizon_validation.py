@@ -102,6 +102,18 @@ def test_strict_abstract_fields_pass_when_source_backed_values_are_present():
     assert validate_report(_report(rows), reqs).passed
 
 
+def test_strict_abstract_gate_rejects_empty_report():
+    reqs = Requirements(
+        required_nonblank_fields=set(ABSTRACT_REQUIRED_FIELDS)
+    )
+    vr = validate_report(_report([]), reqs)
+    assert not vr.passed
+    assert any(
+        issue.row_index == -1 and issue.field == "rows"
+        for issue in vr.errors
+    )
+
+
 def test_unknown_strict_field_fails_configuration():
     rows = [TitleRow(instrument_number="100")]
     reqs = Requirements(required_nonblank_fields={"not_a_report_field"})

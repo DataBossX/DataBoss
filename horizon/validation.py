@@ -154,9 +154,8 @@ def validate_report(report: ReportModel, requirements: Requirements) -> Validati
     are what a correct cursory report carries)."""
     issues: List[ValidationIssue] = []
     canonical_fields = set(CANONICAL_COLUMNS)
-    unknown_required_fields = (
-        requirements.required_nonblank_fields - canonical_fields
-    )
+    strict_fields = requirements.required_nonblank_fields
+    unknown_required_fields = strict_fields - canonical_fields
     for field_name in sorted(unknown_required_fields):
         issues.append(ValidationIssue(
             row_index=-1,
@@ -164,9 +163,16 @@ def validate_report(report: ReportModel, requirements: Requirements) -> Validati
             severity="error",
             message=f"Unknown required nonblank field {field_name!r}.",
         ))
-    required_nonblank_fields = (
-        requirements.required_nonblank_fields & canonical_fields
-    )
+    required_nonblank_fields = strict_fields & canonical_fields
+    if required_nonblank_fields and not report.rows:
+        issues.append(ValidationIssue(
+            row_index=-1,
+            field="rows",
+            severity="error",
+            message=(
+                "Strict abstract gate requires report rows; the report is empty."
+            ),
+        ))
 
     # Gate 1: interest reconciliation ties out per row (exact math).
     for idx, row in enumerate(report.rows):

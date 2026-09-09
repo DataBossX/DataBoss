@@ -169,6 +169,40 @@ def test_short_decimals_parse_when_complete_set_is_proven(tmp_path):
     assert not any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
 
 
+def test_declared_total_is_not_double_counted_as_an_owner(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "owners_with_total.txt",
+        "COMPLETE OWNER SET\n"
+        "Owner A decimal interest: 0.5\n"
+        "Total decimal interest: 0.5\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    issues = _read_csv(out / "review_required.csv")
+    decimal_sum = [issue for issue in issues if issue["rule"] == "decimal-sum"]
+    assert len(decimal_sum) == 1
+    assert "0.5" in decimal_sum[0]["detail"]
+
+
+def test_declared_total_must_match_owner_components(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "owners_with_bad_total.txt",
+        "COMPLETE OWNER SET\n"
+        "Owner A decimal interest: 0.5\n"
+        "Total decimal interest: 1.0\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    issues = _read_csv(out / "review_required.csv")
+    assert any(
+        issue["rule"] == "decimal-total-mismatch"
+        and issue["severity"] == "red"
+        for issue in issues
+    )
+
+
 def test_incomplete_owner_set_does_not_assert_sum_to_one(tmp_path):
     out = _run_single_document(
         tmp_path,
@@ -180,6 +214,19 @@ def test_incomplete_owner_set_does_not_assert_sum_to_one(tmp_path):
 
     issues = _read_csv(out / "review_required.csv")
     assert not any(issue["rule"] == "decimal-sum" for issue in issues)
+    assert any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
+
+
+def test_negated_all_owners_phrase_is_not_treated_as_complete(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "not_all_owners.txt",
+        "NOT ALL OWNERS ARE LISTED\n"
+        "Owner A decimal interest: 1.0\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    issues = _read_csv(out / "review_required.csv")
     assert any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
 
 

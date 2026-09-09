@@ -70,6 +70,30 @@ def test_repair_refuses_malformed_worksheet_without_output(tmp_path):
     assert not dest.exists()
 
 
+@pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
+def test_repair_refuses_dangling_shared_formula(tmp_path):
+    src = tmp_path / "dangling-shared.xlsx"
+    _make_xlsx_with_error_formula(src)
+    rewritten = tmp_path / "rewritten.xlsx"
+    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(rewritten, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                data = data.replace(
+                    b"<f>#REF!</f>",
+                    b'<f t="shared" si="7"></f>',
+                )
+            zout.writestr(item, data)
+    rewritten.replace(src)
+
+    dest = tmp_path / "report_v002.xlsx"
+    result = repair_workbook(src, dest)
+    assert not result.repaired
+    assert result.output is None
+    assert "Dangling shared formula" in result.error
+    assert not dest.exists()
+
+
 def test_report_io_roundtrip(tmp_path):
     report = ReportModel(section="31-12N-24W", rows=[
         TitleRow(grantor="A", grantee="B", instrument_number="2019-001",

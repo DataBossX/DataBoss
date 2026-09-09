@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import openpyxl
+import pytest
 
 from horizon.workbook_qa import CheckResult, QAReport, inspect_workbook
 
@@ -275,3 +276,75 @@ def test_malformed_required_fields_profile_fails(tmp_path):
         finding.code == "abstract_table_profile_invalid"
         for finding in check.findings
     )
+
+
+def test_required_fields_string_cannot_be_silently_skipped(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_tables"][0]["required_fields"] = "instrument_number"
+
+    report = inspect_workbook(
+        candidate, ["abstract_required_fields"], profile=profile
+    )
+
+    check = _check(report, "abstract_required_fields")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_table_profile_invalid"
+        and finding.sheet == "Master"
+        for finding in check.findings
+    )
+
+
+@pytest.mark.parametrize("invalid_end_row", [1_048_577, 3.5, True])
+def test_invalid_excel_row_bound_is_a_blocking_finding(
+    tmp_path, invalid_end_row
+):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_tables"][0]["end_row"] = invalid_end_row
+
+    report = inspect_workbook(
+        candidate, ["abstract_required_fields"], profile=profile
+    )
+
+    check = _check(report, "abstract_required_fields")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_table_profile_invalid"
+        for finding in check.findings
+    )
+
+
+def test_unknown_print_setting_is_not_ignored(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_print_layout"][0]["orientaton"] = "landscape"
+
+    report = inspect_workbook(
+        candidate, ["abstract_print_layout"], profile=profile
+    )
+
+    check = _check(report, "abstract_print_layout")
+    assert not check.passed
+    assert check.findings[0].code == "abstract_layout_profile_invalid"
+    assert "orientaton" in check.findings[0].message
+
+
+def test_boolean_cannot_match_numeric_paper_size(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_print_layout"][0]["paper_size"] = True
+
+    report = inspect_workbook(
+        candidate, ["abstract_print_layout"], profile=profile
+    )
+
+    check = _check(report, "abstract_print_layout")
+    assert not check.passed
+    assert check.findings[0].code == "abstract_layout_profile_invalid"
+    assert "paper_size" in check.findings[0].message

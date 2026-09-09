@@ -370,6 +370,7 @@ def _profile_cells(profile: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
 
 
 _COLUMN_REFERENCE = re.compile(r"^[A-Z]{1,3}$")
+_MAX_EXCEL_ROW = 1_048_576
 
 
 def _is_populated(value: Any) -> bool:
@@ -418,8 +419,8 @@ def _load_abstract_tables(
         key_field = str(rule.get("key_field", "")).strip()
         normalization = str(rule.get("key_normalization", "text")).strip()
         try:
-            header_row = int(rule.get("header_row", 1))
-            start_row = int(rule.get("start_row", header_row + 1))
+            header_row = rule.get("header_row", 1)
+            start_row = rule.get("start_row", header_row + 1)
             end_row_value = rule.get("end_row")
             if (
                 not table_id
@@ -430,8 +431,18 @@ def _load_abstract_tables(
                 or not key_field
                 or key_field not in columns
                 or normalization not in {"text", "alnum_upper"}
-                or header_row < 1
+                or type(header_row) is not int
+                or type(start_row) is not int
+                or not 1 <= header_row <= _MAX_EXCEL_ROW
+                or not 1 <= start_row <= _MAX_EXCEL_ROW
                 or start_row <= header_row
+                or (
+                    end_row_value is not None
+                    and (
+                        type(end_row_value) is not int
+                        or not 1 <= end_row_value <= _MAX_EXCEL_ROW
+                    )
+                )
             ):
                 raise ValueError
             normalized_columns = {
@@ -449,7 +460,9 @@ def _load_abstract_tables(
                 raise ValueError
             worksheet = workbook[sheet_name]
             end_row = (
-                int(end_row_value) if end_row_value is not None else worksheet.max_row
+                end_row_value
+                if end_row_value is not None
+                else max(start_row, worksheet.max_row)
             )
             if end_row < start_row:
                 raise ValueError
@@ -542,8 +555,7 @@ def _check_abstract_required_fields(
     configured = [
         view
         for view in views.values()
-        if isinstance(view.rule.get("required_fields"), list)
-        and view.rule.get("required_fields")
+        if "required_fields" in view.rule
     ]
     if not configured and not findings:
         return _failed(
@@ -558,7 +570,12 @@ def _check_abstract_required_fields(
     for view in configured:
         required_fields = view.rule["required_fields"]
         if (
-            not all(isinstance(item, str) and item.strip() for item in required_fields)
+            not isinstance(required_fields, list)
+            or not required_fields
+            or not all(
+                isinstance(item, str) and item.strip()
+                for item in required_fields
+            )
             or len(required_fields) != len(set(required_fields))
             or any(field_name not in view.columns for field_name in required_fields)
         ):
@@ -805,6 +822,24 @@ def _normalize_print_reference(value: Any) -> str:
     return text.replace("'", "")
 
 
+def _valid_layout_value(setting: str, value: Any) -> bool:
+    if setting == "orientation":
+        return isinstance(value, str) and value in {"portrait", "landscape"}
+    if setting == "paper_size":
+        return type(value) is int and 1 <= value <= 118
+    if setting in {"fit_to_width", "fit_to_height"}:
+        return type(value) is int and 0 <= value <= 32_767
+    if setting == "scale":
+        return type(value) is int and 10 <= value <= 400
+    if setting == "fit_to_page":
+        return type(value) is bool
+    if setting in {"print_area", "print_title_rows", "print_title_cols"}:
+        return isinstance(value, str) and bool(value.strip())
+    if setting == "freeze_panes":
+        return isinstance(value, str)
+    return False
+
+
 def _check_abstract_print_layout(
     workbook,
     profile: Dict[str, Any],
@@ -837,6 +872,7 @@ def _check_abstract_print_layout(
             else str(ws.freeze_panes or "")
         ),
     }
+    allowed_keys = {"sheet", *supported}
     for index, rule in enumerate(rules):
         if not isinstance(rule, dict):
             findings.append(
@@ -849,14 +885,26 @@ def _check_abstract_print_layout(
             )
             continue
         sheet_name = str(rule.get("sheet", ""))
+        unknown_keys = sorted(set(rule) - allowed_keys)
         expected = {key: value for key, value in rule.items() if key in supported}
-        if sheet_name not in workbook.sheetnames or not expected:
+        invalid_values = sorted(
+            setting
+            for setting, value in expected.items()
+            if not _valid_layout_value(setting, value)
+        )
+        if (
+            sheet_name not in workbook.sheetnames
+            or not expected
+            or unknown_keys
+            or invalid_values
+        ):
             findings.append(
                 QAFinding(
                     check_id,
                     "blocking",
                     "abstract_layout_profile_invalid",
-                    f"Invalid print-layout assertion at index {index}",
+                    f"Invalid print-layout assertion at index {index}: "
+                    f"unknown={unknown_keys}, invalid_values={invalid_values}",
                     sheet=sheet_name,
                 )
             )

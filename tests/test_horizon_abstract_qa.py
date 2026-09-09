@@ -95,7 +95,7 @@ def _profile() -> dict:
             {
                 "sheet": sheet,
                 "orientation": "landscape",
-                "paper_size": "9",
+                "paper_size": "1",
                 "fit_to_width": 1,
                 "fit_to_height": 0,
                 "fit_to_page": True,

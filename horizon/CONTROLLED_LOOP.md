@@ -189,7 +189,7 @@ print settings in the hash-verified workbook profile:
     {
       "sheet": "Master",
       "orientation": "landscape",
-      "paper_size": "9",
+      "paper_size": "1",
       "fit_to_width": 1,
       "fit_to_height": 0,
       "fit_to_page": true,
@@ -205,7 +205,7 @@ Column letters and counts are authority inputs, not inferred defaults. Missing
 rules are `not_evaluated` and block technical verification. Populated rows with
 blank required fields, duplicate/blank keys, count disagreement, master/index
 key-set disagreement, header mismatch, or print-layout mismatch also block.
-`paper_size: "9"` is OOXML US Letter. A passing structural layout check still
+`paper_size: "1"` is OOXML US Letter. A passing structural layout check still
 does not replace native Excel save/reopen and Print Preview evidence.
 
 ## Run

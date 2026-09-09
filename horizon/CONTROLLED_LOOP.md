@@ -91,6 +91,123 @@ blocking because `openpyxl` is not a calculation engine. Recalculate using the
 approved desktop/LibreOffice workflow before running QA; the loop will not claim
 that an uncalculated formula is valid.
 
+### Strict section-abstract tables
+
+Add these check IDs to both the project manifest `required_checks` and work
+order `acceptance_tests`:
+
+```json
+[
+  "abstract_required_fields",
+  "abstract_counts",
+  "abstract_key_reconciliation",
+  "abstract_print_layout"
+]
+```
+
+Then bind exact table locations, authoritative counts, key reconciliation, and
+print settings in the hash-verified workbook profile:
+
+```json
+{
+  "abstract_tables": [
+    {
+      "id": "master",
+      "sheet": "Master",
+      "header_row": 1,
+      "start_row": 2,
+      "key_field": "instrument_number",
+      "key_normalization": "alnum_upper",
+      "columns": {
+        "instrument_number": "A",
+        "document_type": "B",
+        "grantor": "C",
+        "grantee": "D",
+        "recorded_date": "E",
+        "legal_description": "F",
+        "source_reference": "G",
+        "confidence": "H"
+      },
+      "expected_headers": {
+        "instrument_number": ["Instrument Number", "Instrument No."],
+        "document_type": "Document Type",
+        "grantor": "Grantor",
+        "grantee": "Grantee",
+        "recorded_date": "Recorded Date",
+        "legal_description": "Legal Description",
+        "source_reference": "Source Reference",
+        "confidence": "Confidence"
+      },
+      "required_fields": [
+        "instrument_number",
+        "document_type",
+        "grantor",
+        "grantee",
+        "recorded_date",
+        "legal_description",
+        "source_reference",
+        "confidence"
+      ],
+      "expected_rows": 20,
+      "expected_unique_keys": 20
+    },
+    {
+      "id": "index",
+      "sheet": "Index",
+      "header_row": 1,
+      "start_row": 2,
+      "key_field": "instrument_number",
+      "key_normalization": "alnum_upper",
+      "columns": {
+        "instrument_number": "A",
+        "document_type": "B",
+        "grantor": "C",
+        "grantee": "D",
+        "recorded_date": "E",
+        "legal_description": "F"
+      },
+      "required_fields": [
+        "instrument_number",
+        "document_type",
+        "grantor",
+        "grantee",
+        "recorded_date",
+        "legal_description"
+      ],
+      "expected_rows": 20,
+      "expected_unique_keys": 20
+    }
+  ],
+  "abstract_key_reconciliations": [
+    {
+      "left_table": "master",
+      "right_table": "index",
+      "mode": "exact"
+    }
+  ],
+  "abstract_print_layout": [
+    {
+      "sheet": "Master",
+      "orientation": "landscape",
+      "paper_size": "9",
+      "fit_to_width": 1,
+      "fit_to_height": 0,
+      "fit_to_page": true,
+      "print_area": "$A$1:$H$21",
+      "print_title_rows": "$1:$1",
+      "freeze_panes": "A2"
+    }
+  ]
+}
+```
+
+Column letters and counts are authority inputs, not inferred defaults. Missing
+rules are `not_evaluated` and block technical verification. Populated rows with
+blank required fields, duplicate/blank keys, count disagreement, master/index
+key-set disagreement, header mismatch, or print-layout mismatch also block.
+`paper_size: "9"` is OOXML US Letter. A passing structural layout check still
+does not replace native Excel save/reopen and Print Preview evidence.
+
 ## Run
 
 ```bash

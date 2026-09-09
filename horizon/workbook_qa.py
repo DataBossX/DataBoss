@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import math
+import re
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -23,6 +25,7 @@ EXCEL_ERROR_VALUES = {
     "#GETTING_DATA",
 }
 MATH_CHECKS = {
+    "abstract_counts",
     "negative_current_ownership",
     "ownership_totals",
     "tract_acreage_totals",
@@ -31,11 +34,18 @@ MATH_CHECKS = {
     "no_duplicate_owners",
 }
 EVIDENCE_CHECKS = {
+    "abstract_key_reconciliation",
+    "abstract_required_fields",
     "source_manifest_complete",
     "evidence_crosswalk_complete",
     "evidence_links_resolve",
 }
-TEMPLATE_CHECKS = {"no_broken_formulas", "template_compliance", "print_rendering"}
+TEMPLATE_CHECKS = {
+    "abstract_print_layout",
+    "no_broken_formulas",
+    "template_compliance",
+    "print_rendering",
+}
 TOTAL_CHECKS = {
     "ownership_totals",
     "tract_acreage_totals",
@@ -100,6 +110,17 @@ class QAReport:
             "score": asdict(self.score),
             "inventory": self.inventory,
         }
+
+
+@dataclass
+class AbstractTableView:
+    table_id: str
+    sheet: str
+    columns: Dict[str, str]
+    key_field: str
+    key_normalization: str
+    rows: List[Tuple[int, Dict[str, Any]]]
+    rule: Dict[str, Any]
 
 
 def load_workbook_profile(path: Optional[Path]) -> Dict[str, Any]:
@@ -346,6 +367,525 @@ def _check_template(workbook, template, profile: Dict[str, Any]) -> CheckResult:
 def _profile_cells(profile: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
     value = profile.get(key, [])
     return value if isinstance(value, list) else []
+
+
+_COLUMN_REFERENCE = re.compile(r"^[A-Z]{1,3}$")
+
+
+def _is_populated(value: Any) -> bool:
+    return value is not None and bool(str(value).strip())
+
+
+def _normalize_header(value: Any) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
+def _normalize_table_key(value: Any, mode: str) -> str:
+    text = str(value or "").strip()
+    if mode == "text":
+        return " ".join(text.casefold().split())
+    if mode == "alnum_upper":
+        return "".join(character for character in text.upper() if character.isalnum())
+    raise ValueError(f"unsupported key_normalization {mode!r}")
+
+
+def _load_abstract_tables(
+    workbook,
+    profile: Dict[str, Any],
+    check_id: str,
+) -> Tuple[Dict[str, AbstractTableView], List[QAFinding]]:
+    raw_tables = profile.get("abstract_tables")
+    if not isinstance(raw_tables, list) or not raw_tables:
+        return {}, []
+
+    views: Dict[str, AbstractTableView] = {}
+    findings: List[QAFinding] = []
+    for table_index, rule in enumerate(raw_tables):
+        if not isinstance(rule, dict):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_table_profile_invalid",
+                    f"abstract_tables[{table_index}] must be an object",
+                )
+            )
+            continue
+
+        table_id = str(rule.get("id", "")).strip()
+        sheet_name = str(rule.get("sheet", "")).strip()
+        columns = rule.get("columns")
+        key_field = str(rule.get("key_field", "")).strip()
+        normalization = str(rule.get("key_normalization", "text")).strip()
+        try:
+            header_row = int(rule.get("header_row", 1))
+            start_row = int(rule.get("start_row", header_row + 1))
+            end_row_value = rule.get("end_row")
+            if (
+                not table_id
+                or table_id in views
+                or sheet_name not in workbook.sheetnames
+                or not isinstance(columns, dict)
+                or not columns
+                or not key_field
+                or key_field not in columns
+                or normalization not in {"text", "alnum_upper"}
+                or header_row < 1
+                or start_row <= header_row
+            ):
+                raise ValueError
+            normalized_columns = {
+                str(field_name).strip(): str(column).strip().upper()
+                for field_name, column in columns.items()
+            }
+            if (
+                not all(normalized_columns)
+                or not all(
+                    _COLUMN_REFERENCE.fullmatch(column)
+                    for column in normalized_columns.values()
+                )
+                or len(set(normalized_columns.values())) != len(normalized_columns)
+            ):
+                raise ValueError
+            worksheet = workbook[sheet_name]
+            end_row = (
+                int(end_row_value) if end_row_value is not None else worksheet.max_row
+            )
+            if end_row < start_row:
+                raise ValueError
+        except (TypeError, ValueError):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_table_profile_invalid",
+                    f"Invalid abstract table profile at index {table_index}",
+                    sheet=sheet_name,
+                )
+            )
+            continue
+
+        expected_headers = rule.get("expected_headers", {})
+        if not isinstance(expected_headers, dict):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_table_profile_invalid",
+                    f"Table {table_id!r} expected_headers must be an object",
+                    sheet=sheet_name,
+                )
+            )
+            continue
+        for field_name, expected in expected_headers.items():
+            if field_name not in normalized_columns:
+                findings.append(
+                    QAFinding(
+                        check_id,
+                        "blocking",
+                        "abstract_table_profile_invalid",
+                        f"Table {table_id!r} header field {field_name!r} has no column",
+                        sheet=sheet_name,
+                    )
+                )
+                continue
+            expected_values = expected if isinstance(expected, list) else [expected]
+            expected_normalized = {
+                _normalize_header(value)
+                for value in expected_values
+                if _is_populated(value)
+            }
+            coordinate = f"{normalized_columns[field_name]}{header_row}"
+            actual = worksheet[coordinate].value
+            if (
+                not expected_normalized
+                or _normalize_header(actual) not in expected_normalized
+            ):
+                findings.append(
+                    QAFinding(
+                        check_id,
+                        "blocking",
+                        "abstract_header_mismatch",
+                        f"Table {table_id!r} field {field_name!r} expected header "
+                        f"{expected_values!r}, found {actual!r}",
+                        sheet=sheet_name,
+                        cell=coordinate,
+                    )
+                )
+
+        rows: List[Tuple[int, Dict[str, Any]]] = []
+        for row_number in range(start_row, end_row + 1):
+            values = {
+                field_name: worksheet[f"{column}{row_number}"].value
+                for field_name, column in normalized_columns.items()
+            }
+            if any(_is_populated(value) for value in values.values()):
+                rows.append((row_number, values))
+        views[table_id] = AbstractTableView(
+            table_id=table_id,
+            sheet=sheet_name,
+            columns=normalized_columns,
+            key_field=key_field,
+            key_normalization=normalization,
+            rows=rows,
+            rule=rule,
+        )
+    return views, findings
+
+
+def _check_abstract_required_fields(
+    workbook,
+    profile: Dict[str, Any],
+) -> CheckResult:
+    check_id = "abstract_required_fields"
+    views, findings = _load_abstract_tables(workbook, profile, check_id)
+    configured = [
+        view
+        for view in views.values()
+        if isinstance(view.rule.get("required_fields"), list)
+        and view.rule.get("required_fields")
+    ]
+    if not configured and not findings:
+        return _failed(
+            check_id,
+            "rule_not_configured",
+            "No abstract table required_fields are configured",
+            status="not_evaluated",
+        )
+
+    rows_checked = 0
+    fields_checked = 0
+    for view in configured:
+        required_fields = view.rule["required_fields"]
+        if (
+            not all(isinstance(item, str) and item.strip() for item in required_fields)
+            or len(required_fields) != len(set(required_fields))
+            or any(field_name not in view.columns for field_name in required_fields)
+        ):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_table_profile_invalid",
+                    f"Table {view.table_id!r} has invalid required_fields",
+                    sheet=view.sheet,
+                )
+            )
+            continue
+        if not view.rows:
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_table_empty",
+                    f"Table {view.table_id!r} contains no populated data rows",
+                    sheet=view.sheet,
+                )
+            )
+            continue
+        for row_number, values in view.rows:
+            rows_checked += 1
+            for field_name in required_fields:
+                fields_checked += 1
+                if not _is_populated(values.get(field_name)):
+                    findings.append(
+                        QAFinding(
+                            check_id,
+                            "blocking",
+                            "abstract_required_field_blank",
+                            f"Table {view.table_id!r} row {row_number} requires "
+                            f"{field_name!r}",
+                            sheet=view.sheet,
+                            cell=f"{view.columns[field_name]}{row_number}",
+                        )
+                    )
+    return _check_result(
+        check_id,
+        findings,
+        {
+            "tables_checked": len(configured),
+            "rows_checked": rows_checked,
+            "fields_checked": fields_checked,
+        },
+    )
+
+
+def _table_keys(
+    view: AbstractTableView,
+    check_id: str,
+) -> Tuple[List[str], List[QAFinding]]:
+    keys: List[str] = []
+    findings: List[QAFinding] = []
+    for row_number, values in view.rows:
+        key = _normalize_table_key(values.get(view.key_field), view.key_normalization)
+        if not key:
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_key_blank",
+                    f"Table {view.table_id!r} row {row_number} has a blank key",
+                    sheet=view.sheet,
+                    cell=f"{view.columns[view.key_field]}{row_number}",
+                )
+            )
+        else:
+            keys.append(key)
+    duplicate_keys = sorted(
+        key for key, count in Counter(keys).items() if count > 1
+    )
+    for key in duplicate_keys:
+        findings.append(
+            QAFinding(
+                check_id,
+                "blocking",
+                "abstract_key_duplicate",
+                f"Table {view.table_id!r} contains duplicate key {key!r}",
+                sheet=view.sheet,
+            )
+        )
+    return keys, findings
+
+
+def _check_abstract_counts(workbook, profile: Dict[str, Any]) -> CheckResult:
+    check_id = "abstract_counts"
+    views, findings = _load_abstract_tables(workbook, profile, check_id)
+    configured = [
+        view
+        for view in views.values()
+        if "expected_rows" in view.rule or "expected_unique_keys" in view.rule
+    ]
+    if not configured and not findings:
+        return _failed(
+            check_id,
+            "rule_not_configured",
+            "No expected abstract row or unique-key counts are configured",
+            status="not_evaluated",
+        )
+
+    total_rows = 0
+    total_unique_keys = 0
+    for view in configured:
+        keys, key_findings = _table_keys(view, check_id)
+        findings.extend(key_findings)
+        unique_key_count = len(set(keys))
+        total_rows += len(view.rows)
+        total_unique_keys += unique_key_count
+        for field_name, actual in (
+            ("expected_rows", len(view.rows)),
+            ("expected_unique_keys", unique_key_count),
+        ):
+            if field_name not in view.rule:
+                continue
+            expected = view.rule[field_name]
+            if (
+                not isinstance(expected, int)
+                or isinstance(expected, bool)
+                or expected < 0
+            ):
+                findings.append(
+                    QAFinding(
+                        check_id,
+                        "blocking",
+                        "abstract_table_profile_invalid",
+                        f"Table {view.table_id!r} {field_name} must be a "
+                        "non-negative integer",
+                        sheet=view.sheet,
+                    )
+                )
+            elif actual != expected:
+                findings.append(
+                    QAFinding(
+                        check_id,
+                        "blocking",
+                        "abstract_count_mismatch",
+                        f"Table {view.table_id!r} {field_name}={expected}, "
+                        f"found {actual}",
+                        sheet=view.sheet,
+                    )
+                )
+    return _check_result(
+        check_id,
+        findings,
+        {
+            "tables_checked": len(configured),
+            "rows_counted": total_rows,
+            "unique_keys_counted": total_unique_keys,
+        },
+    )
+
+
+def _check_abstract_key_reconciliation(
+    workbook,
+    profile: Dict[str, Any],
+) -> CheckResult:
+    check_id = "abstract_key_reconciliation"
+    rules = profile.get("abstract_key_reconciliations")
+    if not isinstance(rules, list) or not rules:
+        return _failed(
+            check_id,
+            "rule_not_configured",
+            "No abstract key reconciliations are configured",
+            status="not_evaluated",
+        )
+    views, findings = _load_abstract_tables(workbook, profile, check_id)
+    comparisons = 0
+    for index, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_reconciliation_profile_invalid",
+                    f"abstract_key_reconciliations[{index}] must be an object",
+                )
+            )
+            continue
+        left_id = str(rule.get("left_table", ""))
+        right_id = str(rule.get("right_table", ""))
+        left = views.get(left_id)
+        right = views.get(right_id)
+        if (
+            left is None
+            or right is None
+            or left_id == right_id
+            or rule.get("mode", "exact") != "exact"
+            or left.key_normalization != right.key_normalization
+        ):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_reconciliation_profile_invalid",
+                    f"Invalid reconciliation at index {index}: "
+                    f"{left_id!r} -> {right_id!r}",
+                )
+            )
+            continue
+        left_keys, left_findings = _table_keys(left, check_id)
+        right_keys, right_findings = _table_keys(right, check_id)
+        findings.extend(left_findings)
+        findings.extend(right_findings)
+        comparisons += 1
+        left_set = set(left_keys)
+        right_set = set(right_keys)
+        missing_left = sorted(right_set - left_set)
+        missing_right = sorted(left_set - right_set)
+        if missing_left:
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_keys_missing_left",
+                    f"{len(missing_left)} keys from {right_id!r} are absent from "
+                    f"{left_id!r}: {missing_left[:10]}",
+                )
+            )
+        if missing_right:
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_keys_missing_right",
+                    f"{len(missing_right)} keys from {left_id!r} are absent from "
+                    f"{right_id!r}: {missing_right[:10]}",
+                )
+            )
+    return _check_result(
+        check_id,
+        findings,
+        {"comparisons_checked": comparisons},
+    )
+
+
+def _normalize_print_reference(value: Any) -> str:
+    text = str(value or "").strip()
+    if "!" in text:
+        text = text.split("!", 1)[1]
+    return text.replace("'", "")
+
+
+def _check_abstract_print_layout(
+    workbook,
+    profile: Dict[str, Any],
+) -> CheckResult:
+    check_id = "abstract_print_layout"
+    rules = profile.get("abstract_print_layout")
+    if not isinstance(rules, list) or not rules:
+        return _failed(
+            check_id,
+            "rule_not_configured",
+            "No abstract print-layout assertions are configured",
+            status="not_evaluated",
+        )
+
+    findings: List[QAFinding] = []
+    assertions_checked = 0
+    supported = {
+        "orientation": lambda ws: ws.page_setup.orientation,
+        "paper_size": lambda ws: ws.page_setup.paperSize,
+        "fit_to_width": lambda ws: ws.page_setup.fitToWidth,
+        "fit_to_height": lambda ws: ws.page_setup.fitToHeight,
+        "scale": lambda ws: ws.page_setup.scale,
+        "fit_to_page": lambda ws: ws.sheet_properties.pageSetUpPr.fitToPage,
+        "print_area": lambda ws: _normalize_print_reference(ws.print_area),
+        "print_title_rows": lambda ws: str(ws.print_title_rows or ""),
+        "print_title_cols": lambda ws: str(ws.print_title_cols or ""),
+        "freeze_panes": lambda ws: (
+            ws.freeze_panes.coordinate
+            if hasattr(ws.freeze_panes, "coordinate")
+            else str(ws.freeze_panes or "")
+        ),
+    }
+    for index, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_layout_profile_invalid",
+                    f"abstract_print_layout[{index}] must be an object",
+                )
+            )
+            continue
+        sheet_name = str(rule.get("sheet", ""))
+        expected = {key: value for key, value in rule.items() if key in supported}
+        if sheet_name not in workbook.sheetnames or not expected:
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_layout_profile_invalid",
+                    f"Invalid print-layout assertion at index {index}",
+                    sheet=sheet_name,
+                )
+            )
+            continue
+        worksheet = workbook[sheet_name]
+        for setting, expected_value in expected.items():
+            assertions_checked += 1
+            actual_value = supported[setting](worksheet)
+            if setting in {"print_area", "print_title_rows", "print_title_cols"}:
+                expected_value = _normalize_print_reference(expected_value)
+            if actual_value != expected_value:
+                findings.append(
+                    QAFinding(
+                        check_id,
+                        "blocking",
+                        "abstract_layout_mismatch",
+                        f"{sheet_name!r} {setting} expected {expected_value!r}, "
+                        f"found {actual_value!r}",
+                        sheet=sheet_name,
+                    )
+                )
+    return _check_result(
+        check_id,
+        findings,
+        {
+            "sheets_checked": len(rules),
+            "assertions_checked": assertions_checked,
+        },
+    )
 
 
 def _check_total_assertions(workbook, profile: Dict[str, Any], check_id: str) -> CheckResult:
@@ -628,6 +1168,16 @@ def inspect_workbook(
                 result = _check_formulas(workbook, values_workbook, template)
             elif check_id == "template_compliance":
                 result = _check_template(workbook, template, profile)
+            elif check_id == "abstract_required_fields":
+                result = _check_abstract_required_fields(values_workbook, profile)
+            elif check_id == "abstract_counts":
+                result = _check_abstract_counts(values_workbook, profile)
+            elif check_id == "abstract_key_reconciliation":
+                result = _check_abstract_key_reconciliation(
+                    values_workbook, profile
+                )
+            elif check_id == "abstract_print_layout":
+                result = _check_abstract_print_layout(workbook, profile)
             elif check_id == "negative_current_ownership":
                 result = _check_negative_ownership(values_workbook, profile)
             elif check_id == "no_duplicate_owners":

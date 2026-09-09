@@ -348,3 +348,43 @@ def test_boolean_cannot_match_numeric_paper_size(tmp_path):
     assert not check.passed
     assert check.findings[0].code == "abstract_layout_profile_invalid"
     assert "paper_size" in check.findings[0].message
+
+
+def test_non_string_header_expectation_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_tables"][0]["expected_headers"][
+        "instrument_number"
+    ] = False
+
+    report = inspect_workbook(
+        candidate, ["abstract_required_fields"], profile=profile
+    )
+
+    check = _check(report, "abstract_required_fields")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_table_profile_invalid"
+        and "non-empty string" in finding.message
+        for finding in check.findings
+    )
+
+
+def test_column_beyond_xfd_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_tables"][0]["columns"]["legal_description"] = "XFE"
+
+    report = inspect_workbook(
+        candidate, ["abstract_required_fields"], profile=profile
+    )
+
+    check = _check(report, "abstract_required_fields")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_table_profile_invalid"
+        and finding.sheet == "Master"
+        for finding in check.findings
+    )

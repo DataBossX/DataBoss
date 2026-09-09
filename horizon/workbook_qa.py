@@ -371,6 +371,7 @@ def _profile_cells(profile: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
 
 _COLUMN_REFERENCE = re.compile(r"^[A-Z]{1,3}$")
 _MAX_EXCEL_ROW = 1_048_576
+_MAX_EXCEL_COLUMN = 16_384
 
 
 def _is_populated(value: Any) -> bool:
@@ -379,6 +380,13 @@ def _is_populated(value: Any) -> bool:
 
 def _normalize_header(value: Any) -> str:
     return " ".join(str(value or "").casefold().split())
+
+
+def _column_number(column: str) -> int:
+    value = 0
+    for character in column:
+        value = value * 26 + ord(character) - ord("A") + 1
+    return value
 
 
 def _normalize_table_key(value: Any, mode: str) -> str:
@@ -453,6 +461,7 @@ def _load_abstract_tables(
                 not all(normalized_columns)
                 or not all(
                     _COLUMN_REFERENCE.fullmatch(column)
+                    and _column_number(column) <= _MAX_EXCEL_COLUMN
                     for column in normalized_columns.values()
                 )
                 or len(set(normalized_columns.values())) != len(normalized_columns)
@@ -503,10 +512,27 @@ def _load_abstract_tables(
                 )
                 continue
             expected_values = expected if isinstance(expected, list) else [expected]
+            if (
+                not expected_values
+                or not all(
+                    isinstance(value, str) and value.strip()
+                    for value in expected_values
+                )
+            ):
+                findings.append(
+                    QAFinding(
+                        check_id,
+                        "blocking",
+                        "abstract_table_profile_invalid",
+                        f"Table {table_id!r} header field {field_name!r} must "
+                        "contain non-empty string expectations",
+                        sheet=sheet_name,
+                    )
+                )
+                continue
             expected_normalized = {
                 _normalize_header(value)
                 for value in expected_values
-                if _is_populated(value)
             }
             coordinate = f"{normalized_columns[field_name]}{header_row}"
             actual = worksheet[coordinate].value

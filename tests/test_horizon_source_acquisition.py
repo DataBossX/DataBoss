@@ -414,7 +414,7 @@ def test_source_change_during_hash_blocks_intake(
 
     assert not receipt.technical_pass
     assert any(
-        issue.code == "source_changed_after_hash"
+        issue.code == "source_tree_changed_during_scan"
         for issue in receipt.issues
     )
     assert "master_workbook" in receipt.sections[0].missing_required_roles

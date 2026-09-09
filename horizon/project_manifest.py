@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+CONTROL_SCHEMA_VERSION = "1.1"
+
 
 class ControlFileError(ValueError):
     """Raised when a control file is incomplete or internally inconsistent."""
@@ -64,6 +66,7 @@ class CandidateDeliverable:
 class ProjectManifest:
     path: Path
     project_id: str
+    schema_version: str
     source_policy: str
     required_checks: List[str]
     candidates: List[CandidateDeliverable]
@@ -94,6 +97,10 @@ def load_project_manifest(path: Path) -> ProjectManifest:
     data = _read_json(path)
     if data.get("schema_id") != "dbx.project_manifest":
         raise ControlFileError(f"{path}: unsupported schema_id")
+    if data.get("schema_version") != CONTROL_SCHEMA_VERSION:
+        raise ControlFileError(
+            f"{path}: unsupported schema_version; expected {CONTROL_SCHEMA_VERSION}"
+        )
 
     release_policy = _required(data, "release_policy", path)
     if not isinstance(release_policy, dict):
@@ -151,6 +158,7 @@ def load_project_manifest(path: Path) -> ProjectManifest:
     return ProjectManifest(
         path=path,
         project_id=str(_required(data, "project_id", path)),
+        schema_version=CONTROL_SCHEMA_VERSION,
         source_policy=str(_required(data, "source_policy", path)),
         required_checks=list(raw_checks),
         candidates=candidates,
@@ -194,6 +202,10 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
     data = _read_json(path)
     if data.get("schema_id") != "dbx.work_order":
         raise ControlFileError(f"{path}: unsupported schema_id")
+    if data.get("schema_version") != CONTROL_SCHEMA_VERSION:
+        raise ControlFileError(
+            f"{path}: unsupported schema_version; expected {CONTROL_SCHEMA_VERSION}"
+        )
     project_id = str(_required(data, "project_id", path))
     if project_id != manifest.project_id:
         raise ControlFileError(
@@ -259,6 +271,14 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
         raise ControlFileError(
             f"{path}: manifest authority_hashes.workbook_profile is required "
             "with profile_path"
+        )
+    if manifest.template_sha256 is not None and template_path is None:
+        raise ControlFileError(
+            f"{path}: template_path is required by the manifest authority"
+        )
+    if manifest.workbook_profile_sha256 is not None and profile_path is None:
+        raise ControlFileError(
+            f"{path}: profile_path is required by the manifest authority"
         )
     if template_path and str(template_hash).lower() != manifest.template_sha256:
         raise ControlFileError(

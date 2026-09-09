@@ -120,7 +120,7 @@ def _write_controls(
         json.dumps(
             {
                 "schema_id": "dbx.project_manifest",
-                "schema_version": "1.0",
+                "schema_version": "1.1",
                 "project_id": "DBX-TEST",
                 "source_policy": "IMMUTABLE_READ_ONLY",
                 "authority_hashes": {
@@ -149,7 +149,7 @@ def _write_controls(
         json.dumps(
             {
                 "schema_id": "dbx.work_order",
-                "schema_version": "1.0",
+                "schema_version": "1.1",
                 "work_order_id": "WO-TEST-001",
                 "project_id": "DBX-TEST",
                 "objective": "Repair and verify one workbook without releasing it",
@@ -190,6 +190,37 @@ def test_control_files_bind_work_order_to_manifest_candidate(tmp_path):
     assert order.project_id == manifest.project_id
     assert order.expected_sha256 == _sha256(candidate)
     assert order.require_human_approval
+
+
+def test_legacy_manifest_schema_requires_explicit_migration(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    manifest_path, _, _ = _write_controls(tmp_path, candidate, template)
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["schema_version"] = "1.0"
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ControlFileError, match="expected 1.1"):
+        load_project_manifest(manifest_path)
+
+
+def test_legacy_work_order_schema_requires_explicit_migration(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path, candidate, template
+    )
+    data = json.loads(work_order_path.read_text(encoding="utf-8"))
+    data["schema_version"] = "1.0"
+    work_order_path.write_text(json.dumps(data), encoding="utf-8")
+
+    manifest = load_project_manifest(manifest_path)
+    with pytest.raises(ControlFileError, match="expected 1.1"):
+        load_work_order(work_order_path, manifest)
 
 
 def test_work_order_cannot_disable_human_approval(tmp_path):
@@ -246,6 +277,41 @@ def test_work_order_cannot_self_authorize_a_substituted_profile(tmp_path):
         ControlFileError,
         match="profile_expected_sha256 differs from manifest authority",
     ):
+        load_work_order(work_order_path, manifest)
+
+
+@pytest.mark.parametrize(
+    ("path_field", "hash_field", "error"),
+    [
+        (
+            "template_path",
+            "template_expected_sha256",
+            "template_path is required by the manifest authority",
+        ),
+        (
+            "profile_path",
+            "profile_expected_sha256",
+            "profile_path is required by the manifest authority",
+        ),
+    ],
+)
+def test_work_order_cannot_omit_manifest_authority(
+    tmp_path, path_field, hash_field, error
+):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path, candidate, template
+    )
+    data = json.loads(work_order_path.read_text(encoding="utf-8"))
+    data.pop(path_field)
+    data.pop(hash_field)
+    work_order_path.write_text(json.dumps(data), encoding="utf-8")
+
+    manifest = load_project_manifest(manifest_path)
+    with pytest.raises(ControlFileError, match=error):
         load_work_order(work_order_path, manifest)
 
 

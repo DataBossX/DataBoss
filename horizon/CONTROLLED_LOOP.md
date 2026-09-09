@@ -29,6 +29,8 @@ The project manifest must bind every control authority that the work order uses:
 
 ```json
 {
+  "schema_id": "dbx.project_manifest",
+  "schema_version": "1.1",
   "authority_hashes": {
     "template": "<verified template hash>",
     "workbook_profile": "<verified profile hash>"
@@ -41,7 +43,7 @@ Create a `dbx.work_order` JSON object next to the project controls:
 ```json
 {
   "schema_id": "dbx.work_order",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "work_order_id": "WO-SECTION32-QA-001",
   "project_id": "DBX-OK-BECKHAM-32-11N-25W",
   "objective": "Verify and repair the Section 32 workbook in staging",
@@ -70,6 +72,8 @@ Create a `dbx.work_order` JSON object next to the project controls:
 Do not invent missing authority hashes. Hash the acquired local files, bind
 those hashes in the project manifest, and then issue a matching work order.
 The work order cannot authorize a substituted template or workbook profile.
+Version `1.1` makes this binding mandatory: migrate older controls by adding
+the manifest authority hashes and issuing a matching `1.1` work order.
 
 ## Workbook profile
 

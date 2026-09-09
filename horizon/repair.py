@@ -16,7 +16,6 @@ non-worksheet parts.
 from __future__ import annotations
 
 import posixpath
-import shutil
 import zipfile
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -43,37 +42,39 @@ class RepairResult:
     error: str = ""
 
 
-def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
-    """Repair one worksheet part. Returns possibly-rewritten bytes.
+def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
+    """Inspect one worksheet part and refuse unsafe formula repair.
 
-    Current repairs (safe, non-destructive):
-      * Remove ``<f>`` formula elements that evaluate to an error (``t="e"`` on
-        the parent ``<c>`` or a formula body starting with ``#``), leaving any
-        last-known cached ``<v>`` value in place so no data is lost.
-      * Drop dangling shared-formula masters that reference a deleted range.
+    An errored formula cannot safely be converted to its cached value. The
+    cache may itself be ``#REF!`` or stale, and removing the formula/type marker
+    would make that error look like ordinary data. Formula restoration requires
+    :func:`restore_formula_from_template`, followed by approved recalculation.
     """
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
+    parser = etree.XMLParser(
+        remove_blank_text=False,
+        recover=False,
+        resolve_entities=False,
+        no_network=True,
+    )
     root = etree.fromstring(xml_bytes, parser=parser)
-    changed = False
 
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
-        t = cell.get("t")
         f = cell.find(f"{{{_MAIN_NS}}}f")
         if f is None:
             continue
         body = (f.text or "").strip()
-        is_error = t == "e" or body.startswith("#") or body.startswith("=#")
+        is_error = (
+            cell.get("t") == "e"
+            or body.startswith("#")
+            or body.startswith("=#")
+        )
         if is_error:
-            cell.remove(f)
-            # if the cached value was an error, clear the error type marker too
-            if t == "e":
-                del cell.attrib["t"]
-            fixes.append(f"removed errored formula in cell {cell.get('r', '?')}")
-            changed = True
+            raise ValueError(
+                f"Unsafe errored formula in cell {cell.get('r', '?')}; "
+                "repair refused without template authority"
+            )
 
-    if not changed:
-        return xml_bytes
-    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+    return xml_bytes
 
 
 def repair_workbook(
@@ -81,25 +82,33 @@ def repair_workbook(
     dest: Path,
     worksheet_fixer: Optional[Callable[[bytes, List[str]], bytes]] = None,
 ) -> RepairResult:
-    """Copy ``src`` to a new ``dest`` zip, repairing worksheet XML in transit.
+    """Validate and copy ``src`` to a new ``dest`` zip.
 
     Every non-worksheet part (media, styles, shared strings, drawings, plats) is
-    copied verbatim. ``src`` is never modified.
+    copied verbatim. The default worksheet fixer refuses unsafe formula repairs;
+    a caller-supplied fixer may apply authorized changes. ``src`` is never
+    modified.
     """
     if not _HAVE_LXML:
-        # Degrade gracefully: copy through unchanged rather than crash.
-        shutil.copy2(src, dest)
-        return RepairResult(output=dest, repaired=False,
-                            error="lxml unavailable; copied without repair")
+        return RepairResult(
+            output=None,
+            repaired=False,
+            error="lxml unavailable; workbook repair refused",
+        )
 
     fixer = worksheet_fixer or _fix_worksheet_xml
     fixes: List[str] = []
     media = 0
     dest.parent.mkdir(parents=True, exist_ok=True)
+    temporary = dest.with_suffix(dest.suffix + ".repairing")
 
     try:
+        if dest.exists():
+            raise ValueError(f"Refusing to overwrite existing output: {dest}")
+        if temporary.exists():
+            temporary.unlink()
         with zipfile.ZipFile(src, "r") as zin, \
-                zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zout:
+                zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
                 data = zin.read(item.filename)
                 name = item.filename
@@ -109,7 +118,10 @@ def repair_workbook(
                     data = fixer(data, fixes)
                 # Preserve original metadata (date/compression) for stable output.
                 zout.writestr(item, data)
-    except (zipfile.BadZipFile, OSError, etree.XMLSyntaxError) as exc:
+        temporary.replace(dest)
+    except (zipfile.BadZipFile, OSError, ValueError, etree.XMLSyntaxError) as exc:
+        if temporary.exists():
+            temporary.unlink()
         return RepairResult(output=None, repaired=False, error=str(exc))
 
     return RepairResult(

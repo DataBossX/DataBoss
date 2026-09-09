@@ -1,7 +1,11 @@
 """Tests for the Golden-Source validation gate and pydantic models."""
 
 from horizon.models import ReportModel, TitleRow
-from horizon.validation import Requirements, validate_report
+from horizon.validation import (
+    ABSTRACT_REQUIRED_FIELDS,
+    Requirements,
+    validate_report,
+)
 
 
 def _report(rows):
@@ -59,6 +63,51 @@ def test_missing_required_instrument_is_error():
     vr = validate_report(_report(rows), reqs)
     assert not vr.passed
     assert any("200" in i.message for i in vr.errors)
+
+
+def test_strict_abstract_fields_block_blank_delivery_cells():
+    rows = [
+        TitleRow(
+            grantor="A",
+            grantee="B",
+            instrument_number="100",
+            doc_type="Mineral Deed",
+            legal_description="Section 1, T1N, R1W",
+        )
+    ]
+    reqs = Requirements(
+        required_nonblank_fields=set(ABSTRACT_REQUIRED_FIELDS)
+    )
+    vr = validate_report(_report(rows), reqs)
+    assert not vr.passed
+    assert [(issue.row_index, issue.field) for issue in vr.errors] == [
+        (0, "recorded_date")
+    ]
+
+
+def test_strict_abstract_fields_pass_when_source_backed_values_are_present():
+    rows = [
+        TitleRow(
+            recorded_date="2024-02-03",
+            doc_type="Mineral Deed",
+            grantor="A",
+            grantee="B",
+            instrument_number="100",
+            legal_description="Section 1, T1N, R1W",
+        )
+    ]
+    reqs = Requirements(
+        required_nonblank_fields=set(ABSTRACT_REQUIRED_FIELDS)
+    )
+    assert validate_report(_report(rows), reqs).passed
+
+
+def test_unknown_strict_field_fails_configuration():
+    rows = [TitleRow(instrument_number="100")]
+    reqs = Requirements(required_nonblank_fields={"not_a_report_field"})
+    vr = validate_report(_report(rows), reqs)
+    assert not vr.passed
+    assert vr.errors[0].row_index == -1
 
 
 def test_missing_instrument_number_warns():

@@ -33,6 +33,21 @@ def _read_csv(path: Path):
         return list(csv.DictReader(fh))
 
 
+def _run_single_document(tmp_path: Path, filename: str, text: str) -> Path:
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / filename).write_text(text, encoding="utf-8")
+    output = tmp_path / "output"
+    grp.run_pipeline(
+        corpus,
+        output,
+        "test",
+        apply_quar=False,
+        log=grp.BuildLog(),
+    )
+    return output
+
+
 @pytest.fixture(scope="module")
 def run(tmp_path_factory):
     base = tmp_path_factory.mktemp("grocery")
@@ -116,6 +131,56 @@ def test_decimal_sum_flagged(run):
     dec = [r for r in rr if r["rule"] == "decimal-sum"]
     assert dec, "decimal-sum discrepancy not flagged"
     assert "0.95" in dec[0]["detail"]  # 0.75 + 0.20 from the two owners
+
+
+def test_unlabeled_date_is_not_promoted_to_recording_date(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "deed.txt",
+        "MINERAL DEED\n"
+        "Grantor: Example A\n"
+        "Grantee: Example B\n"
+        "Effective Date: 2024-02-03\n"
+        "Instrument No. 2024-1001\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    fact = _read_csv(out / "extracted_facts.csv")[0]
+    assert fact["effective_date"] == "2024-02-03"
+    assert fact["recording_date"] == ""
+    issues = _read_csv(out / "review_required.csv")
+    assert any(issue["rule"] == "missing-recording-data" for issue in issues)
+
+
+def test_short_decimals_parse_when_complete_set_is_proven(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "owners.txt",
+        "COMPLETE OWNER SET\n"
+        "Owner A decimal interest: 0.5\n"
+        "Owner B decimal interest: 0.5\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    fact = _read_csv(out / "extracted_facts.csv")[0]
+    assert fact["decimal_interest"] == "0.5"
+    issues = _read_csv(out / "review_required.csv")
+    assert not any(issue["rule"] == "decimal-sum" for issue in issues)
+    assert not any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
+
+
+def test_incomplete_owner_set_does_not_assert_sum_to_one(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "partial_owner_note.txt",
+        "PARTIAL OWNER NOTE\n"
+        "Owner A decimal interest: 0.5\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    issues = _read_csv(out / "review_required.csv")
+    assert not any(issue["rule"] == "decimal-sum" for issue in issues)
+    assert any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
 
 
 def test_manifest_counts(run):

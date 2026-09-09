@@ -34,6 +34,14 @@ _INSTRUMENT_NUMBER_HEADERS = {
     "reception", "reception_no", "reception_number", "file_no", "recording_no",
 }
 
+ABSTRACT_REQUIRED_FIELDS = {
+    "recorded_date",
+    "doc_type",
+    "grantor",
+    "grantee",
+    "legal_description",
+}
+
 
 def _is_instrument_number_header(col: str) -> bool:
     """True only for instrument/document *number* headers.
@@ -60,6 +68,7 @@ class Requirements:
 
     required_columns: List[str] = field(default_factory=lambda: list(CANONICAL_COLUMNS))
     required_instruments: Set[str] = field(default_factory=set)
+    required_nonblank_fields: Set[str] = field(default_factory=set)
     source: str = "builtin-defaults"
 
 
@@ -144,11 +153,28 @@ def validate_report(report: ReportModel, requirements: Requirements) -> Validati
     issues (review/escalated issues are expected and do not fail the gate -- they
     are what a correct cursory report carries)."""
     issues: List[ValidationIssue] = []
+    canonical_fields = set(CANONICAL_COLUMNS)
+    unknown_required_fields = (
+        requirements.required_nonblank_fields - canonical_fields
+    )
+    for field_name in sorted(unknown_required_fields):
+        issues.append(ValidationIssue(
+            row_index=-1,
+            field=field_name,
+            severity="error",
+            message=f"Unknown required nonblank field {field_name!r}.",
+        ))
+    required_nonblank_fields = (
+        requirements.required_nonblank_fields & canonical_fields
+    )
 
     # Gate 1: interest reconciliation ties out per row (exact math).
     for idx, row in enumerate(report.rows):
         issues.extend(_validate_row_interest(idx, row))
         issues.extend(_validate_row_schema(idx, row))
+        issues.extend(
+            _validate_required_nonblank_fields(idx, row, required_nonblank_fields)
+        )
 
     # Gate 2: required instruments from the Golden Source are all present.
     present = set(report.instrument_index().keys())
@@ -163,6 +189,34 @@ def validate_report(report: ReportModel, requirements: Requirements) -> Validati
 
     passed = not any(i.severity == "error" for i in issues)
     return ValidationReport(passed=passed, issues=issues)
+
+
+def _validate_required_nonblank_fields(
+    idx: int,
+    row: TitleRow,
+    required_fields: Set[str],
+) -> List[ValidationIssue]:
+    """Fail a strict delivery gate when a configured row field is blank.
+
+    This is opt-in because different instrument types legitimately use
+    different columns. It lets an abstract package require recorded date,
+    document type, both party columns, and legal description without guessing
+    unsupported values into the workbook.
+    """
+    issues: List[ValidationIssue] = []
+    for field_name in sorted(required_fields):
+        value = getattr(row, field_name, None)
+        if value is None or not str(value).strip():
+            issues.append(ValidationIssue(
+                row_index=idx,
+                field=field_name,
+                severity="error",
+                message=(
+                    f"Strict abstract gate requires {field_name!r}; source-backed "
+                    "value is blank."
+                ),
+            ))
+    return issues
 
 
 def _known_columns() -> Set[str]:

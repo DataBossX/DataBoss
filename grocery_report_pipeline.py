@@ -820,7 +820,16 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
-_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{4,9})", re.I)
+_DECIMAL_RX = re.compile(
+    r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d+)",
+    re.I,
+)
+_DECIMAL_SET_COMPLETE_RX = re.compile(
+    r"\b(?:complete\s+(?:owner|ownership)\s+set|"
+    r"all\s+(?:mineral\s+)?owners|"
+    r"total\s+(?:decimal\s+interest|ownership))\b",
+    re.I,
+)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
@@ -858,6 +867,7 @@ class Fact:
     overall_confidence: float = 0.0
     snippet: str = ""
     all_decimals: List[float] = field(default_factory=list)
+    decimal_set_complete: bool = False
 
 
 def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
@@ -901,7 +911,7 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
             d = parse_date(m.group(0)) if m else None
             setv(key, d, 0.6 if d else 0.0)
         if "recording_date" not in v:
-            setv("recording_date", parse_date(text), 0.4)
+            f.review_flags.append("missing-label-supported-recording-date")
 
         m = _INSTR_RX.search(text)
         if m:
@@ -933,8 +943,10 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         dm = _DECIMAL_RX.search(text)
         setv("decimal_interest", dm.group(1) if dm else None, 0.6)
         # Capture EVERY decimal in the doc (e.g. multi-owner ownership sheets)
-        # so per-tract sums are complete, not just the first row.
+        # while keeping completeness separate. Observed values are not assumed
+        # to represent every owner unless the source explicitly says they do.
         f.all_decimals = [float(x) for x in _DECIMAL_RX.findall(text)]
+        f.decimal_set_complete = bool(_DECIMAL_SET_COMPLETE_RX.search(text))
 
         if re.search(r"depth|below|above|formation|surface\s+to", text, re.I):
             dmatch = re.search(r"(?:limited\s+to|from\s+surface\s+to|below|above)[^\n.]{0,80}",
@@ -1041,23 +1053,76 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     calc_rows = []
     conflicts: List[List[Any]] = []
     for legal, group in sorted(tract_groups.items()):
-        # Sum ALL decimals found in each doc (multi-owner sheets contribute many).
-        decs = [(d, f) for f in group for d in (f.all_decimals or [])]
-        if not decs:
-            decs = [(_to_float(f.values.get("decimal_interest")), f) for f in group
-                    if f.values.get("decimal_interest")]
-        dec_sum = round(sum(d for d, _ in decs if d is not None), 8) if decs else None
+        observed_decimals = [
+            (decimal, fact)
+            for fact in group
+            for decimal in fact.all_decimals
+        ]
+        complete_decimal_sets = [
+            (round(sum(f.all_decimals), 8), f)
+            for f in group
+            if f.decimal_set_complete and f.all_decimals
+        ]
+        complete_decimal_sums = sorted(
+            {value for value, _ in complete_decimal_sets}
+        )
+
+        if len(complete_decimal_sums) == 1:
+            dec_sum = complete_decimal_sums[0]
+            decimals_balance = abs(dec_sum - 1.0) < 1e-4
+            decimal_check = (
+                "OK"
+                if decimals_balance
+                else f"{REVIEW}: complete owner set sums to {dec_sum}, expected 1.0"
+            )
+            if not decimals_balance:
+                conflicts.append([
+                    "decimal-sum",
+                    legal,
+                    f"Complete owner set decimals sum to {dec_sum} (expected 1.0)",
+                    "; ".join(f.source_file for _, f in complete_decimal_sets),
+                ])
+        elif len(complete_decimal_sums) > 1:
+            dec_sum = None
+            decimal_check = (
+                f"{REVIEW}: complete source sets disagree: {complete_decimal_sums}"
+            )
+            conflicts.append([
+                "decimal-set-conflict",
+                legal,
+                f"Complete owner-set sources disagree: {complete_decimal_sums}",
+                "; ".join(
+                    f.source_file for _, f in complete_decimal_sets
+                ),
+            ])
+        elif observed_decimals:
+            dec_sum = round(sum(decimal for decimal, _ in observed_decimals), 8)
+            decimal_check = (
+                f"{REVIEW}: observed decimals sum to {dec_sum}, but source does "
+                "not prove the owner set is complete"
+            )
+            conflicts.append([
+                "decimal-set-incomplete",
+                legal,
+                "Decimal values were found, but no source proves that every owner "
+                "is represented; sum-to-one was not asserted",
+                "; ".join(
+                    sorted(
+                        {fact.source_file for _, fact in observed_decimals}
+                    )
+                ),
+            ])
+        else:
+            dec_sum = None
+            decimal_check = "n/a"
+
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
         calc_rows.append([legal, len(group),
                           dec_sum if dec_sum is not None else "n/a",
-                          ("OK" if dec_sum is None or abs(dec_sum - 1.0) < 1e-4
-                           else f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"),
+                          decimal_check,
                           ", ".join(str(g) for g in gross_vals) or "n/a",
                           ("OK" if len(gross_vals) <= 1 else f"{REVIEW}: gross acreage disagrees")])
-        if dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
-            conflicts.append(["decimal-sum", legal, f"Decimals sum to {dec_sum} (expected 1.0)",
-                              "; ".join(f.source_file for _, f in decs)])
         if len(gross_vals) > 1:
             conflicts.append(["acreage-mismatch", legal,
                               f"Conflicting gross acres: {gross_vals}",
@@ -1134,9 +1199,10 @@ def validate(recs: List[FileRec], texts: Dict[str, TextRec], classes: Dict[str, 
 
     for f in facts:
         # missing recording data
-        if not f.values.get("book_page_or_instrument") and not f.values.get("recording_date"):
+        if not f.values.get("recording_date"):
             add("yellow", "missing-recording-data", f.source_file,
-                "No book/page/instrument and no recording date extracted", f.source_file)
+                "No label-supported recording date was extracted; the field was "
+                "left blank for source review", f.source_file)
         # impossible dates
         for dk in ("recording_date", "execution_date", "effective_date"):
             if is_impossible_date(f.values.get(dk)):
@@ -1177,7 +1243,9 @@ def validate(recs: List[FileRec], texts: Dict[str, TextRec], classes: Dict[str, 
 
     # decimal sums / acreage mismatches from reconciliation
     for conf in recon.get("conflicts", []):
-        sev = "red" if conf[0] in ("decimal-sum", "chain-gap") else "yellow"
+        sev = "red" if conf[0] in (
+            "decimal-sum", "decimal-set-conflict", "chain-gap"
+        ) else "yellow"
         add(sev, conf[0], conf[1], conf[2], conf[3])
 
     # lease/OGL rows with no supporting document text
@@ -1621,7 +1689,7 @@ def make_synthetic_corpus(dest: Path) -> None:
             "Legal: Section 12, T7N, R63W\n"),
         "04_ownership_note.txt": (
             "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
-            "OWNERSHIP / mineral owner decimal interest schedule\n"
+            "COMPLETE OWNER SET / mineral owner decimal interest schedule\n"
             "Owner Acme Minerals LLC decimal interest 0.75000000\n"
             "Owner Sample Family Trust decimal interest 0.20000000\n"
             "Legal: Section 12, T7N, R63W\n"),  # sums to 0.95 -> should be flagged

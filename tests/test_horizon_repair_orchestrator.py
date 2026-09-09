@@ -9,15 +9,13 @@ from horizon.audit import AuditLog
 from horizon.config import HorizonConfig
 from horizon.models import ReportModel, TitleRow
 from horizon.orchestrator import Orchestrator
-from horizon.repair import repair_workbook
+from horizon.repair import _HAVE_LXML, repair_workbook
 from horizon.report_io import read_report, write_report
-from horizon.repair import _HAVE_LXML
 from horizon.validation import Requirements
 
 
 def _make_xlsx_with_error_formula(path: Path):
-    """Build a minimal .xlsx containing a cell with an errored formula and a
-    media part, so we can prove repair fixes the formula but preserves media."""
+    """Build an .xlsx with an errored formula and an embedded media part."""
     import openpyxl
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -35,19 +33,41 @@ def _make_xlsx_with_error_formula(path: Path):
 
 
 @pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
-def test_repair_removes_error_formula_and_preserves_media(tmp_path):
+def test_repair_refuses_error_formula_without_hiding_cached_error(tmp_path):
     src = tmp_path / "report.xlsx"
     _make_xlsx_with_error_formula(src)
     dest = tmp_path / "report_v002.xlsx"
     result = repair_workbook(src, dest)
-    assert result.repaired
-    assert result.media_preserved == 1
-    assert any("errored formula" in f for f in result.fixes)
-    # media survived byte-for-byte
-    with zipfile.ZipFile(dest) as zf:
-        assert zf.read("xl/media/plat1.png") == b"\x89PNG\r\n\x1a\nFAKEPLATDATA"
+    assert not result.repaired
+    assert result.output is None
+    assert "repair refused without template authority" in result.error
+    assert not dest.exists()
     # source workbook was never modified
-    assert src.exists()
+    with zipfile.ZipFile(src) as zf:
+        worksheet = zf.read("xl/worksheets/sheet1.xml")
+        assert b"<f>#REF!</f>" in worksheet
+        assert zf.read("xl/media/plat1.png") == b"\x89PNG\r\n\x1a\nFAKEPLATDATA"
+
+
+@pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
+def test_repair_refuses_malformed_worksheet_without_output(tmp_path):
+    src = tmp_path / "malformed.xlsx"
+    _make_xlsx_with_error_formula(src)
+    rewritten = tmp_path / "rewritten.xlsx"
+    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(rewritten, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                data = data.replace(b"</worksheet>", b"")
+            zout.writestr(item, data)
+    rewritten.replace(src)
+
+    dest = tmp_path / "report_v002.xlsx"
+    result = repair_workbook(src, dest)
+    assert not result.repaired
+    assert result.output is None
+    assert result.error
+    assert not dest.exists()
 
 
 def test_report_io_roundtrip(tmp_path):

@@ -16,6 +16,7 @@ non-worksheet parts.
 from __future__ import annotations
 
 import posixpath
+import re
 import zipfile
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -30,6 +31,31 @@ except ImportError:  # pragma: no cover - lxml is a declared dependency
 
 _MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _NS = {"m": _MAIN_NS}
+_CELL_REFERENCE = re.compile(r"^\$?([A-Z]{1,3})\$?([1-9]\d*)$")
+_CELL_RANGE = re.compile(
+    r"^\$?([A-Z]{1,3})\$?([1-9]\d*):\$?([A-Z]{1,3})\$?([1-9]\d*)$"
+)
+
+
+def _column_number(column: str) -> int:
+    value = 0
+    for character in column:
+        value = value * 26 + ord(character) - ord("A") + 1
+    return value
+
+
+def _shared_range_contains(cell_reference: str, range_reference: str) -> bool:
+    cell = _CELL_REFERENCE.fullmatch(cell_reference)
+    area = _CELL_RANGE.fullmatch(range_reference)
+    if cell is None or area is None:
+        return False
+    cell_column, cell_row = _column_number(cell.group(1)), int(cell.group(2))
+    min_column, min_row = _column_number(area.group(1)), int(area.group(2))
+    max_column, max_row = _column_number(area.group(3)), int(area.group(4))
+    return (
+        min_column <= cell_column <= max_column
+        and min_row <= cell_row <= max_row
+    )
 
 
 @dataclass
@@ -57,7 +83,7 @@ def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
         no_network=True,
     )
     root = etree.fromstring(xml_bytes, parser=parser)
-    shared_masters = set()
+    shared_masters = {}
     shared_dependents = []
 
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
@@ -67,14 +93,36 @@ def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
         formula_text = (formula.text or "").strip()
         if formula.get("t") == "shared":
             shared_index = formula.get("si")
+            cell_reference = cell.get("r", "?")
             if shared_index is None:
                 raise ValueError(
-                    f"Shared formula in cell {cell.get('r', '?')} has no index"
+                    f"Shared formula in cell {cell_reference} has no index"
                 )
-            if formula_text or formula.get("ref"):
-                shared_masters.add(shared_index)
+            range_reference = formula.get("ref")
+            if formula_text:
+                if (
+                    range_reference is None
+                    or not _shared_range_contains(
+                        cell_reference, range_reference
+                    )
+                ):
+                    raise ValueError(
+                        f"Shared formula master in cell {cell_reference} has "
+                        f"invalid range {range_reference!r}"
+                    )
+                if shared_index in shared_masters:
+                    raise ValueError(
+                        f"Duplicate shared formula master index "
+                        f"{shared_index!r}"
+                    )
+                shared_masters[shared_index] = range_reference
+            elif range_reference is not None:
+                raise ValueError(
+                    f"Shared formula master in cell {cell_reference} has no "
+                    "formula text"
+                )
             else:
-                shared_dependents.append((shared_index, cell.get("r", "?")))
+                shared_dependents.append((shared_index, cell_reference))
         is_error = (
             cell.get("t") == "e"
             or formula_text.startswith("#")
@@ -87,10 +135,16 @@ def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
             )
 
     for shared_index, cell_reference in shared_dependents:
-        if shared_index not in shared_masters:
+        master_range = shared_masters.get(shared_index)
+        if master_range is None:
             raise ValueError(
                 f"Dangling shared formula in cell {cell_reference}: "
                 f"master index {shared_index!r} is missing"
+            )
+        if not _shared_range_contains(cell_reference, master_range):
+            raise ValueError(
+                f"Shared formula in cell {cell_reference} is outside master "
+                f"range {master_range!r}"
             )
 
     return xml_bytes

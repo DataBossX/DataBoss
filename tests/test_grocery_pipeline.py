@@ -230,6 +230,19 @@ def test_negated_all_owners_phrase_is_not_treated_as_complete(tmp_path):
     assert any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
 
 
+def test_not_a_complete_owner_set_is_not_treated_as_complete(tmp_path):
+    out = _run_single_document(
+        tmp_path,
+        "not_complete.txt",
+        "NOT A COMPLETE OWNER SET\n"
+        "Owner A decimal interest: 1.0\n"
+        "Legal: Section 1, T1N, R1W\n",
+    )
+
+    issues = _read_csv(out / "review_required.csv")
+    assert any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
+
+
 def test_manifest_counts(run):
     m = run["manifest"]
     assert m["counts"]["documents"] == 8  # 7 unique + 1 exact copy

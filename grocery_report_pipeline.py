@@ -837,8 +837,10 @@ _DECIMAL_SET_COMPLETE_RX = re.compile(
     re.I,
 )
 _DECIMAL_SET_INCOMPLETE_RX = re.compile(
-    r"\b(?:not\s+all|partial|incomplete)\s+"
-    r"(?:owner|ownership|(?:mineral\s+)?owners?)\b",
+    r"\b(?:(?:not|no)\s+(?:a\s+)?complete\s+"
+    r"(?:owner|ownership)\s+set|"
+    r"(?:not\s+all|partial|incomplete)\s+"
+    r"(?:owner|ownership|(?:mineral\s+)?owners?))\b",
     re.I,
 )
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"

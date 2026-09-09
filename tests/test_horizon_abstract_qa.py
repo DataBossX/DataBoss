@@ -388,3 +388,42 @@ def test_column_beyond_xfd_is_profile_error(tmp_path):
         and finding.sheet == "Master"
         for finding in check.findings
     )
+
+
+def test_unknown_abstract_table_setting_is_not_ignored(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_tables"][0]["expected_headders"] = {
+        "instrument_number": "Instrument Number"
+    }
+
+    report = inspect_workbook(
+        candidate, ["abstract_required_fields"], profile=profile
+    )
+
+    check = _check(report, "abstract_required_fields")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_table_profile_invalid"
+        and "expected_headders" in finding.message
+        for finding in check.findings
+    )
+
+
+def test_normalized_column_field_collision_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_tables"][0]["columns"]["instrument_number "] = "J"
+
+    report = inspect_workbook(
+        candidate, ["abstract_required_fields"], profile=profile
+    )
+
+    check = _check(report, "abstract_required_fields")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_table_profile_invalid"
+        for finding in check.findings
+    )

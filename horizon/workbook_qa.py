@@ -370,8 +370,23 @@ def _profile_cells(profile: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
 
 
 _COLUMN_REFERENCE = re.compile(r"^[A-Z]{1,3}$")
+_FIELD_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _MAX_EXCEL_ROW = 1_048_576
 _MAX_EXCEL_COLUMN = 16_384
+_ABSTRACT_TABLE_KEYS = {
+    "id",
+    "sheet",
+    "header_row",
+    "start_row",
+    "end_row",
+    "key_field",
+    "key_normalization",
+    "columns",
+    "expected_headers",
+    "required_fields",
+    "expected_rows",
+    "expected_unique_keys",
+}
 
 
 def _is_populated(value: Any) -> bool:
@@ -420,6 +435,18 @@ def _load_abstract_tables(
                 )
             )
             continue
+        unknown_table_keys = sorted(set(rule) - _ABSTRACT_TABLE_KEYS)
+        if unknown_table_keys:
+            findings.append(
+                QAFinding(
+                    check_id,
+                    "blocking",
+                    "abstract_table_profile_invalid",
+                    f"abstract_tables[{table_index}] has unknown keys "
+                    f"{unknown_table_keys}",
+                )
+            )
+            continue
 
         table_id = str(rule.get("id", "")).strip()
         sheet_name = str(rule.get("sheet", "")).strip()
@@ -458,7 +485,14 @@ def _load_abstract_tables(
                 for field_name, column in columns.items()
             }
             if (
-                not all(normalized_columns)
+                len(normalized_columns) != len(columns)
+                or not all(normalized_columns)
+                or not all(
+                    isinstance(field_name, str)
+                    and field_name == field_name.strip()
+                    and _FIELD_NAME.fullmatch(field_name)
+                    for field_name in columns
+                )
                 or not all(
                     _COLUMN_REFERENCE.fullmatch(column)
                     and _column_number(column) <= _MAX_EXCEL_COLUMN

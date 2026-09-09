@@ -71,40 +71,49 @@ def _write_controls(
     *,
     candidate_hash: str = "",
     allowed_repairs: Optional[List[str]] = None,
+    profile_data: Optional[dict] = None,
+    required_checks: Optional[List[str]] = None,
 ) -> Tuple[Path, Path, Path]:
     project = root / "project"
     project.mkdir()
     profile = project / "workbook_profile.json"
-    profile.write_text(
-        json.dumps(
+    profile_data = profile_data if profile_data is not None else {
+        "required_sheet_order": ["Title", "Runsheet"],
+        "preserve_sheet_order": True,
+        "allow_new_sheets": False,
+        "current_ownership_ranges": [
+            {"sheet": "Title", "range": "B2:B3"}
+        ],
+        "current_owner_columns": [
             {
-                "required_sheet_order": ["Title", "Runsheet"],
-                "preserve_sheet_order": True,
-                "allow_new_sheets": False,
-                "current_ownership_ranges": [
-                    {"sheet": "Title", "range": "B2:B3"}
-                ],
-                "current_owner_columns": [
-                    {
-                        "sheet": "Title",
-                        "column": "A",
-                        "start_row": 2,
-                        "end_row": 3,
-                    }
-                ],
-                "total_assertions": [
-                    {
-                        "check_id": "ownership_totals",
-                        "sheet": "Title",
-                        "cell": "D2",
-                        "expected": 40,
-                        "tolerance": 0.01,
-                    }
-                ],
+                "sheet": "Title",
+                "column": "A",
+                "start_row": 2,
+                "end_row": 3,
             }
-        ),
+        ],
+        "total_assertions": [
+            {
+                "check_id": "ownership_totals",
+                "sheet": "Title",
+                "cell": "D2",
+                "expected": 40,
+                "tolerance": 0.01,
+            }
+        ],
+    }
+    profile.write_text(
+        json.dumps(profile_data),
         encoding="utf-8",
     )
+    required_checks = required_checks if required_checks is not None else [
+        "negative_current_ownership",
+        "ownership_totals",
+        "no_duplicate_owners",
+        "no_broken_formulas",
+        "template_compliance",
+        "human_landman_release",
+    ]
     reported_hash = candidate_hash or _sha256(candidate)
     manifest_path = project / "project_manifest.json"
     manifest_path.write_text(
@@ -121,14 +130,7 @@ def _write_controls(
                         "status": "CANDIDATE",
                     }
                 ],
-                "required_checks": [
-                    "negative_current_ownership",
-                    "ownership_totals",
-                    "no_duplicate_owners",
-                    "no_broken_formulas",
-                    "template_compliance",
-                    "human_landman_release",
-                ],
+                "required_checks": required_checks,
                 "release_policy": {
                     "technical_verification_is_not_release": True,
                     "approved_hash_required": True,
@@ -154,14 +156,7 @@ def _write_controls(
                 "profile_path": str(profile),
                 "profile_expected_sha256": _sha256(profile),
                 "staging_root": str(root / "runs"),
-                "acceptance_tests": [
-                    "negative_current_ownership",
-                    "ownership_totals",
-                    "no_duplicate_owners",
-                    "no_broken_formulas",
-                    "template_compliance",
-                    "human_landman_release",
-                ],
+                "acceptance_tests": required_checks,
                 "allowed_repairs": allowed_repairs or [],
                 "constraints": {"edit_originals": False},
                 "retry_policy": {
@@ -404,6 +399,185 @@ def test_clean_loop_stops_at_hash_bound_human_gate(tmp_path):
     assert package["status"] == "PENDING_HUMAN_APPROVAL"
     assert package["approval_must_name_sha256"] == receipt["output"]["sha256"]
     assert package["promotion_executed"] is False
+
+
+ABSTRACT_CHECKS = [
+    "abstract_required_fields",
+    "abstract_counts",
+    "abstract_key_reconciliation",
+    "abstract_print_layout",
+]
+ABSTRACT_HEADERS = [
+    "Instrument Number",
+    "Document Type",
+    "Grantor",
+    "Grantee",
+    "Recorded Date",
+    "Legal Description",
+]
+ABSTRACT_ROWS = [
+    ["2024-001", "Mineral Deed", "A", "B", "2024-01-02", "Section 15"],
+    ["2024-002", "Assignment", "B", "C", "2024-02-03", "Section 15"],
+]
+
+
+def _make_abstract_workbook(path: Path) -> None:
+    workbook = openpyxl.Workbook()
+    master = workbook.active
+    master.title = "Master"
+    index = workbook.create_sheet("Index")
+    for worksheet in (master, index):
+        worksheet.append(ABSTRACT_HEADERS)
+        for row in ABSTRACT_ROWS:
+            worksheet.append(row)
+        worksheet.page_setup.orientation = "landscape"
+        worksheet.page_setup.paperSize = worksheet.PAPERSIZE_LETTER
+        worksheet.page_setup.fitToWidth = 1
+        worksheet.page_setup.fitToHeight = 0
+        worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+        worksheet.print_area = "A1:F3"
+        worksheet.print_title_rows = "1:1"
+        worksheet.freeze_panes = "A2"
+    workbook.save(path)
+    workbook.close()
+
+
+def _abstract_profile(expected_rows: int = 2) -> dict:
+    def table(table_id: str, sheet: str) -> dict:
+        return {
+            "id": table_id,
+            "sheet": sheet,
+            "header_row": 1,
+            "start_row": 2,
+            "key_field": "instrument_number",
+            "key_normalization": "alnum_upper",
+            "columns": {
+                "instrument_number": "A",
+                "document_type": "B",
+                "grantor": "C",
+                "grantee": "D",
+                "recorded_date": "E",
+                "legal_description": "F",
+            },
+            "required_fields": [
+                "instrument_number",
+                "document_type",
+                "grantor",
+                "grantee",
+                "recorded_date",
+                "legal_description",
+            ],
+            "expected_rows": expected_rows,
+            "expected_unique_keys": expected_rows,
+        }
+
+    return {
+        "abstract_tables": [
+            table("master", "Master"),
+            table("index", "Index"),
+        ],
+        "abstract_key_reconciliations": [
+            {
+                "left_table": "master",
+                "right_table": "index",
+                "mode": "exact",
+            }
+        ],
+        "abstract_print_layout": [
+            {
+                "sheet": sheet,
+                "orientation": "landscape",
+                "paper_size": 1,
+                "fit_to_width": 1,
+                "fit_to_height": 0,
+                "fit_to_page": True,
+                "print_area": "$A$1:$F$3",
+                "print_title_rows": "$1:$1",
+                "freeze_panes": "A2",
+            }
+            for sheet in ("Master", "Index")
+        ],
+    }
+
+
+def test_controlled_loop_runs_all_abstract_gates_before_human_gate(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_abstract_workbook(candidate)
+    _make_abstract_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path,
+        candidate,
+        template,
+        profile_data=_abstract_profile(),
+        required_checks=[*ABSTRACT_CHECKS, "human_landman_release"],
+    )
+
+    result = ControlledWorkbookLoop.from_files(
+        manifest_path, work_order_path
+    ).run()
+
+    assert result.status == "technically_verified_pending_approval"
+    assert result.promotion_package is not None
+    qa_after = json.loads(
+        (result.run_directory / "qa_after.json").read_text(encoding="utf-8")
+    )
+    by_id = {check["check_id"]: check for check in qa_after["checks"]}
+    assert all(
+        by_id[check_id]["status"] == "passed" for check_id in ABSTRACT_CHECKS
+    )
+    assert by_id["human_landman_release"]["status"] == "pending_approval"
+
+
+def test_controlled_loop_blocks_abstract_count_mismatch_without_repair(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_abstract_workbook(candidate)
+    _make_abstract_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path,
+        candidate,
+        template,
+        profile_data=_abstract_profile(expected_rows=3),
+        required_checks=[*ABSTRACT_CHECKS, "human_landman_release"],
+    )
+
+    result = ControlledWorkbookLoop.from_files(
+        manifest_path, work_order_path
+    ).run()
+
+    assert result.status == "blocked"
+    assert result.promotion_package is None
+    assert result.staged_workbook is not None
+    assert _sha256(result.staged_workbook) == _sha256(candidate)
+
+
+def test_controlled_loop_blocks_missing_abstract_profile_rules(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_abstract_workbook(candidate)
+    _make_abstract_workbook(template)
+    manifest_path, work_order_path, _ = _write_controls(
+        tmp_path,
+        candidate,
+        template,
+        profile_data={},
+        required_checks=[*ABSTRACT_CHECKS, "human_landman_release"],
+    )
+
+    result = ControlledWorkbookLoop.from_files(
+        manifest_path, work_order_path
+    ).run()
+
+    assert result.status == "blocked"
+    qa_after = json.loads(
+        (result.run_directory / "qa_after.json").read_text(encoding="utf-8")
+    )
+    by_id = {check["check_id"]: check for check in qa_after["checks"]}
+    assert all(
+        by_id[check_id]["status"] == "not_evaluated"
+        for check_id in ABSTRACT_CHECKS
+    )
 
 
 def test_hash_mismatch_fails_before_copy_and_writes_receipt(tmp_path):

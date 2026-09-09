@@ -130,6 +130,13 @@ def _make_workbook(path: Path) -> None:
     workbook.close()
 
 
+def _set_cell(path: Path, sheet: str, cell: str, value: object) -> None:
+    workbook = openpyxl.load_workbook(path)
+    workbook[sheet][cell] = value
+    workbook.save(path)
+    workbook.close()
+
+
 def _check(report: QAReport, check_id: str) -> CheckResult:
     return next(item for item in report.checks if item.check_id == check_id)
 
@@ -155,10 +162,7 @@ def test_complete_abstract_tables_pass_all_gates(tmp_path):
 def test_blank_required_legal_cell_blocks_candidate(tmp_path):
     candidate = tmp_path / "candidate.xlsx"
     _make_workbook(candidate)
-    workbook = openpyxl.load_workbook(candidate)
-    workbook["Master"]["F2"] = None
-    workbook.save(candidate)
-    workbook.close()
+    _set_cell(candidate, "Master", "F2", None)
 
     report = inspect_workbook(
         candidate, ["abstract_required_fields"], profile=_profile()
@@ -192,10 +196,7 @@ def test_authoritative_count_mismatch_blocks_candidate(tmp_path):
 def test_duplicate_key_blocks_counts_and_reconciliation(tmp_path):
     candidate = tmp_path / "candidate.xlsx"
     _make_workbook(candidate)
-    workbook = openpyxl.load_workbook(candidate)
-    workbook["Index"]["A3"] = "2024-001"
-    workbook.save(candidate)
-    workbook.close()
+    _set_cell(candidate, "Index", "A3", "2024-001")
 
     report = inspect_workbook(
         candidate,
@@ -214,10 +215,7 @@ def test_duplicate_key_blocks_counts_and_reconciliation(tmp_path):
 def test_master_index_key_set_mismatch_blocks_candidate(tmp_path):
     candidate = tmp_path / "candidate.xlsx"
     _make_workbook(candidate)
-    workbook = openpyxl.load_workbook(candidate)
-    workbook["Index"]["A3"] = "2024-999"
-    workbook.save(candidate)
-    workbook.close()
+    _set_cell(candidate, "Index", "A3", "2024-999")
 
     report = inspect_workbook(
         candidate, ["abstract_key_reconciliation"], profile=_profile()
@@ -425,5 +423,64 @@ def test_normalized_column_field_collision_is_profile_error(tmp_path):
     assert not check.passed
     assert any(
         finding.code == "abstract_table_profile_invalid"
+        for finding in check.findings
+    )
+
+
+def test_unknown_reconciliation_setting_is_not_ignored(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_key_reconciliations"][0]["left_tabel"] = "master"
+
+    report = inspect_workbook(
+        candidate, ["abstract_key_reconciliation"], profile=profile
+    )
+
+    check = _check(report, "abstract_key_reconciliation")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_reconciliation_profile_invalid"
+        and "left_tabel" in finding.message
+        for finding in check.findings
+    )
+
+
+def test_duplicate_reconciliation_pair_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_key_reconciliations"].append(
+        dict(profile["abstract_key_reconciliations"][0])
+    )
+
+    report = inspect_workbook(
+        candidate, ["abstract_key_reconciliation"], profile=profile
+    )
+
+    check = _check(report, "abstract_key_reconciliation")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_reconciliation_profile_invalid"
+        for finding in check.findings
+    )
+
+
+def test_duplicate_print_layout_sheet_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_print_layout"].append(
+        dict(profile["abstract_print_layout"][0])
+    )
+
+    report = inspect_workbook(
+        candidate, ["abstract_print_layout"], profile=profile
+    )
+
+    check = _check(report, "abstract_print_layout")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_layout_profile_invalid"
         for finding in check.findings
     )

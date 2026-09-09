@@ -387,10 +387,30 @@ _ABSTRACT_TABLE_KEYS = {
     "expected_rows",
     "expected_unique_keys",
 }
+_ABSTRACT_RECONCILIATION_KEYS = {
+    "left_table",
+    "right_table",
+    "mode",
+}
+_LAYOUT_INTEGER_BOUNDS = {
+    "paper_size": (1, 118),
+    "fit_to_width": (0, 32_767),
+    "fit_to_height": (0, 32_767),
+    "scale": (10, 400),
+}
+_LAYOUT_REFERENCE_SETTINGS = {
+    "print_area",
+    "print_title_rows",
+    "print_title_cols",
+}
 
 
 def _is_populated(value: Any) -> bool:
     return value is not None and bool(str(value).strip())
+
+
+def _is_non_empty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 def _normalize_header(value: Any) -> str:
@@ -548,10 +568,7 @@ def _load_abstract_tables(
             expected_values = expected if isinstance(expected, list) else [expected]
             if (
                 not expected_values
-                or not all(
-                    isinstance(value, str) and value.strip()
-                    for value in expected_values
-                )
+                or not all(_is_non_empty_string(value) for value in expected_values)
             ):
                 findings.append(
                     QAFinding(
@@ -632,10 +649,7 @@ def _check_abstract_required_fields(
         if (
             not isinstance(required_fields, list)
             or not required_fields
-            or not all(
-                isinstance(item, str) and item.strip()
-                for item in required_fields
-            )
+            or not all(_is_non_empty_string(item) for item in required_fields)
             or len(required_fields) != len(set(required_fields))
             or any(field_name not in view.columns for field_name in required_fields)
         ):
@@ -807,6 +821,7 @@ def _check_abstract_key_reconciliation(
         )
     views, findings = _load_abstract_tables(workbook, profile, check_id)
     comparisons = 0
+    seen_pairs = set()
     for index, rule in enumerate(rules):
         if not isinstance(rule, dict):
             findings.append(
@@ -818,14 +833,18 @@ def _check_abstract_key_reconciliation(
                 )
             )
             continue
+        unknown_keys = sorted(set(rule) - _ABSTRACT_RECONCILIATION_KEYS)
         left_id = str(rule.get("left_table", ""))
         right_id = str(rule.get("right_table", ""))
+        pair = (left_id, right_id)
         left = views.get(left_id)
         right = views.get(right_id)
         if (
-            left is None
+            unknown_keys
+            or left is None
             or right is None
             or left_id == right_id
+            or pair in seen_pairs
             or rule.get("mode", "exact") != "exact"
             or left.key_normalization != right.key_normalization
         ):
@@ -835,10 +854,12 @@ def _check_abstract_key_reconciliation(
                     "blocking",
                     "abstract_reconciliation_profile_invalid",
                     f"Invalid reconciliation at index {index}: "
-                    f"{left_id!r} -> {right_id!r}",
+                    f"{left_id!r} -> {right_id!r}; "
+                    f"unknown={unknown_keys}",
                 )
             )
             continue
+        seen_pairs.add(pair)
         left_keys, left_findings = _table_keys(left, check_id)
         right_keys, right_findings = _table_keys(right, check_id)
         findings.extend(left_findings)
@@ -885,15 +906,12 @@ def _normalize_print_reference(value: Any) -> str:
 def _valid_layout_value(setting: str, value: Any) -> bool:
     if setting == "orientation":
         return isinstance(value, str) and value in {"portrait", "landscape"}
-    if setting == "paper_size":
-        return type(value) is int and 1 <= value <= 118
-    if setting in {"fit_to_width", "fit_to_height"}:
-        return type(value) is int and 0 <= value <= 32_767
-    if setting == "scale":
-        return type(value) is int and 10 <= value <= 400
+    if setting in _LAYOUT_INTEGER_BOUNDS:
+        minimum, maximum = _LAYOUT_INTEGER_BOUNDS[setting]
+        return type(value) is int and minimum <= value <= maximum
     if setting == "fit_to_page":
         return type(value) is bool
-    if setting in {"print_area", "print_title_rows", "print_title_cols"}:
+    if setting in _LAYOUT_REFERENCE_SETTINGS:
         return isinstance(value, str) and bool(value.strip())
     if setting == "freeze_panes":
         return isinstance(value, str)
@@ -933,6 +951,7 @@ def _check_abstract_print_layout(
         ),
     }
     allowed_keys = {"sheet", *supported}
+    seen_sheets = set()
     for index, rule in enumerate(rules):
         if not isinstance(rule, dict):
             findings.append(
@@ -957,6 +976,7 @@ def _check_abstract_print_layout(
             or not expected
             or unknown_keys
             or invalid_values
+            or sheet_name in seen_sheets
         ):
             findings.append(
                 QAFinding(
@@ -969,11 +989,12 @@ def _check_abstract_print_layout(
                 )
             )
             continue
+        seen_sheets.add(sheet_name)
         worksheet = workbook[sheet_name]
         for setting, expected_value in expected.items():
             assertions_checked += 1
             actual_value = supported[setting](worksheet)
-            if setting in {"print_area", "print_title_rows", "print_title_cols"}:
+            if setting in _LAYOUT_REFERENCE_SETTINGS:
                 expected_value = _normalize_print_reference(expected_value)
             if actual_value != expected_value:
                 findings.append(

@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+CONTROL_SCHEMA_VERSION = "1.1"
+
 
 class ControlFileError(ValueError):
     """Raised when a control file is incomplete or internally inconsistent."""
@@ -25,6 +27,15 @@ def _is_sha256(value: str) -> bool:
     return len(value) == 64 and all(
         character in "0123456789abcdef" for character in value
     )
+
+
+def _optional_sha256(value: Any, field_name: str, source: Path) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = str(value).lower()
+    if not _is_sha256(normalized):
+        raise ControlFileError(f"{source}: {field_name} must be a SHA-256")
+    return normalized
 
 
 def _read_json(path: Path) -> Dict[str, Any]:
@@ -55,10 +66,14 @@ class CandidateDeliverable:
 class ProjectManifest:
     path: Path
     project_id: str
+    schema_version: str
     source_policy: str
     required_checks: List[str]
     candidates: List[CandidateDeliverable]
     release_policy: Dict[str, Any]
+    template_sha256: Optional[str] = None
+    workbook_profile_sha256: Optional[str] = None
+    source_authority_sha256: Optional[str] = None
     metadata: Dict[str, str] = field(default_factory=dict)
 
     @property
@@ -80,9 +95,21 @@ class ProjectManifest:
 
 def load_project_manifest(path: Path) -> ProjectManifest:
     path = Path(path)
-    data = _read_json(path)
+    return parse_project_manifest(_read_json(path), path)
+
+
+def parse_project_manifest(
+    data: Dict[str, Any],
+    path: Path,
+) -> ProjectManifest:
+    """Validate already-acquired project-manifest bytes."""
+    path = Path(path)
     if data.get("schema_id") != "dbx.project_manifest":
         raise ControlFileError(f"{path}: unsupported schema_id")
+    if data.get("schema_version") != CONTROL_SCHEMA_VERSION:
+        raise ControlFileError(
+            f"{path}: unsupported schema_version; expected {CONTROL_SCHEMA_VERSION}"
+        )
 
     release_policy = _required(data, "release_policy", path)
     if not isinstance(release_policy, dict):
@@ -124,13 +151,42 @@ def load_project_manifest(path: Path) -> ProjectManifest:
         key: str(data.get(key, ""))
         for key in ("jurisdiction", "county", "section", "township", "range")
     }
+    authority_hashes = data.get("authority_hashes") or {}
+    if not isinstance(authority_hashes, dict):
+        raise ControlFileError(f"{path}: authority_hashes must be an object")
+    unknown_authorities = sorted(
+        set(authority_hashes) - {"template", "workbook_profile", "source_authority"}
+    )
+    if unknown_authorities:
+        raise ControlFileError(
+            f"{path}: authority_hashes has unknown keys {unknown_authorities}"
+        )
+    template_sha256 = _optional_sha256(
+        authority_hashes.get("template"),
+        "authority_hashes.template",
+        path,
+    )
+    workbook_profile_sha256 = _optional_sha256(
+        authority_hashes.get("workbook_profile"),
+        "authority_hashes.workbook_profile",
+        path,
+    )
+    source_authority_sha256 = _optional_sha256(
+        authority_hashes.get("source_authority"),
+        "authority_hashes.source_authority",
+        path,
+    )
     return ProjectManifest(
         path=path,
         project_id=str(_required(data, "project_id", path)),
+        schema_version=CONTROL_SCHEMA_VERSION,
         source_policy=str(_required(data, "source_policy", path)),
         required_checks=list(raw_checks),
         candidates=candidates,
         release_policy=release_policy,
+        template_sha256=template_sha256,
+        workbook_profile_sha256=workbook_profile_sha256,
+        source_authority_sha256=source_authority_sha256,
         metadata=metadata,
     )
 
@@ -168,6 +224,10 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
     data = _read_json(path)
     if data.get("schema_id") != "dbx.work_order":
         raise ControlFileError(f"{path}: unsupported schema_id")
+    if data.get("schema_version") != CONTROL_SCHEMA_VERSION:
+        raise ControlFileError(
+            f"{path}: unsupported schema_version; expected {CONTROL_SCHEMA_VERSION}"
+        )
     project_id = str(_required(data, "project_id", path))
     if project_id != manifest.project_id:
         raise ControlFileError(
@@ -224,6 +284,31 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
     if profile_path and not _is_sha256(str(profile_hash or "").lower()):
         raise ControlFileError(
             f"{path}: profile_expected_sha256 is required with profile_path"
+        )
+    if template_path and manifest.template_sha256 is None:
+        raise ControlFileError(
+            f"{path}: manifest authority_hashes.template is required with template_path"
+        )
+    if profile_path and manifest.workbook_profile_sha256 is None:
+        raise ControlFileError(
+            f"{path}: manifest authority_hashes.workbook_profile is required "
+            "with profile_path"
+        )
+    if manifest.template_sha256 is not None and template_path is None:
+        raise ControlFileError(
+            f"{path}: template_path is required by the manifest authority"
+        )
+    if manifest.workbook_profile_sha256 is not None and profile_path is None:
+        raise ControlFileError(
+            f"{path}: profile_path is required by the manifest authority"
+        )
+    if template_path and str(template_hash).lower() != manifest.template_sha256:
+        raise ControlFileError(
+            f"{path}: template_expected_sha256 differs from manifest authority"
+        )
+    if profile_path and str(profile_hash).lower() != manifest.workbook_profile_sha256:
+        raise ControlFileError(
+            f"{path}: profile_expected_sha256 differs from manifest authority"
         )
 
     return WorkOrder(

@@ -33,6 +33,20 @@ py horizon/main.py
 Useful flags: `--section 31-12N-24W`, `--base <report-stem>`, `--max-loops N`,
 `--no-backup`, `--dry-run` (scan + validate only).
 
+For a delivery candidate that must not contain blank abstract fields, enable
+the strict gate:
+
+```bash
+py horizon/main.py --root "D:\Desktop\Horizon" \
+    --section 15-45N-76W --require-complete-abstract --dry-run
+```
+
+This requires a source-backed recorded date, document type, grantor, grantee,
+and legal description on every row. Missing values fail validation; Horizon
+does not guess them. Use `--required-fields field1,field2` to add other
+canonical columns. Repeating the same deterministic check does not add
+independent assurance, so resolve each cited source gap before rerunning.
+
 ### Controlled client-workbook loop
 
 For manifest-bound QA, staged repairs, rule-derived scoring, run receipts, and a

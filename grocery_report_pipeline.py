@@ -1746,7 +1746,8 @@ def make_synthetic_corpus(dest: Path) -> None:
             "Legal: Section 12, T7N, R63W\n"),
         "04_ownership_note.txt": (
             "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
-            "COMPLETE OWNER SET / mineral owner decimal interest schedule\n"
+            "COMPLETE OWNER SET\n"
+            "Mineral owner decimal interest schedule\n"
             "Owner Acme Minerals LLC decimal interest 0.75000000\n"
             "Owner Sample Family Trust decimal interest 0.20000000\n"
             "Legal: Section 12, T7N, R63W\n"),  # sums to 0.95 -> should be flagged

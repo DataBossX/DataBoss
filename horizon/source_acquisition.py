@@ -12,16 +12,16 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import stat
 import sys
-import tempfile
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .project_manifest import ControlFileError, load_project_manifest
+from .project_manifest import ControlFileError, parse_project_manifest
 
 SCHEMA_ID = "dbx.source_acquisition_receipt"
 SCHEMA_VERSION = "1.0"
@@ -178,14 +178,22 @@ class AcquisitionReceipt:
         return asdict(self)
 
 
+def _open_readonly(path: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return os.open(path, flags)
+
+
+def _has_symlink_component(path: Path) -> bool:
+    return any(component.is_symlink() for component in (path, *path.parents))
+
+
 def _hash_regular_file(
     path: Path,
     chunk_size: int = 1024 * 1024,
 ) -> Tuple[str, os.stat_result]:
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
+    descriptor = _open_readonly(path)
     digest = hashlib.sha256()
     with os.fdopen(descriptor, "rb") as handle:
         before = os.fstat(handle.fileno())
@@ -218,10 +226,7 @@ def _read_control_bytes(
     path: Path,
     maximum_bytes: int = 10 * 1024 * 1024,
 ) -> Tuple[bytes, str]:
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
+    descriptor = _open_readonly(path)
     with os.fdopen(descriptor, "rb") as handle:
         before = os.fstat(handle.fileno())
         if not stat.S_ISREG(before.st_mode) or before.st_size > maximum_bytes:
@@ -363,10 +368,7 @@ def validate_roots(roots: Sequence[SourceRoot]) -> List[SourceRoot]:
         if not expanded.is_absolute():
             raise SourceAcquisitionError("Source roots must be absolute paths")
         absolute = expanded.absolute()
-        if any(
-            component.is_symlink()
-            for component in (absolute, *absolute.parents)
-        ):
+        if _has_symlink_component(absolute):
             raise SourceAcquisitionError(
                 "Source root paths must not contain symlink components"
             )
@@ -623,6 +625,19 @@ def load_authority_manifest(
     )
 
 
+def _load_project_manifest_snapshot(path: Path):
+    try:
+        content, digest = _read_control_bytes(path)
+        payload = json.loads(content.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceAcquisitionError(
+            f"Cannot read project manifest {path}: {exc}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise SourceAcquisitionError("Project manifest must be a JSON object")
+    return parse_project_manifest(payload, path), digest
+
+
 def _match_authorities(
     assertions: Sequence[AuthorityAssertion],
     files: Sequence[SourceFile],
@@ -712,14 +727,16 @@ def _revalidate_inventory(
     for item in files:
         path = root_paths[item.root_label] / PurePosixPath(item.relative_path)
         try:
-            current = path.lstat()
-        except OSError as exc:
+            current_hash, current = _hash_regular_file(path)
+        except (OSError, SourceAcquisitionError) as exc:
+            current_hash = ""
             current = None
             message = str(exc)
         else:
             message = "Source changed after its acquisition hash was computed"
         if current is not None and (
             stat.S_ISREG(current.st_mode)
+            and current_hash == item.sha256
             and current.st_size == item.size_bytes
             and current.st_mtime_ns == item.modified_ns
             and current.st_dev == item.device
@@ -902,6 +919,104 @@ def build_receipt(
     )
 
 
+def _open_anchored_directory(path: Path) -> int:
+    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+        raise NotImplementedError
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(path.anchor, flags)
+    try:
+        for component in path.parts[1:]:
+            next_descriptor = os.open(
+                component,
+                flags,
+                dir_fd=descriptor,
+            )
+            os.close(descriptor)
+            descriptor = next_descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _write_receipt_to_directory(
+    receipt: AcquisitionReceipt,
+    output: Path,
+    directory_descriptor: int,
+) -> None:
+    try:
+        existing = os.stat(
+            output.name,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        existing = None
+    if existing is not None and not stat.S_ISREG(existing.st_mode):
+        raise SourceAcquisitionError(
+            "Receipt output must be a regular file path"
+        )
+
+    temporary_name = f".{output.name}.{secrets.token_hex(16)}.tmp"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(
+        temporary_name,
+        flags,
+        0o600,
+        dir_fd=directory_descriptor,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(receipt.to_dict(), handle, indent=2, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(
+            temporary_name,
+            output.name,
+            src_dir_fd=directory_descriptor,
+            dst_dir_fd=directory_descriptor,
+        )
+        os.fsync(directory_descriptor)
+    finally:
+        try:
+            os.unlink(temporary_name, dir_fd=directory_descriptor)
+        except FileNotFoundError:
+            pass
+
+
+def _write_receipt_fallback(
+    receipt: AcquisitionReceipt,
+    output: Path,
+) -> None:
+    parent_before = output.parent.stat()
+    if output.is_symlink() or (output.exists() and not output.is_file()):
+        raise SourceAcquisitionError(
+            "Receipt output must be a regular file path"
+        )
+    temporary = output.parent / f".{output.name}.{secrets.token_hex(16)}.tmp"
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(receipt.to_dict(), handle, indent=2, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        parent_after = output.parent.stat()
+        if (
+            parent_before.st_dev != parent_after.st_dev
+            or parent_before.st_ino != parent_after.st_ino
+        ):
+            raise SourceAcquisitionError(
+                "Receipt output directory changed during the run"
+            )
+        temporary.replace(output)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def write_receipt(
     receipt: AcquisitionReceipt,
     output_path: Path,
@@ -925,26 +1040,29 @@ def write_receipt(
         raise SourceAcquisitionError(
             "Receipt output must be outside every read-only source root"
         )
-    output.parent.mkdir(parents=True, exist_ok=True)
-    if output.is_symlink() or (output.exists() and not output.is_file()):
+    if not requested_output.parent.is_dir():
         raise SourceAcquisitionError(
-            "Receipt output must be a regular file path"
+            "Receipt output directory must already exist"
         )
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=output.parent,
-        prefix=f".{output.name}.",
-        suffix=".tmp",
-        text=True,
-    )
-    temporary = Path(temporary_name)
+    if _has_symlink_component(requested_output.parent):
+        raise SourceAcquisitionError(
+            "Receipt output path must not contain symlink components"
+        )
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(receipt.to_dict(), handle, indent=2, sort_keys=True)
-            handle.flush()
-            os.fsync(handle.fileno())
-        temporary.replace(output)
+        directory_descriptor = _open_anchored_directory(
+            requested_output.parent
+        )
+    except NotImplementedError:
+        _write_receipt_fallback(receipt, requested_output)
+        return
+    try:
+        _write_receipt_to_directory(
+            receipt,
+            requested_output,
+            directory_descriptor,
+        )
     finally:
-        temporary.unlink(missing_ok=True)
+        os.close(directory_descriptor)
 
 
 def parse_root(value: str) -> SourceRoot:
@@ -1018,7 +1136,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 raise SourceAcquisitionError(
                     "Control authority paths must not be symlinks"
                 )
-            project = load_project_manifest(project_path)
+            project, project_manifest_sha256 = (
+                _load_project_manifest_snapshot(project_path)
+            )
             if project.source_authority_sha256 is None:
                 raise SourceAcquisitionError(
                     "Project manifest does not bind a source authority hash"
@@ -1036,7 +1156,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 project_id=authority.project_id,
                 decision_id=authority.decision_id,
                 approved_by=authority.approved_by,
-                project_manifest_sha256=sha256_file(project_path),
+                project_manifest_sha256=project_manifest_sha256,
                 source_authority_sha256=project.source_authority_sha256,
             )
             protected_paths = [authority_path, project_path]

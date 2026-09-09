@@ -14,7 +14,8 @@ or chooses an authoritative file.
    repository.
 3. When chat instructions or custody receipts are evidence, export them to a
    private local folder.
-4. Keep receipt output in a separate audit folder, outside every source root.
+4. Create a separate trusted audit folder outside every source root before the
+   run. The gate will not create or follow an output-directory link.
 
 Example Windows layout:
 
@@ -155,8 +156,9 @@ their source kind: `pc`, `drive`, `chat`, or a suffixed form such as `drive_2`.
   does not satisfy the gate.
 
 A passing receipt proves only that externally authorized source categories are
-present, byte-accounted, stable during the point-in-time scan, and free of
-same-path conflicts. It does not prove the legal facts inside them. Next run
+present, byte-accounted across repeated full hashes, stable during the
+point-in-time scan, and free of same-path conflicts. It does not prove the
+legal facts inside them. Next run
 OCR/extraction, row-level provenance and confidence, master/index
 reconciliation, strict workbook QA, native Excel Print Preview, Drive readback,
 and the hash-bound human release gate.

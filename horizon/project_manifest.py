@@ -95,7 +95,15 @@ class ProjectManifest:
 
 def load_project_manifest(path: Path) -> ProjectManifest:
     path = Path(path)
-    data = _read_json(path)
+    return parse_project_manifest(_read_json(path), path)
+
+
+def parse_project_manifest(
+    data: Dict[str, Any],
+    path: Path,
+) -> ProjectManifest:
+    """Validate already-acquired project-manifest bytes."""
+    path = Path(path)
     if data.get("schema_id") != "dbx.project_manifest":
         raise ControlFileError(f"{path}: unsupported schema_id")
     if data.get("schema_version") != CONTROL_SCHEMA_VERSION:

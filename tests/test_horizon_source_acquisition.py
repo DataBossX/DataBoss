@@ -1,6 +1,8 @@
 """Tests for read-only, fail-closed section source acquisition receipts."""
 
 import json
+import os
+import stat
 from dataclasses import replace
 from pathlib import Path
 from typing import Optional
@@ -320,6 +322,7 @@ def test_cli_writes_blocking_receipt_and_returns_two(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _write(root, "Section 15/Master Abstract.xlsx", b"master only")
     output = tmp_path / "receipts" / "source.json"
+    output.parent.mkdir()
 
     result = main(
         [
@@ -462,6 +465,7 @@ def test_hash_bound_authority_manifest_allows_cli_pass(tmp_path: Path) -> None:
     project_path = tmp_path / "project_manifest.json"
     _write_project_manifest(project_path, authority_path)
     output = tmp_path / "receipts" / "source.json"
+    output.parent.mkdir()
 
     result = main(
         [
@@ -677,6 +681,54 @@ def test_second_full_scan_detects_added_source(
     assert not receipt.technical_pass
     assert any(
         issue.code == "source_tree_changed_during_scan"
+        for issue in receipt.issues
+    )
+
+
+def test_final_rehash_detects_metadata_preserving_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    assertions = _authorities(root, "pc", 15)
+    original_hash = source_acquisition._hash_regular_file
+    master_hashes = 0
+
+    def mutate_after_second_hash(
+        path: Path,
+        chunk_size: int = 1024 * 1024,
+    ):
+        nonlocal master_hashes
+        result = original_hash(path, chunk_size)
+        if path.name == "Master Abstract.xlsx":
+            master_hashes += 1
+            if master_hashes == 2:
+                source_stat = result[1]
+                path.write_bytes(b"change")
+                path.touch()
+                path.chmod(stat.S_IMODE(source_stat.st_mode))
+                os.utime(
+                    path,
+                    ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns),
+                )
+        return result
+
+    monkeypatch.setattr(
+        source_acquisition,
+        "_hash_regular_file",
+        mutate_after_second_hash,
+    )
+
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=assertions,
+        authority_context=_context(),
+    )
+
+    assert not receipt.technical_pass
+    assert any(
+        issue.code == "source_changed_after_hash"
         for issue in receipt.issues
     )
 

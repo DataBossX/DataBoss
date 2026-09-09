@@ -8,6 +8,7 @@ import pytest
 
 import horizon.source_acquisition as source_acquisition
 from horizon.source_acquisition import (
+    AuthorityAssertion,
     SourceAcquisitionError,
     SourceRoot,
     build_receipt,
@@ -31,6 +32,58 @@ def _complete_section(root: Path, section: int, prefix: str = "") -> None:
     _write(root, f"{section_root}/Recorded Faces/Instrument 1.pdf", b"face")
 
 
+def _authorities(
+    root: Path,
+    label: str,
+    section: int,
+    *,
+    index_name: str = "County Index.pdf",
+    source_name: str = "Recorded Faces/Instrument 1.pdf",
+) -> list[AuthorityAssertion]:
+    paths = {
+        "master_workbook": "Master Abstract.xlsx",
+        "index": index_name,
+        "source_document": source_name,
+    }
+    return [
+        AuthorityAssertion(
+            root_label=label,
+            relative_path=f"Section {section}/{relative_path}",
+            section=section,
+            role=role,
+            expected_sha256=source_acquisition.sha256_file(
+                root / f"Section {section}" / relative_path
+            ),
+        )
+        for role, relative_path in paths.items()
+    ]
+
+
+def _write_authority_manifest(
+    path: Path,
+    assertions: list[AuthorityAssertion],
+) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_authority_manifest",
+                "schema_version": "1.0",
+                "authorities": [
+                    {
+                        "root_label": assertion.root_label,
+                        "relative_path": assertion.relative_path,
+                        "section": assertion.section,
+                        "role": assertion.role,
+                        "expected_sha256": assertion.expected_sha256,
+                    }
+                    for assertion in assertions
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None:
     pc = tmp_path / "pc"
     drive = tmp_path / "drive"
@@ -40,6 +93,7 @@ def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None
     receipt = build_receipt(
         [SourceRoot("pc", pc), SourceRoot("drive", drive)],
         requested_sections=[15],
+        authority_assertions=_authorities(pc, "pc", 15),
     )
 
     assert receipt.technical_pass
@@ -62,6 +116,7 @@ def test_same_relative_path_with_different_hash_blocks_intake(
     receipt = build_receipt(
         [SourceRoot("pc", pc), SourceRoot("drive", drive)],
         requested_sections=[15],
+        authority_assertions=_authorities(pc, "pc", 15),
     )
 
     assert not receipt.technical_pass
@@ -77,7 +132,10 @@ def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _complete_section(root, 15)
 
-    receipt = build_receipt([SourceRoot("local", root)])
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        authority_assertions=_authorities(root, "pc", 15),
+    )
 
     assert not receipt.technical_pass
     by_section = {summary.section: summary for summary in receipt.sections}
@@ -98,12 +156,28 @@ def test_handwritten_index_satisfies_index_role(tmp_path: Path) -> None:
     _write(root, "Section 13/Recorded Face.pdf", b"face")
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[13],
+        authority_assertions=[
+            AuthorityAssertion(
+                root_label="pc",
+                relative_path=f"Section 13/{relative_path}",
+                section=13,
+                role=role,
+                expected_sha256=source_acquisition.sha256_file(
+                    root / "Section 13" / relative_path
+                ),
+            )
+            for role, relative_path in {
+                "master_workbook": "Master Abstract.xlsx",
+                "handwritten_index": "Handwritten Index.tif",
+                "source_document": "Recorded Face.pdf",
+            }.items()
+        ],
     )
 
     assert receipt.technical_pass
-    assert receipt.sections[0].role_counts["handwritten_index"] == 1
+    assert receipt.sections[0].candidate_role_counts["handwritten_index"] == 1
 
 
 @pytest.mark.parametrize(
@@ -131,7 +205,7 @@ def test_duplicate_content_at_different_paths_is_reported(tmp_path: Path) -> Non
     _write(root, "Section 15/Recorded Faces/copy.pdf", b"face")
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
     )
 
@@ -155,7 +229,7 @@ def test_symlinked_source_is_rejected_and_blocks_intake(tmp_path: Path) -> None:
     link.symlink_to(outside)
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
     )
 
@@ -172,7 +246,7 @@ def test_hidden_and_temporary_files_are_not_inventoried(tmp_path: Path) -> None:
     _write(root, ".git/Section 15/secret.pdf")
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
     )
 
@@ -183,7 +257,7 @@ def test_receipt_cannot_be_written_inside_source_root(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _complete_section(root, 15)
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
     )
 
@@ -199,7 +273,7 @@ def test_cli_writes_blocking_receipt_and_returns_two(tmp_path: Path) -> None:
     result = main(
         [
             "--root",
-            f"local={root}",
+            f"pc={root}",
             "--section",
             "15",
             "--output",
@@ -213,6 +287,7 @@ def test_cli_writes_blocking_receipt_and_returns_two(tmp_path: Path) -> None:
     assert payload["technical_pass"] is False
     assert payload["sections"][0]["missing_required_roles"] == [
         "source_document",
+        "master_workbook",
         "index",
     ]
 
@@ -248,8 +323,9 @@ def test_empty_source_file_blocks_intake(tmp_path: Path) -> None:
     _write(root, "Section 15/Recorded Faces/Instrument 1.pdf", b"")
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
     )
 
     assert not receipt.technical_pass
@@ -262,42 +338,52 @@ def test_source_change_during_hash_blocks_intake(
 ) -> None:
     root = tmp_path / "sources"
     _complete_section(root, 15)
-    original_sha256 = source_acquisition.sha256_file
+    authority_assertions = _authorities(root, "pc", 15)
+    original_hash = source_acquisition._hash_regular_file
 
-    def mutate_after_hash(path: Path, chunk_size: int = 1024 * 1024) -> str:
-        digest = original_sha256(path, chunk_size)
+    def mutate_after_hash(path: Path, chunk_size: int = 1024 * 1024):
+        result = original_hash(path, chunk_size)
         if path.name == "Master Abstract.xlsx":
             path.write_bytes(b"changed after hashing")
-        return digest
+        return result
 
-    monkeypatch.setattr(source_acquisition, "sha256_file", mutate_after_hash)
+    monkeypatch.setattr(
+        source_acquisition,
+        "_hash_regular_file",
+        mutate_after_hash,
+    )
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
+        authority_assertions=authority_assertions,
     )
 
     assert not receipt.technical_pass
     assert any(
-        issue.code == "source_changed_during_hash"
+        issue.code == "source_changed_after_hash"
         for issue in receipt.issues
     )
     assert "master_workbook" in receipt.sections[0].missing_required_roles
 
 
-def test_abstract_checklist_is_not_accepted_as_master(tmp_path: Path) -> None:
+def test_filename_heuristics_do_not_authorize_source_roles(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _write(root, "Section 15/Abstract Checklist.xlsx", b"checklist")
     _write(root, "Section 15/County Index.pdf", b"index")
     _write(root, "Section 15/Recorded Face.pdf", b"face")
 
     receipt = build_receipt(
-        [SourceRoot("local", root)],
+        [SourceRoot("pc", root)],
         requested_sections=[15],
     )
 
     assert not receipt.technical_pass
-    assert receipt.sections[0].missing_required_roles == ["master_workbook"]
+    assert receipt.sections[0].missing_required_roles == [
+        "source_document",
+        "master_workbook",
+        "index",
+    ]
 
 
 def test_unknown_required_role_is_rejected(tmp_path: Path) -> None:
@@ -306,7 +392,172 @@ def test_unknown_required_role_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(SourceAcquisitionError, match="Required roles"):
         build_receipt(
-            [SourceRoot("local", root)],
+            [SourceRoot("pc", root)],
             requested_sections=[15],
             required_roles=["invented_role"],
+        )
+
+
+def test_hash_bound_authority_manifest_allows_cli_pass(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    authority_path = tmp_path / "authority.json"
+    _write_authority_manifest(
+        authority_path,
+        _authorities(root, "pc", 15),
+    )
+    output = tmp_path / "receipts" / "source.json"
+
+    result = main(
+        [
+            "--root",
+            f"pc={root}",
+            "--section",
+            "15",
+            "--authority-manifest",
+            str(authority_path),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result == 0
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["technical_pass"] is True
+    assert all(
+        match["status"] == "matched"
+        for match in payload["authority_matches"]
+    )
+
+
+def test_authority_hash_mismatch_blocks_intake(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    assertions = _authorities(root, "pc", 15)
+    assertions[0] = AuthorityAssertion(
+        root_label=assertions[0].root_label,
+        relative_path=assertions[0].relative_path,
+        section=assertions[0].section,
+        role=assertions[0].role,
+        expected_sha256="0" * 64,
+    )
+
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=assertions,
+    )
+
+    assert not receipt.technical_pass
+    assert any(
+        issue.code == "authority_hash_mismatch"
+        for issue in receipt.issues
+    )
+
+
+def test_authority_path_traversal_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    root.mkdir()
+    assertion = AuthorityAssertion(
+        root_label="pc",
+        relative_path="../outside.pdf",
+        section=15,
+        role="source_document",
+        expected_sha256="0" * 64,
+    )
+
+    with pytest.raises(SourceAcquisitionError, match="assertion is invalid"):
+        build_receipt(
+            [SourceRoot("pc", root)],
+            requested_sections=[15],
+            authority_assertions=[assertion],
+        )
+
+
+def test_directory_symlink_is_reported_and_blocks_all_sections(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "linked-drive").symlink_to(outside, target_is_directory=True)
+
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+    )
+
+    assert not receipt.technical_pass
+    assert receipt.issues[0].code == "source_directory_symlink_rejected"
+    assert receipt.issues[0].section is None
+
+
+def test_traversal_error_is_reported_and_blocks_intake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "sources"
+    root.mkdir()
+
+    def failed_walk(path, *, followlinks, onerror):
+        onerror(PermissionError(13, "denied", str(root / "Section 15")))
+        return iter(())
+
+    monkeypatch.setattr(source_acquisition.os, "walk", failed_walk)
+
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+    )
+
+    assert not receipt.technical_pass
+    assert receipt.issues[0].code == "source_traversal_failed"
+    assert receipt.sections[0].issue_count == 1
+
+
+def test_predictable_temp_symlink_cannot_overwrite_source(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+    )
+    source = root / "Section 15" / "Master Abstract.xlsx"
+    original = source.read_bytes()
+    output = tmp_path / "receipts" / "source.json"
+    output.parent.mkdir()
+    output.with_suffix(".json.tmp").symlink_to(source)
+
+    write_receipt(receipt, output)
+
+    assert source.read_bytes() == original
+    assert output.is_file()
+
+
+def test_cli_syntax_error_returns_one_without_receipt(tmp_path: Path) -> None:
+    output = tmp_path / "receipt.json"
+
+    result = main(["--root", "pc= ", "--output", str(output)])
+
+    assert result == 1
+    assert not output.exists()
+
+
+def test_unknown_root_kind_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    root.mkdir()
+
+    with pytest.raises(SourceAcquisitionError, match="pc, drive, or chat"):
+        build_receipt(
+            [SourceRoot("local", root)],
+            requested_sections=[15],
+        )
+
+
+def test_relative_source_root_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(SourceAcquisitionError, match="absolute"):
+        build_receipt(
+            [SourceRoot("pc", Path("relative"))],
+            requested_sections=[15],
         )

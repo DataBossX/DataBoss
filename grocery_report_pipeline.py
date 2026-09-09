@@ -837,9 +837,11 @@ _DECIMAL_SET_COMPLETE_RX = re.compile(
     re.I,
 )
 _DECIMAL_SET_INCOMPLETE_RX = re.compile(
-    r"\b(?:(?:not|no)\s+(?:a\s+)?complete\s+"
-    r"(?:owner|ownership)\s+set|"
-    r"(?:not\s+all|partial|incomplete)\s+"
+    r"\b(?:(?:(?:not|never|cannot|can't|isn't|is\s+not)\b"
+    r"[^\n.;:]{0,80}|no\s+(?:(?:a|the)\s+)?)"
+    r"(?:complete\s+(?:owner|ownership)\s+set|"
+    r"all\s+(?:mineral\s+)?owners)|"
+    r"(?:partial|incomplete)\s+"
     r"(?:owner|ownership|(?:mineral\s+)?owners?))\b",
     re.I,
 )

@@ -155,6 +155,43 @@ def test_repair_refuses_shared_dependent_outside_master_range(tmp_path):
     assert not dest.exists()
 
 
+@pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
+def test_repair_refuses_overlapping_shared_formula_ranges(tmp_path):
+    import openpyxl
+
+    src = tmp_path / "overlapping-ranges.xlsx"
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet["A1"] = "=1"
+    worksheet["A2"] = "=1"
+    workbook.save(src)
+    workbook.close()
+
+    rewritten = tmp_path / "rewritten.xlsx"
+    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(rewritten, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                data = data.replace(
+                    b"<f>1</f>",
+                    b'<f t="shared" si="1" ref="A1:A3">1</f>',
+                    1,
+                )
+                data = data.replace(
+                    b"<f>1</f>",
+                    b'<f t="shared" si="2" ref="A2:A4">1</f>',
+                    1,
+                )
+            zout.writestr(item, data)
+    rewritten.replace(src)
+
+    dest = tmp_path / "report_v002.xlsx"
+    result = repair_workbook(src, dest)
+    assert result.output is None
+    assert "master ranges overlap" in result.error
+    assert not dest.exists()
+
+
 def test_report_io_roundtrip(tmp_path):
     report = ReportModel(section="31-12N-24W", rows=[
         TitleRow(grantor="A", grantee="B", instrument_number="2019-001",

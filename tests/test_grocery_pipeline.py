@@ -230,11 +230,18 @@ def test_negated_all_owners_phrase_is_not_treated_as_complete(tmp_path):
     assert any(issue["rule"] == "decimal-set-incomplete" for issue in issues)
 
 
-def test_not_a_complete_owner_set_is_not_treated_as_complete(tmp_path):
+@pytest.mark.parametrize("heading", [
+    "NOT A COMPLETE OWNER SET",
+    "NOT THE COMPLETE OWNER SET",
+    "CANNOT BE CONSIDERED A COMPLETE OWNER SET",
+])
+def test_negated_complete_owner_set_is_not_treated_as_complete(
+    tmp_path, heading
+):
     out = _run_single_document(
         tmp_path,
         "not_complete.txt",
-        "NOT A COMPLETE OWNER SET\n"
+        f"{heading}\n"
         "Owner A decimal interest: 1.0\n"
         "Legal: Section 1, T1N, R1W\n",
     )

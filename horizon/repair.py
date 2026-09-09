@@ -21,7 +21,7 @@ import zipfile
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 try:
     from lxml import etree
@@ -44,17 +44,44 @@ def _column_number(column: str) -> int:
     return value
 
 
-def _shared_range_contains(cell_reference: str, range_reference: str) -> bool:
-    cell = _CELL_REFERENCE.fullmatch(cell_reference)
+def _shared_range_bounds(
+    range_reference: str,
+) -> Optional[Tuple[int, int, int, int]]:
     area = _CELL_RANGE.fullmatch(range_reference)
-    if cell is None or area is None:
-        return False
-    cell_column, cell_row = _column_number(cell.group(1)), int(cell.group(2))
+    if area is None:
+        return None
     min_column, min_row = _column_number(area.group(1)), int(area.group(2))
     max_column, max_row = _column_number(area.group(3)), int(area.group(4))
+    if min_column > max_column or min_row > max_row:
+        return None
+    return min_column, min_row, max_column, max_row
+
+
+def _shared_range_contains(cell_reference: str, range_reference: str) -> bool:
+    cell = _CELL_REFERENCE.fullmatch(cell_reference)
+    bounds = _shared_range_bounds(range_reference)
+    if cell is None or bounds is None:
+        return False
+    cell_column, cell_row = _column_number(cell.group(1)), int(cell.group(2))
+    min_column, min_row, max_column, max_row = bounds
     return (
         min_column <= cell_column <= max_column
         and min_row <= cell_row <= max_row
+    )
+
+
+def _shared_ranges_overlap(first: str, second: str) -> bool:
+    first_bounds = _shared_range_bounds(first)
+    second_bounds = _shared_range_bounds(second)
+    if first_bounds is None or second_bounds is None:
+        return False
+    first_min_col, first_min_row, first_max_col, first_max_row = first_bounds
+    second_min_col, second_min_row, second_max_col, second_max_row = second_bounds
+    return (
+        first_min_col <= second_max_col
+        and second_min_col <= first_max_col
+        and first_min_row <= second_max_row
+        and second_min_row <= first_max_row
     )
 
 
@@ -133,6 +160,15 @@ def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
                 f"Unsafe errored formula in cell {cell.get('r', '?')}; "
                 "repair refused without template authority"
             )
+
+    master_items = list(shared_masters.items())
+    for index, (first_id, first_range) in enumerate(master_items):
+        for second_id, second_range in master_items[index + 1:]:
+            if _shared_ranges_overlap(first_range, second_range):
+                raise ValueError(
+                    f"Shared formula master ranges overlap: {first_id!r} "
+                    f"{first_range!r} and {second_id!r} {second_range!r}"
+                )
 
     for shared_index, cell_reference in shared_dependents:
         master_range = shared_masters.get(shared_index)

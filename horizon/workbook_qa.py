@@ -836,7 +836,7 @@ def _check_abstract_key_reconciliation(
         unknown_keys = sorted(set(rule) - _ABSTRACT_RECONCILIATION_KEYS)
         left_id = str(rule.get("left_table", ""))
         right_id = str(rule.get("right_table", ""))
-        pair = (left_id, right_id)
+        pair = tuple(sorted((left_id, right_id)))
         left = views.get(left_id)
         right = views.get(right_id)
         if (
@@ -912,7 +912,7 @@ def _valid_layout_value(setting: str, value: Any) -> bool:
     if setting == "fit_to_page":
         return type(value) is bool
     if setting in _LAYOUT_REFERENCE_SETTINGS:
-        return isinstance(value, str) and bool(value.strip())
+        return _is_non_empty_string(value) and "!" not in value
     if setting == "freeze_panes":
         return isinstance(value, str)
     return False

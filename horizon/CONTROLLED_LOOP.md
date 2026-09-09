@@ -7,7 +7,8 @@ to run a bounded **Inspect → Plan → Execute → Verify → Score → Repair 
 
 ## Safety contract
 
-- The project manifest is the authority for required checks and candidate hashes.
+- The project manifest is the authority for required checks and candidate,
+  template, and workbook-profile hashes.
 - A work order must include every manifest check; it cannot weaken the gate.
 - Candidate, template, and workbook-profile files are SHA-256 verified.
 - Verified inputs are copied into a unique run directory and only snapshots are
@@ -23,6 +24,17 @@ to run a bounded **Inspect → Plan → Execute → Verify → Score → Repair 
 - Human approval must name the exact staged output hash.
 
 ## Work order
+
+The project manifest must bind every control authority that the work order uses:
+
+```json
+{
+  "authority_hashes": {
+    "template": "<verified template hash>",
+    "workbook_profile": "<verified profile hash>"
+  }
+}
+```
 
 Create a `dbx.work_order` JSON object next to the project controls:
 
@@ -55,8 +67,9 @@ Create a `dbx.work_order` JSON object next to the project controls:
 }
 ```
 
-Do not invent missing authority hashes. Hash the acquired local files, reconcile
-them to the project manifest, and then issue the work order.
+Do not invent missing authority hashes. Hash the acquired local files, bind
+those hashes in the project manifest, and then issue a matching work order.
+The work order cannot authorize a substituted template or workbook profile.
 
 ## Workbook profile
 
@@ -206,7 +219,9 @@ rules are `not_evaluated` and block technical verification. Populated rows with
 blank required fields, duplicate/blank keys, count disagreement, master/index
 key-set disagreement, header mismatch, or print-layout mismatch also block.
 `paper_size: 1` is OOXML US Letter. A passing structural layout check still
-does not replace native Excel save/reopen and Print Preview evidence.
+does not replace native Excel save/reopen and Print Preview evidence. Profile
+print-area and print-title references must be unqualified because `sheet`
+already names their worksheet.
 
 ## Run
 

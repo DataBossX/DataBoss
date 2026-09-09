@@ -123,6 +123,10 @@ def _write_controls(
                 "schema_version": "1.0",
                 "project_id": "DBX-TEST",
                 "source_policy": "IMMUTABLE_READ_ONLY",
+                "authority_hashes": {
+                    "template": _sha256(template),
+                    "workbook_profile": _sha256(profile),
+                },
                 "candidate_deliverables": [
                     {
                         "path": "candidate.xlsx",
@@ -221,6 +225,27 @@ def test_work_order_cannot_omit_manifest_checks(tmp_path):
 
     manifest = load_project_manifest(manifest_path)
     with pytest.raises(ControlFileError, match="must exactly match"):
+        load_work_order(work_order_path, manifest)
+
+
+def test_work_order_cannot_self_authorize_a_substituted_profile(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    template = tmp_path / "template.xlsx"
+    _make_workbook(candidate)
+    _make_workbook(template)
+    manifest_path, work_order_path, profile_path = _write_controls(
+        tmp_path, candidate, template
+    )
+    profile_path.write_text("{}", encoding="utf-8")
+    data = json.loads(work_order_path.read_text(encoding="utf-8"))
+    data["profile_expected_sha256"] = _sha256(profile_path)
+    work_order_path.write_text(json.dumps(data), encoding="utf-8")
+
+    manifest = load_project_manifest(manifest_path)
+    with pytest.raises(
+        ControlFileError,
+        match="profile_expected_sha256 differs from manifest authority",
+    ):
         load_work_order(work_order_path, manifest)
 
 

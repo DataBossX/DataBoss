@@ -466,6 +466,30 @@ def test_duplicate_reconciliation_pair_is_profile_error(tmp_path):
     )
 
 
+def test_reverse_reconciliation_pair_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_key_reconciliations"].append(
+        {
+            "left_table": "index",
+            "right_table": "master",
+            "mode": "exact",
+        }
+    )
+
+    report = inspect_workbook(
+        candidate, ["abstract_key_reconciliation"], profile=profile
+    )
+
+    check = _check(report, "abstract_key_reconciliation")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_reconciliation_profile_invalid"
+        for finding in check.findings
+    )
+
+
 def test_duplicate_print_layout_sheet_is_profile_error(tmp_path):
     candidate = tmp_path / "candidate.xlsx"
     _make_workbook(candidate)
@@ -482,5 +506,26 @@ def test_duplicate_print_layout_sheet_is_profile_error(tmp_path):
     assert not check.passed
     assert any(
         finding.code == "abstract_layout_profile_invalid"
+        for finding in check.findings
+    )
+
+
+def test_qualified_print_reference_is_profile_error(tmp_path):
+    candidate = tmp_path / "candidate.xlsx"
+    _make_workbook(candidate)
+    profile = _profile()
+    profile["abstract_print_layout"][0][
+        "print_area"
+    ] = "'Index'!$A$1:$F$3"
+
+    report = inspect_workbook(
+        candidate, ["abstract_print_layout"], profile=profile
+    )
+
+    check = _check(report, "abstract_print_layout")
+    assert not check.passed
+    assert any(
+        finding.code == "abstract_layout_profile_invalid"
+        and "print_area" in finding.message
         for finding in check.findings
     )

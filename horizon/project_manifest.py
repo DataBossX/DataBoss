@@ -27,6 +27,15 @@ def _is_sha256(value: str) -> bool:
     )
 
 
+def _optional_sha256(value: Any, field_name: str, source: Path) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = str(value).lower()
+    if not _is_sha256(normalized):
+        raise ControlFileError(f"{source}: {field_name} must be a SHA-256")
+    return normalized
+
+
 def _read_json(path: Path) -> Dict[str, Any]:
     try:
         value = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -59,6 +68,8 @@ class ProjectManifest:
     required_checks: List[str]
     candidates: List[CandidateDeliverable]
     release_policy: Dict[str, Any]
+    template_sha256: Optional[str] = None
+    workbook_profile_sha256: Optional[str] = None
     metadata: Dict[str, str] = field(default_factory=dict)
 
     @property
@@ -124,6 +135,19 @@ def load_project_manifest(path: Path) -> ProjectManifest:
         key: str(data.get(key, ""))
         for key in ("jurisdiction", "county", "section", "township", "range")
     }
+    authority_hashes = data.get("authority_hashes") or {}
+    if not isinstance(authority_hashes, dict):
+        raise ControlFileError(f"{path}: authority_hashes must be an object")
+    template_sha256 = _optional_sha256(
+        authority_hashes.get("template"),
+        "authority_hashes.template",
+        path,
+    )
+    profile_sha256 = _optional_sha256(
+        authority_hashes.get("workbook_profile"),
+        "authority_hashes.workbook_profile",
+        path,
+    )
     return ProjectManifest(
         path=path,
         project_id=str(_required(data, "project_id", path)),
@@ -131,6 +155,8 @@ def load_project_manifest(path: Path) -> ProjectManifest:
         required_checks=list(raw_checks),
         candidates=candidates,
         release_policy=release_policy,
+        template_sha256=template_sha256,
+        workbook_profile_sha256=profile_sha256,
         metadata=metadata,
     )
 
@@ -224,6 +250,23 @@ def load_work_order(path: Path, manifest: ProjectManifest) -> WorkOrder:
     if profile_path and not _is_sha256(str(profile_hash or "").lower()):
         raise ControlFileError(
             f"{path}: profile_expected_sha256 is required with profile_path"
+        )
+    if template_path and manifest.template_sha256 is None:
+        raise ControlFileError(
+            f"{path}: manifest authority_hashes.template is required with template_path"
+        )
+    if profile_path and manifest.workbook_profile_sha256 is None:
+        raise ControlFileError(
+            f"{path}: manifest authority_hashes.workbook_profile is required "
+            "with profile_path"
+        )
+    if template_path and str(template_hash).lower() != manifest.template_sha256:
+        raise ControlFileError(
+            f"{path}: template_expected_sha256 differs from manifest authority"
+        )
+    if profile_path and str(profile_hash).lower() != manifest.workbook_profile_sha256:
+        raise ControlFileError(
+            f"{path}: profile_expected_sha256 differs from manifest authority"
         )
 
     return WorkOrder(

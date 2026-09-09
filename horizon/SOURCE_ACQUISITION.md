@@ -45,6 +45,9 @@ decision:
 {
   "schema_id": "dbx.source_authority_manifest",
   "schema_version": "1.0",
+  "project_id": "DBX-CAMPBELL-45N-76W",
+  "decision_id": "SOURCE-AUTH-20260909-001",
+  "approved_by": "Named human examiner",
   "authorities": [
     {
       "root_label": "pc",
@@ -78,6 +81,17 @@ closed.
 
 ## Phase 2: authorize intake
 
+Bind the exact source-authority file hash in the approved schema `1.1` project
+manifest:
+
+```json
+{
+  "authority_hashes": {
+    "source_authority": "<SHA-256 of source-authority.json>"
+  }
+}
+```
+
 ```bat
 py -m horizon.source_acquisition ^
   --root "pc=D:\DataBossX\Projects" ^
@@ -85,6 +99,7 @@ py -m horizon.source_acquisition ^
   --root "chat=D:\DataBossX\PrivateChatExports" ^
   --section 15 --section 13 --section 11 ^
   --authority-manifest "D:\DataBossX\Controls\source-authority.json" ^
+  --project-manifest "D:\DataBossX\Controls\project_manifest.json" ^
   --output "D:\DataBossX\AcquisitionReceipts\sections-authorized.json"
 ```
 
@@ -111,6 +126,7 @@ py -m horizon.source_acquisition ^
   --root "drive=G:\My Drive\DataBossX\Projects" ^
   --section 15 ^
   --authority-manifest "D:\DataBossX\Controls\section-15-authority.json" ^
+  --project-manifest "D:\DataBossX\Controls\project_manifest.json" ^
   --require-role source_document ^
   --require-role master_workbook ^
   --require-role index ^

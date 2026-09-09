@@ -73,6 +73,7 @@ class ProjectManifest:
     release_policy: Dict[str, Any]
     template_sha256: Optional[str] = None
     workbook_profile_sha256: Optional[str] = None
+    source_authority_sha256: Optional[str] = None
     metadata: Dict[str, str] = field(default_factory=dict)
 
     @property
@@ -145,14 +146,26 @@ def load_project_manifest(path: Path) -> ProjectManifest:
     authority_hashes = data.get("authority_hashes") or {}
     if not isinstance(authority_hashes, dict):
         raise ControlFileError(f"{path}: authority_hashes must be an object")
+    unknown_authorities = sorted(
+        set(authority_hashes) - {"template", "workbook_profile", "source_authority"}
+    )
+    if unknown_authorities:
+        raise ControlFileError(
+            f"{path}: authority_hashes has unknown keys {unknown_authorities}"
+        )
     template_sha256 = _optional_sha256(
         authority_hashes.get("template"),
         "authority_hashes.template",
         path,
     )
-    profile_sha256 = _optional_sha256(
+    workbook_profile_sha256 = _optional_sha256(
         authority_hashes.get("workbook_profile"),
         "authority_hashes.workbook_profile",
+        path,
+    )
+    source_authority_sha256 = _optional_sha256(
+        authority_hashes.get("source_authority"),
+        "authority_hashes.source_authority",
         path,
     )
     return ProjectManifest(
@@ -164,7 +177,8 @@ def load_project_manifest(path: Path) -> ProjectManifest:
         candidates=candidates,
         release_policy=release_policy,
         template_sha256=template_sha256,
-        workbook_profile_sha256=profile_sha256,
+        workbook_profile_sha256=workbook_profile_sha256,
+        source_authority_sha256=source_authority_sha256,
         metadata=metadata,
     )
 

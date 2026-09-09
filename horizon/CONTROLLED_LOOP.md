@@ -33,10 +33,14 @@ The project manifest must bind every control authority that the work order uses:
   "schema_version": "1.1",
   "authority_hashes": {
     "template": "<verified template hash>",
-    "workbook_profile": "<verified profile hash>"
+    "workbook_profile": "<verified profile hash>",
+    "source_authority": "<approved source-authority manifest hash>"
   }
 }
 ```
+
+`source_authority` is used by `horizon.source_acquisition` before extraction;
+template and workbook-profile hashes bind the later controlled workbook run.
 
 Create a `dbx.work_order` JSON object next to the project controls:
 

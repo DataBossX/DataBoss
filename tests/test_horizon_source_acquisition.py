@@ -1,6 +1,7 @@
 """Tests for read-only, fail-closed section source acquisition receipts."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
@@ -9,6 +10,7 @@ import pytest
 import horizon.source_acquisition as source_acquisition
 from horizon.source_acquisition import (
     AuthorityAssertion,
+    AuthorityContext,
     SourceAcquisitionError,
     SourceRoot,
     build_receipt,
@@ -59,6 +61,16 @@ def _authorities(
     ]
 
 
+def _context() -> AuthorityContext:
+    return AuthorityContext(
+        project_id="DBX-TEST",
+        decision_id="SOURCE-AUTH-001",
+        approved_by="Synthetic Test Examiner",
+        project_manifest_sha256="1" * 64,
+        source_authority_sha256="2" * 64,
+    )
+
+
 def _write_authority_manifest(
     path: Path,
     assertions: list[AuthorityAssertion],
@@ -68,6 +80,9 @@ def _write_authority_manifest(
             {
                 "schema_id": "dbx.source_authority_manifest",
                 "schema_version": "1.0",
+                "project_id": "DBX-TEST",
+                "decision_id": "SOURCE-AUTH-001",
+                "approved_by": "Synthetic Test Examiner",
                 "authorities": [
                     {
                         "root_label": assertion.root_label,
@@ -84,6 +99,38 @@ def _write_authority_manifest(
     )
 
 
+def _write_project_manifest(path: Path, authority_path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.project_manifest",
+                "schema_version": "1.1",
+                "project_id": "DBX-TEST",
+                "source_policy": "IMMUTABLE_READ_ONLY",
+                "authority_hashes": {
+                    "source_authority": source_acquisition.sha256_file(
+                        authority_path
+                    )
+                },
+                "candidate_deliverables": [
+                    {
+                        "path": "candidate.xlsx",
+                        "reported_sha256": "0" * 64,
+                        "status": "CANDIDATE",
+                    }
+                ],
+                "required_checks": ["source_acquisition"],
+                "release_policy": {
+                    "technical_verification_is_not_release": True,
+                    "approved_hash_required": True,
+                    "human_gate": "G7",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None:
     pc = tmp_path / "pc"
     drive = tmp_path / "drive"
@@ -94,6 +141,7 @@ def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None
         [SourceRoot("pc", pc), SourceRoot("drive", drive)],
         requested_sections=[15],
         authority_assertions=_authorities(pc, "pc", 15),
+        authority_context=_context(),
     )
 
     assert receipt.technical_pass
@@ -117,6 +165,7 @@ def test_same_relative_path_with_different_hash_blocks_intake(
         [SourceRoot("pc", pc), SourceRoot("drive", drive)],
         requested_sections=[15],
         authority_assertions=_authorities(pc, "pc", 15),
+        authority_context=_context(),
     )
 
     assert not receipt.technical_pass
@@ -135,6 +184,7 @@ def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
     receipt = build_receipt(
         [SourceRoot("pc", root)],
         authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
     )
 
     assert not receipt.technical_pass
@@ -174,6 +224,7 @@ def test_handwritten_index_satisfies_index_role(tmp_path: Path) -> None:
                 "source_document": "Recorded Face.pdf",
             }.items()
         ],
+        authority_context=_context(),
     )
 
     assert receipt.technical_pass
@@ -326,6 +377,7 @@ def test_empty_source_file_blocks_intake(tmp_path: Path) -> None:
         [SourceRoot("pc", root)],
         requested_sections=[15],
         authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
     )
 
     assert not receipt.technical_pass
@@ -357,6 +409,7 @@ def test_source_change_during_hash_blocks_intake(
         [SourceRoot("pc", root)],
         requested_sections=[15],
         authority_assertions=authority_assertions,
+        authority_context=_context(),
     )
 
     assert not receipt.technical_pass
@@ -406,6 +459,8 @@ def test_hash_bound_authority_manifest_allows_cli_pass(tmp_path: Path) -> None:
         authority_path,
         _authorities(root, "pc", 15),
     )
+    project_path = tmp_path / "project_manifest.json"
+    _write_project_manifest(project_path, authority_path)
     output = tmp_path / "receipts" / "source.json"
 
     result = main(
@@ -416,6 +471,8 @@ def test_hash_bound_authority_manifest_allows_cli_pass(tmp_path: Path) -> None:
             "15",
             "--authority-manifest",
             str(authority_path),
+            "--project-manifest",
+            str(project_path),
             "--output",
             str(output),
         ]
@@ -434,11 +491,8 @@ def test_authority_hash_mismatch_blocks_intake(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _complete_section(root, 15)
     assertions = _authorities(root, "pc", 15)
-    assertions[0] = AuthorityAssertion(
-        root_label=assertions[0].root_label,
-        relative_path=assertions[0].relative_path,
-        section=assertions[0].section,
-        role=assertions[0].role,
+    assertions[0] = replace(
+        assertions[0],
         expected_sha256="0" * 64,
     )
 
@@ -446,6 +500,7 @@ def test_authority_hash_mismatch_blocks_intake(tmp_path: Path) -> None:
         [SourceRoot("pc", root)],
         requested_sections=[15],
         authority_assertions=assertions,
+        authority_context=_context(),
     )
 
     assert not receipt.technical_pass
@@ -471,6 +526,7 @@ def test_authority_path_traversal_is_rejected(tmp_path: Path) -> None:
             [SourceRoot("pc", root)],
             requested_sections=[15],
             authority_assertions=[assertion],
+            authority_context=_context(),
         )
 
 
@@ -487,6 +543,7 @@ def test_directory_symlink_is_reported_and_blocks_all_sections(
         [SourceRoot("pc", root)],
         requested_sections=[15],
         authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
     )
 
     assert not receipt.technical_pass
@@ -561,3 +618,135 @@ def test_relative_source_root_is_rejected(tmp_path: Path) -> None:
             [SourceRoot("pc", Path("relative"))],
             requested_sections=[15],
         )
+
+
+def test_one_location_cannot_authorize_multiple_roles(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    source = root / "Section 15" / "Master Abstract.xlsx"
+    digest = source_acquisition.sha256_file(source)
+    assertions = [
+        AuthorityAssertion(
+            root_label="pc",
+            relative_path="Section 15/Master Abstract.xlsx",
+            section=15,
+            role=role,
+            expected_sha256=digest,
+        )
+        for role in ("master_workbook", "index")
+    ]
+
+    with pytest.raises(SourceAcquisitionError, match="must be unique"):
+        build_receipt(
+            [SourceRoot("pc", root)],
+            requested_sections=[15],
+            authority_assertions=assertions,
+            authority_context=_context(),
+        )
+
+
+def test_second_full_scan_detects_added_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    assertions = _authorities(root, "pc", 15)
+    original_inventory = source_acquisition.inventory_roots
+    calls = 0
+
+    def inventory_with_addition(roots, requested_sections):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            _write(root, "Section 15/late-addition.pdf", b"late")
+        return original_inventory(roots, requested_sections)
+
+    monkeypatch.setattr(
+        source_acquisition,
+        "inventory_roots",
+        inventory_with_addition,
+    )
+
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=assertions,
+        authority_context=_context(),
+    )
+
+    assert not receipt.technical_pass
+    assert any(
+        issue.code == "source_tree_changed_during_scan"
+        for issue in receipt.issues
+    )
+
+
+def test_project_manifest_hash_prevents_authority_substitution(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    authority_path = tmp_path / "authority.json"
+    _write_authority_manifest(
+        authority_path,
+        _authorities(root, "pc", 15),
+    )
+    project_path = tmp_path / "project_manifest.json"
+    _write_project_manifest(project_path, authority_path)
+    authority_path.write_text("{}", encoding="utf-8")
+    output = tmp_path / "receipt.json"
+
+    result = main(
+        [
+            "--root",
+            f"pc={root}",
+            "--section",
+            "15",
+            "--authority-manifest",
+            str(authority_path),
+            "--project-manifest",
+            str(project_path),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result == 1
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("use_symlink", [False, True])
+def test_receipt_cannot_alias_authority_manifest(
+    tmp_path: Path, use_symlink: bool
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    authority_path = tmp_path / "authority.json"
+    _write_authority_manifest(
+        authority_path,
+        _authorities(root, "pc", 15),
+    )
+    project_path = tmp_path / "project_manifest.json"
+    _write_project_manifest(project_path, authority_path)
+    original = authority_path.read_bytes()
+    output = tmp_path / "receipt-link.json" if use_symlink else authority_path
+    if use_symlink:
+        output.symlink_to(authority_path)
+
+    result = main(
+        [
+            "--root",
+            f"pc={root}",
+            "--section",
+            "15",
+            "--authority-manifest",
+            str(authority_path),
+            "--project-manifest",
+            str(project_path),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result == 1
+    assert authority_path.read_bytes() == original

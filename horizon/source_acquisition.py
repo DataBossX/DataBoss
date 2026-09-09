@@ -19,7 +19,9 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+from .project_manifest import ControlFileError, load_project_manifest
 
 SCHEMA_ID = "dbx.source_acquisition_receipt"
 SCHEMA_VERSION = "1.0"
@@ -125,6 +127,23 @@ class AuthorityMatch:
     status: str
 
 
+@dataclass(frozen=True)
+class SourceAuthorityManifest:
+    project_id: str
+    decision_id: str
+    approved_by: str
+    assertions: Tuple[AuthorityAssertion, ...]
+
+
+@dataclass(frozen=True)
+class AuthorityContext:
+    project_id: str
+    decision_id: str
+    approved_by: str
+    project_manifest_sha256: str
+    source_authority_sha256: str
+
+
 @dataclass
 class SectionSummary:
     section: int
@@ -148,6 +167,7 @@ class AcquisitionReceipt:
     path_comparisons: List[PathComparison]
     duplicate_content: List[Dict[str, object]]
     authority_matches: List[AuthorityMatch]
+    authority_context: Optional[AuthorityContext]
     issues: List[SourceIssue]
     sections: List[SectionSummary]
     technical_pass: bool
@@ -192,6 +212,39 @@ def _hash_regular_file(
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
     digest, _ = _hash_regular_file(path, chunk_size)
     return digest
+
+
+def _read_control_bytes(
+    path: Path,
+    maximum_bytes: int = 10 * 1024 * 1024,
+) -> Tuple[bytes, str]:
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags)
+    with os.fdopen(descriptor, "rb") as handle:
+        before = os.fstat(handle.fileno())
+        if not stat.S_ISREG(before.st_mode) or before.st_size > maximum_bytes:
+            raise SourceAcquisitionError(
+                f"Control must be a regular file no larger than {maximum_bytes} bytes"
+            )
+        content = handle.read(maximum_bytes + 1)
+        after = os.fstat(handle.fileno())
+    if len(content) > maximum_bytes:
+        raise SourceAcquisitionError("Control file exceeds the size limit")
+    if (
+        before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+        or before.st_ino != after.st_ino
+        or before.st_dev != after.st_dev
+    ):
+        raise SourceAcquisitionError("Control file changed while being read")
+    linked = path.lstat()
+    if stat.S_ISLNK(linked.st_mode) or (
+        linked.st_ino != after.st_ino or linked.st_dev != after.st_dev
+    ):
+        raise SourceAcquisitionError("Control link changed while being read")
+    return content, hashlib.sha256(content).hexdigest()
 
 
 def detect_section(relative_path: str) -> Optional[int]:
@@ -309,6 +362,14 @@ def validate_roots(roots: Sequence[SourceRoot]) -> List[SourceRoot]:
         expanded = root.path.expanduser()
         if not expanded.is_absolute():
             raise SourceAcquisitionError("Source roots must be absolute paths")
+        absolute = expanded.absolute()
+        if any(
+            component.is_symlink()
+            for component in (absolute, *absolute.parents)
+        ):
+            raise SourceAcquisitionError(
+                "Source root paths must not contain symlink components"
+            )
         resolved = expanded.resolve()
         if not resolved.is_dir():
             raise SourceAcquisitionError(
@@ -358,14 +419,15 @@ def inventory_roots(
             try:
                 digest, source_stat = _hash_regular_file(path)
             except (OSError, SourceAcquisitionError) as exc:
+                source_was_unstable = (
+                    path.is_symlink()
+                    or "changed" in str(exc).casefold()
+                )
                 issues.append(
                     SourceIssue(
-                        code=(
-                            "source_link_or_race_rejected"
-                            if path.is_symlink()
-                            or "changed" in str(exc).casefold()
-                            else "source_read_failed"
-                        ),
+                        code="source_link_or_race_rejected"
+                        if source_was_unstable
+                        else "source_read_failed",
                         message=str(exc),
                         root_label=root.label,
                         relative_path=relative,
@@ -459,22 +521,40 @@ def _is_sha256(value: str) -> bool:
     )
 
 
-def load_authority_manifest(path: Path) -> List[AuthorityAssertion]:
+def load_authority_manifest(
+    path: Path,
+    *,
+    expected_sha256: str,
+) -> SourceAuthorityManifest:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        content, actual_sha256 = _read_control_bytes(path)
+        payload = json.loads(content.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise SourceAcquisitionError(
             f"Cannot read authority manifest {path}: {exc}"
         ) from exc
+    if not _is_sha256(expected_sha256) or actual_sha256 != expected_sha256:
+        raise SourceAcquisitionError(
+            "Source authority hash differs from the project manifest"
+        )
     if not isinstance(payload, dict) or set(payload) != {
         "schema_id",
         "schema_version",
+        "project_id",
+        "decision_id",
+        "approved_by",
         "authorities",
     }:
         raise SourceAcquisitionError("Authority manifest has invalid top-level fields")
     if (
         payload["schema_id"] != "dbx.source_authority_manifest"
         or payload["schema_version"] != "1.0"
+        or not isinstance(payload["project_id"], str)
+        or not payload["project_id"].strip()
+        or not isinstance(payload["decision_id"], str)
+        or not payload["decision_id"].strip()
+        or not isinstance(payload["approved_by"], str)
+        or not payload["approved_by"].strip()
         or not isinstance(payload["authorities"], list)
     ):
         raise SourceAcquisitionError("Authority manifest schema is invalid")
@@ -520,7 +600,7 @@ def load_authority_manifest(path: Path) -> List[AuthorityAssertion]:
             raise SourceAcquisitionError(
                 f"Authority assertion {index} is invalid"
             )
-        key = (root_label, relative_path, role)
+        key = (root_label, relative_path)
         if key in seen:
             raise SourceAcquisitionError(
                 f"Authority assertion {index} is duplicated"
@@ -535,7 +615,12 @@ def load_authority_manifest(path: Path) -> List[AuthorityAssertion]:
                 expected_sha256=digest.casefold(),
             )
         )
-    return assertions
+    return SourceAuthorityManifest(
+        project_id=payload["project_id"].strip(),
+        decision_id=payload["decision_id"].strip(),
+        approved_by=payload["approved_by"].strip(),
+        assertions=tuple(assertions),
+    )
 
 
 def _match_authorities(
@@ -549,8 +634,7 @@ def _match_authorities(
     root_labels = {root.label for root in roots}
     requested = set(requested_sections)
     file_index = {
-        (item.root_label, item.relative_path): item
-        for item in files
+        (item.root_label, item.relative_path): item for item in files
     }
     matches: List[AuthorityMatch] = []
     seen = set()
@@ -575,11 +659,7 @@ def _match_authorities(
             or not _is_sha256(assertion.expected_sha256)
         ):
             raise SourceAcquisitionError("Authority assertion is invalid")
-        key = (
-            assertion.root_label,
-            assertion.relative_path,
-            assertion.role,
-        )
+        key = (assertion.root_label, assertion.relative_path)
         if key in seen:
             raise SourceAcquisitionError("Authority assertions must be unique")
         seen.add(key)
@@ -638,25 +718,24 @@ def _revalidate_inventory(
             message = str(exc)
         else:
             message = "Source changed after its acquisition hash was computed"
-        if (
-            current is None
-            or stat.S_ISLNK(current.st_mode)
-            or not stat.S_ISREG(current.st_mode)
-            or current.st_size != item.size_bytes
-            or current.st_mtime_ns != item.modified_ns
-            or current.st_dev != item.device
-            or current.st_ino != item.inode
+        if current is not None and (
+            stat.S_ISREG(current.st_mode)
+            and current.st_size == item.size_bytes
+            and current.st_mtime_ns == item.modified_ns
+            and current.st_dev == item.device
+            and current.st_ino == item.inode
         ):
-            invalid_locations.add((item.root_label, item.relative_path))
-            issues.append(
-                SourceIssue(
-                    code="source_changed_after_hash",
-                    message=message,
-                    root_label=item.root_label,
-                    relative_path=item.relative_path,
-                    section=item.section,
-                )
+            continue
+        invalid_locations.add((item.root_label, item.relative_path))
+        issues.append(
+            SourceIssue(
+                code="source_changed_after_hash",
+                message=message,
+                root_label=item.root_label,
+                relative_path=item.relative_path,
+                section=item.section,
             )
+        )
     return invalid_locations
 
 
@@ -690,10 +769,7 @@ def _summarize_section(
         for comparison in comparisons
         if comparison.section == section
     )
-    issue_count = sum(
-        issue.section in (None, section)
-        for issue in issues
-    )
+    issue_count = sum(issue.section in (None, section) for issue in issues)
     ready = (
         bool(section_files)
         and not missing_roles
@@ -719,6 +795,7 @@ def build_receipt(
     requested_sections: Sequence[int] = PRIORITY_SECTIONS,
     required_roles: Sequence[str] = DEFAULT_REQUIRED_ROLES,
     authority_assertions: Sequence[AuthorityAssertion] = (),
+    authority_context: Optional[AuthorityContext] = None,
 ) -> AcquisitionReceipt:
     if not requested_sections or any(
         type(section) is not int or section not in PRIORITY_SECTIONS
@@ -739,9 +816,55 @@ def build_receipt(
         )
     if len(required_roles) != len(set(required_roles)):
         raise SourceAcquisitionError("Required roles must be unique")
+    if bool(authority_assertions) != bool(authority_context):
+        raise SourceAcquisitionError(
+            "Authority assertions require a bound authority context"
+        )
+    if authority_context and (
+        not authority_context.project_id
+        or not authority_context.decision_id
+        or not authority_context.approved_by
+        or not _is_sha256(authority_context.project_manifest_sha256)
+        or not _is_sha256(authority_context.source_authority_sha256)
+    ):
+        raise SourceAcquisitionError("Authority context is invalid")
 
     validated_roots = validate_roots(roots)
-    files, issues = inventory_roots(validated_roots, requested_sections)
+    first_files, first_issues = inventory_roots(
+        validated_roots, requested_sections
+    )
+    files, verification_issues = inventory_roots(
+        validated_roots, requested_sections
+    )
+    issues_by_key = {
+        (
+            issue.code,
+            issue.root_label,
+            issue.relative_path,
+            issue.section,
+            issue.message,
+        ): issue
+        for issue in [*first_issues, *verification_issues]
+    }
+    issues = list(issues_by_key.values())
+    first_issue_keys = {
+        (issue.code, issue.root_label, issue.relative_path, issue.section)
+        for issue in first_issues
+    }
+    verification_issue_keys = {
+        (issue.code, issue.root_label, issue.relative_path, issue.section)
+        for issue in verification_issues
+    }
+    if first_files != files or first_issue_keys != verification_issue_keys:
+        issues.append(
+            SourceIssue(
+                code="source_tree_changed_during_scan",
+                message=(
+                    "Two complete source traversals did not produce the same "
+                    "file and issue manifest"
+                ),
+            )
+        )
     comparisons = compare_paths(files)
     invalid_locations = _revalidate_inventory(files, validated_roots, issues)
     authority_matches = _match_authorities(
@@ -772,14 +895,28 @@ def build_receipt(
         path_comparisons=comparisons,
         duplicate_content=duplicate_content_groups(files),
         authority_matches=authority_matches,
+        authority_context=authority_context,
         issues=issues,
         sections=summaries,
         technical_pass=all(summary.ready_for_extraction for summary in summaries),
     )
 
 
-def write_receipt(receipt: AcquisitionReceipt, output_path: Path) -> None:
-    output = output_path.expanduser().resolve()
+def write_receipt(
+    receipt: AcquisitionReceipt,
+    output_path: Path,
+    *,
+    protected_paths: Sequence[Path] = (),
+) -> None:
+    requested_output = output_path.expanduser().absolute()
+    if requested_output.is_symlink():
+        raise SourceAcquisitionError("Receipt output must not be a symlink")
+    output = requested_output.resolve()
+    protected = {path.expanduser().resolve() for path in protected_paths}
+    if output in protected:
+        raise SourceAcquisitionError(
+            "Receipt output must not alias a control authority"
+        )
     for source_root in receipt.roots.values():
         try:
             output.relative_to(Path(source_root))
@@ -854,6 +991,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Hash-bound authority assertions; omit for candidate inventory only",
     )
+    parser.add_argument(
+        "--project-manifest",
+        type=Path,
+        help="Project authority binding the source-authority manifest hash",
+    )
     parser.add_argument("--output", type=Path, required=True)
     return parser
 
@@ -861,19 +1003,56 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
-        authority_assertions = (
-            load_authority_manifest(args.authority_manifest)
-            if args.authority_manifest
-            else []
-        )
+        if bool(args.authority_manifest) != bool(args.project_manifest):
+            raise SourceAcquisitionError(
+                "Phase 2 requires both --authority-manifest and "
+                "--project-manifest"
+            )
+        protected_paths = []
+        authority_assertions: Sequence[AuthorityAssertion] = ()
+        authority_context = None
+        if args.authority_manifest:
+            authority_path = args.authority_manifest.expanduser().absolute()
+            project_path = args.project_manifest.expanduser().absolute()
+            if authority_path.is_symlink() or project_path.is_symlink():
+                raise SourceAcquisitionError(
+                    "Control authority paths must not be symlinks"
+                )
+            project = load_project_manifest(project_path)
+            if project.source_authority_sha256 is None:
+                raise SourceAcquisitionError(
+                    "Project manifest does not bind a source authority hash"
+                )
+            authority = load_authority_manifest(
+                authority_path,
+                expected_sha256=project.source_authority_sha256,
+            )
+            if authority.project_id != project.project_id:
+                raise SourceAcquisitionError(
+                    "Source authority project_id differs from the project manifest"
+                )
+            authority_assertions = authority.assertions
+            authority_context = AuthorityContext(
+                project_id=authority.project_id,
+                decision_id=authority.decision_id,
+                approved_by=authority.approved_by,
+                project_manifest_sha256=sha256_file(project_path),
+                source_authority_sha256=project.source_authority_sha256,
+            )
+            protected_paths = [authority_path, project_path]
         receipt = build_receipt(
             args.root,
             requested_sections=args.sections or PRIORITY_SECTIONS,
             required_roles=args.required_roles or DEFAULT_REQUIRED_ROLES,
             authority_assertions=authority_assertions,
+            authority_context=authority_context,
         )
-        write_receipt(receipt, args.output)
-    except SourceAcquisitionError as exc:
+        write_receipt(
+            receipt,
+            args.output,
+            protected_paths=protected_paths,
+        )
+    except (ControlFileError, OSError, SourceAcquisitionError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     print(

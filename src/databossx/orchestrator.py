@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from .batching import ClaimedTask, claim_ready_tasks
 from .database import DataBossDatabase
 
 
@@ -46,3 +47,17 @@ def seed_project_intake_run(db: DataBossDatabase, project_id: str) -> tuple[int,
         json.dumps({"workflow_id": workflow_id, "task_ids": task_ids}, sort_keys=True),
     )
     return run_id, task_ids
+
+
+def claim_intake_batch(
+    db: DataBossDatabase,
+    *,
+    worker_id: str,
+    limit: int = 8,
+) -> list[ClaimedTask]:
+    return claim_ready_tasks(
+        db,
+        worker_id=worker_id,
+        capabilities=("REGISTER_SOURCES", "INVENTORY_AND_LOCK", "REGISTER_TEMPLATE"),
+        limit=limit,
+    )

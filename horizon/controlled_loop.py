@@ -24,6 +24,7 @@ from .project_manifest import (
     load_work_order,
     sha256_file,
 )
+from .receipts import seal_receipt
 from .repair import restore_formula_from_template
 from .workbook_qa import QAFinding, QAReport, inspect_workbook, load_workbook_profile
 
@@ -168,9 +169,10 @@ class ControlledWorkbookLoop:
         promotion_path: Optional[Path] = None
         iterations: List[Dict[str, Any]] = []
         status = "failed"
+        candidate = self.work_order.candidate_path
+        actual_hash: Optional[str] = None
 
         try:
-            candidate = self.work_order.candidate_path
             if not candidate.is_file():
                 raise ControlFileError(f"Candidate workbook not found: {candidate}")
             actual_hash = sha256_file(candidate)
@@ -288,7 +290,7 @@ class ControlledWorkbookLoop:
                 iterations.append(iteration)
                 _write_json(
                     run_directory / f"repair_receipt_{len(iterations):03d}.json",
-                    iteration,
+                    seal_receipt(iteration),
                 )
                 if not kept:
                     shutil.copy2(snapshot, staged_path)
@@ -361,26 +363,29 @@ class ControlledWorkbookLoop:
                 "human_approval_required": True,
                 "promotion_executed": False,
             }
-            _write_json(receipt_path, receipt)
+            _write_json(receipt_path, seal_receipt(receipt))
         except Exception as exc:
             status = "failed"
-            _write_json(
-                receipt_path,
-                {
-                    "schema_id": "dbx.run_receipt",
-                    "schema_version": "1.0",
-                    "run_id": run_id,
-                    "project_id": self.manifest.project_id,
-                    "work_order_id": self.work_order.work_order_id,
-                    "started_at": started_at,
-                    "completed_at": _utc_now(),
-                    "status": status,
-                    "error_type": type(exc).__name__,
-                    "error": str(exc),
-                    "human_approval_required": True,
-                    "promotion_executed": False,
+            failed_receipt: Dict[str, Any] = {
+                "schema_id": "dbx.run_receipt",
+                "schema_version": "1.0",
+                "run_id": run_id,
+                "project_id": self.manifest.project_id,
+                "work_order_id": self.work_order.work_order_id,
+                "started_at": started_at,
+                "completed_at": _utc_now(),
+                "status": status,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "human_approval_required": True,
+                "promotion_executed": False,
+                "input": {
+                    "path": str(candidate),
+                    "expected_sha256": self.work_order.expected_sha256,
+                    "actual_sha256": actual_hash,
                 },
-            )
+            }
+            _write_json(receipt_path, seal_receipt(failed_receipt))
 
         return RunResult(
             run_id=run_id,

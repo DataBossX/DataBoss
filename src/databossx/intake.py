@@ -4,6 +4,7 @@ import json
 import uuid
 from pathlib import Path
 
+from .batching import hash_files_parallel
 from .config import DataBossConfig
 from .database import DataBossDatabase
 from .hashing import copy_file_to_vault, sha256_bytes
@@ -121,6 +122,8 @@ def inventory_source(
     config: DataBossConfig,
     project_id: str,
     source_connection_id: int,
+    *,
+    max_workers: int = 8,
 ) -> InventoryResult:
     db = DataBossDatabase(config.project_db_path(project_id))
     row = db.fetchone("SELECT root_locator FROM source_connections WHERE id = ?", (source_connection_id,))
@@ -128,6 +131,11 @@ def inventory_source(
         raise ValueError(f"Unknown source connection: {source_connection_id}")
     root = Path(row["root_locator"])
     files = _iter_source_files(root)
+    stored_files = hash_files_parallel(
+        files,
+        config.project_vault_root(project_id),
+        max_workers=max_workers,
+    )
     manifest_rows: list[dict] = []
     with db.connect() as conn:
         snapshot_id = conn.execute(
@@ -139,8 +147,7 @@ def inventory_source(
         ).lastrowid
         items: list[InventoryItem] = []
         sha_first_seen: dict[str, int] = {}
-        for path in files:
-            stored = copy_file_to_vault(path, config.project_vault_root(project_id))
+        for path, stored in stored_files:
             rel_path = str(path.relative_to(root))
             asset_id = conn.execute(
                 """

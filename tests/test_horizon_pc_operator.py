@@ -337,6 +337,19 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     assert str(isolated) in joined
     assert "Working Abstract.xlsx" not in joined
     assert "--print-layout-output" not in joined
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    packet = json.loads(
+        (receipts / "section15-index-packet.json").read_text(encoding="utf-8")
+    )
+    assert packet["candidate_rows"][0]["fields"]["legal_description"] == (
+        "SYNTH TRACT 15-45N-76W"
+    )
 
 
 def test_reuse_delta_reruns_agreed_repairs_onto_next_isolated(

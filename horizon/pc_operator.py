@@ -2367,14 +2367,18 @@ def _execute_section(
     letter_path = receipt_dir / f"section{order.section}-letter.xlsx"
     reuse_isolated = letter_path.exists()
     try:
+        latest = _latest_isolated_path(receipt_dir, order.section)
         index_packet_path = None
         if any((master, pdf_index, handwritten)):
+            packet_candidate = latest
+            if packet_candidate is None and candidate:
+                packet_candidate = Path(candidate)
             packet = export_index_packet(
                 f"SECTION{order.section}-INDEX",
                 master=Path(master) if master else None,
                 pdf_index=Path(pdf_index) if pdf_index else None,
                 handwritten=Path(handwritten) if handwritten else None,
-                candidate=Path(candidate) if candidate else None,
+                candidate=packet_candidate,
             )
             packet_path.write_text(
                 json.dumps(packet, indent=2, sort_keys=True),

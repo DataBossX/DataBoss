@@ -190,9 +190,10 @@ python3 -m horizon.source_acquisition \
 
 Folders or filenames must explicitly identify the section, for example
 `Section 15`, `sec_13`, `11-45N-76W`, `11-45N-76W.xlsx`, or
-`15-45N-76W Mineral Deed.pdf`. Isolated outputs named
-`sectionN-letter.xlsx` or `sectionN-delta.xlsx` follow that filename even
-when they sit under another section folder. Instrument numbers containing
+`15-45N-76W Mineral Deed.pdf`. The nearest section-named folder wins over
+a host ancestor such as `Section 15 Work/Section 13/`. Isolated outputs
+named `sectionN-letter.xlsx` or `sectionN-delta.xlsx` follow that filename
+even when they sit under another section folder. Instrument numbers containing
 `11`, `13`, or `15` are not treated as section identifiers. A `Chattel`
 folder or instrument is a source document, not a chat export. A master
 workbook keeps that role even when it sits under an `Index` folder. Typed

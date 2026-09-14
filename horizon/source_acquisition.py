@@ -295,16 +295,35 @@ def _read_control_bytes(
         os.close(directory_descriptor)
 
 
+def _folder_section(part: str) -> Optional[int]:
+    if part.casefold() == "isolated":
+        return None
+    match = _SECTION_PATTERN.search(part) or _TOWNSHIP_SECTION_PATTERN.search(part)
+    if match is None:
+        return None
+    number = int(match.group(1))
+    return number if number in PRIORITY_SECTIONS else None
+
+
 def detect_section(relative_path: str) -> Optional[int]:
-    """Return a prioritized section only when the path explicitly names it."""
-    isolated = _ISOLATED_SECTION_NAME.match(Path(relative_path).name)
+    """Return a prioritized section only when the path explicitly names it.
+
+    Isolated output filenames win. Otherwise the nearest folder that names a
+    priority section wins over a host ancestor such as ``Section 15 Work``.
+    """
+    path = Path(relative_path)
+    isolated = _ISOLATED_SECTION_NAME.match(path.name)
     if isolated is not None:
         number = int(isolated.group(1))
         if number in PRIORITY_SECTIONS:
             return number
-    match = _SECTION_PATTERN.search(relative_path)
-    if match is None:
-        match = _TOWNSHIP_SECTION_PATTERN.search(relative_path)
+    for part in reversed(path.parts[:-1]):
+        folder = _folder_section(part)
+        if folder is not None:
+            return folder
+    match = _SECTION_PATTERN.search(path.name) or _TOWNSHIP_SECTION_PATTERN.search(
+        path.name
+    )
     return int(match.group(1)) if match else None
 
 

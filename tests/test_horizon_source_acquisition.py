@@ -649,6 +649,9 @@ def test_ensure_fail_closes_verified_receipt_without_snapshot(
         ("Section 15/Isolated/section13-letter.xlsx", 13),
         ("Section 13/Isolated/section15-delta-2.xlsx", 15),
         ("Section 15/Isolated/section11-workbook-export.json", 11),
+        ("Section 15 Work/Section 13/Master.xlsx", 13),
+        ("Section 15 Work/Master.xlsx", 15),
+        ("Section 15 Work/Section 13/Isolated/section13-letter.xlsx", 13),
         ("instrument-2024-00115.pdf", None),
         ("Section 150/source.pdf", None),
         ("Section 15x/source.pdf", None),
@@ -725,6 +728,22 @@ def test_isolated_letter_filename_wins_over_folder(tmp_path: Path) -> None:
         for item in receipt.files
         if item.section == 15
     )
+
+
+def test_nearest_section_folder_wins_over_host_ancestor(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 13, prefix="Section 15 Work/")
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15, 13],
+    )
+    by_section = {summary.section: summary for summary in receipt.sections}
+    assert by_section[13].candidate_role_counts.get("master_workbook") == 1
+    assert by_section[13].candidate_role_counts.get("index") == 1
+    assert by_section[13].candidate_role_counts.get("handwritten_index") == 1
+    assert by_section[13].candidate_role_counts.get("source_document") == 1
+    assert by_section[15].file_count == 0
+    assert {item.section for item in receipt.files} == {13}
 
 
 def test_duplicate_content_at_different_paths_is_reported(tmp_path: Path) -> None:

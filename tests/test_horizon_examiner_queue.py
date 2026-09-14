@@ -239,8 +239,10 @@ def test_onesource_template_keeps_value_empty_until_attested(tmp_path: Path) -> 
     assert "delta_packet" not in discovered
 
 
-def test_operator_writes_delta_draft_when_letter_skips_repair(tmp_path: Path) -> None:
+def test_operator_repairs_letter_reuse_onto_next_isolated(tmp_path: Path) -> None:
     import shutil
+
+    import openpyxl
 
     root = tmp_path / "pc-root"
     section = root / "Section 15"
@@ -258,7 +260,9 @@ def test_operator_writes_delta_draft_when_letter_skips_repair(tmp_path: Path) ->
     )
     receipts = tmp_path / "private-receipts"
     receipts.mkdir()
-    shutil.copy2(section / "Working Abstract.xlsx", receipts / "section15-letter.xlsx")
+    letter = receipts / "section15-letter.xlsx"
+    shutil.copy2(section / "Working Abstract.xlsx", letter)
+    before = letter.read_bytes()
     receipt = build_work_order(
         roots=[f"pc={root}"],
         sections=[15],
@@ -266,17 +270,10 @@ def test_operator_writes_delta_draft_when_letter_skips_repair(tmp_path: Path) ->
         execute=True,
     )
     assert receipt.packages_complete is False
-    draft_path = receipts / "section15-delta-draft.json"
-    assert draft_path.is_file()
-    draft = json.loads(draft_path.read_text(encoding="utf-8"))
-    assert draft["schema_id"] == "dbx.source_proved_delta_draft"
-    assert draft["status"] == "UNAPPROVED_DRAFT"
-    assert draft["deltas"][0]["value"] == "SYNTH AGREED LEGAL"
-    assert not (receipts / "section15-onesource-template.json").is_file()
-    attest = next(
-        command
-        for command in receipt.sections[0].next_commands
-        if "horizon.isolated_delta" in command and "--attest" in command
-    )
-    assert str(draft_path) in attest
-    assert "EXAMINER_NAME" in attest
+    assert letter.read_bytes() == before
+    isolated = receipts / "section15-delta.xlsx"
+    assert isolated.is_file()
+    repaired = openpyxl.load_workbook(isolated, data_only=True)
+    assert repaired["Index"]["H9"].value == "SYNTH AGREED LEGAL"
+    repaired.close()
+    assert not (receipts / "section15-delta-draft.json").is_file()

@@ -1054,6 +1054,64 @@ def _latest_isolated_path(receipt_dir: Path, section: int) -> Optional[Path]:
     return None
 
 
+def _next_empty_repair_dir(receipt_dir: Path, section: int) -> Path:
+    base = receipt_dir / f"section{section}-repair"
+    try:
+        if not base.exists() or not any(base.iterdir()):
+            return base
+    except OSError:
+        return base
+    generation = 2
+    while True:
+        candidate = receipt_dir / f"section{section}-repair-{generation}"
+        try:
+            if not candidate.exists() or not any(candidate.iterdir()):
+                return candidate
+        except OSError:
+            return candidate
+        generation += 1
+
+
+def _promote_repair_isolated(
+    finish: object,
+    source_workbook: Path,
+    receipt_dir: Path,
+    section: int,
+) -> Optional[Path]:
+    repair_gate = next(
+        (
+            gate
+            for gate in getattr(finish, "gates", ())
+            if getattr(gate, "name", "") == "repair_loop"
+        ),
+        None,
+    )
+    if repair_gate is None:
+        return None
+    detail = getattr(repair_gate, "detail", {}) or {}
+    if not isinstance(detail, dict):
+        return None
+    final = detail.get("final_workbook")
+    if not isinstance(final, str) or not final:
+        return None
+    final_path = Path(final)
+    try:
+        if not final_path.is_file():
+            return None
+        if final_path.resolve() == source_workbook.resolve():
+            return None
+    except OSError:
+        return None
+    dest = _next_delta_output(receipt_dir, section)
+    try:
+        if dest.exists():
+            return None
+        shutil.copy2(final_path, dest)
+    except OSError:
+        return None
+    return dest
+
+
 def _next_delta_output(receipt_dir: Path, section: int) -> Path:
     latest = _latest_isolated_path(receipt_dir, section)
     generation = (
@@ -2202,10 +2260,10 @@ def _execute_section(
         letter = None
         if reuse_isolated:
             workbook = letter_path
+            repair = _next_empty_repair_dir(receipt_dir, order.section)
         elif candidate:
             workbook = Path(candidate)
-            if not repair_dir.exists() or not any(repair_dir.iterdir()):
-                repair = repair_dir
+            repair = _next_empty_repair_dir(receipt_dir, order.section)
             letter = letter_path
         latest = _latest_isolated_path(receipt_dir, order.section)
         if latest is not None and _isolated_delta_generation(latest, order.section):
@@ -2317,6 +2375,12 @@ def _execute_section(
             if archived:
                 order.executed_outputs.append(archived)
             bound = replace(bound, delta_packet=None)
+        if not applying_delta and workbook is not None:
+            promoted = _promote_repair_isolated(
+                finish, workbook, receipt_dir, order.section
+            )
+            if promoted is not None:
+                order.executed_outputs.append(str(promoted))
         latest = _latest_isolated_path(receipt_dir, order.section)
         if latest is not None:
             order.executed_outputs.append(str(latest))

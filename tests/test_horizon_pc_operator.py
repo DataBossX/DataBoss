@@ -40,7 +40,7 @@ def _minimal_pdf() -> bytes:
     )
 
 
-def _write_penterra(path: Path) -> None:
+def _write_penterra(path: Path, *, legal: str = "SYNTH TRACT 15-45N-76W") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     workbook = openpyxl.Workbook()
     sheet = workbook.active
@@ -57,7 +57,7 @@ def _write_penterra(path: Path) -> None:
             "",
             "1/1/2026",
             "1/2/2026",
-            "SYNTH TRACT 15-45N-76W",
+            legal,
             "",
         ]
     )
@@ -230,6 +230,41 @@ def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:
         if "horizon.native_print" in item
     )
     assert crops < native
+
+
+def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 15"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    _write_penterra(section / "Working Abstract.xlsx", legal="")
+    faces = section / "Recorded Faces"
+    faces.mkdir(parents=True, exist_ok=True)
+    (faces / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    letter = receipts / "section15-letter.xlsx"
+    _write_penterra(letter, legal="")
+    before = letter.read_bytes()
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    assert letter.read_bytes() == before
+    isolated = receipts / "section15-delta.xlsx"
+    assert isolated.is_file()
+    repaired = openpyxl.load_workbook(isolated, data_only=True)
+    assert repaired["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    repaired.close()
+    stale = openpyxl.load_workbook(letter, data_only=True)
+    assert stale["Index"]["H9"].value in (None, "")
+    stale.close()
 
 
 def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:

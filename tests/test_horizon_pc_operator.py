@@ -16,6 +16,7 @@ from horizon.pc_operator import (
     PcOperatorError,
     _crop_packet_matches_renders,
     _receipt_packages_complete,
+    _same_hash_readback,
     _section_commands,
     build_work_order,
     main,
@@ -713,8 +714,29 @@ def test_execute_does_not_use_other_section_letter_as_drive_readback(
     letter15 = receipts / "section15-letter.xlsx"
     letter13 = receipts / "section13-letter.xlsx"
     assert letter15.is_file() and letter13.is_file()
-    assert letter15.read_bytes() == letter13.read_bytes()
-    for section in (15, 13):
+    # Independently written xlsx files differ by zip timestamp. Copy one
+    # Letter over the other so the skip is tested at the same hash.
+    letter13.write_bytes(letter15.read_bytes())
+    planted = root / "Section 15" / "Isolated" / "section13-letter.xlsx"
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_bytes(letter15.read_bytes())
+    assert sha256_file(letter13) == sha256_file(letter15)
+    assert sha256_file(planted) == sha256_file(letter15)
+    bound15 = _same_hash_readback(None, letter15, receipts, 15)
+    assert bound15 is None or bound15.resolve() != letter13.resolve()
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    bound15 = _same_hash_readback(None, letter15, receipts, 15)
+    assert bound15 is None or bound15.resolve() not in {
+        letter13.resolve(),
+        planted.resolve(),
+    }
+    for section, other in ((15, letter13), (13, letter15)):
         finish = json.loads(
             (receipts / f"section{section}-finish.json").read_text(encoding="utf-8")
         )
@@ -723,6 +745,13 @@ def test_execute_does_not_use_other_section_letter_as_drive_readback(
             None,
         )
         assert drive_gate is None or drive_gate["technical_pass"] is not True
+        readback = ""
+        if drive_gate is not None:
+            detail = drive_gate.get("detail") or {}
+            readback = str(detail.get("readback") or drive_gate.get("path") or "")
+        if readback:
+            assert Path(readback).resolve() != other.resolve()
+            assert Path(readback).resolve() != planted.resolve()
 
 
 def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:

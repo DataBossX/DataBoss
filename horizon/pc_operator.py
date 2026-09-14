@@ -2365,9 +2365,11 @@ def _same_hash_readback(
                 continue
             if item.sha256 != digest or not _is_isolated_output(item):
                 continue
-            candidates.append(
-                Path(inventory.roots[item.root_label]) / item.relative_path
-            )
+            path = Path(inventory.roots[item.root_label]) / item.relative_path
+            other = _isolated_workbook_section(path)
+            if other is not None and other != section:
+                continue
+            candidates.append(path)
     for path in receipt_dir.glob("*.xlsx"):
         other = _isolated_workbook_section(path)
         if other is not None and other != section:

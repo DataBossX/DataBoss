@@ -139,6 +139,21 @@ DISCOVERABLE_SCHEMAS = {
     "dbx.pdf_page_census_packet": "pdf_census_packet",
     "dbx.source_proved_delta_packet": "delta_packet",
 }
+_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
+
+
+def _section_marks(text: str) -> set[int]:
+    return {int(match.group(1)) for match in _SECTION_MARK.finditer(text)}
+
+
+def _payload_names_section(
+    path: Path, payload: Dict[str, object], section: int
+) -> bool:
+    marks = _section_marks(path.name)
+    packet_id = str(payload.get("packet_id") or "")
+    if packet_id:
+        marks.update(_section_marks(packet_id))
+    return section in marks
 
 
 class PcOperatorError(ValueError):
@@ -802,9 +817,11 @@ def _section_work_order(
     )
     missing_candidates = _missing_candidate_roles(files, section, required_roles)
     bound = _bind_section_census(
-        _merge_bindings(
+        _section_bindings(
             bindings,
-            _discover_packets(files, inventory.roots, section),
+            Path(receipt_dir),
+            section,
+            inventory=inventory,
         ),
         receipt_dir,
         section,
@@ -878,7 +895,9 @@ def _issue_lines(issues: Sequence[SourceIssue], limit: int = 20) -> List[str]:
     return lines[:limit]
 
 
-def _discover_json_packets(paths: Sequence[Path]) -> Dict[str, Path]:
+def _discover_json_packets(
+    paths: Sequence[Path], section: Optional[int] = None
+) -> Dict[str, Path]:
     found: Dict[str, Path] = {}
     for path in paths:
         try:
@@ -888,8 +907,11 @@ def _discover_json_packets(paths: Sequence[Path]) -> Dict[str, Path]:
         if not isinstance(payload, dict):
             continue
         slot = DISCOVERABLE_SCHEMAS.get(str(payload.get("schema_id") or ""))
-        if slot and slot not in found:
-            found[slot] = path
+        if not slot or slot in found:
+            continue
+        if section is not None and not _payload_names_section(path, payload, section):
+            continue
+        found[slot] = path
     return found
 
 
@@ -903,12 +925,37 @@ def _discover_packets(
             Path(roots[item.root_label]) / item.relative_path
             for item in files
             if item.section == section and item.extension == ".json"
-        ]
+        ],
+        section,
     )
 
 
-def _discover_receipt_dir_packets(receipt_dir: Path) -> Dict[str, Path]:
-    return _discover_json_packets(sorted(receipt_dir.glob("*.json")))
+def _discover_receipt_dir_packets(receipt_dir: Path, section: int) -> Dict[str, Path]:
+    try:
+        paths = sorted(receipt_dir.glob("*.json"))
+    except OSError:
+        return {}
+    return _discover_json_packets(paths, section)
+
+
+def _section_bindings(
+    explicit: FinishBindings,
+    receipt_dir: Optional[Path],
+    section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
+) -> FinishBindings:
+    discovered: Dict[str, Path] = {}
+    if receipt_dir is not None:
+        try:
+            if receipt_dir.is_dir():
+                discovered.update(_discover_receipt_dir_packets(receipt_dir, section))
+        except OSError:
+            pass
+    if inventory is not None:
+        from_roots = _discover_packets(inventory.files, inventory.roots, section)
+        for slot, path in from_roots.items():
+            discovered.setdefault(slot, path)
+    return _merge_bindings(explicit, discovered)
 
 
 def _queue_has_items(path: Path) -> bool:
@@ -2022,9 +2069,6 @@ def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
     return None
 
 
-_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
-
-
 def _schema_packet_matches_section(
     path: Path, section: int, schema_id: str
 ) -> bool:
@@ -2036,13 +2080,7 @@ def _schema_packet_matches_section(
         return False
     if payload.get("schema_id") != schema_id:
         return False
-    token = str(payload.get("packet_id") or "")
-    name = path.name
-    for text in (token, name):
-        for match in _SECTION_MARK.finditer(text):
-            if int(match.group(1)) == section:
-                return True
-    return False
+    return _payload_names_section(path, payload, section)
 
 
 def _census_packet_matches_section(path: Path, section: int) -> bool:
@@ -2157,7 +2195,7 @@ def _section_census_packet(
         ):
             return conventional
     except OSError:
-        return candidate
+        return None
     return None
 
 
@@ -2557,12 +2595,9 @@ def _execute_section(
     pdf_index = _slot_path(order.candidate_picks, "pdf_index")
     handwritten = _slot_path(order.candidate_picks, "handwritten")
     candidate = _slot_path(order.candidate_picks, "candidate")
-    discovered = _discover_receipt_dir_packets(receipt_dir)
-    if inventory is not None:
-        from_roots = _discover_packets(inventory.files, inventory.roots, order.section)
-        for slot, path in from_roots.items():
-            discovered.setdefault(slot, path)
-    bound = _merge_bindings(bindings, discovered)
+    bound = _section_bindings(
+        bindings, receipt_dir, order.section, inventory=inventory
+    )
     bound = _bind_section_workbook_packets(bound, str(receipt_dir), order.section)
     snapshot = bound.snapshot_directory
     if snapshot is not None:
@@ -3107,10 +3142,6 @@ def build_work_order(
             explicit.project_manifest = found_project
             if explicit.snapshot_directory is None:
                 explicit.snapshot_directory = dest_path / "intake-snapshot"
-    if dest_path is not None:
-        explicit = _merge_bindings(
-            explicit, _discover_receipt_dir_packets(dest_path)
-        )
     work_orders = [
         _section_work_order(
             section,

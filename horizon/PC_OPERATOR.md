@@ -37,7 +37,9 @@ python3 -m horizon.pc_operator \
    `source-authority.json`; receipt next-actions stop asking for promote.
    Writer-held native-print, owner-review, page-render crop, source-proved
    delta, and PDF census JSON dropped in the receipt directory are discovered
-   on the next `--execute`. A `sectionN-pdfs/` directory is bound as
+   on the next `--execute` only when the filename or `packet_id` names that
+   section. First-wins discovery is per section, not across the shared
+   receipt directory. A `sectionN-pdfs/` directory is bound as
    `--pdf-bind-dir`. If that directory exists and no census packet is present,
    `--execute` inventories it (`expected_pages` = counted `/Type /Page`, not
    a row count) into `sectionN-pdf-census-packet.json` and lists
@@ -130,10 +132,11 @@ python3 -m horizon.pc_operator \
    `--snapshot-directory` are passed through so Phase 2 can authorize
    acquisition.    Page-render, native-print, owner-review, and PDF census JSON packets
    are discovered by `schema_id` when present, or passed explicitly.
-   Census packets are kept on the matching `SECTION{N}` / `sectionN` id.
-   Page-render crop packets, native-print receipts, and owner-review
-   tokens are kept on the matching section the same way. Crops rebound
-   with `sectionN-renders` before finish.
+   Discovery keeps only packets whose name or `packet_id` names that
+   section (`SECTION{N}` / `sectionN` / `P{N}`). Unlabeled leftovers are
+   not auto-bound. Census packets, crop packets, native-print receipts,
+   and owner-review tokens stay on the matching section the same way.
+   Crops rebound with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority
    order 15, then 13, then 11. Do `next` first. The operator receipt

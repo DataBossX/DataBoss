@@ -16,8 +16,10 @@ from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
     _crop_packet_matches_renders,
+    _discover_receipt_dir_packets,
     _receipt_packages_complete,
     _same_hash_readback,
+    _section_census_packet,
     _section_commands,
     build_work_order,
     main,
@@ -1790,6 +1792,178 @@ def test_execute_does_not_bind_other_section_crop_packet(tmp_path: Path) -> None
     )
     names11 = {gate["name"] for gate in finish11["gates"]}
     assert "page_render_export" in names11
+
+
+def test_discover_receipt_dir_packets_stays_on_named_section(tmp_path: Path) -> None:
+    (tmp_path / "aaa-p13-print.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "packet_id": "SECTION13-PRINT",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "zzz-p15-print.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "packet_id": "SECTION15-PRINT",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "print-packet.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "packet_id": "UNLABELED-PRINT",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p13-census.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "packet_id": "SECTION13-CENSUS",
+            }
+        ),
+        encoding="utf-8",
+    )
+    found15 = _discover_receipt_dir_packets(tmp_path, 15)
+    found13 = _discover_receipt_dir_packets(tmp_path, 13)
+    assert found15["native_print_receipt"].name == "zzz-p15-print.json"
+    assert found13["native_print_receipt"].name == "aaa-p13-print.json"
+    assert found13["pdf_census_packet"].name == "aaa-p13-census.json"
+    assert "pdf_census_packet" not in found15
+    assert all(
+        path.name != "print-packet.json" for path in found15.values()
+    )
+    assert all(
+        path.name != "print-packet.json" for path in found13.values()
+    )
+
+
+def test_section_census_packet_oserror_does_not_return_other_section(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    leftover = tmp_path / "aaa-p13-census.json"
+    leftover.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "packet_id": "SECTION13-CENSUS",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def boom(path: Path, section: int) -> bool:
+        if path.name.startswith(f"section{section}"):
+            raise OSError("unavailable")
+        return False
+
+    monkeypatch.setattr(
+        "horizon.pc_operator._census_packet_matches_section", boom
+    )
+    assert _section_census_packet(leftover, str(tmp_path), 15) is None
+
+
+def test_execute_does_not_bind_other_section_census_packet(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    (receipts / "aaa-p13-census.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION13-CENSUS",
+                "files": [
+                    {
+                        "path": "part4.pdf",
+                        "source_sha256": "a" * 64,
+                        "expected_pages": 462,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    assert "pdf_census" not in {gate["name"] for gate in finish["gates"]}
+    dumped = json.dumps(finish)
+    assert "462" not in dumped
+    assert "SECTION13-CENSUS" not in dumped
+    assert not (receipts / "section15-empty-text-queue.json").exists()
+    assert all(
+        "pdf_census --inventory" in command
+        or "--pdf-census-packet" not in command
+        for command in receipt.sections[0].next_commands
+    )
+
+
+def test_execute_discovers_named_print_after_other_section_leftover(
+    tmp_path: Path,
+) -> None:
+    from horizon.native_print import write_native_print_packet
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    write_native_print_packet(
+        workbook=letter,
+        output=receipts / "aaa-p13-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION13-PRINT",
+    )
+    write_native_print_packet(
+        workbook=letter,
+        output=receipts / "zzz-p15-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    native = next(gate for gate in finish["gates"] if gate["name"] == "native_print")
+    assert native["technical_pass"] is True
+    assert all(
+        "horizon.native_print" not in command
+        for command in second.sections[0].next_commands
+    )
 
 
 def test_execute_does_not_apply_other_section_delta_packet(tmp_path: Path) -> None:

@@ -92,7 +92,9 @@ The two paths must be distinct files with the same SHA-256. The PC
 operator may publish the isolated Letter/delta into Drive
 `Section N/Isolated/` so this gate can bind; the gate itself still only
 compares hashes and does not upload. A receipt-dir same-hash copy can
-satisfy the hash gate. It does not complete a package.
+satisfy the hash gate. It does not complete a package. After
+`--execute` publishes Isolated/, a leftover receipt-dir bind is
+upgraded so finish records `isolated_copy`.
 `remaining-plan.json` and next-commands keep
 `Copy {name} into Drive Section N/Isolated/` until the bound copy is
 under Isolated/. `packages_complete` stays false until that Isolated/

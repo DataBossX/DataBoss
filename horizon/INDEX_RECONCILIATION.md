@@ -76,3 +76,8 @@ python3 -m horizon.repair_loop \
 `--master-workbook`, `--pdf-workbook`, and `--handwritten-workbook` can
 replace a pre-built packet when those indexes are themselves Penterra
 workbooks. `packages_complete` stays false.
+
+Remaining one-source blanks and conflicts are written to
+`sectionN-examiner-queue.json` by `horizon.examiner_queue` / `pc_operator
+--execute`. That queue does not invent values. The examiner puts only
+source-proved text in `sectionN-deltas.json`.

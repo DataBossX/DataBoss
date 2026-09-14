@@ -44,8 +44,11 @@ python3 -m horizon.pc_operator \
    bind that current isolated workbook, not a stale Letter copy. When a
    `drive=` root is mounted, `--execute` publishes that isolated file into
    the Drive section folder (it will not overwrite a different hash) and
-   binds SHA-256 readback. Client source files are never copied into this
-   repository.
+   binds SHA-256 readback.    Client source files are never copied into this
+   repository. After recon/repair, `--execute` writes
+   `sectionN-examiner-queue.json` listing remaining blanks and conflicts
+   with provenance. One-source blanks stay blank until a writer-held
+   source-proved delta.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

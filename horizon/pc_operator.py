@@ -32,6 +32,7 @@ from .workbook_ledger import (
     workbook_to_occurrence_packet,
     workbook_to_tract_export,
 )
+from .examiner_queue import ExaminerQueueError, build_examiner_queue
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     PRIORITY_SECTIONS,
@@ -546,7 +547,9 @@ def _section_commands(
                 ]
             )
         )
-    if section == 13 and bindings.delta_packet is None:
+    queue_path = Path(receipt_dir) / f"section{section}-examiner-queue.json"
+    queue_needs_fill = _queue_has_items(queue_path)
+    if bindings.delta_packet is None and (section == 13 or queue_needs_fill):
         commands.append(
             _quote_command(
                 [
@@ -566,8 +569,8 @@ def _section_commands(
             )
         )
         commands.append(
-            "Put only source-proved fills in section13-deltas.json; "
-            "do not invent legal text from federal page counts"
+            f"Put only source-proved fills in section{section}-deltas.json; "
+            "do not invent legal, party, or date values from the fill queue"
         )
     if section == 11 and bindings.page_render_packet is None:
         commands.append(
@@ -702,6 +705,50 @@ def _discover_packets(
 
 def _discover_receipt_dir_packets(receipt_dir: Path) -> Dict[str, Path]:
     return _discover_json_packets(sorted(receipt_dir.glob("*.json")))
+
+
+def _queue_has_items(path: Path) -> bool:
+    try:
+        if not path.is_file():
+            return False
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("schema_id") != "dbx.examiner_fill_queue":
+        return False
+    items = payload.get("items")
+    return isinstance(items, list) and bool(items)
+
+
+def _write_examiner_queue(
+    index_packet: Optional[Path],
+    workbook: Path,
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str], int, int]:
+    if index_packet is None or not index_packet.is_file() or not workbook.is_file():
+        return None, None, 0, 0
+    try:
+        packet = json.loads(index_packet.read_text(encoding="utf-8"))
+        if not isinstance(packet, dict):
+            return None, "index packet is not a JSON object", 0, 0
+        queue = build_examiner_queue(
+            packet,
+            workbook,
+            packet_id=f"SECTION{section}-QUEUE",
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ExaminerQueueError) as exc:
+        return None, str(exc), 0, 0
+    dest = receipt_dir / f"section{section}-examiner-queue.json"
+    dest.write_text(json.dumps(queue, indent=2, sort_keys=True), encoding="utf-8")
+    return (
+        str(dest),
+        None,
+        int(queue.get("blank_count") or 0),
+        int(queue.get("conflict_count") or 0),
+    )
 
 
 def _current_isolated_workbook(receipt_dir: str, section: int) -> str:
@@ -1279,6 +1326,18 @@ def _execute_section(
             order.executed_outputs.extend(ledger_outputs)
             if ledger_error:
                 order.holds.append(f"Workbook ledger projection failed: {ledger_error}")
+            queue_path, queue_error, blanks, conflicts = _write_examiner_queue(
+                index_packet_path, isolated, receipt_dir, order.section
+            )
+            if queue_path:
+                order.executed_outputs.append(queue_path)
+            if queue_error:
+                order.holds.append(f"Examiner fill queue failed: {queue_error}")
+            elif blanks or conflicts:
+                order.holds.append(
+                    f"{blanks} blank required field(s) and {conflicts} "
+                    f"conflict(s) remain; see section{order.section}-examiner-queue.json"
+                )
             published, publish_hold = _publish_isolated_to_drive(
                 inventory, order.section, isolated
             )

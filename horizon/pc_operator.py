@@ -60,6 +60,12 @@ from .handwritten_scan import (
     handwritten_scan_queue_from_draft,
     write_handwritten_scan_draft,
 )
+from .remaining_plan import (
+    RemainingPlanError,
+    remaining_plan,
+    write_remaining_plan,
+    write_remaining_plan_bundle,
+)
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     IMAGE_EXTENSIONS,
@@ -1498,6 +1504,34 @@ def _write_handwritten_scan_queue(
     return str(dest), None, count
 
 
+def _write_section_remaining_plan(
+    order: SectionWorkOrder,
+    receipt_dir: Path,
+) -> tuple[Optional[str], Optional[str]]:
+    finish_path = receipt_dir / f"section{order.section}-finish.json"
+    finish: Optional[Dict[str, object]] = None
+    if finish_path.is_file():
+        try:
+            payload = json.loads(finish_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return None, str(exc)
+        if isinstance(payload, dict):
+            finish = payload
+    try:
+        plan = remaining_plan(
+            section=order.section,
+            finish=finish,
+            receipt_dir=receipt_dir,
+            holds=order.holds,
+            next_commands=order.next_commands,
+        )
+        dest = receipt_dir / f"section{order.section}-remaining-plan.json"
+        write_remaining_plan(plan, dest)
+    except (OSError, RemainingPlanError) as exc:
+        return None, str(exc)
+    return str(dest), None
+
+
 def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
     candidate = Path(receipt_dir) / f"section{section}-pdfs"
     try:
@@ -2262,6 +2296,11 @@ def _execute_section(
         missing_roles=order.missing_candidate_roles,
         bindings=bound,
     )
+    plan_path, plan_error = _write_section_remaining_plan(order, receipt_dir)
+    if plan_path:
+        order.executed_outputs.append(plan_path)
+    if plan_error:
+        order.holds.append(f"Remaining-gates plan failed: {plan_error}")
 
 
 def build_work_order(
@@ -2430,6 +2469,30 @@ def build_work_order(
             "Cannot execute recon/repair until readable pc=/drive= roots exist"
         )
     next_actions.append("Do not treat this receipt as package release")
+    if dest_path is not None:
+        plans: List[Dict[str, object]] = []
+        for order in work_orders:
+            plan_path, plan_error = _write_section_remaining_plan(order, dest_path)
+            if plan_path:
+                if plan_path not in order.executed_outputs:
+                    order.executed_outputs.append(plan_path)
+                try:
+                    payload = json.loads(Path(plan_path).read_text(encoding="utf-8"))
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                    payload = None
+                if isinstance(payload, dict):
+                    plans.append(payload)
+            if plan_error:
+                order.holds.append(f"Remaining-gates plan failed: {plan_error}")
+        if plans:
+            bundle_path = dest_path / "remaining-plan.json"
+            try:
+                write_remaining_plan_bundle(plans, bundle_path)
+                next_actions.append(
+                    f"Review {bundle_path} in priority order 15, then 13, then 11"
+                )
+            except (OSError, RemainingPlanError) as exc:
+                next_actions.append(f"Remaining-plan bundle failed: {exc}")
     packages_complete = bool(work_orders) and all(
         order.finish_packages_complete is True for order in work_orders
     )

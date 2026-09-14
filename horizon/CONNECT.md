@@ -32,7 +32,8 @@ The PC that can see Drive remains the only host that can run
 `pc_operator --execute`, attest Print Preview / owner-review / 2+ source
 delta drafts / one-source templates / Section 11 crop drafts, transcribe
 hashed handwritten scans, and promote authority. OCR is not a source of
-legal facts. Do not start a second controller.
+legal facts. After `--execute`, review `remaining-plan.json` in order
+15, then 13, then 11. Do not start a second controller.
 
 ## PC work order
 

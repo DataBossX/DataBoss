@@ -91,7 +91,10 @@ python3 -m horizon.pc_operator \
    acquisition.    Page-render, native-print, owner-review, and PDF census JSON packets
    are discovered by `schema_id` when present, or passed explicitly.
    Census packets are kept on the matching `SECTION{N}` / `sectionN` id.
-   `packages_complete` is true only if every requested section's finish
+   After `--execute`, each section gets `sectionN-remaining-plan.json`
+   and the receipt directory gets `remaining-plan.json` in priority
+   order 15, then 13, then 11. The plan names unfinished gates and
+   existing queues only.    `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate.
 
 ## What it never does

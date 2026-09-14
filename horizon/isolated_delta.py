@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .examiner import write_new_json
 from .project_manifest import ControlFileError
 from .stable_key import StableKeyError, stable_key
 from .workbook_qa import load_workbook_profile
@@ -230,6 +231,40 @@ def parse_delta_packet(payload: Dict[str, object]) -> tuple[str, str, List[Delta
     return packet_id, digest, deltas
 
 
+def write_delta_packet(
+    *,
+    workbook: Path,
+    deltas: Sequence[Dict[str, object]],
+    output: Path,
+    packet_id: str,
+) -> Dict[str, object]:
+    """Wrap examiner-held deltas around the current workbook hash.
+
+    This does not invent legal, party, date, or document-type values.
+    """
+    resolved = workbook.expanduser()
+    if not resolved.is_file():
+        raise IsolatedDeltaError(f"workbook does not exist: {resolved}")
+    token = packet_id.strip()
+    if not token or "\n" in token:
+        raise IsolatedDeltaError("packet_id must be a single-line string")
+    if not isinstance(deltas, list) or not deltas:
+        raise IsolatedDeltaError("deltas must be a non-empty list")
+    packet = {
+        "schema_id": PACKET_SCHEMA_ID,
+        "schema_version": PACKET_SCHEMA_VERSION,
+        "packet_id": token,
+        "source_workbook_sha256": sha256_file(resolved),
+        "deltas": list(deltas),
+    }
+    parse_delta_packet(packet)
+    try:
+        write_new_json(packet, output, "source-proved delta packet")
+    except ValueError as exc:
+        raise IsolatedDeltaError(str(exc)) from exc
+    return packet
+
+
 def apply_deltas(
     source_workbook: Path,
     output_workbook: Path,
@@ -372,12 +407,15 @@ def _load_json(path: Path) -> Dict[str, object]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Apply source-proved deltas to an isolated workbook copy."
+        description="Apply or write source-proved deltas. Does not invent values."
     )
+    parser.add_argument("--write", action="store_true")
     parser.add_argument("--workbook", type=Path, required=True)
-    parser.add_argument("--packet", type=Path, required=True)
+    parser.add_argument("--packet", type=Path)
+    parser.add_argument("--deltas", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--receipt", type=Path, required=True)
+    parser.add_argument("--receipt", type=Path)
+    parser.add_argument("--packet-id")
     parser.add_argument("--profile", type=Path)
     return parser
 
@@ -385,6 +423,36 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.write:
+            if args.deltas is None or args.packet_id is None:
+                raise IsolatedDeltaError(
+                    "--write requires --deltas and --packet-id; Horizon "
+                    "does not invent field values"
+                )
+            raw = _load_json(args.deltas)
+            deltas = raw.get("deltas") if isinstance(raw, dict) and "deltas" in raw else raw
+            if not isinstance(deltas, list):
+                raise IsolatedDeltaError("deltas file must be a list or {\"deltas\": [...]}")
+            packet = write_delta_packet(
+                workbook=args.workbook,
+                deltas=deltas,
+                output=args.output,
+                packet_id=args.packet_id,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "source_workbook_sha256": packet["source_workbook_sha256"],
+                        "delta_count": len(packet["deltas"]),
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.packet is None or args.receipt is None:
+            raise IsolatedDeltaError("Pass --packet and --receipt to apply, or --write")
         receipt = apply_deltas(
             args.workbook,
             args.output,

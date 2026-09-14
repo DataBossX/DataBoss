@@ -77,6 +77,7 @@ DISCOVERABLE_SCHEMAS = {
     "dbx.native_print_receipt": "native_print_receipt",
     "dbx.human_release_token": "human_release_token",
     "dbx.pdf_page_census_packet": "pdf_census_packet",
+    "dbx.source_proved_delta_packet": "delta_packet",
 }
 
 
@@ -95,6 +96,7 @@ class FinishBindings:
     authority_manifest: Optional[Path] = None
     project_manifest: Optional[Path] = None
     snapshot_directory: Optional[Path] = None
+    delta_packet: Optional[Path] = None
 
 
 @dataclass
@@ -321,6 +323,15 @@ def _append_binding_flags(
         parts.extend(["--pdf-bind-dir", bindings.pdf_bind_dir])
     if bindings.drive_readback is not None:
         parts.extend(["--drive-readback", bindings.drive_readback])
+    if bindings.delta_packet is not None:
+        parts.extend(
+            [
+                "--delta-packet",
+                bindings.delta_packet,
+                "--delta-output",
+                f"{receipt_dir}/section{section}-delta.xlsx",
+            ]
+        )
     if (
         bindings.authority_manifest is not None
         and bindings.project_manifest is not None
@@ -481,15 +492,51 @@ def _section_commands(
                 ]
             )
         )
-    if section == 13:
+    if section == 13 and bindings.delta_packet is None:
         commands.append(
-            "Pass only a writer-held --delta-packet for source-proved fills; "
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.isolated_delta",
+                    "--write",
+                    "--workbook",
+                    letter,
+                    "--deltas",
+                    f"{receipt_dir}/section{section}-deltas.json",
+                    "--output",
+                    f"{receipt_dir}/section{section}-delta-packet.json",
+                    "--packet-id",
+                    f"SECTION{section}-DELTA",
+                ]
+            )
+        )
+        commands.append(
+            "Put only source-proved fills in section13-deltas.json; "
             "do not invent legal text from federal page counts"
         )
-    if section == 11:
+    if section == 11 and bindings.page_render_packet is None:
         commands.append(
-            "Compile --page-render-packet crops with Book/Page, dates, and "
-            "parties; leave bare document numbers bare"
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.page_render_export",
+                    "--write",
+                    "--draft",
+                    f"{receipt_dir}/section{section}-crops-draft.json",
+                    "--bind-dir",
+                    "RENDER_DIR",
+                    "--output",
+                    f"{receipt_dir}/section{section}-crops.json",
+                    "--packet-id",
+                    f"SECTION{section}-CROPS",
+                ]
+            )
+        )
+        commands.append(
+            "Crop Book/Page, dates, and parties from the page renders; "
+            "leave bare document numbers bare"
         )
     return commands
 
@@ -612,7 +659,10 @@ def _merge_bindings(
         authority_manifest=explicit.authority_manifest,
         project_manifest=explicit.project_manifest,
         snapshot_directory=explicit.snapshot_directory,
+        delta_packet=explicit.delta_packet,
     )
+    if merged.delta_packet is None:
+        merged.delta_packet = discovered.get("delta_packet")
     if merged.page_render_packet is None:
         merged.page_render_packet = discovered.get("page_render_packet")
     if merged.native_print_receipt is None:
@@ -787,6 +837,7 @@ def _execute_section(
     finish_path = receipt_dir / f"section{order.section}-finish.json"
     repair_dir = receipt_dir / f"section{order.section}-repair"
     letter_path = receipt_dir / f"section{order.section}-letter.xlsx"
+    delta_path = receipt_dir / f"section{order.section}-delta.xlsx"
     reuse_isolated = letter_path.exists()
     try:
         index_packet_path = None
@@ -813,10 +864,26 @@ def _execute_section(
             if not repair_dir.exists() or not any(repair_dir.iterdir()):
                 repair = repair_dir
             letter = letter_path
-        if bound.drive_readback is None and reuse_isolated:
+        delta_packet = None
+        delta_output = None
+        if bound.delta_packet is not None and workbook is not None:
+            if delta_path.exists():
+                workbook = delta_path
+            else:
+                repair = None
+                delta_packet = bound.delta_packet
+                delta_output = delta_path
+        readback_book = (
+            delta_path
+            if delta_path.exists()
+            else letter_path
+            if reuse_isolated
+            else None
+        )
+        if bound.drive_readback is None and readback_book is not None:
             bound.drive_readback = _same_hash_readback(
                 inventory,
-                letter_path,
+                readback_book,
                 receipt_dir,
             )
         finish = run_finish(
@@ -833,6 +900,8 @@ def _execute_section(
             pdf_census_packet=bound.pdf_census_packet,
             pdf_bind_dir=bound.pdf_bind_dir,
             drive_readback=bound.drive_readback,
+            delta_packet=delta_packet,
+            delta_output=delta_output,
             authority_manifest=bound.authority_manifest,
             project_manifest=bound.project_manifest,
             snapshot_directory=snapshot,
@@ -852,6 +921,8 @@ def _execute_section(
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():
             order.executed_outputs.append(str(letter_path))
+        if delta_path.exists():
+            order.executed_outputs.append(str(delta_path))
         if acquisition_receipt.is_file():
             order.executed_outputs.append(str(acquisition_receipt))
         if finish.packages_complete:
@@ -1109,6 +1180,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--authority-manifest", type=Path)
     parser.add_argument("--project-manifest", type=Path)
     parser.add_argument("--snapshot-directory", type=Path)
+    parser.add_argument("--delta-packet", type=Path)
     return parser
 
 
@@ -1131,6 +1203,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 authority_manifest=args.authority_manifest,
                 project_manifest=args.project_manifest,
                 snapshot_directory=args.snapshot_directory,
+                delta_packet=args.delta_packet,
             ),
         )
         args.output.write_text(

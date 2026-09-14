@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from horizon.package_finish import run_finish
-from horizon.page_render_export import PageRenderExportError, compile_page_renders
+from horizon.page_render_export import (
+    PageRenderExportError,
+    compile_page_renders,
+    write_crop_packet,
+)
 from horizon.pdf_census import census_packet
 from horizon.reextraction_gate import assess_ledger, parse_ledger_export
 
@@ -188,3 +192,60 @@ def test_finish_runner_compiles_page_renders_without_completing(
         "reextraction",
         "occurrence_ledger",
     }
+
+
+def test_write_crop_packet_preserves_bare_docno(tmp_path: Path) -> None:
+    render = tmp_path / "p01.bin"
+    render.write_bytes(b"SYNTH-RENDER")
+    output = tmp_path / "crops.json"
+    packet = write_crop_packet(
+        draft={
+            "packet_id": "SYNTH-P11-RENDERS",
+            "expected_page_count": 1,
+            "pages": [{"page": 1, "path": "p01.bin"}],
+            "crops": [
+                {
+                    "row_id": "p01r01",
+                    "page": 1,
+                    "crop_id": "p01r01",
+                    "docno": "2026-09901",
+                    "bookpage": "",
+                    "rec_date": "1/2/2026",
+                    "doc_date": "",
+                    "grantor": "SYNTH SURVEYOR",
+                    "grantee": "The Public",
+                }
+            ],
+        },
+        bind_dir=tmp_path,
+        output=output,
+    )
+    assert packet["crops"][0]["bookpage"] == ""
+    assert packet["pages"][0]["source_sha256"] == hashlib.sha256(
+        b"SYNTH-RENDER"
+    ).hexdigest()
+    compiled = compile_page_renders(packet, bind_dir=tmp_path)
+    assert compiled.technical_pass is True
+    with pytest.raises(PageRenderExportError, match="neither docno nor bookpage"):
+        write_crop_packet(
+            draft={
+                "packet_id": "SYNTH-EMPTY",
+                "expected_page_count": 1,
+                "pages": [{"page": 1, "path": "p01.bin"}],
+                "crops": [
+                    {
+                        "row_id": "p01r02",
+                        "page": 1,
+                        "crop_id": "p01r02",
+                        "docno": "",
+                        "bookpage": "",
+                        "rec_date": "",
+                        "doc_date": "",
+                        "grantor": "",
+                        "grantee": "",
+                    }
+                ],
+            },
+            bind_dir=tmp_path,
+            output=tmp_path / "empty.json",
+        )

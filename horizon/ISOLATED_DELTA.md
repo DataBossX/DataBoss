@@ -34,6 +34,17 @@ Newlines are allowed only on grantor, grantee, and legal description.
 already-populated cell is wrong. Otherwise a differing populated cell fails
 closed and the isolated copy is deleted.
 
+Write a packet from examiner-held deltas. Horizon does not invent values.
+
+```bash
+python3 -m horizon.isolated_delta \
+  --write \
+  --workbook /path/to/isolated-letter.xlsx \
+  --deltas /path/to/examiner-deltas.json \
+  --output /path/to/source-proved-delta.json \
+  --packet-id SECTION13-DELTA
+```
+
 ## Command
 
 ```bash

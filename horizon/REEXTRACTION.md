@@ -39,6 +39,18 @@ python3 -m horizon.reextraction_gate \
 House stable keys are `<docno>|<book>-<page>`. Feed those keys into
 `horizon.occurrence_ledger` after this gate passes.
 
+Hash examiner-held crop text against page-render files. Bare document
+numbers stay bare.
+
+```bash
+python3 -m horizon.page_render_export \
+  --write \
+  --draft /path/to/section11-crops-draft.json \
+  --bind-dir /path/to/page-renders \
+  --output /path/to/page-render-crop-packet.json \
+  --packet-id SECTION11-CROPS
+```
+
 Compile crops from page renders without guessing a document number:
 
 ```bash

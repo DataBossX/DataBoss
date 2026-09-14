@@ -32,8 +32,9 @@ python3 -m horizon.pc_operator \
    discovers those files and snapshots `intake-snapshot/sectionN`. Later
    executes verify that snapshot from `sectionN-acquisition.json` and export
    authorized workbooks from the snapshot, not from drifted live files.
-   Writer-held `native-print` and owner-review JSON dropped in the receipt
-   directory are discovered on the next `--execute`.
+   Writer-held native-print, owner-review, page-render crop, and source-proved
+   delta JSON dropped in the receipt directory are discovered on the next
+   `--execute`. Deltas apply to an isolated `sectionN-delta.xlsx`.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

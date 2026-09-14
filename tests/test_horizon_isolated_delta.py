@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from horizon.isolated_delta import IsolatedDeltaError, apply_deltas, sha256_file
+from horizon.isolated_delta import (
+    IsolatedDeltaError,
+    apply_deltas,
+    sha256_file,
+    write_delta_packet,
+)
 from horizon.stable_key import stable_key
 
 
@@ -229,3 +234,38 @@ def test_refuse_double_comma_and_instrument_number_rewrite(
     with pytest.raises(IsolatedDeltaError, match="not allowed"):
         apply_deltas(source, output, bad_field)
     assert not output.exists()
+
+
+def test_write_delta_packet_binds_workbook_hash_without_inventing(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.xlsx"
+    _penterra_index(source)
+    output = tmp_path / "delta-packet.json"
+    packet = write_delta_packet(
+        workbook=source,
+        deltas=_packet("0" * 64)["deltas"],
+        output=output,
+        packet_id="SYNTH-P13-LEGAL",
+    )
+    assert packet["source_workbook_sha256"] == sha256_file(source)
+    isolated = tmp_path / "copy.xlsx"
+    receipt = apply_deltas(source, isolated, packet)
+    assert receipt.applied == 1
+    with pytest.raises(IsolatedDeltaError, match="not allowed"):
+        write_delta_packet(
+            workbook=source,
+            deltas=[
+                {
+                    "row_key": "2026-00020|1-2",
+                    "field": "instrument_number",
+                    "value": "2026-00021",
+                    "source_sha256": "e" * 64,
+                    "page": 1,
+                    "crop_id": "docno",
+                    "replace": False,
+                }
+            ],
+            output=tmp_path / "bad.json",
+            packet_id="SYNTH-BAD",
+        )

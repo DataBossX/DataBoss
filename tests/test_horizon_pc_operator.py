@@ -111,7 +111,7 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert by_section[13].ready_for_extraction is False
     assert "master_workbook" in by_section[13].missing_candidate_roles
     assert by_section[11].ready_for_extraction is False
-    assert any("page-render" in command for command in by_section[11].next_commands)
+    assert any("page_render_export" in command for command in by_section[11].next_commands)
     assert "horizon.native_print" in joined
     assert "--write" in joined
     assert "horizon.human_release" in joined
@@ -335,6 +335,58 @@ def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:
         build_work_order(receipt_dir=repo_horizon)
     with pytest.raises(PcOperatorError, match="receipt-dir"):
         build_work_order(execute=True)
+
+
+def test_operator_discovers_and_applies_delta_packet(tmp_path: Path) -> None:
+    from horizon.isolated_delta import write_delta_packet
+
+    root = tmp_path / "pc-root"
+    section = root / "Section 13"
+    section.mkdir(parents=True)
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    (section / "Recorded Faces").mkdir()
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 face")
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section13-letter.xlsx"
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                "row_key": "2026-09901|",
+                "field": "comments",
+                "value": "SYNTH SOURCE NOTE",
+                "source_sha256": "a" * 64,
+                "page": 1,
+                "crop_id": "note",
+                "replace": False,
+            }
+        ],
+        output=receipts / "section13-delta-packet.json",
+        packet_id="SYNTH-P13-DELTA",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert second.sections[0].execute_error == ""
+    assert (receipts / "section13-delta.xlsx").is_file()
+    finish = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    delta = next(gate for gate in finish["gates"] if gate["name"] == "isolated_delta")
+    assert delta["technical_pass"] is True
 
 
 def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> None:

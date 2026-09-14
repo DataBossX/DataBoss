@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .examiner import write_new_json
 from .isolated_delta import sha256_file
 from .reextraction_gate import (
     EXPORT_SCHEMA_ID,
@@ -103,6 +104,92 @@ def _require_sha256(value: object, label: str) -> str:
     if not _is_sha256(digest):
         raise PageRenderExportError(f"{label} has an invalid source_sha256")
     return digest
+
+
+def write_crop_packet(
+    *,
+    draft: Dict[str, object],
+    bind_dir: Path,
+    output: Path,
+    packet_id: Optional[str] = None,
+) -> Dict[str, object]:
+    """Hash page renders and keep examiner-held crop text, including blanks.
+
+    Bare document numbers stay bare. Missing docno and bookpage together
+    is refused. Neighbouring numbers are not guessed.
+    """
+    bind = bind_dir.expanduser().resolve()
+    if not bind.is_dir():
+        raise PageRenderExportError(f"bind-dir is not a directory: {bind}")
+    raw_pages = draft.get("pages")
+    raw_crops = draft.get("crops")
+    if not isinstance(raw_pages, list) or not raw_pages:
+        raise PageRenderExportError("pages must be a non-empty list")
+    if not isinstance(raw_crops, list) or not raw_crops:
+        raise PageRenderExportError("crops must be a non-empty list")
+    expected = draft.get("expected_page_count", len(raw_pages))
+    if type(expected) is not int or expected != len(raw_pages):
+        raise PageRenderExportError(
+            "expected_page_count must match the number of page renders"
+        )
+    token = _require_text(packet_id or draft.get("packet_id") or "", "packet_id")
+    pages: List[Dict[str, object]] = []
+    page_hashes: Dict[int, str] = {}
+    for index, raw in enumerate(raw_pages):
+        if not isinstance(raw, dict) or "page" not in raw or "path" not in raw:
+            raise PageRenderExportError(f"pages[{index}] must have page and path")
+        page = raw["page"]
+        if type(page) is not int or page < 1:
+            raise PageRenderExportError(f"pages[{index}] page must be an integer >= 1")
+        relative = _require_text(raw["path"], "path")
+        render = (bind / relative).resolve()
+        if bind not in render.parents and render != bind:
+            raise PageRenderExportError(f"pages[{index}] path escapes the bind directory")
+        if not render.is_file():
+            raise PageRenderExportError(f"pages[{index}] render is missing: {relative}")
+        digest = sha256_file(render)
+        page_hashes[page] = digest
+        pages.append(
+            {
+                "page": page,
+                "source_sha256": digest,
+                "path": relative,
+            }
+        )
+    crops: List[Dict[str, object]] = []
+    for index, raw in enumerate(raw_crops):
+        if not isinstance(raw, dict):
+            raise PageRenderExportError(f"crops[{index}] must be an object")
+        page = raw.get("page")
+        if page not in page_hashes:
+            raise PageRenderExportError(f"crops[{index}] page is not in the page list")
+        crop = {
+            "row_id": raw.get("row_id"),
+            "page": page,
+            "crop_id": raw.get("crop_id"),
+            "source_sha256": page_hashes[page],
+            "docno": raw.get("docno", ""),
+            "bookpage": raw.get("bookpage", ""),
+            "rec_date": raw.get("rec_date", ""),
+            "doc_date": raw.get("doc_date", ""),
+            "grantor": raw.get("grantor", ""),
+            "grantee": raw.get("grantee", ""),
+        }
+        crops.append(crop)
+    packet = {
+        "schema_id": PACKET_SCHEMA_ID,
+        "schema_version": PACKET_SCHEMA_VERSION,
+        "packet_id": token,
+        "expected_page_count": expected,
+        "pages": pages,
+        "crops": crops,
+    }
+    compile_page_renders(packet, bind_dir=bind)
+    try:
+        write_new_json(packet, output, "page-render crop packet")
+    except ValueError as exc:
+        raise PageRenderExportError(str(exc)) from exc
+    return packet
 
 
 def compile_page_renders(
@@ -261,16 +348,45 @@ def build_parser() -> argparse.ArgumentParser:
             "Does not guess document numbers."
         )
     )
-    parser.add_argument("--packet", type=Path, required=True)
+    parser.add_argument("--write", action="store_true")
+    parser.add_argument("--draft", type=Path)
+    parser.add_argument("--packet", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--export", type=Path, required=True)
+    parser.add_argument("--export", type=Path)
     parser.add_argument("--bind-dir", type=Path)
+    parser.add_argument("--packet-id")
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.write:
+            if args.draft is None or args.bind_dir is None:
+                raise PageRenderExportError(
+                    "--write requires --draft and --bind-dir; Horizon "
+                    "does not invent crop text"
+                )
+            packet = write_crop_packet(
+                draft=_load_json(args.draft),
+                bind_dir=args.bind_dir,
+                output=args.output,
+                packet_id=args.packet_id,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "page_count": len(packet["pages"]),
+                        "crop_count": len(packet["crops"]),
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.packet is None or args.export is None:
+            raise PageRenderExportError("Pass --packet and --export to compile, or --write")
         receipt = compile_page_renders(
             _load_json(args.packet),
             bind_dir=args.bind_dir,

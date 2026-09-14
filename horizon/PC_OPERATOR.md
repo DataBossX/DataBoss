@@ -136,7 +136,8 @@ python3 -m horizon.pc_operator \
    with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority
-   order 15, then 13, then 11. The plan names the current isolated
+   order 15, then 13, then 11. Do `next` first. Connection mounts
+   come first when no labeled root is readable. The plan names the current isolated
    Letter or delta (name and SHA-256 only), unfinished gates,
    files that are still missing, classified typed/handwritten index
    roles that still need Phase-2 `authority_promote`, per-field

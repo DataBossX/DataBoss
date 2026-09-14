@@ -12,6 +12,7 @@ Drive Isolated/ stays until the bound copy is under Isolated/.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -23,7 +24,7 @@ from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
 PLAN_SCHEMA_VERSION = "1.4"
 BUNDLE_SCHEMA_ID = "dbx.remaining_plan_bundle"
-BUNDLE_SCHEMA_VERSION = "1.1"
+BUNDLE_SCHEMA_VERSION = "1.2"
 EXAMINER_QUEUE_SCHEMA_ID = "dbx.examiner_fill_queue"
 KNOWN_PLAN_FIELDS = (
     "document_type",
@@ -599,6 +600,36 @@ def _public_connections(raw: Optional[Dict[str, object]]) -> Dict[str, object]:
     }
 
 
+def _safe_connection_action(action: str) -> bool:
+    if not action or "\n" in action:
+        return False
+    if re.search(r"=[A-Za-z]:[\\/]", action):
+        return False
+    if re.search(r"=\s*/", action):
+        return False
+    return True
+
+
+def _bundle_next(
+    plans: Sequence[Dict[str, object]],
+    connections: Dict[str, object],
+) -> Optional[Dict[str, object]]:
+    count = connections.get("connected_root_count")
+    actions = connections.get("next_actions")
+    if not (isinstance(count, int) and count > 0):
+        for action in actions if isinstance(actions, list) else []:
+            if isinstance(action, str) and _safe_connection_action(action):
+                return {"section": None, "action": action}
+    for plan in plans:
+        if plan.get("packages_complete") is True:
+            continue
+        section = plan.get("section")
+        for item in plan.get("missing") or []:
+            if isinstance(item, str) and item and "\n" not in item:
+                return {"section": section, "action": item}
+    return None
+
+
 def write_remaining_plan_bundle(
     plans: Sequence[Dict[str, object]],
     output: Path,
@@ -611,16 +642,20 @@ def write_remaining_plan_bundle(
         if item.get("section") in PRIORITY_SECTIONS
         else 99,
     )
+    public = _public_connections(connections)
     bundle = {
         "schema_id": BUNDLE_SCHEMA_ID,
         "schema_version": BUNDLE_SCHEMA_VERSION,
         "priority_sections": list(PRIORITY_SECTIONS),
         "packages_complete": bool(ordered)
         and all(plan.get("packages_complete") is True for plan in ordered),
+        "next": _bundle_next(ordered, public),
         "sections": ordered,
-        "connections": _public_connections(connections),
+        "connections": public,
         "notes": [
             "Priority order is 15, then 13, then 11",
+            "next is the first unfinished hop in that order",
+            "Connection mounts come first when no labeled root is readable",
             "Start cursor worker on the PC; authenticate Slack/Notion in Cursor Desktop",
             "This bundle does not invent legal facts or release a package",
         ],

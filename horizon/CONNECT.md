@@ -34,8 +34,9 @@ delta drafts / one-source templates / Section 11 crop drafts, transcribe
 hashed handwritten scans, and promote authority. OCR is not a source of
 legal facts. Chat and OCR files hashed into
 `sectionN-supporting-record-queue.json` are review-only and must not
-fill index cells. After `--execute`, review `remaining-plan.json` in
-order 15, then 13, then 11. The plan names files that are still
+fill index cells. After `--execute`, open `remaining-plan.json` and do `next` first.
+Priority is 15, then 13, then 11. Connection mounts come first when
+no labeled root is readable. The plan names files that are still
 missing, classified typed/handwritten index roles that still need
 Phase-2 `authority_promote` (until snapshot), per-field blank/conflict
 counts, connection gaps (worker, Slack/Notion, Excel, readable

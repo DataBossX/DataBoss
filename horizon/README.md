@@ -72,7 +72,8 @@ Horizon does not OCR or invent index rows.
 Chat and OCR supporting files are hashed for review only and cannot
 fill legal, party, or date cells.
 `--execute` writes `sectionN-remaining-plan.json` and a combined
-`remaining-plan.json` in priority order 15, 13, 11. The plan names
+`remaining-plan.json` in priority order 15, 13, 11. Do `next` first.
+The plan names
 files that are still missing, classified typed and handwritten index
 roles that still need Phase-2 authority, per-field blank/conflict
 counts, connection gaps, and Print Preview / Drive Isolated /

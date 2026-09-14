@@ -847,9 +847,13 @@ def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
         assert "missing required role index" in plan["missing"]
     bundle = json.loads((receipts / "remaining-plan.json").read_text(encoding="utf-8"))
     assert bundle["schema_id"] == "dbx.remaining_plan_bundle"
-    assert bundle["schema_version"] == "1.1"
+    assert bundle["schema_version"] == "1.2"
     assert [item["section"] for item in bundle["sections"]] == [15, 13, 11]
     assert bundle["packages_complete"] is False
+    assert bundle["next"]["section"] == 15
+    assert isinstance(bundle["next"]["action"], str) and bundle["next"]["action"]
+    assert str(tmp_path) not in bundle["next"]["action"]
+    assert "/" not in bundle["next"]["action"] or "Isolated/" in bundle["next"]["action"]
     assert bundle["connections"]["packages_complete"] is False
     assert "pc" in {item["label"] for item in bundle["connections"]["roots"]}
     assert any(
@@ -860,3 +864,54 @@ def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
     write_remaining_plan_bundle(bundle["sections"], tmp_path / "copy.json")
     copied = json.loads((tmp_path / "copy.json").read_text(encoding="utf-8"))
     assert copied["priority_sections"] == [15, 13, 11]
+    assert copied["schema_version"] == "1.2"
+    assert copied["next"]["section"] == 15
+
+
+def test_remaining_plan_bundle_next_is_connection_when_no_roots(
+    tmp_path: Path,
+) -> None:
+    plans = [
+        {
+            "section": 13,
+            "packages_complete": False,
+            "missing": ["index has 1 blank required field(s)"],
+        },
+        {
+            "section": 15,
+            "packages_complete": False,
+            "missing": ["missing required role handwritten_index"],
+        },
+    ]
+    dest = tmp_path / "remaining-plan.json"
+    bundle = write_remaining_plan_bundle(
+        plans,
+        dest,
+        connections={
+            "connected_root_count": 0,
+            "technical_pass": False,
+            "next_actions": [
+                "Pass --root pc=<abs> and --root drive=<abs> on the machine "
+                "that can see section 15/13/11 files",
+                "Mount or grant read access to pc=/secret/host/path",
+            ],
+        },
+    )
+    assert bundle["schema_version"] == "1.2"
+    assert bundle["next"] == {
+        "section": None,
+        "action": (
+            "Pass --root pc=<abs> and --root drive=<abs> on the machine "
+            "that can see section 15/13/11 files"
+        ),
+    }
+    assert "/secret/host/path" not in json.dumps(bundle["next"])
+    rooted = write_remaining_plan_bundle(
+        plans,
+        tmp_path / "rooted.json",
+        connections={"connected_root_count": 1, "technical_pass": True},
+    )
+    assert rooted["next"] == {
+        "section": 15,
+        "action": "missing required role handwritten_index",
+    }

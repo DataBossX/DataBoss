@@ -284,6 +284,43 @@ def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:
     assert "--print-layout-output" not in finish_cmd
 
 
+def test_existing_a4_letter_is_repaired_in_place(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    letter = receipts / "section15-letter.xlsx"
+    _write_penterra(letter)
+    loaded = openpyxl.load_workbook(letter)
+    sheet = loaded["Index"]
+    sheet.page_setup.orientation = "portrait"
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.print_title_rows = None
+    loaded.save(letter)
+    loaded.close()
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    repaired = openpyxl.load_workbook(letter, data_only=True)
+    assert repaired["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    assert repaired["Index"].page_setup.orientation == "landscape"
+    assert int(repaired["Index"].page_setup.paperSize) == 1
+    assert str(repaired["Index"].print_title_rows).replace("$", "") == "1:8"
+    repaired.close()
+    draft = json.loads(
+        (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")
+    )
+    letter_sha = __import__(
+        "horizon.isolated_delta", fromlist=["sha256_file"]
+    ).sha256_file(letter)
+    assert draft["workbook_sha256"] == letter_sha
+
+
 def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     tmp_path: Path,
 ) -> None:
@@ -307,7 +344,6 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     sheet.print_title_rows = None
     loaded.save(letter)
     loaded.close()
-    before = letter.read_bytes()
     receipt = build_work_order(
         roots=[f"pc={root}"],
         sections=[15],
@@ -315,7 +351,6 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
         execute=True,
     )
     assert receipt.packages_complete is False
-    assert letter.read_bytes() == before
     isolated = receipts / "section15-delta.xlsx"
     assert isolated.is_file()
     repaired = openpyxl.load_workbook(isolated, data_only=True)
@@ -326,6 +361,8 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     repaired.close()
     stale = openpyxl.load_workbook(letter, data_only=True)
     assert stale["Index"]["H9"].value in (None, "")
+    assert stale["Index"].page_setup.orientation == "landscape"
+    assert int(stale["Index"].page_setup.paperSize) == 1
     stale.close()
     packet = json.loads(
         (receipts / "section15-index-packet.json").read_text(encoding="utf-8")

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import openpyxl
@@ -12,6 +14,8 @@ from horizon.isolated_delta import sha256_file
 from horizon.native_print import (
     NativePrintError,
     assess_native_print,
+    attest_native_print_draft,
+    write_native_print_draft,
     write_native_print_packet,
 )
 from horizon.package_finish import run_finish
@@ -201,3 +205,122 @@ def test_write_native_print_packet_binds_workbook_hash(tmp_path: Path) -> None:
             expected_page_count=4,
             packet_id="SECTION15-PRINT",
         )
+
+
+def test_native_print_draft_cannot_bind_until_attested(tmp_path: Path) -> None:
+    workbook = tmp_path / "letter.xlsx"
+    workbook.write_bytes(b"SYNTH-LETTER")
+    draft_path = tmp_path / "draft.json"
+    draft = write_native_print_draft(
+        workbook=workbook,
+        output=draft_path,
+        packet_id="SECTION15-PRINT",
+    )
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["page_count"] is None
+    with pytest.raises(NativePrintError, match="invalid top-level"):
+        assess_native_print(draft, workbook=workbook)
+    with pytest.raises(NativePrintError, match="named examiner"):
+        attest_native_print_draft(
+            draft,
+            workbook=workbook,
+            output=tmp_path / "nope.json",
+            operator="EXAMINER_NAME",
+            page_count=2,
+        )
+    workbook.write_bytes(b"CHANGED")
+    with pytest.raises(NativePrintError, match="does not match"):
+        attest_native_print_draft(
+            draft,
+            workbook=workbook,
+            output=tmp_path / "stale.json",
+            operator="Pat Examiner",
+            page_count=2,
+        )
+    workbook.write_bytes(b"SYNTH-LETTER")
+    packet = attest_native_print_draft(
+        draft,
+        workbook=workbook,
+        output=tmp_path / "native.json",
+        operator="Pat Examiner",
+        page_count=2,
+    )
+    assert packet["page_count"] == 2
+    assert assess_native_print(packet, workbook=workbook).technical_pass is True
+
+
+def test_cli_draft_and_attest(tmp_path: Path) -> None:
+    workbook = tmp_path / "letter.xlsx"
+    workbook.write_bytes(b"SYNTH-LETTER")
+    draft = tmp_path / "draft.json"
+    receipt = tmp_path / "native.json"
+    drafted = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "horizon.native_print",
+            "--draft",
+            "--workbook",
+            str(workbook),
+            "--output",
+            str(draft),
+            "--packet-id",
+            "SECTION15-PRINT",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert drafted.returncode == 0
+    payload = json.loads(draft.read_text(encoding="utf-8"))
+    assert payload["schema_id"] == "dbx.native_print_draft"
+    assert payload["status"] == "UNAPPROVED_DRAFT"
+    assert payload["page_count"] is None
+    attested = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "horizon.native_print",
+            "--attest",
+            "--from-draft",
+            str(draft),
+            "--workbook",
+            str(workbook),
+            "--output",
+            str(receipt),
+            "--operator",
+            "Pat Examiner",
+            "--page-count",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert attested.returncode == 0
+    receipt_payload = json.loads(receipt.read_text(encoding="utf-8"))
+    assert receipt_payload["schema_id"] == "dbx.native_print_receipt"
+    assert receipt_payload["page_count"] == 2
+    placeholder = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "horizon.native_print",
+            "--attest",
+            "--from-draft",
+            str(draft),
+            "--workbook",
+            str(workbook),
+            "--output",
+            str(tmp_path / "nope.json"),
+            "--operator",
+            "EXAMINER_NAME",
+            "--page-count",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert placeholder.returncode == 1
+    assert "PAGE_COUNT" not in placeholder.stderr

@@ -64,10 +64,14 @@ authorized bytes. Writer-held native Excel, owner-review, and PDF census packets
 into the receipt directory are discovered the same way. `sectionN-pdfs/`
 is inventoried on `--execute` when present, as are authorized snapshot
 `source_document` PDFs after Phase 2. `expected_pages` is the counted
-page total, not a federal row count. Native print and owner-review bind
-the current isolated workbook (`sectionN-delta.xlsx` after a source-proved
-apply). When a `drive=` root is mounted, `--execute` publishes that isolated
-file into `Section N/Isolated/` and binds SHA-256 readback. Remaining
+page total, not a federal row count. `--execute` writes
+`sectionN-native-print-draft.json` bound to the current isolated hash;
+attest it after Windows Excel Print Preview. Horizon does not invent the
+page count. Native print and owner-review bind the current isolated
+workbook (`sectionN-delta.xlsx` after a source-proved apply) and are
+dropped when their hash no longer matches. When a `drive=` root is
+mounted, `--execute` publishes that isolated file into
+`Section N/Isolated/` and binds SHA-256 readback. Remaining
 one-source blanks and conflicts are written to `sectionN-examiner-queue.json`;
 the queue does not invent fills. The draft itself is not Phase 2.
 `python -m horizon.package_finish` then chains

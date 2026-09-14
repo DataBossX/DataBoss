@@ -125,7 +125,8 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert any("pdf_census" in command for command in by_section[13].next_commands)
     assert any("--inventory" in command for command in by_section[13].next_commands)
     assert "horizon.native_print" in joined
-    assert "--write" in joined
+    assert "--attest" in joined
+    assert "--from-draft" in joined
     assert "horizon.human_release" in joined
     assert any("Phase 2" in action for action in receipt.next_actions)
     draft_path = receipts / "authority-draft.json"
@@ -203,6 +204,14 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     assert letter.is_file()
     assert (receipts / "section15-workbook-export.json").is_file()
     assert (receipts / "section15-workbook-occurrence.json").is_file()
+    draft = json.loads(
+        (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")
+    )
+    assert draft["schema_id"] == "dbx.native_print_draft"
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["workbook_sha256"] == __import__(
+        "horizon.isolated_delta", fromlist=["sha256_file"]
+    ).sha256_file(letter)
     payload = json.loads(finish.read_text(encoding="utf-8"))
     assert payload["packages_complete"] is False
     assert source.read_bytes() == before
@@ -347,6 +356,75 @@ def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> Non
     )
     assert census_gate["technical_pass"] is True
     assert census_gate["detail"]["empty_text_files"] == 1
+
+
+def test_operator_drops_stale_native_print_after_delta(tmp_path: Path) -> None:
+    from horizon.isolated_delta import sha256_file, write_delta_packet
+    from horizon.native_print import write_native_print_packet
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    write_native_print_packet(
+        workbook=letter,
+        output=receipts / "section15-native-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                "row_key": "2026-09901|",
+                "field": "comments",
+                "value": "SYNTH SOURCE NOTE",
+                "source_sha256": "a" * 64,
+                "page": 1,
+                "crop_id": "note",
+                "replace": False,
+            }
+        ],
+        output=receipts / "section15-delta-packet.json",
+        packet_id="SYNTH-P15-DELTA",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert (receipts / "section15-delta.xlsx").is_file()
+    native = next(
+        command
+        for command in second.sections[0].next_commands
+        if "horizon.native_print" in command
+    )
+    assert "--attest" in native
+    assert str(receipts / "section15-delta.xlsx") in native
+    assert "section15-letter.xlsx" not in native
+    assert any(
+        "different workbook hash" in hold for hold in second.sections[0].holds
+    )
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    assert all(gate["name"] != "native_print" for gate in finish["gates"])
+    draft = json.loads(
+        (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")
+    )
+    assert draft["workbook_sha256"] == sha256_file(receipts / "section15-delta.xlsx")
 
 
 def test_operator_discovers_receipt_dir_native_print(tmp_path: Path) -> None:

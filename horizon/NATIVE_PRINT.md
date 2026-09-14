@@ -33,18 +33,26 @@ Do not put a live page count in this repository. The writer holds
 `expected_page_count` for that section (historically Section 15 repaired to
 two Letter pages; this module does not hard-code that).
 
-Write the packet after Print Preview. Horizon does not invent `PAGE_COUNT`.
+`pc_operator --execute` writes `sectionN-native-print-draft.json`
+(`dbx.native_print_draft`, `UNAPPROVED_DRAFT`) bound to the current isolated
+workbook hash. That draft cannot bind the native-print gate. After Print
+Preview, attest it. Horizon does not invent `PAGE_COUNT`. A receipt whose
+`workbook_sha256` does not match the current isolated file (Letter, or
+`sectionN-delta.xlsx` after a source-proved fill) is dropped so the next
+command is a reprint, not a stale bind.
 
 ```bash
 python3 -m horizon.native_print \
-  --write \
+  --attest \
+  --from-draft /path/to/section15-native-print-draft.json \
   --workbook /path/to/isolated-letter.xlsx \
   --output /path/to/native-excel-print-receipt.json \
   --operator "Pat Examiner" \
-  --page-count PAGE_COUNT \
-  --expected-page-count PAGE_COUNT \
-  --packet-id SECTION15-PRINT
+  --page-count PAGE_COUNT
 ```
+
+The older `--write` path still works when the examiner supplies both the
+name and the page count in one step.
 
 ```bash
 python3 -m horizon.native_print \

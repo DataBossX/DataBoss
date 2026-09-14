@@ -45,10 +45,14 @@ python3 -m horizon.pc_operator \
    `drive=` root is mounted, `--execute` publishes that isolated file into
    the Drive section folder (it will not overwrite a different hash) and
    binds SHA-256 readback.    Client source files are never copied into this
-   repository. After recon/repair, `--execute` writes
+   repository.    After recon/repair, `--execute` writes
    `sectionN-examiner-queue.json` listing remaining blanks and conflicts
    with provenance. One-source blanks stay blank until a writer-held
-   source-proved delta.
+   source-proved delta. It also writes `sectionN-native-print-draft.json`
+   bound to the current isolated workbook hash. Attest that draft after
+   Windows Excel Print Preview; Horizon does not invent the page count.
+   Native-print and owner-review packets that do not match the current
+   isolated hash are unbound so the next command reprints and reissues.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

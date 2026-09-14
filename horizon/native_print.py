@@ -21,6 +21,9 @@ from .isolated_delta import sha256_file
 
 PACKET_SCHEMA_ID = "dbx.native_print_receipt"
 PACKET_SCHEMA_VERSION = "1.0"
+DRAFT_SCHEMA_ID = "dbx.native_print_draft"
+DRAFT_SCHEMA_VERSION = "1.0"
+DRAFT_STATUS = "UNAPPROVED_DRAFT"
 RECEIPT_SCHEMA_ID = "dbx.native_print_gate_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
 REQUIRED_KEYS = {
@@ -202,6 +205,79 @@ def write_native_print_packet(
     return packet
 
 
+def write_native_print_draft(
+    *,
+    workbook: Path,
+    output: Path,
+    packet_id: str,
+) -> Dict[str, object]:
+    """Hash-bind a draft. Does not invent a page count or name an examiner."""
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise NativePrintError(f"workbook does not exist: {resolved}")
+    token = packet_id.strip()
+    if not token or "\n" in token:
+        raise NativePrintError("packet_id must be a single-line string")
+    draft = {
+        "schema_id": DRAFT_SCHEMA_ID,
+        "schema_version": DRAFT_SCHEMA_VERSION,
+        "status": DRAFT_STATUS,
+        "packet_id": token,
+        "workbook_sha256": sha256_file(resolved),
+        "application": NATIVE_APPLICATION,
+        "host": NATIVE_HOST,
+        "paper_size": 1,
+        "orientation": "landscape",
+        "print_titles": True,
+        "print_area_set": True,
+        "page_count": None,
+        "operator": "",
+        "notes": [
+            "UNAPPROVED_DRAFT cannot bind native_print",
+            "Attest with a named examiner and the Windows Excel page count",
+        ],
+    }
+    output = output.expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(draft, indent=2, sort_keys=True), encoding="utf-8")
+    return draft
+
+
+def attest_native_print_draft(
+    draft: Dict[str, object],
+    *,
+    workbook: Path,
+    output: Path,
+    operator: str,
+    page_count: int,
+) -> Dict[str, object]:
+    """Promote a draft after Print Preview. Horizon does not invent page_count."""
+    if (
+        draft.get("schema_id") != DRAFT_SCHEMA_ID
+        or draft.get("schema_version") != DRAFT_SCHEMA_VERSION
+        or draft.get("status") != DRAFT_STATUS
+    ):
+        raise NativePrintError("native print draft schema is invalid")
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise NativePrintError(f"workbook does not exist: {resolved}")
+    actual = sha256_file(resolved)
+    expected = str(draft.get("workbook_sha256") or "").casefold()
+    if actual != expected:
+        raise NativePrintError(
+            "Workbook hash does not match the native print draft; reprint "
+            "the current isolated workbook"
+        )
+    return write_native_print_packet(
+        workbook=resolved,
+        output=output,
+        operator=operator,
+        page_count=page_count,
+        expected_page_count=page_count,
+        packet_id=str(draft.get("packet_id") or ""),
+    )
+
+
 def _load_json(path: Path) -> Dict[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -217,6 +293,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Bind a writer-held native Excel Print Preview receipt."
     )
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--draft", action="store_true")
+    parser.add_argument("--attest", action="store_true")
+    parser.add_argument("--from-draft", type=Path)
     parser.add_argument("--packet", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--workbook", type=Path)
@@ -230,6 +309,55 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.draft:
+            if args.workbook is None or args.packet_id is None:
+                raise NativePrintError("--draft requires --workbook and --packet-id")
+            draft = write_native_print_draft(
+                workbook=args.workbook,
+                output=args.output,
+                packet_id=args.packet_id,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "status": draft["status"],
+                        "workbook_sha256": draft["workbook_sha256"],
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.attest:
+            if args.from_draft is None or args.workbook is None or args.operator is None:
+                raise NativePrintError(
+                    "--attest requires --from-draft, --workbook, --operator, "
+                    "and --page-count"
+                )
+            if args.page_count is None:
+                raise NativePrintError(
+                    "Pass the Print Preview page count; Horizon does not invent it"
+                )
+            packet = attest_native_print_draft(
+                _load_json(args.from_draft),
+                workbook=args.workbook,
+                output=args.output,
+                operator=args.operator,
+                page_count=args.page_count,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "workbook_sha256": packet["workbook_sha256"],
+                        "page_count": packet["page_count"],
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
         if args.write:
             if args.workbook is None or args.operator is None or args.packet_id is None:
                 raise NativePrintError(

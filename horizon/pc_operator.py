@@ -25,6 +25,7 @@ from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import sha256_file
+from .native_print import NativePrintError, write_native_print_draft
 from .package_finish import PackageFinishError, run_finish
 from .pdf_census import PdfCensusError, write_inventory_packet
 from .workbook_ledger import (
@@ -495,13 +496,16 @@ def _section_commands(
         )
     workbook = _current_isolated_workbook(receipt_dir, section)
     if bindings.native_print_receipt is None:
+        draft = f"{receipt_dir}/section{section}-native-print-draft.json"
         commands.append(
             _quote_command(
                 [
                     "python3",
                     "-m",
                     "horizon.native_print",
-                    "--write",
+                    "--attest",
+                    "--from-draft",
+                    draft,
                     "--workbook",
                     workbook,
                     "--output",
@@ -510,16 +514,12 @@ def _section_commands(
                     "EXAMINER_NAME",
                     "--page-count",
                     "PAGE_COUNT",
-                    "--expected-page-count",
-                    "PAGE_COUNT",
-                    "--packet-id",
-                    f"SECTION{section}-PRINT",
                 ]
             )
         )
         commands.append(
             "On Windows Excel, Print Preview the current isolated workbook, "
-            "replace PAGE_COUNT and EXAMINER_NAME"
+            "then attest the draft with PAGE_COUNT and EXAMINER_NAME"
         )
     if bindings.drive_readback is None:
         commands.append(
@@ -637,6 +637,20 @@ def _section_work_order(
         list(summary.missing_required_roles) if summary else list(required_roles)
     )
     missing_candidates = _missing_candidate_roles(files, section, required_roles)
+    bound = _bind_section_census(
+        _merge_bindings(
+            bindings,
+            _discover_packets(files, inventory.roots, section),
+        ),
+        receipt_dir,
+        section,
+        inventory=inventory,
+    )
+    isolated = Path(_current_isolated_workbook(receipt_dir, section))
+    bound, stale_holds = _unbind_stale_workbook_packets(
+        bound, isolated if isolated.is_file() else None
+    )
+    holds.extend(stale_holds)
     return SectionWorkOrder(
         section=section,
         ready_for_extraction=bool(summary and summary.ready_for_extraction),
@@ -652,15 +666,7 @@ def _section_work_order(
             picks=picks,
             receipt_dir=receipt_dir,
             missing_roles=missing_candidates,
-            bindings=_bind_section_census(
-                _merge_bindings(
-                    bindings,
-                    _discover_packets(files, inventory.roots, section),
-                ),
-                receipt_dir,
-                section,
-                inventory=inventory,
-            ),
+            bindings=bound,
         ),
         holds=holds,
     )
@@ -748,6 +754,57 @@ def _write_examiner_queue(
         None,
         int(queue.get("blank_count") or 0),
         int(queue.get("conflict_count") or 0),
+    )
+
+
+def _packet_workbook_sha256(path: Path) -> Optional[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    digest = payload.get("workbook_sha256")
+    if isinstance(digest, str) and len(digest) == 64:
+        return digest.casefold()
+    return None
+
+
+def _unbind_stale_workbook_packets(
+    bindings: FinishBindings,
+    workbook: Optional[Path],
+) -> tuple[FinishBindings, List[str]]:
+    """Drop native-print and owner-review packets that do not match isolated bytes."""
+    if workbook is None or not workbook.is_file():
+        return bindings, []
+    actual = sha256_file(workbook)
+    holds: List[str] = []
+    native = bindings.native_print_receipt
+    release = bindings.human_release_token
+    if native is not None and _packet_workbook_sha256(native) != actual:
+        holds.append(
+            "Native print receipt is bound to a different workbook hash; "
+            "reprint the current isolated workbook"
+        )
+        native = None
+    if release is not None and _packet_workbook_sha256(release) != actual:
+        holds.append(
+            "Owner-review token is bound to a different workbook hash; "
+            "reissue it against the current isolated workbook"
+        )
+        release = None
+    if (
+        native is bindings.native_print_receipt
+        and release is bindings.human_release_token
+    ):
+        return bindings, holds
+    return (
+        replace(
+            bindings,
+            native_print_receipt=native,
+            human_release_token=release,
+        ),
+        holds,
     )
 
 
@@ -1249,6 +1306,7 @@ def _execute_section(
             letter = letter_path
         delta_packet = None
         delta_output = None
+        applying_delta = False
         if bound.delta_packet is not None and workbook is not None:
             if delta_path.exists():
                 workbook = delta_path
@@ -1256,21 +1314,28 @@ def _execute_section(
                 repair = None
                 delta_packet = bound.delta_packet
                 delta_output = delta_path
+                applying_delta = True
         current_book = (
             delta_path
             if delta_path.exists()
             else None
-            if delta_packet is not None
+            if applying_delta
             else letter_path
             if reuse_isolated
             else None
         )
+        if current_book is not None:
+            bound, stale_holds = _unbind_stale_workbook_packets(bound, current_book)
+            order.holds.extend(stale_holds)
         if bound.drive_readback is None and current_book is not None:
             bound.drive_readback = _same_hash_readback(
                 inventory,
                 current_book,
                 receipt_dir,
             )
+        finish_native = None if applying_delta else bound.native_print_receipt
+        finish_release = None if applying_delta else bound.human_release_token
+        finish_readback = None if applying_delta else bound.drive_readback
         finish = run_finish(
             sections=[order.section],
             roots=list(root_args),
@@ -1280,11 +1345,11 @@ def _execute_section(
             repair_dir=repair,
             print_layout_output=letter,
             page_render_packet=bound.page_render_packet,
-            native_print_receipt=bound.native_print_receipt,
-            human_release_token=bound.human_release_token,
+            native_print_receipt=finish_native,
+            human_release_token=finish_release,
             pdf_census_packet=bound.pdf_census_packet,
             pdf_bind_dir=bound.pdf_bind_dir,
-            drive_readback=bound.drive_readback,
+            drive_readback=finish_readback,
             delta_packet=delta_packet,
             delta_output=delta_output,
             authority_manifest=bound.authority_manifest,
@@ -1338,6 +1403,18 @@ def _execute_section(
                     f"{blanks} blank required field(s) and {conflicts} "
                     f"conflict(s) remain; see section{order.section}-examiner-queue.json"
                 )
+            bound, stale_holds = _unbind_stale_workbook_packets(bound, isolated)
+            order.holds.extend(stale_holds)
+            try:
+                draft_path = receipt_dir / f"section{order.section}-native-print-draft.json"
+                write_native_print_draft(
+                    workbook=isolated,
+                    output=draft_path,
+                    packet_id=f"SECTION{order.section}-PRINT",
+                )
+                order.executed_outputs.append(str(draft_path))
+            except (OSError, NativePrintError) as exc:
+                order.holds.append(f"Native print draft failed: {exc}")
             published, publish_hold = _publish_isolated_to_drive(
                 inventory, order.section, isolated
             )

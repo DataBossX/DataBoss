@@ -135,9 +135,10 @@ python3 -m horizon.pc_operator \
    acquisition.    Page-render, native-print, owner-review, and PDF census JSON packets
    are discovered by `schema_id` when present, or passed explicitly.
    Discovery keeps only packets whose name or `packet_id` names that
-   section (`SECTION{N}` / `sectionN` / `P{N}`). A leftover that names
+   section (`SECTION{N}` / `sectionN` / `P{N}`).    A leftover that names
    more than one priority section is not bound. Unlabeled leftovers are
-   not auto-bound. Census packets, crop packets, native-print receipts,
+   not auto-bound. CLI `--pdf-bind-dir` / `--page-render-bind-dir` stay
+   on the named section the same way. Census packets, crop packets, native-print receipts,
    and owner-review tokens stay on the matching section the same way.
    Crops rebound with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`

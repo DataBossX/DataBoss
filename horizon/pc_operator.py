@@ -157,6 +157,18 @@ def _payload_names_section(
     return priority == {section}
 
 
+def _bind_dir_for_section(candidate: Optional[Path], section: int) -> Optional[Path]:
+    if candidate is None:
+        return None
+    marks: set[int] = set()
+    for part in Path(candidate).parts:
+        marks.update(_section_marks(part))
+    priority = {mark for mark in marks if mark in PRIORITY_SECTIONS}
+    if priority != {section}:
+        return None
+    return candidate
+
+
 class PcOperatorError(ValueError):
     """Raised when the PC operator cannot build a safe work order."""
 
@@ -1753,9 +1765,9 @@ def _crops_bind_dir(
         return None
     bind_text = payload.get("bind_dir") if isinstance(payload, dict) else ""
     if isinstance(bind_text, str) and bind_text.strip():
-        candidate = Path(bind_text)
+        candidate = _bind_dir_for_section(Path(bind_text), section)
         try:
-            if candidate.is_dir():
+            if candidate is not None and candidate.is_dir():
                 return candidate.resolve()
         except OSError:
             return None
@@ -2170,7 +2182,7 @@ def _bind_section_crops(
     packet = _section_crop_packet(
         bindings.page_render_packet, receipt_dir, section
     )
-    bind_dir = bindings.page_render_bind_dir
+    bind_dir = _bind_dir_for_section(bindings.page_render_bind_dir, section)
     if bind_dir is None:
         bind_dir = _crops_bind_dir(
             Path(receipt_dir), section, inventory, crops_draft
@@ -2209,7 +2221,7 @@ def _bind_section_census(
     packet = _section_census_packet(
         bindings.pdf_census_packet, receipt_dir, section
     )
-    bind_dir = bindings.pdf_bind_dir
+    bind_dir = _bind_dir_for_section(bindings.pdf_bind_dir, section)
     if bind_dir is None:
         bind_dir = _section_pdf_bind_dir(receipt_dir, section)
     if bind_dir is None:

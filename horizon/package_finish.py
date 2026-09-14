@@ -1061,7 +1061,8 @@ def run_finish(
                             "workbook_sha256": readback.workbook_sha256,
                             "readback_sha256": readback.readback_sha256,
                             "issue_count": len(readback.issues),
-                            "isolated_copy": any(
+                            "isolated_copy": bool(sections)
+                            and all(
                                 is_drive_isolated_copy(drive_readback, section)
                                 for section in sections
                             ),

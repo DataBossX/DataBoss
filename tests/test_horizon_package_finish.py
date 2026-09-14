@@ -678,6 +678,16 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
         gate for gate in receipt.gates if gate.name == "drive_readback"
     )
     assert drive_gate.detail.get("isolated_copy") is True
+    mixed = run_finish(
+        sections=[15, 13],
+        workbook=candidate,
+        drive_readback=drive,
+    )
+    assert mixed.packages_complete is False
+    mixed_drive = next(
+        gate for gate in mixed.gates if gate.name == "drive_readback"
+    )
+    assert mixed_drive.detail.get("isolated_copy") is not True
     reextraction = next(
         gate for gate in receipt.gates if gate.name == "reextraction"
     )

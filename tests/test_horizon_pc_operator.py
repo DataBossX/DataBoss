@@ -16,6 +16,7 @@ from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
     _crop_packet_matches_renders,
+    _bind_dir_for_section,
     _discover_receipt_dir_packets,
     _drive_section_dir,
     _publish_isolated_to_drive,
@@ -1954,6 +1955,54 @@ def test_section_census_packet_oserror_does_not_return_other_section(
         "horizon.pc_operator._census_packet_matches_section", boom
     )
     assert _section_census_packet(leftover, str(tmp_path), 15) is None
+
+
+def test_bind_dir_stays_on_named_section(tmp_path: Path) -> None:
+    named15 = tmp_path / "section15-pdfs"
+    named13 = tmp_path / "section13-renders"
+    unlabeled = tmp_path / "faces"
+    dual = tmp_path / "section15-section13-pdfs"
+    for path in (named15, named13, unlabeled, dual):
+        path.mkdir()
+    assert _bind_dir_for_section(named15, 15) == named15
+    assert _bind_dir_for_section(named15, 13) is None
+    assert _bind_dir_for_section(named13, 13) == named13
+    assert _bind_dir_for_section(named13, 15) is None
+    assert _bind_dir_for_section(unlabeled, 15) is None
+    assert _bind_dir_for_section(dual, 15) is None
+    assert _bind_dir_for_section(dual, 13) is None
+    assert _bind_dir_for_section(None, 15) is None
+
+
+def test_execute_does_not_reuse_other_section_pdf_bind_dir(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    section13 = root / "Section 13"
+    _write_penterra(section13 / "Master Abstract.xlsx")
+    _write_penterra(section13 / "County Index.xlsx")
+    _write_penterra(section13 / "Handwritten Index.xlsx")
+    receipts = tmp_path / "private-receipts"
+    other_pdfs = receipts / "section15-pdfs"
+    other_pdfs.mkdir(parents=True)
+    (other_pdfs / "part4.pdf").write_bytes(_minimal_pdf())
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+        bindings=FinishBindings(pdf_bind_dir=other_pdfs),
+    )
+    assert receipt.packages_complete is False
+    finish13 = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    assert "pdf_census" not in {gate["name"] for gate in finish13["gates"]}
+    dumped = json.dumps(finish13)
+    assert "462" not in dumped
+    assert "SECTION15" not in dumped
+    assert not (receipts / "section13-empty-text-queue.json").exists()
+    assert not (receipts / "section13-pdf-census-packet.json").exists()
 
 
 def test_execute_does_not_bind_other_section_census_packet(tmp_path: Path) -> None:

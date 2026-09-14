@@ -69,6 +69,8 @@ listed in `sectionN-empty-text-queue.json` for face review.
 Handwritten-index scans are hashed into
 `sectionN-handwritten-scan-draft.json` and listed for transcription;
 Horizon does not OCR or invent index rows.
+Chat and OCR supporting files are hashed for review only and cannot
+fill legal, party, or date cells.
 `--execute` writes `sectionN-remaining-plan.json` and a combined
 `remaining-plan.json` in priority order 15, 13, 11.
 `--execute` writes

@@ -26,6 +26,7 @@ OPEN_QUEUE_FILES = {
     "crops_draft": "section{section}-crops-draft.json",
     "empty_text_queue": "section{section}-empty-text-queue.json",
     "handwritten_scan_queue": "section{section}-handwritten-scan-queue.json",
+    "supporting_record_queue": "section{section}-supporting-record-queue.json",
     "native_print_draft": "section{section}-native-print-draft.json",
     "owner_review_draft": "section{section}-owner-review-draft.json",
 }

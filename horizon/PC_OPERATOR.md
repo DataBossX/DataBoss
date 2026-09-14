@@ -79,6 +79,10 @@ python3 -m horizon.pc_operator \
    `sectionN-handwritten-scans/` or, after Phase 2, authorized snapshot
    scans. Remaining pages go to `sectionN-handwritten-scan-queue.json`
    for transcription into a Penterra xlsx. Horizon does not OCR.
+   Chat and OCR supporting files are hashed into
+   `sectionN-supporting-record-draft.json` from `sectionN-chat/`,
+   `sectionN-ocr/`, `sectionN-supporting/`, or Phase 2 authorized
+   snapshot files. The queue is review-only and is not legal authority.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

@@ -66,6 +66,11 @@ from .remaining_plan import (
     write_remaining_plan,
     write_remaining_plan_bundle,
 )
+from .supporting_record import (
+    SupportingRecordError,
+    supporting_record_queue_from_draft,
+    write_supporting_record_draft,
+)
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     IMAGE_EXTENSIONS,
@@ -542,6 +547,15 @@ def _section_commands(
             "Transcribe hashed handwritten scans from "
             f"section{section}-handwritten-scan-queue.json into a Penterra "
             "xlsx; Horizon does not OCR or invent index rows"
+        )
+    supporting_queue = (
+        Path(receipt_dir) / f"section{section}-supporting-record-queue.json"
+    )
+    if supporting_queue.is_file():
+        commands.append(
+            "Review hashed chat/OCR files in "
+            f"section{section}-supporting-record-queue.json only; they are "
+            "not legal authority and must not fill index cells"
         )
     workbook = _current_isolated_workbook(receipt_dir, section)
     if bindings.native_print_receipt is None:
@@ -1504,6 +1518,116 @@ def _write_handwritten_scan_queue(
     return str(dest), None, count
 
 
+def _source_supporting_records(
+    inventory: Optional[AcquisitionReceipt],
+    section: int,
+) -> tuple[Optional[Path], List[Path]]:
+    """Authorized Phase 2 snapshot chat/OCR only. Phase 1 live files stay out."""
+    if inventory is None or not inventory.snapshot_root:
+        return None, []
+    authorized = {
+        (match.assertion.root_label, match.assertion.relative_path)
+        for match in inventory.authority_matches
+        if match.status == "matched"
+        and match.assertion.section == section
+        and match.assertion.role in {"chat_export", "ocr_text", "supporting_record"}
+    }
+    paths: List[Path] = []
+    snapshot = Path(inventory.snapshot_root)
+    for item in inventory.files:
+        if item.section != section:
+            continue
+        if item.candidate_role not in {"chat_export", "ocr_text", "supporting_record"}:
+            continue
+        if (item.root_label, item.relative_path) not in authorized:
+            continue
+        path = snapshot_path_for(inventory, item)
+        if path.is_file():
+            paths.append(path.resolve())
+    if not paths:
+        return None, []
+    return snapshot.resolve(), paths
+
+
+def _section_supporting_dir(receipt_dir: Path, section: int) -> Optional[Path]:
+    for name in (
+        f"section{section}-supporting",
+        f"section{section}-chat",
+        f"section{section}-ocr",
+    ):
+        candidate = receipt_dir / name
+        try:
+            if candidate.is_dir():
+                return candidate.resolve()
+        except OSError:
+            continue
+    return None
+
+
+def _write_section_supporting_record_draft(
+    receipt_dir: Path,
+    section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    dest = receipt_dir / f"section{section}-supporting-record-draft.json"
+    examiner = _section_supporting_dir(receipt_dir, section)
+    snap_bind, snap_paths = _source_supporting_records(inventory, section)
+    try:
+        if examiner is not None:
+            write_supporting_record_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-SUPPORTING",
+                bind_dir=examiner,
+            )
+        elif snap_bind is not None:
+            write_supporting_record_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-SUPPORTING",
+                bind_dir=snap_bind,
+                paths=snap_paths,
+            )
+        else:
+            write_supporting_record_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-SUPPORTING",
+            )
+    except (OSError, SupportingRecordError) as exc:
+        return None, str(exc)
+    return str(dest), None
+
+
+def _write_supporting_record_queue(
+    draft_path: Optional[str],
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str], int]:
+    dest = receipt_dir / f"section{section}-supporting-record-queue.json"
+    if not draft_path:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    try:
+        draft = json.loads(Path(draft_path).read_text(encoding="utf-8"))
+        if not isinstance(draft, dict):
+            return None, "supporting-record draft is not a JSON object", 0
+        queue = supporting_record_queue_from_draft(draft)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        SupportingRecordError,
+    ) as exc:
+        return None, str(exc), 0
+    items = queue.get("items")
+    count = len(items) if isinstance(items, list) else 0
+    if count == 0:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    dest.write_text(json.dumps(queue, indent=2, sort_keys=True), encoding="utf-8")
+    return str(dest), None, count
+
+
 def _write_section_remaining_plan(
     order: SectionWorkOrder,
     receipt_dir: Path,
@@ -2000,6 +2124,31 @@ def _execute_section(
             f"{scan_count} handwritten scan(s) still need a Penterra xlsx; "
             f"see section{order.section}-handwritten-scan-queue.json"
         )
+    supporting_draft, supporting_error = _write_section_supporting_record_draft(
+        receipt_dir, order.section, inventory=phase2
+    )
+    if supporting_draft:
+        order.executed_outputs.append(supporting_draft)
+    if supporting_error:
+        order.holds.append(
+            f"Supporting-record draft failed: {supporting_error}"
+        )
+    supporting_queue, supporting_queue_error, support_count = (
+        _write_supporting_record_queue(
+            supporting_draft, receipt_dir, order.section
+        )
+    )
+    if supporting_queue:
+        order.executed_outputs.append(supporting_queue)
+    if supporting_queue_error:
+        order.holds.append(
+            f"Supporting-record queue failed: {supporting_queue_error}"
+        )
+    elif support_count:
+        order.holds.append(
+            f"{support_count} chat/OCR file(s) are review-only; "
+            f"see section{order.section}-supporting-record-queue.json"
+        )
     crops_draft, crops_error = _write_section_crops_draft(
         receipt_dir, order.section, inventory=phase2
     )
@@ -2155,6 +2304,10 @@ def _execute_section(
             order.executed_outputs.append(handwritten_draft)
         if handwritten_queue:
             order.executed_outputs.append(handwritten_queue)
+        if supporting_draft:
+            order.executed_outputs.append(supporting_draft)
+        if supporting_queue:
+            order.executed_outputs.append(supporting_queue)
         if index_packet_path is not None:
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():

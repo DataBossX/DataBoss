@@ -68,6 +68,10 @@ _synthetic_corpus/
 .pytest_cache/
 runtime/
 
+# Isolated local dashboards may cite Drive receipts; keep them out of git
+/isolated/
+.playwright-mcp/
+
 # Client-specific operations data must stay in approved private systems
 projects/OK-*/
 private_projects/

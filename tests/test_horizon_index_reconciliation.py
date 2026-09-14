@@ -71,6 +71,7 @@ def _packet(**overrides: object) -> dict[str, object]:
 
 def test_three_way_match_is_high_confidence_and_already_present() -> None:
     receipt = reconcile_indexes(_packet())
+    assert receipt.issues == []
     assert receipt.technical_pass is True
     assert receipt.conflict_count == 0
     assert receipt.proposed_deltas == []

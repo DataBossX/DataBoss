@@ -378,7 +378,7 @@ def reconcile_indexes(payload: Dict[str, object]) -> IndexReconciliationReceipt:
             sorted(name for name in SOURCE_NAMES if key in by_source[name])
         )
         allowed = allow_by_key.get(key)
-        if present != SOURCE_NAMES:
+        if set(present) != set(SOURCE_NAMES):
             if allowed is None:
                 issues.append(
                     f"orphan key {key} present_in={list(present)}"

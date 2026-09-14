@@ -674,6 +674,59 @@ def test_operator_discovers_and_applies_delta_packet(tmp_path: Path) -> None:
     assert "section13-letter.xlsx" not in release
 
 
+def test_apply_delta_then_repairs_remaining_agreed_fills(
+    tmp_path: Path,
+) -> None:
+    from horizon.isolated_delta import write_delta_packet
+
+    root = tmp_path / "pc-root"
+    section = root / "Section 15"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    _write_penterra(section / "Working Abstract.xlsx", legal="")
+    (section / "Recorded Faces").mkdir(parents=True)
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    letter = receipts / "section15-letter.xlsx"
+    _write_penterra(letter, legal="")
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                "row_key": "2026-09901|",
+                "field": "comments",
+                "value": "SYNTH SOURCE NOTE",
+                "source_sha256": "a" * 64,
+                "page": 1,
+                "crop_id": "note",
+                "replace": False,
+            }
+        ],
+        output=receipts / "section15-delta-packet.json",
+        packet_id="SYNTH-P15-FOLLOW-REPAIR",
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    first = receipts / "section15-delta.xlsx"
+    chained = receipts / "section15-delta-2.xlsx"
+    assert first.is_file()
+    assert chained.is_file()
+    applied = openpyxl.load_workbook(first, data_only=True)
+    assert applied["Index"]["I9"].value == "SYNTH SOURCE NOTE"
+    applied.close()
+    repaired = openpyxl.load_workbook(chained, data_only=True)
+    assert repaired["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    assert repaired["Index"]["I9"].value == "SYNTH SOURCE NOTE"
+    repaired.close()
+
+
 def test_operator_chains_a_second_delta_onto_current_isolated(
     tmp_path: Path,
 ) -> None:

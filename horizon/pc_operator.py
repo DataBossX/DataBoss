@@ -24,6 +24,8 @@ from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
+from .index_reconciliation import IndexReconciliationError
+from .repair_loop import RepairLoopError, run_repair_loop
 from .isolated_delta import (
     IsolatedDeltaError,
     sha256_file,
@@ -1107,6 +1109,50 @@ def _promote_repair_isolated(
         if dest.exists():
             return None
         shutil.copy2(final_path, dest)
+    except OSError:
+        return None
+    return dest
+
+
+def _follow_up_repair_isolated(
+    workbook: Path,
+    receipt_dir: Path,
+    section: int,
+    index_packet_path: Path,
+) -> Optional[Path]:
+    try:
+        packet = json.loads(index_packet_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(packet, dict):
+        return None
+    repair_dir = _next_empty_repair_dir(receipt_dir, section)
+    try:
+        receipt = run_repair_loop(
+            workbook=workbook,
+            output_dir=repair_dir,
+            packet_id=f"SECTION{section}-FOLLOW-REPAIR",
+            index_packet=packet,
+        )
+    except (
+        OSError,
+        RepairLoopError,
+        IndexExportError,
+        IndexReconciliationError,
+        IsolatedDeltaError,
+    ):
+        return None
+    final = Path(receipt.final_workbook)
+    try:
+        if not final.is_file() or final.resolve() == workbook.resolve():
+            return None
+    except OSError:
+        return None
+    dest = _next_delta_output(receipt_dir, section)
+    try:
+        if dest.exists():
+            return None
+        shutil.copy2(final, dest)
     except OSError:
         return None
     return dest
@@ -2382,6 +2428,18 @@ def _execute_section(
             if promoted is not None:
                 order.executed_outputs.append(str(promoted))
         latest = _latest_isolated_path(receipt_dir, order.section)
+        if (
+            applying_delta
+            and isolated_ok
+            and latest is not None
+            and index_packet_path is not None
+        ):
+            followed = _follow_up_repair_isolated(
+                latest, receipt_dir, order.section, index_packet_path
+            )
+            if followed is not None:
+                order.executed_outputs.append(str(followed))
+                latest = followed
         if latest is not None:
             order.executed_outputs.append(str(latest))
         if acquisition_receipt.is_file():

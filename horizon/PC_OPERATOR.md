@@ -29,10 +29,12 @@ python3 -m horizon.pc_operator \
    sections whose required roles are classified (source document, master,
    typed index, and handwritten index as separate faces), and the promoter re-hashes
    live roots before writing `source-authority.json` plus a hash-bound
-   `project_manifest.json`. A later `--execute` on the same receipt-dir
+   `project_manifest.json`.    A later `--execute` on the same receipt-dir
    discovers those files and snapshots `intake-snapshot/sectionN`. Later
    executes verify that snapshot from `sectionN-acquisition.json` and export
    authorized workbooks from the snapshot, not from drifted live files.
+   The leftover `authority-draft.json` rewrite cannot override
+   `source-authority.json`; receipt next-actions stop asking for promote.
    Writer-held native-print, owner-review, page-render crop, source-proved
    delta, and PDF census JSON dropped in the receipt directory are discovered
    on the next `--execute`. A `sectionN-pdfs/` directory is bound as

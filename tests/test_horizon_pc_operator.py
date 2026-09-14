@@ -210,6 +210,10 @@ def test_operator_remaining_plan_names_classified_roles_as_phase2(
     assert "missing required role index" not in plan["missing"]
     assert "missing required role handwritten_index" not in plan["missing"]
     assert any("authority_promote" in item for item in plan["missing"])
+    assert plan["next_commands"][0].startswith(
+        "Promote classified files with horizon.authority_promote "
+        "--confirm-section 15"
+    )
 
 
 def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
@@ -614,6 +618,17 @@ def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> Non
     )
     assert second.packages_complete is False
     assert second.authority_promote_command is None
+    assert not any(
+        "create a human-approved authority manifest" in action
+        for action in second.next_actions
+    )
+    assert not any(
+        "cannot bind Phase 2" in action for action in second.next_actions
+    )
+    assert any(
+        "cannot override the bound authority manifest" in action
+        for action in second.next_actions
+    )
     finish = json.loads(
         (receipts / "section15-finish.json").read_text(encoding="utf-8")
     )

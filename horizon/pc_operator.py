@@ -2966,10 +2966,16 @@ def build_work_order(
             "human-approved authority manifest."
         )
     else:
-        next_actions.append(
-            "Review Phase 1 hashes, then create a human-approved authority "
-            "manifest before any Phase 2 snapshot"
-        )
+        if explicit.authority_manifest is None:
+            next_actions.append(
+                "Review Phase 1 hashes, then create a human-approved authority "
+                "manifest before any Phase 2 snapshot"
+            )
+        else:
+            next_actions.append(
+                "Authority manifest is bound; do not promote "
+                "authority-draft.json over source-authority.json"
+            )
         if execute:
             next_actions.append(
                 "Executed isolated recon/repair under "
@@ -2993,29 +2999,34 @@ def build_work_order(
         )
         draft_path = write_draft(authority_draft, dest_path / "authority-draft.json")
         authority_draft_path = str(draft_path)
-        next_actions.append(
-            f"Review {authority_draft_path}; it is UNAPPROVED_DRAFT and "
-            "cannot bind Phase 2 until a named examiner promotes it to "
-            "dbx.source_authority_manifest"
-        )
         confirm_sections = _complete_draft_sections(authority_draft, required_roles)
-        if confirm_sections and explicit.authority_manifest is None:
-            authority_promote_command = build_promote_command(
-                draft_path=authority_draft_path,
-                output=str(dest_path / "source-authority.json"),
-                project_manifest_output=str(dest_path / "project_manifest.json"),
-                confirm_sections=confirm_sections,
-                roots=readable,
-            )
+        if explicit.authority_manifest is None:
             next_actions.append(
-                "Replace EXAMINER_PROJECT_ID, EXAMINER_DECISION_ID, and "
-                "EXAMINER_NAME, then run: "
-                + authority_promote_command
+                f"Review {authority_draft_path}; it is UNAPPROVED_DRAFT and "
+                "cannot bind Phase 2 until a named examiner promotes it to "
+                "dbx.source_authority_manifest"
             )
-        if explicit.authority_manifest is not None:
+            if confirm_sections:
+                authority_promote_command = build_promote_command(
+                    draft_path=authority_draft_path,
+                    output=str(dest_path / "source-authority.json"),
+                    project_manifest_output=str(dest_path / "project_manifest.json"),
+                    confirm_sections=confirm_sections,
+                    roots=readable,
+                )
+                next_actions.append(
+                    "Replace EXAMINER_PROJECT_ID, EXAMINER_DECISION_ID, and "
+                    "EXAMINER_NAME, then run: "
+                    + authority_promote_command
+                )
+        else:
             next_actions.append(
                 "Discovered or bound source-authority.json; Phase 2 snapshot "
                 "uses intake-snapshot/sectionN under receipt-dir"
+            )
+            next_actions.append(
+                f"{authority_draft_path} is a leftover UNAPPROVED_DRAFT rewrite "
+                "and cannot override the bound authority manifest"
             )
     if inventory_error:
         next_actions.append(f"Resolve inventory error: {inventory_error}")

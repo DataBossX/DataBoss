@@ -101,6 +101,10 @@ def test_remaining_plan_names_classified_roles_awaiting_phase2(
     )
     assert "missing required role index" not in plan["missing"]
     assert any("authority_promote" in item for item in plan["missing"])
+    assert plan["next_commands"][0].startswith(
+        "Promote classified files with horizon.authority_promote "
+        "--confirm-section 15"
+    )
     assert plan["packages_complete"] is False
 
 
@@ -140,6 +144,7 @@ def test_remaining_plan_prefers_phase2_finish_over_stale_unauthorized(
     assert "missing required role index" not in plan["missing"]
     assert "Phase-2 authorized" not in "".join(plan["missing"])
     assert not any("authority_promote" in item for item in plan["missing"])
+    assert not any("authority_promote" in item for item in plan["next_commands"])
 
 
 def test_remaining_plan_separates_missing_files_from_unauthorized_roles(

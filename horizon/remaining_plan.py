@@ -329,6 +329,18 @@ def remaining_plan(
     missing = extra + [item for item in missing if item not in extra]
     if extra:
         complete = False
+    commands = [item for item in next_commands if isinstance(item, str)]
+    if unauthorized_roles and not any(
+        "authority_promote" in item for item in commands
+    ):
+        commands = [
+            (
+                f"Promote classified files with horizon.authority_promote "
+                f"--confirm-section {section} using the named examiner "
+                "and live --root hashes"
+            ),
+            *commands,
+        ]
     isolated: Dict[str, object] = {}
     if isolated_workbook is not None:
         try:
@@ -369,13 +381,14 @@ def remaining_plan(
         ],
         "open_queues": _open_queues(receipt_dir, section),
         "holds": [item for item in holds if isinstance(item, str)],
-        "next_commands": [item for item in next_commands if isinstance(item, str)],
+        "next_commands": commands,
         "notes": [
             "This plan does not invent legal, party, or date values",
             "Typed index and handwritten_index are separate required roles",
             "Classified-but-unauthorized roles are Phase-2 holds, not missing files",
             "Classified files still need Phase-2 authority before extraction",
             "Finish source_acquisition role gaps win over Phase-1 work-order gaps",
+            "next_commands lists authority_promote first while classified roles await Phase 2",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",

@@ -37,9 +37,10 @@ legal facts. Chat and OCR files hashed into
 fill index cells. After `--execute`, review `remaining-plan.json` in
 order 15, then 13, then 11. The plan names files that are still
 missing, classified typed/handwritten index roles that still need
-Phase-2 `authority_promote`, per-field blank/conflict counts, and
-connection gaps (worker, Slack/Notion, Excel, readable roots). Do
-not start a second controller.
+Phase-2 `authority_promote` (until snapshot), per-field blank/conflict
+counts, and connection gaps (worker, Slack/Notion, Excel, readable
+roots). After promote, do not treat the leftover UNAPPROVED_DRAFT as
+a new authority hop. Do not start a second controller.
 
 ## PC work order
 

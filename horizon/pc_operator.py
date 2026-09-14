@@ -42,6 +42,7 @@ from .examiner_queue import (
 )
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
+    IMAGE_EXTENSIONS,
     PRIORITY_SECTIONS,
     SOURCE_ROLES,
     WORKBOOK_EXTENSIONS,
@@ -608,6 +609,15 @@ def _section_commands(
         )
     if section == 11 and bindings.page_render_packet is None:
         render_dir = _section_render_bind_dir(Path(receipt_dir), section)
+        if render_dir is None:
+            draft = Path(receipt_dir) / f"section{section}-crops-draft.json"
+            try:
+                payload = json.loads(draft.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+            bind_text = payload.get("bind_dir") if isinstance(payload, dict) else ""
+            if isinstance(bind_text, str) and bind_text.strip():
+                render_dir = Path(bind_text)
         commands.append(
             _quote_command(
                 [
@@ -1077,19 +1087,69 @@ def _source_document_pdfs(
     return bind, paths
 
 
+def _source_document_renders(
+    inventory: Optional[AcquisitionReceipt],
+    section: int,
+) -> tuple[Optional[Path], List[Path]]:
+    """Authorized Phase 2 snapshot renders only. Phase 1 live files stay out."""
+    if inventory is None or not inventory.snapshot_root:
+        return None, []
+    authorized = {
+        (match.assertion.root_label, match.assertion.relative_path)
+        for match in inventory.authority_matches
+        if match.status == "matched"
+        and match.assertion.section == section
+        and match.assertion.role == "source_document"
+    }
+    render_ext = {".pdf", *IMAGE_EXTENSIONS}
+    paths: List[Path] = []
+    snapshot = Path(inventory.snapshot_root)
+    for item in inventory.files:
+        if item.section != section:
+            continue
+        if item.extension not in render_ext:
+            continue
+        if item.candidate_role != "source_document":
+            continue
+        if (item.root_label, item.relative_path) not in authorized:
+            continue
+        path = snapshot_path_for(inventory, item)
+        if path.is_file():
+            paths.append(path.resolve())
+    if not paths:
+        return None, []
+    return snapshot.resolve(), paths
+
+
 def _write_section_crops_draft(
     receipt_dir: Path,
     section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
 ) -> tuple[Optional[str], Optional[str]]:
     if section != 11:
         return None, None
     dest = receipt_dir / f"section{section}-crops-draft.json"
+    examiner = _section_render_bind_dir(receipt_dir, section)
+    snap_bind, snap_paths = _source_document_renders(inventory, section)
     try:
-        write_crops_draft(
-            output=dest,
-            packet_id=f"SECTION{section}-CROPS",
-            bind_dir=_section_render_bind_dir(receipt_dir, section),
-        )
+        if examiner is not None:
+            write_crops_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-CROPS",
+                bind_dir=examiner,
+            )
+        elif snap_bind is not None:
+            write_crops_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-CROPS",
+                bind_dir=snap_bind,
+                paths=snap_paths,
+            )
+        else:
+            write_crops_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-CROPS",
+            )
     except (OSError, PageRenderExportError) as exc:
         return None, str(exc)
     return str(dest), None
@@ -1500,7 +1560,9 @@ def _execute_section(
     )
     if inventory_error:
         order.holds.append(f"PDF census inventory failed: {inventory_error}")
-    crops_draft, crops_error = _write_section_crops_draft(receipt_dir, order.section)
+    crops_draft, crops_error = _write_section_crops_draft(
+        receipt_dir, order.section, inventory=phase2
+    )
     if crops_draft:
         order.executed_outputs.append(crops_draft)
     if crops_error:

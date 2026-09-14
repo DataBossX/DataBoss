@@ -49,9 +49,12 @@ numbers stay bare.
 
 `pc_operator --execute` writes `section11-crops-draft.json`
 (`dbx.page_render_crop_draft`, `UNAPPROVED_DRAFT`) from
-`section11-renders/` when that directory exists. Pages are hashed. Crops
-stay empty. Horizon does not invent document numbers or a historical
-page count. Fill Book/Page, dates, and parties from the renders, then:
+`section11-renders/` when that directory exists. After Phase 2, authorized
+snapshot `source_document` images/PDFs are hashed the same way when the
+examiner render directory is absent. Phase 1 live files are not used.
+Pages are hashed. Crops stay empty. Horizon does not invent document
+numbers or a historical page count. Fill Book/Page, dates, and parties
+from the renders, then:
 
 ```bash
 python3 -m horizon.page_render_export \

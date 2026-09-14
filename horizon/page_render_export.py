@@ -137,11 +137,14 @@ def write_crops_draft(
     output: Path,
     packet_id: str,
     bind_dir: Optional[Path] = None,
+    paths: Optional[Sequence[Path]] = None,
 ) -> Dict[str, object]:
     """Hash page renders. Does not invent crop text, docnos, or page counts."""
     token = packet_id.strip()
     if not token or "\n" in token:
         raise PageRenderExportError("packet_id must be a single-line string")
+    if paths and bind_dir is None:
+        raise PageRenderExportError("paths requires bind-dir")
     pages: List[Dict[str, object]] = []
     bind_text = ""
     if bind_dir is not None:
@@ -149,11 +152,31 @@ def write_crops_draft(
         if not resolved.is_dir():
             raise PageRenderExportError(f"bind-dir is not a directory: {resolved}")
         bind_text = str(resolved)
-        for index, path in enumerate(_render_files(resolved), start=1):
+        files: List[Path]
+        if paths:
+            files = []
+            for raw in paths:
+                render = raw.expanduser().resolve()
+                if resolved not in render.parents and render != resolved:
+                    raise PageRenderExportError(
+                        f"render path escapes the bind directory: {render}"
+                    )
+                if not render.is_file():
+                    continue
+                if render.suffix.casefold() not in RENDER_SUFFIXES:
+                    continue
+                files.append(render)
+            files = sorted(
+                files,
+                key=lambda path: str(path.relative_to(resolved)).casefold(),
+            )
+        else:
+            files = _render_files(resolved)
+        for index, path in enumerate(files, start=1):
             pages.append(
                 {
                     "page": index,
-                    "path": path.name,
+                    "path": str(path.relative_to(resolved)).replace("\\", "/"),
                     "source_sha256": sha256_file(path),
                 }
             )

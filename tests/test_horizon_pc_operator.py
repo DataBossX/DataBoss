@@ -649,6 +649,72 @@ def test_operator_chains_a_second_delta_onto_current_isolated(
     assert "section15-delta.xlsx" not in native
 
 
+def test_operator_hashes_phase2_snapshot_renders_for_section11(
+    tmp_path: Path,
+) -> None:
+    from horizon.authority_promote import promote
+    from horizon.isolated_delta import sha256_file
+
+    root = tmp_path / "pc-root"
+    section = root / "Section 11"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    faces = section / "Recorded Faces"
+    faces.mkdir(parents=True)
+    render = faces / "page-01.png"
+    render.write_bytes(b"SYNTH-P11-RENDER")
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    phase1_draft = json.loads(
+        (receipts / "section11-crops-draft.json").read_text(encoding="utf-8")
+    )
+    assert phase1_draft["pages"] == []
+    assert first.authority_promote_command is not None
+    promote(
+        draft_path=Path(first.authority_draft_path),
+        output=receipts / "source-authority.json",
+        project_manifest_output=receipts / "project_manifest.json",
+        project_id="DBX-TEST",
+        decision_id="SOURCE-AUTH-011",
+        approved_by="Pat Examiner",
+        confirm_sections=[11],
+        roots=[f"pc={root}"],
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    draft = json.loads(
+        (receipts / "section11-crops-draft.json").read_text(encoding="utf-8")
+    )
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["expected_page_count"] == 1
+    assert draft["crops"] == []
+    assert draft["pages"][0]["path"].endswith("Recorded Faces/page-01.png")
+    snap_render = (
+        receipts
+        / "intake-snapshot"
+        / "section11"
+        / "pc"
+        / "Section 11"
+        / "Recorded Faces"
+        / "page-01.png"
+    )
+    assert draft["pages"][0]["source_sha256"] == sha256_file(snap_render)
+    joined = "\n".join(second.sections[0].next_commands)
+    assert str(receipts / "intake-snapshot" / "section11") in joined
+
+
 def test_operator_writes_section11_crops_draft_from_renders(tmp_path: Path) -> None:
     from horizon.isolated_delta import sha256_file
 

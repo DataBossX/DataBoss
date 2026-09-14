@@ -61,9 +61,11 @@ python3 -m horizon.pc_operator \
    after the first apply) and the spent packet is archived so the next
    attest can reuse `sectionN-delta-packet.json`. For section 11,
    `--execute` writes `section11-crops-draft.json` from hashed files in
-   `section11-renders/` (or `section11-crops/`). Crops stay empty until
-   the examiner fills Book/Page, dates, and parties. Existing crop text
-   is not overwritten.
+   `section11-renders/` (or `section11-crops/`). After Phase 2, authorized
+   snapshot `source_document` renders are used when that examiner
+   directory is absent. Phase 1 live files are not hashed into the draft.
+   Crops stay empty until the examiner fills Book/Page, dates, and
+   parties. Existing crop text is not overwritten.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

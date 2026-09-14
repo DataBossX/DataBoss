@@ -138,6 +138,27 @@ def test_crops_draft_hashes_renders_and_leaves_crops_blank(tmp_path: Path) -> No
     assert packet["crops"][0]["docno"] == "2026-09901"
 
 
+def test_crops_draft_hashes_authorized_subset_with_relative_paths(
+    tmp_path: Path,
+) -> None:
+    bind = tmp_path / "snapshot"
+    nested = bind / "pc" / "Section 11" / "Recorded Faces"
+    nested.mkdir(parents=True)
+    render = nested / "page-01.png"
+    render.write_bytes(b"SNAP-RENDER")
+    (bind / "ignore.txt").write_text("not a render", encoding="utf-8")
+    draft = write_crops_draft(
+        output=tmp_path / "draft.json",
+        packet_id="SECTION11-CROPS",
+        bind_dir=bind,
+        paths=[render],
+    )
+    assert draft["expected_page_count"] == 1
+    assert draft["pages"][0]["path"] == "pc/Section 11/Recorded Faces/page-01.png"
+    assert draft["pages"][0]["source_sha256"] == sha256_file(render)
+    assert draft["crops"] == []
+
+
 def test_hash_mismatch_and_missing_identity_fail() -> None:
     with pytest.raises(PageRenderExportError, match="does not match page"):
         compile_page_renders(

@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .examiner import write_new_json
 from .isolated_delta import sha256_file
 
 PACKET_SCHEMA_ID = "dbx.pdf_page_census_packet"
@@ -107,6 +108,71 @@ def count_pdf_pages(data: bytes) -> tuple[int, Optional[int], int]:
     ]
     declared = max(counts) if counts else None
     return pages, declared, text_bytes
+
+
+def iter_bind_pdfs(bind_dir: Path) -> List[Path]:
+    bind = bind_dir.expanduser().resolve()
+    if not bind.is_dir():
+        raise PdfCensusError(f"bind-dir is not a directory: {bind}")
+    found: List[Path] = []
+    for path in sorted(bind.rglob("*")):
+        if not path.is_file() or path.suffix.casefold() != ".pdf":
+            continue
+        relative = path.relative_to(bind)
+        if any(part.startswith(".") for part in relative.parts):
+            continue
+        found.append(path)
+    return found
+
+
+def write_inventory_packet(
+    *,
+    bind_dir: Path,
+    output: Path,
+    packet_id: str,
+) -> Dict[str, object]:
+    """Measure PDFs in bind-dir. expected_pages is the counted page total.
+
+    This does not invent legal text and does not copy a federal row count
+    into expected_pages. Page-tree Count must agree with /Type /Page.
+    """
+    token = _require_text(packet_id, "packet_id")
+    bind = bind_dir.expanduser().resolve()
+    files: List[Dict[str, object]] = []
+    for path in iter_bind_pdfs(bind):
+        relative = path.relative_to(bind).as_posix()
+        data = path.read_bytes()
+        if not data.startswith(b"%PDF"):
+            raise PdfCensusError(f"{relative} is not a PDF")
+        counted, declared, _text_bytes = count_pdf_pages(data)
+        if counted < 1:
+            raise PdfCensusError(f"{relative} counted 0 pages")
+        if declared is not None and declared != counted:
+            raise PdfCensusError(
+                f"{relative} page-tree Count {declared} disagrees with "
+                f"counted {counted}"
+            )
+        files.append(
+            {
+                "path": relative,
+                "source_sha256": sha256_file(path),
+                "expected_pages": counted,
+            }
+        )
+    if not files:
+        raise PdfCensusError("bind-dir contains no PDF files")
+    packet: Dict[str, object] = {
+        "schema_id": PACKET_SCHEMA_ID,
+        "schema_version": PACKET_SCHEMA_VERSION,
+        "packet_id": token,
+        "files": files,
+    }
+    census_packet(packet, bind_dir=bind)
+    try:
+        write_new_json(packet, output, "PDF page census packet")
+    except ValueError as exc:
+        raise PdfCensusError(str(exc)) from exc
+    return packet
 
 
 def census_file(path: Path, expected_pages: int, expected_sha: str) -> PdfFileCensus:
@@ -223,17 +289,65 @@ def _load_json(path: Path) -> Dict[str, object]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Hash-bound PDF page census. Does not guess page counts."
+        description=(
+            "Hash-bound PDF page census. Inventory measures counted pages; "
+            "it does not guess a federal row count."
+        )
     )
-    parser.add_argument("--packet", type=Path, required=True)
+    parser.add_argument("--packet", type=Path)
     parser.add_argument("--bind-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--inventory",
+        action="store_true",
+        help=(
+            "Walk bind-dir, hash each PDF, and write a census packet whose "
+            "expected_pages equals the counted /Type /Page total"
+        ),
+    )
+    parser.add_argument("--packet-id")
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.inventory:
+            if args.packet is not None:
+                raise PdfCensusError("--inventory cannot be combined with --packet")
+            if not args.packet_id:
+                raise PdfCensusError("--inventory requires --packet-id")
+            packet = write_inventory_packet(
+                bind_dir=args.bind_dir,
+                output=args.output,
+                packet_id=args.packet_id,
+            )
+            receipt = census_packet(packet, bind_dir=args.bind_dir)
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "packet_id": packet["packet_id"],
+                        "file_count": len(packet["files"]),
+                        "empty_text_files": receipt.empty_text_files,
+                        "files": [
+                            {
+                                "path": item["path"],
+                                "expected_pages": item["expected_pages"],
+                            }
+                            for item in packet["files"]
+                        ],
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.packet is None:
+            raise PdfCensusError(
+                "Pass --packet to verify a census packet, or --inventory "
+                "to measure bind-dir"
+            )
         receipt = census_packet(_load_json(args.packet), bind_dir=args.bind_dir)
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

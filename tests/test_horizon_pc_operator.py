@@ -112,6 +112,8 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert "master_workbook" in by_section[13].missing_candidate_roles
     assert by_section[11].ready_for_extraction is False
     assert any("page_render_export" in command for command in by_section[11].next_commands)
+    assert any("pdf_census" in command for command in by_section[13].next_commands)
+    assert any("--inventory" in command for command in by_section[13].next_commands)
     assert "horizon.native_print" in joined
     assert "--write" in joined
     assert "horizon.human_release" in joined
@@ -441,6 +443,57 @@ def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> 
     assert "page_render_export" in names
     assert "reextraction" in names
     assert "occurrence_ledger" in names
+
+
+def test_execute_inventories_section_pdfs_and_binds_census(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 13"
+    section.mkdir(parents=True)
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    (section / "Recorded Faces").mkdir()
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 face")
+    receipts = tmp_path / "private-receipts"
+    pdfs = receipts / "section13-pdfs"
+    pdfs.mkdir(parents=True)
+    (pdfs / "part4.pdf").write_bytes(
+        b"%PDF-1.1\n"
+        b"1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n"
+        b"2 0 obj<< /Type /Pages /Count 1 /Kids [3 0 R] >>endobj\n"
+        b"3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>endobj\n"
+        b"trailer<< /Root 1 0 R >>\n"
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    packet_path = receipts / "section13-pdf-census-packet.json"
+    assert packet_path.is_file()
+    packet = json.loads(packet_path.read_text(encoding="utf-8"))
+    assert packet["files"][0]["expected_pages"] == 1
+    assert packet["files"][0]["expected_pages"] != 462
+    finish = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    census = next(gate for gate in finish["gates"] if gate["name"] == "pdf_census")
+    assert census["technical_pass"] is True
+    assert census["detail"]["empty_text_files"] == 1
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert all(
+        "pdf_census --inventory" not in command
+        and "--inventory" not in command
+        for command in second.sections[0].next_commands
+    )
 
 
 def test_cli_writes_receipt_and_stays_incomplete(tmp_path: Path) -> None:

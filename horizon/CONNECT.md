@@ -32,8 +32,8 @@ python3 -m horizon.pc_operator \
 
 The operator probes connections, runs Phase 1 inventory, writes
 `authority-draft.json` (`UNAPPROVED_DRAFT`) under `--receipt-dir`, and
-emits per-section next commands (three-workbook `index_export`, then
-`package_finish`). Pass `--execute` on the PC to run those isolated hops
+emits per-section next commands (three-workbook `index_export`, PDF census
+inventory, then `package_finish`). Pass `--execute` on the PC to run those isolated hops
 into a private `--receipt-dir` outside this repository. It does not copy
 client files into the repo. A named examiner runs `horizon.authority_promote`
 with live roots; the next `--execute` discovers the promoted manifests and

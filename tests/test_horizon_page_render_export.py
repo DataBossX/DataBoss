@@ -14,7 +14,7 @@ from horizon.page_render_export import (
     compile_page_renders,
     write_crop_packet,
 )
-from horizon.pdf_census import census_packet
+from horizon.pdf_census import PdfCensusError, census_packet, main as census_main, write_inventory_packet
 from horizon.reextraction_gate import assess_ledger, parse_ledger_export
 
 
@@ -177,6 +177,78 @@ def test_pdf_census_binds_hash_and_flags_empty_text(tmp_path: Path) -> None:
     )
     assert wrong.technical_pass is False
     assert any("expected 462" in issue for issue in wrong.files[0].issues)
+
+
+def test_inventory_writes_counted_pages_not_row_count(tmp_path: Path) -> None:
+    bind = tmp_path / "federal-pdfs"
+    bind.mkdir()
+    (bind / "part4.pdf").write_bytes(_minimal_pdf())
+    output = tmp_path / "census-packet.json"
+    packet = write_inventory_packet(
+        bind_dir=bind,
+        output=output,
+        packet_id="SECTION13-CENSUS",
+    )
+    assert packet["schema_id"] == "dbx.pdf_page_census_packet"
+    assert packet["files"][0]["path"] == "part4.pdf"
+    assert packet["files"][0]["expected_pages"] == 1
+    assert packet["files"][0]["expected_pages"] != 462
+    receipt = census_packet(packet, bind_dir=bind)
+    assert receipt.technical_pass is True
+    assert receipt.empty_text_files == 1
+    assert census_main(
+        [
+            "--inventory",
+            "--bind-dir",
+            str(bind),
+            "--output",
+            str(tmp_path / "second.json"),
+            "--packet-id",
+            "SECTION13-CENSUS-2",
+        ]
+    ) == 0
+
+
+def test_inventory_refuses_empty_dir_and_repo_output(tmp_path: Path) -> None:
+    empty = tmp_path / "empty-pdfs"
+    empty.mkdir()
+    with pytest.raises(PdfCensusError, match="no PDF files"):
+        write_inventory_packet(
+            bind_dir=empty,
+            output=tmp_path / "census.json",
+            packet_id="SECTION13-CENSUS",
+        )
+    bind = tmp_path / "federal-pdfs"
+    bind.mkdir()
+    (bind / "part4.pdf").write_bytes(_minimal_pdf())
+    repo_out = Path(__file__).resolve().parents[1] / "horizon" / "synth-census.json"
+    with pytest.raises(PdfCensusError, match="outside this repository"):
+        write_inventory_packet(
+            bind_dir=bind,
+            output=repo_out,
+            packet_id="SECTION13-CENSUS",
+        )
+    existing = tmp_path / "exists.json"
+    existing.write_text("{}", encoding="utf-8")
+    with pytest.raises(PdfCensusError, match="already exists"):
+        write_inventory_packet(
+            bind_dir=bind,
+            output=existing,
+            packet_id="SECTION13-CENSUS",
+        )
+    assert census_main(
+        [
+            "--inventory",
+            "--packet",
+            str(existing),
+            "--bind-dir",
+            str(bind),
+            "--output",
+            str(tmp_path / "nope.json"),
+            "--packet-id",
+            "SECTION13-CENSUS",
+        ]
+    ) == 1
 
 
 def test_finish_runner_compiles_page_renders_without_completing(

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shlex
 import sys
 from dataclasses import asdict, dataclass, field, replace
@@ -23,6 +24,7 @@ from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_conn
 from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import sha256_file
 from .package_finish import PackageFinishError, run_finish
+from .pdf_census import PdfCensusError, write_inventory_packet
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     PRIORITY_SECTIONS,
@@ -444,6 +446,28 @@ def _section_commands(
             "Export master, PDF, and handwritten indexes to Penterra xlsx "
             "on the PC, then rerun python3 -m horizon.pc_operator"
         )
+    if bindings.pdf_census_packet is None:
+        bind_dir = bindings.pdf_bind_dir or f"{receipt_dir}/section{section}-pdfs"
+        commands.append(
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.pdf_census",
+                    "--inventory",
+                    "--bind-dir",
+                    bind_dir,
+                    "--output",
+                    f"{receipt_dir}/section{section}-pdf-census-packet.json",
+                    "--packet-id",
+                    f"SECTION{section}-CENSUS",
+                ]
+            )
+        )
+        commands.append(
+            "Copy federal casefile PDFs into that bind-dir; "
+            "expected_pages is the counted page total, not a row count"
+        )
     letter = f"{receipt_dir}/section{section}-letter.xlsx"
     if bindings.native_print_receipt is None:
         commands.append(
@@ -595,9 +619,13 @@ def _section_work_order(
             picks=picks,
             receipt_dir=receipt_dir,
             missing_roles=missing_candidates,
-            bindings=_merge_bindings(
-                bindings,
-                _discover_packets(files, inventory.roots, section),
+            bindings=_bind_section_census(
+                _merge_bindings(
+                    bindings,
+                    _discover_packets(files, inventory.roots, section),
+                ),
+                receipt_dir,
+                section,
             ),
         ),
         holds=holds,
@@ -643,6 +671,89 @@ def _discover_packets(
 
 def _discover_receipt_dir_packets(receipt_dir: Path) -> Dict[str, Path]:
     return _discover_json_packets(sorted(receipt_dir.glob("*.json")))
+
+
+def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
+    candidate = Path(receipt_dir) / f"section{section}-pdfs"
+    try:
+        if candidate.is_dir():
+            return candidate.resolve()
+    except OSError:
+        return None
+    return None
+
+
+_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
+
+
+def _census_packet_matches_section(path: Path, section: int) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("schema_id") != "dbx.pdf_page_census_packet":
+        return False
+    token = str(payload.get("packet_id") or "")
+    name = path.name
+    for text in (token, name):
+        for match in _SECTION_MARK.finditer(text):
+            if int(match.group(1)) == section:
+                return True
+    return False
+
+
+def _section_census_packet(
+    candidate: Optional[Path],
+    receipt_dir: str,
+    section: int,
+) -> Optional[Path]:
+    if candidate is not None and _census_packet_matches_section(candidate, section):
+        return candidate
+    conventional = Path(receipt_dir) / f"section{section}-pdf-census-packet.json"
+    try:
+        if conventional.is_file() and _census_packet_matches_section(
+            conventional, section
+        ):
+            return conventional
+    except OSError:
+        return candidate
+    return None
+
+
+def _bind_section_census(
+    bindings: FinishBindings,
+    receipt_dir: str,
+    section: int,
+) -> FinishBindings:
+    packet = _section_census_packet(
+        bindings.pdf_census_packet, receipt_dir, section
+    )
+    bind_dir = bindings.pdf_bind_dir
+    if bind_dir is None:
+        bind_dir = _section_pdf_bind_dir(receipt_dir, section)
+    return replace(bindings, pdf_census_packet=packet, pdf_bind_dir=bind_dir)
+
+
+def _inventory_pdf_census(
+    bindings: FinishBindings,
+    receipt_dir: Path,
+    section: int,
+) -> tuple[FinishBindings, Optional[str], Optional[str]]:
+    bound = _bind_section_census(bindings, str(receipt_dir), section)
+    if bound.pdf_census_packet is not None or bound.pdf_bind_dir is None:
+        return bound, None, None
+    dest = receipt_dir / f"section{section}-pdf-census-packet.json"
+    try:
+        write_inventory_packet(
+            bind_dir=bound.pdf_bind_dir,
+            output=dest,
+            packet_id=f"SECTION{section}-CENSUS",
+        )
+    except (OSError, PdfCensusError) as exc:
+        return bound, None, str(exc)
+    return replace(bound, pdf_census_packet=dest), str(dest), None
 
 
 def _merge_bindings(
@@ -802,6 +913,11 @@ def _execute_section(
         for slot, path in from_roots.items():
             discovered.setdefault(slot, path)
     bound = _merge_bindings(bindings, discovered)
+    bound, inventoried, inventory_error = _inventory_pdf_census(
+        bound, receipt_dir, order.section
+    )
+    if inventory_error:
+        order.holds.append(f"PDF census inventory failed: {inventory_error}")
     snapshot = bound.snapshot_directory
     if snapshot is not None:
         snapshot = snapshot / f"section{order.section}"
@@ -925,6 +1041,8 @@ def _execute_section(
             order.executed_outputs.append(str(delta_path))
         if acquisition_receipt.is_file():
             order.executed_outputs.append(str(acquisition_receipt))
+        if inventoried:
+            order.executed_outputs.append(inventoried)
         if finish.packages_complete:
             order.holds.append(
                 "Finish runner reported packages_complete; owner review "

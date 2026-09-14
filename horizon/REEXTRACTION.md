@@ -70,13 +70,22 @@ Hash-bound federal PDF page census (Part 4 empty-text hold):
 
 ```bash
 python3 -m horizon.pdf_census \
+  --inventory \
+  --bind-dir /path/to/federal-pdfs \
+  --output /path/to/pdf-page-census-packet.json \
+  --packet-id SECTION13-CENSUS
+
+python3 -m horizon.pdf_census \
   --packet /path/to/pdf-page-census-packet.json \
   --bind-dir /path/to/federal-pdfs \
   --output /path/to/pdf-census-receipt.json
 ```
 
-Image-only PDFs can pass the hash/count bind while `empty_text_files` stays
-visible. Do not invent legal text from a page count.
+`--inventory` walks the bind directory, hashes each PDF, and writes
+`expected_pages` from the counted `/Type /Page` total. It does not copy a
+federal row count into that field. Image-only PDFs can pass the hash/count
+bind while `empty_text_files` stays visible. Do not invent legal text from
+a page count.
 
 Exit codes:
 

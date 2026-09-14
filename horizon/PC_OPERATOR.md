@@ -32,9 +32,13 @@ python3 -m horizon.pc_operator \
    discovers those files and snapshots `intake-snapshot/sectionN`. Later
    executes verify that snapshot from `sectionN-acquisition.json` and export
    authorized workbooks from the snapshot, not from drifted live files.
-   Writer-held native-print, owner-review, page-render crop, and source-proved
-   delta JSON dropped in the receipt directory are discovered on the next
-   `--execute`. Deltas apply to an isolated `sectionN-delta.xlsx`.
+   Writer-held native-print, owner-review, page-render crop, source-proved
+   delta, and PDF census JSON dropped in the receipt directory are discovered
+   on the next `--execute`. A `sectionN-pdfs/` directory is bound as
+   `--pdf-bind-dir`. If that directory exists and no census packet is present,
+   `--execute` inventories it (`expected_pages` = counted `/Type /Page`, not
+   a row count) into `sectionN-pdf-census-packet.json`. Deltas apply to an
+   isolated `sectionN-delta.xlsx`.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`
@@ -44,8 +48,9 @@ python3 -m horizon.pc_operator \
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /
    `--snapshot-directory` are passed through so Phase 2 can authorize
-   acquisition. Page-render, native-print, and owner-review JSON packets
+   acquisition.    Page-render, native-print, owner-review, and PDF census JSON packets
    are discovered by `schema_id` when present, or passed explicitly.
+   Census packets are kept on the matching `SECTION{N}` / `sectionN` id.
    `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate.
 

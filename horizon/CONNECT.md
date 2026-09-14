@@ -97,5 +97,5 @@ satisfy the hash gate. It does not complete a package. After
 upgraded so finish records `isolated_copy`.
 `remaining-plan.json` and next-commands keep
 `Copy {name} into Drive Section N/Isolated/` until the bound copy is
-under Isolated/. `packages_complete` stays false until that Isolated/
-copy is bound.
+under Isolated/ and hashes the current isolated file.
+`packages_complete` stays false until that Isolated/ copy is bound.

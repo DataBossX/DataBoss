@@ -54,7 +54,8 @@ python3 -m horizon.pc_operator \
    receipt-dir bind is upgraded so finish records `isolated_copy`.
    Remaining-plan and next-commands keep
    `Copy {name} into Drive Section N/Isolated/` until the bound copy is
-   under Isolated/.    Client source files are never copied into this
+   under Isolated/ and hashes that same isolated file.    Client source
+   files are never copied into this
    repository.    After recon/repair, `--execute` writes
    `sectionN-examiner-queue.json` listing remaining blanks and conflicts
    with provenance. One-source blanks stay blank until a writer-held

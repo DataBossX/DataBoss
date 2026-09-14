@@ -224,7 +224,10 @@ def test_remaining_plan_queue_blanks_block_completion_when_finish_gates_pass(
                 "ran": True,
                 "technical_pass": True,
                 "detail": (
-                    {"isolated_copy": True}
+                    {
+                        "isolated_copy": True,
+                        "workbook_sha256": sha256_file(letter),
+                    }
                     if name == "drive_readback"
                     else (
                         {
@@ -462,7 +465,10 @@ def test_remaining_plan_drops_named_drive_and_review_hops_when_those_gates_pass(
                 "name": "drive_readback",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {"isolated_copy": True},
+                "detail": {
+                    "isolated_copy": True,
+                    "workbook_sha256": sha256_file(letter),
+                },
             },
             {
                 "name": "human_release",
@@ -530,6 +536,39 @@ def test_remaining_plan_keeps_isolated_hop_until_drive_isolated_copy(
     assert "Attest owner-review of section15-letter.xlsx" not in plan["missing"]
     assert plan["packages_complete"] is False
     assert str(tmp_path) not in "".join(plan["missing"])
+
+
+def test_remaining_plan_keeps_isolated_hop_when_drive_hash_is_stale(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "drive_readback",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {
+                    "isolated_copy": True,
+                    "workbook_sha256": "c" * 64,
+                    "readback_sha256": "c" * 64,
+                },
+            }
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        in plan["missing"]
+    )
+    assert plan["packages_complete"] is False
 
 
 def test_remaining_plan_keeps_print_hop_when_finish_hash_is_stale(

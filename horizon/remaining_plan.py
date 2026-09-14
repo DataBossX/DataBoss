@@ -244,7 +244,16 @@ def _named_hop_done(
         if not gate.technical_pass:
             return False
         if gate_name == "drive_readback":
-            return gate.detail.get("isolated_copy") is True
+            if gate.detail.get("isolated_copy") is not True:
+                return False
+            if isolated_sha256:
+                bound = gate.detail.get("workbook_sha256") or gate.detail.get(
+                    "readback_sha256"
+                )
+                if not isinstance(bound, str) or not bound:
+                    return False
+                return bound.casefold() == isolated_sha256.casefold()
+            return True
         if isolated_sha256 and gate_name in {"native_print", "human_release"}:
             bound = gate.detail.get("workbook_sha256")
             if not isinstance(bound, str) or not bound:
@@ -442,6 +451,7 @@ def remaining_plan(
             "Print Preview and owner-review stay until finish hashes that isolated file",
             "index reconciliation must score the isolated workbook, not a leftover packet",
             "Drive Isolated/ stays until the bound copy is under Isolated/",
+            "Drive Isolated/ stays until that copy hashes the current isolated file",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",
         ],

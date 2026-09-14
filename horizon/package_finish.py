@@ -56,7 +56,7 @@ from .human_release import (
     assess_human_release,
     evaluate_package_completion,
 )
-from .isolated_delta import IsolatedDeltaError, apply_deltas
+from .isolated_delta import IsolatedDeltaError, apply_deltas, sha256_file
 from .native_print import NativePrintError, assess_native_print
 from .occurrence_build import OccurrenceBuildError, build_occurrence_packet
 from .workbook_ledger import (
@@ -383,21 +383,32 @@ def _cadastral_gate(plats: Sequence[str]) -> GateResult:
     )
 
 
-def _drive_isolated_bound(gates: Sequence[GateResult]) -> bool:
-    for gate in gates:
-        if gate.name != "drive_readback" or not gate.ran:
-            continue
-        if not gate.technical_pass:
-            return False
-        return gate.detail.get("isolated_copy") is True
-    return False
-
-
-def _gate_passed(gates: Sequence[GateResult], name: str) -> bool:
+def _gate_matches_workbook(
+    gates: Sequence[GateResult],
+    name: str,
+    workbook: Optional[Path],
+    *,
+    require_isolated: bool = False,
+) -> bool:
     for gate in gates:
         if gate.name != name or not gate.ran:
             continue
-        return bool(gate.technical_pass)
+        if not gate.technical_pass:
+            return False
+        if require_isolated and gate.detail.get("isolated_copy") is not True:
+            return False
+        if workbook is None:
+            return True
+        try:
+            digest = sha256_file(workbook)
+        except OSError:
+            return False
+        bound = gate.detail.get("workbook_sha256") or gate.detail.get(
+            "readback_sha256"
+        )
+        if not isinstance(bound, str) or not bound:
+            return False
+        return bound.casefold() == digest.casefold()
     return False
 
 
@@ -465,11 +476,22 @@ def _next_actions(
         hops = named_isolated_hops(
             isolated_workbook_filename(workbook, section), section
         )
-        if not _gate_passed(gates, "native_print") and hops["native_print"] not in actions:
+        if (
+            not _gate_matches_workbook(gates, "native_print", workbook)
+            and hops["native_print"] not in actions
+        ):
             actions.append(hops["native_print"])
-        if not _drive_isolated_bound(gates) and hops["drive_readback"] not in actions:
+        if (
+            not _gate_matches_workbook(
+                gates, "drive_readback", workbook, require_isolated=True
+            )
+            and hops["drive_readback"] not in actions
+        ):
             actions.append(hops["drive_readback"])
-        if not _gate_passed(gates, "human_release") and hops["human_release"] not in actions:
+        if (
+            not _gate_matches_workbook(gates, "human_release", workbook)
+            and hops["human_release"] not in actions
+        ):
             actions.append(hops["human_release"])
     for gate in gates:
         if gate.ran and gate.name == "pdf_census":

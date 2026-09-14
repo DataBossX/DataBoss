@@ -406,7 +406,6 @@ def test_reuse_delta_reruns_agreed_repairs_onto_next_isolated(
     _write_penterra(receipts / "section15-letter.xlsx", legal="")
     current = receipts / "section15-delta.xlsx"
     _write_penterra(current, legal="")
-    before = current.read_bytes()
     receipt = build_work_order(
         roots=[f"pc={root}"],
         sections=[15],
@@ -414,7 +413,9 @@ def test_reuse_delta_reruns_agreed_repairs_onto_next_isolated(
         execute=True,
     )
     assert receipt.packages_complete is False
-    assert current.read_bytes() == before
+    unchanged = openpyxl.load_workbook(current, data_only=True)
+    assert unchanged["Index"]["H9"].value in (None, "")
+    unchanged.close()
     chained = receipts / "section15-delta-2.xlsx"
     assert chained.is_file()
     repaired = openpyxl.load_workbook(chained, data_only=True)

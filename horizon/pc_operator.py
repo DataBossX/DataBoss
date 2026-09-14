@@ -2400,11 +2400,6 @@ def _execute_section(
             workbook = latest
             repair = _next_empty_repair_dir(receipt_dir, order.section)
             letter = None
-        if workbook is not None and (
-            workbook == letter_path
-            or _isolated_delta_generation(workbook, order.section)
-        ):
-            _apply_print_layout_in_place(workbook)
         delta_paths = list(sorted(receipt_dir.glob("*.json")))
         if inventory is not None:
             delta_paths.extend(
@@ -2428,6 +2423,15 @@ def _execute_section(
             delta_packet = bound.delta_packet
             delta_output = _next_delta_output(receipt_dir, order.section)
             applying_delta = True
+        if (
+            not applying_delta
+            and workbook is not None
+            and (
+                workbook == letter_path
+                or _isolated_delta_generation(workbook, order.section)
+            )
+        ):
+            _apply_print_layout_in_place(workbook)
         current_book = (
             latest
             if latest is not None and not applying_delta

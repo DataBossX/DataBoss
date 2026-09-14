@@ -76,8 +76,10 @@ mounted, `--execute` publishes that isolated file into
 `Section N/Isolated/` and binds SHA-256 readback. Remaining
 one-source blanks and conflicts are written to `sectionN-examiner-queue.json`;
 the queue does not invent fills. Remaining 2+ source blanks are written
-to `sectionN-delta-draft.json` for a named examiner to attest. The
-authority draft itself is not Phase 2.
+to `sectionN-delta-draft.json` for a named examiner to attest. Applied
+packets chain onto `sectionN-delta-2.xlsx` and later copies instead of
+freezing the first isolated file. The authority draft itself is not
+Phase 2.
 `python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.

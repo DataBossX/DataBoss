@@ -552,6 +552,103 @@ def test_operator_discovers_and_applies_delta_packet(tmp_path: Path) -> None:
     assert "section13-letter.xlsx" not in release
 
 
+def test_operator_chains_a_second_delta_onto_current_isolated(
+    tmp_path: Path,
+) -> None:
+    from horizon.isolated_delta import attest_delta_draft, write_delta_packet
+
+    root = tmp_path / "pc-root"
+    section = root / "Section 15"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    _write_penterra(section / "Working Abstract.xlsx")
+    (section / "Recorded Faces").mkdir()
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 face")
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    import shutil
+
+    shutil.copy2(section / "Working Abstract.xlsx", receipts / "section15-letter.xlsx")
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                "row_key": "2026-09901|",
+                "field": "comments",
+                "value": "SYNTH SOURCE NOTE",
+                "source_sha256": "a" * 64,
+                "page": 1,
+                "crop_id": "note",
+                "replace": False,
+            }
+        ],
+        output=receipts / "section15-delta-packet.json",
+        packet_id="SYNTH-P15-DELTA-1",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    first_delta = receipts / "section15-delta.xlsx"
+    assert first_delta.is_file()
+    assert list(receipts.glob("section15-delta-packet-applied-*.json"))
+    assert not (receipts / "section15-delta-packet.json").is_file()
+    draft = receipts / "section15-delta-draft.json"
+    if draft.is_file():
+        attest_delta_draft(
+            json.loads(draft.read_text(encoding="utf-8")),
+            workbook=first_delta,
+            output=receipts / "section15-delta-packet.json",
+            operator="Pat Examiner",
+        )
+    else:
+        write_delta_packet(
+            workbook=first_delta,
+            deltas=[
+                {
+                    "row_key": "2026-09901|",
+                    "field": "comments",
+                    "value": "SYNTH SECOND NOTE",
+                    "source_sha256": "b" * 64,
+                    "page": 1,
+                    "crop_id": "note2",
+                    "replace": True,
+                }
+            ],
+            output=receipts / "section15-delta-packet.json",
+            packet_id="SYNTH-P15-DELTA-2",
+        )
+    third = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert third.packages_complete is False
+    chained = receipts / "section15-delta-2.xlsx"
+    assert chained.is_file()
+    native = next(
+        command
+        for command in third.sections[0].next_commands
+        if "horizon.native_print" in command
+    )
+    assert str(chained) in native
+    assert "section15-letter.xlsx" not in native
+    assert "section15-delta.xlsx" not in native
+
+
 def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     section = root / "Section 11"

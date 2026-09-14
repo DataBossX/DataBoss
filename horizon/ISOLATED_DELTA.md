@@ -50,6 +50,11 @@ python3 -m horizon.isolated_delta \
   --operator "Pat Examiner"
 ```
 
+After a packet is applied, the operator archives it and keeps the newest
+`sectionN-delta.xlsx` / `sectionN-delta-2.xlsx` / … as the current isolated
+workbook. A later hash-matched packet applies onto the next generation
+instead of freezing the first copy.
+
 The older path still wraps examiner-authored `sectionN-deltas.json` for
 one-source source-proved fills:
 

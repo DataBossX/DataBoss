@@ -684,6 +684,25 @@ def _section_work_order(
         bound, isolated if isolated.is_file() else None
     )
     holds.extend(stale_holds)
+    try:
+        receipt_json = sorted(Path(receipt_dir).glob("*.json"))
+    except OSError:
+        receipt_json = []
+    delta_candidates = _discover_schema_paths(
+        [
+            *receipt_json,
+            *[
+                Path(inventory.roots[item.root_label]) / item.relative_path
+                for item in files
+                if item.extension == ".json" and item.root_label in inventory.roots
+            ],
+        ],
+        "dbx.source_proved_delta_packet",
+    )
+    bound, delta_holds = _select_delta_packet(
+        bound, delta_candidates, isolated if isolated.is_file() else None
+    )
+    holds.extend(delta_holds)
     return SectionWorkOrder(
         section=section,
         ready_for_extraction=bool(summary and summary.ready_for_extraction),
@@ -829,17 +848,139 @@ def _write_examiner_queue(
     )
 
 
-def _packet_workbook_sha256(path: Path) -> Optional[str]:
+def _packet_digest_field(path: Path, field: str) -> Optional[str]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     if not isinstance(payload, dict):
         return None
-    digest = payload.get("workbook_sha256")
+    digest = payload.get(field)
     if isinstance(digest, str) and len(digest) == 64:
         return digest.casefold()
     return None
+
+
+def _packet_workbook_sha256(path: Path) -> Optional[str]:
+    return _packet_digest_field(path, "workbook_sha256")
+
+
+def _packet_source_workbook_sha256(path: Path) -> Optional[str]:
+    return _packet_digest_field(path, "source_workbook_sha256")
+
+
+def _discover_schema_paths(paths: Sequence[Path], schema_id: str) -> List[Path]:
+    found: List[Path] = []
+    for path in paths:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict) and payload.get("schema_id") == schema_id:
+            found.append(path)
+    return found
+
+
+def _isolated_delta_generation(path: Path, section: int) -> Optional[int]:
+    name = path.name
+    if name == f"section{section}-delta.xlsx":
+        return 1
+    prefix = f"section{section}-delta-"
+    if name.startswith(prefix) and name.endswith(".xlsx"):
+        token = name[len(prefix) : -5]
+        if token.isdigit() and int(token) >= 2:
+            return int(token)
+    return None
+
+
+def _latest_isolated_path(receipt_dir: Path, section: int) -> Optional[Path]:
+    best: Optional[Path] = None
+    best_gen = 0
+    try:
+        candidates = list(receipt_dir.glob(f"section{section}-delta*.xlsx"))
+    except OSError:
+        candidates = []
+    for path in candidates:
+        try:
+            if not path.is_file():
+                continue
+        except OSError:
+            continue
+        generation = _isolated_delta_generation(path, section)
+        if generation is None:
+            continue
+        if generation > best_gen:
+            best_gen = generation
+            best = path
+    if best is not None:
+        return best
+    letter = receipt_dir / f"section{section}-letter.xlsx"
+    try:
+        if letter.is_file():
+            return letter
+    except OSError:
+        return None
+    return None
+
+
+def _next_delta_output(receipt_dir: Path, section: int) -> Path:
+    latest = _latest_isolated_path(receipt_dir, section)
+    generation = (
+        _isolated_delta_generation(latest, section)
+        if latest is not None
+        else None
+    )
+    if generation is None:
+        return receipt_dir / f"section{section}-delta.xlsx"
+    return receipt_dir / f"section{section}-delta-{generation + 1}.xlsx"
+
+
+def _select_delta_packet(
+    bindings: FinishBindings,
+    candidates: Sequence[Path],
+    workbook: Optional[Path],
+) -> tuple[FinishBindings, List[str]]:
+    """Bind a delta packet only when it matches the current isolated hash."""
+    ordered: List[Path] = []
+    if bindings.delta_packet is not None:
+        ordered.append(bindings.delta_packet)
+    for path in candidates:
+        if path not in ordered:
+            ordered.append(path)
+    if workbook is None or not workbook.is_file() or not ordered:
+        return bindings, []
+    actual = sha256_file(workbook)
+    for path in ordered:
+        if _packet_source_workbook_sha256(path) == actual:
+            if bindings.delta_packet == path:
+                return bindings, []
+            return replace(bindings, delta_packet=path), []
+    if bindings.delta_packet is not None:
+        return (
+            replace(bindings, delta_packet=None),
+            [
+                "Source-proved delta packet is bound to a different workbook "
+                "hash; attest a new draft against the current isolated workbook"
+            ],
+        )
+    return bindings, []
+
+
+def _archive_applied_delta_packet(
+    packet: Path,
+    receipt_dir: Path,
+) -> Optional[str]:
+    try:
+        if packet.parent.resolve() != receipt_dir.resolve():
+            return None
+        digest = _packet_source_workbook_sha256(packet) or "unknown"
+        dest = receipt_dir / f"{packet.stem}-applied-{digest[:8]}.json"
+        if dest.exists():
+            return None
+        packet.rename(dest)
+    except OSError:
+        return None
+    return str(dest)
 
 
 def _unbind_stale_workbook_packets(
@@ -881,18 +1022,12 @@ def _unbind_stale_workbook_packets(
 
 
 def _current_isolated_workbook(receipt_dir: str, section: int) -> str:
-    delta = Path(receipt_dir) / f"section{section}-delta.xlsx"
-    letter = Path(receipt_dir) / f"section{section}-letter.xlsx"
-    try:
-        if delta.is_file():
-            return str(delta.resolve())
-    except OSError:
-        pass
-    try:
-        if letter.is_file():
-            return str(letter.resolve())
-    except OSError:
-        pass
+    latest = _latest_isolated_path(Path(receipt_dir), section)
+    if latest is not None:
+        try:
+            return str(latest.resolve())
+        except OSError:
+            return str(latest)
     return f"{receipt_dir}/section{section}-letter.xlsx"
 
 
@@ -1349,7 +1484,6 @@ def _execute_section(
     finish_path = receipt_dir / f"section{order.section}-finish.json"
     repair_dir = receipt_dir / f"section{order.section}-repair"
     letter_path = receipt_dir / f"section{order.section}-letter.xlsx"
-    delta_path = receipt_dir / f"section{order.section}-delta.xlsx"
     reuse_isolated = letter_path.exists()
     try:
         index_packet_path = None
@@ -1376,20 +1510,37 @@ def _execute_section(
             if not repair_dir.exists() or not any(repair_dir.iterdir()):
                 repair = repair_dir
             letter = letter_path
+        latest = _latest_isolated_path(receipt_dir, order.section)
+        if latest is not None and _isolated_delta_generation(latest, order.section):
+            workbook = latest
+            repair = None
+            letter = None
+        delta_paths = list(sorted(receipt_dir.glob("*.json")))
+        if inventory is not None:
+            delta_paths.extend(
+                Path(inventory.roots[item.root_label]) / item.relative_path
+                for item in inventory.files
+                if item.section == order.section
+                and item.extension == ".json"
+                and item.root_label in inventory.roots
+            )
+        delta_candidates = _discover_schema_paths(
+            delta_paths, "dbx.source_proved_delta_packet"
+        )
+        bound, delta_holds = _select_delta_packet(bound, delta_candidates, workbook)
+        order.holds.extend(delta_holds)
         delta_packet = None
         delta_output = None
         applying_delta = False
         if bound.delta_packet is not None and workbook is not None:
-            if delta_path.exists():
-                workbook = delta_path
-            else:
-                repair = None
-                delta_packet = bound.delta_packet
-                delta_output = delta_path
-                applying_delta = True
+            repair = None
+            letter = None
+            delta_packet = bound.delta_packet
+            delta_output = _next_delta_output(receipt_dir, order.section)
+            applying_delta = True
         current_book = (
-            delta_path
-            if delta_path.exists()
+            latest
+            if latest is not None and not applying_delta
             else None
             if applying_delta
             else letter_path
@@ -1443,18 +1594,27 @@ def _execute_section(
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():
             order.executed_outputs.append(str(letter_path))
-        if delta_path.exists():
-            order.executed_outputs.append(str(delta_path))
+        isolated_ok = any(
+            getattr(gate, "name", "") == "isolated_delta"
+            and getattr(gate, "technical_pass", False)
+            for gate in finish.gates
+        )
+        if applying_delta and isolated_ok and bound.delta_packet is not None:
+            archived = _archive_applied_delta_packet(
+                bound.delta_packet, receipt_dir
+            )
+            if archived:
+                order.executed_outputs.append(archived)
+            bound = replace(bound, delta_packet=None)
+        latest = _latest_isolated_path(receipt_dir, order.section)
+        if latest is not None:
+            order.executed_outputs.append(str(latest))
         if acquisition_receipt.is_file():
             order.executed_outputs.append(str(acquisition_receipt))
         if inventoried:
             order.executed_outputs.append(inventoried)
-        isolated = (
-            delta_path
-            if delta_path.exists()
-            else letter_path
-            if letter_path.exists()
-            else None
+        isolated = latest if latest is not None else (
+            letter_path if letter_path.exists() else None
         )
         if isolated is not None:
             ledger_outputs, ledger_error = _write_workbook_ledger_packets(

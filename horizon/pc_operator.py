@@ -2573,6 +2573,7 @@ def _execute_section(
             if archived:
                 order.executed_outputs.append(archived)
             bound = replace(bound, delta_packet=None)
+        promoted = None
         if not applying_delta and workbook is not None and letter is None:
             promoted = _promote_repair_isolated(
                 finish, workbook, receipt_dir, order.section
@@ -2604,7 +2605,7 @@ def _execute_section(
             )
             order.finish_technical_pass = finish.technical_pass
             order.finish_packages_complete = finish.packages_complete
-        elif not applying_delta:
+        elif not applying_delta and (letter is not None or promoted is not None):
             rewrite_book = latest
             if rewrite_book is None and letter_path.exists():
                 rewrite_book = letter_path

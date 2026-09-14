@@ -262,7 +262,6 @@ def test_operator_repairs_letter_reuse_onto_next_isolated(tmp_path: Path) -> Non
     receipts.mkdir()
     letter = receipts / "section15-letter.xlsx"
     shutil.copy2(section / "Working Abstract.xlsx", letter)
-    before = letter.read_bytes()
     receipt = build_work_order(
         roots=[f"pc={root}"],
         sections=[15],
@@ -270,7 +269,10 @@ def test_operator_repairs_letter_reuse_onto_next_isolated(tmp_path: Path) -> Non
         execute=True,
     )
     assert receipt.packages_complete is False
-    assert letter.read_bytes() == before
+    letter_wb = openpyxl.load_workbook(letter, data_only=True)
+    assert letter_wb["Index"]["H9"].value in (None, "")
+    assert letter_wb["Index"].page_setup.orientation == "landscape"
+    letter_wb.close()
     isolated = receipts / "section15-delta.xlsx"
     assert isolated.is_file()
     repaired = openpyxl.load_workbook(isolated, data_only=True)

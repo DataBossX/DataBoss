@@ -18,7 +18,7 @@ import sys
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence
 
 from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
@@ -2130,6 +2130,30 @@ def _crop_packet_matches_section(path: Path, section: int) -> bool:
     )
 
 
+def _prefer_conventional_packet(
+    candidate: Optional[Path],
+    receipt_dir: str,
+    section: int,
+    conventional: str,
+    matches: Callable[[Path, int], bool],
+) -> Optional[Path]:
+    """Prefer sectionN-* when it matches; leftover first-wins stay fallback."""
+    path = Path(receipt_dir) / conventional
+    try:
+        if path.is_file() and matches(path, section):
+            return path
+    except OSError:
+        pass
+    if candidate is None:
+        return None
+    try:
+        if matches(candidate, section):
+            return candidate
+    except OSError:
+        return None
+    return None
+
+
 def _section_named_packet(
     candidate: Optional[Path],
     receipt_dir: str,
@@ -2137,19 +2161,15 @@ def _section_named_packet(
     schema_id: str,
     conventional: str,
 ) -> Optional[Path]:
-    if candidate is not None and _schema_packet_matches_section(
-        candidate, section, schema_id
-    ):
-        return candidate
-    path = Path(receipt_dir) / conventional
-    try:
-        if path.is_file() and _schema_packet_matches_section(
-            path, section, schema_id
-        ):
-            return path
-    except OSError:
-        return None
-    return None
+    return _prefer_conventional_packet(
+        candidate,
+        receipt_dir,
+        section,
+        conventional,
+        lambda path, number: _schema_packet_matches_section(
+            path, number, schema_id
+        ),
+    )
 
 
 def _bind_section_workbook_packets(
@@ -2181,17 +2201,13 @@ def _section_crop_packet(
     receipt_dir: str,
     section: int,
 ) -> Optional[Path]:
-    if candidate is not None and _crop_packet_matches_section(candidate, section):
-        return candidate
-    conventional = Path(receipt_dir) / f"section{section}-crops.json"
-    try:
-        if conventional.is_file() and _crop_packet_matches_section(
-            conventional, section
-        ):
-            return conventional
-    except OSError:
-        return None
-    return None
+    return _prefer_conventional_packet(
+        candidate,
+        receipt_dir,
+        section,
+        f"section{section}-crops.json",
+        _crop_packet_matches_section,
+    )
 
 
 def _bind_section_crops(
@@ -2221,17 +2237,13 @@ def _section_census_packet(
     receipt_dir: str,
     section: int,
 ) -> Optional[Path]:
-    if candidate is not None and _census_packet_matches_section(candidate, section):
-        return candidate
-    conventional = Path(receipt_dir) / f"section{section}-pdf-census-packet.json"
-    try:
-        if conventional.is_file() and _census_packet_matches_section(
-            conventional, section
-        ):
-            return conventional
-    except OSError:
-        return None
-    return None
+    return _prefer_conventional_packet(
+        candidate,
+        receipt_dir,
+        section,
+        f"section{section}-pdf-census-packet.json",
+        _census_packet_matches_section,
+    )
 
 
 def _bind_section_census(

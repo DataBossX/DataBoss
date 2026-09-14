@@ -142,6 +142,8 @@ python3 -m horizon.pc_operator \
    Unlabeled leftovers are not auto-bound. CLI `--pdf-bind-dir` / `--page-render-bind-dir` stay
    on the named section the same way. Census packets, crop packets, native-print receipts,
    and owner-review tokens stay on the matching section the same way.
+   Conventional `sectionN-*.json` receipts win over leftover first-wins
+   that also name that section.
    Crops rebound with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority

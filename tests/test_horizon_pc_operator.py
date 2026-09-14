@@ -23,6 +23,8 @@ from horizon.pc_operator import (
     _receipt_packages_complete,
     _same_hash_readback,
     _section_census_packet,
+    _section_crop_packet,
+    _section_named_packet,
     _section_commands,
     _section_folder_dest,
     build_work_order,
@@ -2007,6 +2009,86 @@ def test_discover_owner_review_stays_on_token_sections(tmp_path: Path) -> None:
     found13 = _discover_receipt_dir_packets(tmp_path, 13)
     assert "human_release_token" not in found15
     assert found13["human_release_token"].name == "section13-owner-review.json"
+
+
+def test_section_packets_prefer_conventional_over_leftover(
+    tmp_path: Path,
+) -> None:
+    leftover_print = tmp_path / "aaa-p15-print.json"
+    leftover_print.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "packet_id": "SECTION15-PRINT",
+            }
+        ),
+        encoding="utf-8",
+    )
+    conventional_print = tmp_path / "section15-native-print.json"
+    conventional_print.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "packet_id": "SECTION15-PRINT",
+            }
+        ),
+        encoding="utf-8",
+    )
+    leftover_crops = tmp_path / "aaa-p11-crops.json"
+    leftover_crops.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "packet_id": "SECTION11-CROPS",
+            }
+        ),
+        encoding="utf-8",
+    )
+    conventional_crops = tmp_path / "section11-crops.json"
+    conventional_crops.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "packet_id": "SECTION11-CROPS",
+            }
+        ),
+        encoding="utf-8",
+    )
+    leftover_census = tmp_path / "aaa-p15-census.json"
+    leftover_census.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "packet_id": "SECTION15-CENSUS",
+            }
+        ),
+        encoding="utf-8",
+    )
+    conventional_census = tmp_path / "section15-pdf-census-packet.json"
+    conventional_census.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "packet_id": "SECTION15-CENSUS",
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert (
+        _section_named_packet(
+            leftover_print,
+            str(tmp_path),
+            15,
+            "dbx.native_print_receipt",
+            "section15-native-print.json",
+        )
+        == conventional_print
+    )
+    assert _section_crop_packet(leftover_crops, str(tmp_path), 11) == conventional_crops
+    assert (
+        _section_census_packet(leftover_census, str(tmp_path), 15)
+        == conventional_census
+    )
 
 
 def test_section_census_packet_oserror_does_not_return_other_section(

@@ -161,6 +161,13 @@ def _is_sha256(value: object) -> bool:
     )
 
 
+def _require_sha256(value: object, label: str) -> str:
+    digest = value.casefold() if isinstance(value, str) else ""
+    if not _is_sha256(digest):
+        raise OccurrenceLedgerError(f"{label} has an invalid source_sha256")
+    return digest
+
+
 def _require_text(value: object, label: str) -> str:
     if not isinstance(value, str) or not value.strip() or "\n" in value:
         raise OccurrenceLedgerError(f"{label} must be a single-line string")
@@ -191,6 +198,25 @@ def _load_json(path: Path) -> Dict[str, object]:
     if not isinstance(payload, dict):
         raise OccurrenceLedgerError(f"{path} must contain a JSON object")
     return payload
+
+
+def _parse_key_records(
+    rows: Sequence[object],
+    label: str,
+    required_keys: set[str],
+) -> List[KeyRecord]:
+    records: List[KeyRecord] = []
+    for index, raw in enumerate(rows):
+        if not isinstance(raw, dict) or set(raw) != required_keys:
+            raise OccurrenceLedgerError(f"{label} {index} has invalid fields")
+        digest = _require_sha256(raw["source_sha256"], f"{label} {index}")
+        records.append(
+            KeyRecord(
+                stable_key=_require_text(raw["stable_key"], "stable_key"),
+                source_sha256=digest,
+            )
+        )
+    return records
 
 
 def parse_occurrence_packet(payload: Dict[str, object]) -> OccurrencePacket:
@@ -230,13 +256,10 @@ def parse_occurrence_packet(payload: Dict[str, object]) -> OccurrencePacket:
                 f"occurrence_id is duplicated: {occurrence_id}"
             )
         seen_ids.add(occurrence_id)
-        digest = raw["source_sha256"]
-        if isinstance(digest, str):
-            digest = digest.casefold()
-        if not _is_sha256(digest):
-            raise OccurrenceLedgerError(
-                f"occurrence {occurrence_id} has an invalid source_sha256"
-            )
+        digest = _require_sha256(
+            raw["source_sha256"],
+            f"occurrence {occurrence_id}",
+        )
         page = raw["page"]
         if type(page) is not int or page < 1:
             raise OccurrenceLedgerError(
@@ -259,31 +282,7 @@ def parse_occurrence_packet(payload: Dict[str, object]) -> OccurrencePacket:
             )
         )
 
-    def parse_key_records(
-        rows: Sequence[object],
-        label: str,
-        required_keys: set[str],
-    ) -> List[KeyRecord]:
-        records: List[KeyRecord] = []
-        for index, raw in enumerate(rows):
-            if not isinstance(raw, dict) or set(raw) != required_keys:
-                raise OccurrenceLedgerError(f"{label} {index} has invalid fields")
-            digest = raw["source_sha256"]
-            if isinstance(digest, str):
-                digest = digest.casefold()
-            if not _is_sha256(digest):
-                raise OccurrenceLedgerError(
-                    f"{label} {index} has an invalid source_sha256"
-                )
-            records.append(
-                KeyRecord(
-                    stable_key=_require_text(raw["stable_key"], "stable_key"),
-                    source_sha256=digest,
-                )
-            )
-        return records
-
-    ledger = parse_key_records(
+    ledger = _parse_key_records(
         raw_ledger,
         "unique_key_ledger",
         REQUIRED_KEY_RECORD_KEYS,
@@ -293,13 +292,7 @@ def parse_occurrence_packet(payload: Dict[str, object]) -> OccurrencePacket:
     for index, raw in enumerate(raw_allowlist):
         if not isinstance(raw, dict) or set(raw) != REQUIRED_ALLOWLIST_KEYS:
             raise OccurrenceLedgerError(f"allowlist {index} has invalid fields")
-        digest = raw["source_sha256"]
-        if isinstance(digest, str):
-            digest = digest.casefold()
-        if not _is_sha256(digest):
-            raise OccurrenceLedgerError(
-                f"allowlist {index} has an invalid source_sha256"
-            )
+        digest = _require_sha256(raw["source_sha256"], f"allowlist {index}")
         stable_key = _require_text(raw["stable_key"], "stable_key")
         if stable_key in seen_allowlist:
             raise OccurrenceLedgerError(
@@ -330,13 +323,10 @@ def parse_occurrence_packet(payload: Dict[str, object]) -> OccurrencePacket:
         if row_id in seen_row_ids:
             raise OccurrenceLedgerError(f"row_id is duplicated: {row_id}")
         seen_row_ids.add(row_id)
-        digest = raw["source_sha256"]
-        if isinstance(digest, str):
-            digest = digest.casefold()
-        if not _is_sha256(digest):
-            raise OccurrenceLedgerError(
-                f"candidate_rows {row_id} has an invalid source_sha256"
-            )
+        digest = _require_sha256(
+            raw["source_sha256"],
+            f"candidate_rows {row_id}",
+        )
         rows.append(
             CandidateRow(
                 row_id=row_id,
@@ -435,6 +425,24 @@ def _record_missing(
     return sorted(right_set - left_set), sorted(left_set - right_set)
 
 
+def _record_unbound_source_hash(
+    issues: List[LedgerIssue],
+    key: str,
+    item_hashes: set[str],
+    bound_hashes: set[str],
+    message: str,
+) -> None:
+    if bound_hashes and item_hashes - bound_hashes:
+        issues.append(
+            LedgerIssue(
+                code="source_hash_mismatch",
+                severity="blocking",
+                message=message,
+                stable_key=key,
+            )
+        )
+
+
 def compare_packet(
     packet: OccurrencePacket,
     *,
@@ -478,20 +486,13 @@ def compare_packet(
                     stable_key=key,
                 )
             )
-        hashes = {record.source_sha256 for record in records}
-        occ_hashes = occurrence_hashes.get(key, set())
-        if occ_hashes and hashes - occ_hashes:
-            issues.append(
-                LedgerIssue(
-                    code="source_hash_mismatch",
-                    severity="blocking",
-                    message=(
-                        f"Ledger hash for {key!r} is not bound to its "
-                        "occurrences"
-                    ),
-                    stable_key=key,
-                )
-            )
+        _record_unbound_source_hash(
+            issues,
+            key,
+            {record.source_sha256 for record in records},
+            occurrence_hashes.get(key, set()),
+            f"Ledger hash for {key!r} is not bound to its occurrences",
+        )
 
     rows_by_key: Dict[str, List[CandidateRow]] = defaultdict(list)
     for row in packet.candidate_rows:
@@ -506,20 +507,13 @@ def compare_packet(
                     stable_key=key,
                 )
             )
-        hashes = {row.source_sha256 for row in rows}
-        occ_hashes = occurrence_hashes.get(key, set())
-        if occ_hashes and hashes - occ_hashes:
-            issues.append(
-                LedgerIssue(
-                    code="source_hash_mismatch",
-                    severity="blocking",
-                    message=(
-                        f"Candidate hash for {key!r} is not bound to its "
-                        "occurrences"
-                    ),
-                    stable_key=key,
-                )
-            )
+        _record_unbound_source_hash(
+            issues,
+            key,
+            {row.source_sha256 for row in rows},
+            occurrence_hashes.get(key, set()),
+            f"Candidate hash for {key!r} is not bound to its occurrences",
+        )
 
     allowlist_by_key = {
         entry.stable_key: entry for entry in packet.allowlist
@@ -648,49 +642,35 @@ def compare_packet(
         names = sorted(set(consensus) | set(row.fields))
         for name in names:
             if name not in consensus:
-                issues.append(
-                    LedgerIssue(
-                        code="extra_candidate_field",
-                        severity="blocking",
-                        message=(
-                            f"Candidate {row.row_id} adds {name!r} without "
-                            "occurrence support"
-                        ),
-                        stable_key=key,
-                        row_id=row.row_id,
-                    )
+                code = "extra_candidate_field"
+                message = (
+                    f"Candidate {row.row_id} adds {name!r} without "
+                    "occurrence support"
                 )
-                field_conflicts.append(f"{key}:{name}")
+            elif name not in row.fields:
+                code = "missing_candidate_field"
+                message = (
+                    f"Candidate {row.row_id} is missing occurrence "
+                    f"field {name!r}"
+                )
+            elif row.fields[name] != consensus[name]:
+                code = "field_conflict"
+                message = (
+                    f"Candidate {row.row_id} {name!r} disagrees with "
+                    "occurrence consensus"
+                )
+            else:
                 continue
-            if name not in row.fields:
-                issues.append(
-                    LedgerIssue(
-                        code="missing_candidate_field",
-                        severity="blocking",
-                        message=(
-                            f"Candidate {row.row_id} is missing occurrence "
-                            f"field {name!r}"
-                        ),
-                        stable_key=key,
-                        row_id=row.row_id,
-                    )
+            issues.append(
+                LedgerIssue(
+                    code=code,
+                    severity="blocking",
+                    message=message,
+                    stable_key=key,
+                    row_id=row.row_id,
                 )
-                field_conflicts.append(f"{key}:{name}")
-                continue
-            if row.fields[name] != consensus[name]:
-                issues.append(
-                    LedgerIssue(
-                        code="field_conflict",
-                        severity="blocking",
-                        message=(
-                            f"Candidate {row.row_id} {name!r} disagrees with "
-                            "occurrence consensus"
-                        ),
-                        stable_key=key,
-                        row_id=row.row_id,
-                    )
-                )
-                field_conflicts.append(f"{key}:{name}")
+            )
+            field_conflicts.append(f"{key}:{name}")
 
     closed_from_cursor = set(
         resume_cursor.closed_occurrence_ids if resume_cursor else ()

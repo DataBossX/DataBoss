@@ -182,11 +182,17 @@ class AcquisitionReceipt:
         return asdict(self)
 
 
+def _nofollow_read_flags() -> int:
+    return os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+
+
 def _open_readonly(path: Path) -> int:
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
+    flags = _nofollow_read_flags() | getattr(os, "O_BINARY", 0)
     return os.open(path, flags)
+
+
+def _open_file_at(parent_descriptor: int, name: str) -> int:
+    return os.open(name, _nofollow_read_flags(), dir_fd=parent_descriptor)
 
 
 def _has_symlink_component(path: Path) -> bool:
@@ -259,9 +265,8 @@ def _read_control_bytes(
             f"Cannot open control parent directory: {requested.parent}"
         ) from exc
     try:
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
         try:
-            descriptor = os.open(name, flags, dir_fd=directory_descriptor)
+            descriptor = _open_file_at(directory_descriptor, name)
         except OSError as exc:
             raise SourceAcquisitionError(
                 f"Cannot open control file: {requested}"
@@ -867,11 +872,7 @@ def _open_or_create_directories(
 
 
 def _hash_file_at(parent_descriptor: int, name: str) -> str:
-    descriptor = os.open(
-        name,
-        os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
-        dir_fd=parent_descriptor,
-    )
+    descriptor = _open_file_at(parent_descriptor, name)
     digest = hashlib.sha256()
     with os.fdopen(descriptor, "rb") as handle:
         before = os.fstat(handle.fileno())
@@ -1116,16 +1117,16 @@ def _collect_snapshot_file_hashes(snapshot_descriptor: int) -> Dict[str, str]:
                     walk(child_descriptor, child_parts)
                 finally:
                     os.close(child_descriptor)
-                continue
-            if not stat.S_ISREG(status.st_mode):
+            elif stat.S_ISREG(status.st_mode):
+                if relative in found:
+                    raise SourceAcquisitionError(
+                        f"Snapshot path collected twice: {relative}"
+                    )
+                found[relative] = _hash_file_at(directory_descriptor, entry.name)
+            else:
                 raise SourceAcquisitionError(
                     f"Snapshot contains a non-regular file: {relative}"
                 )
-            if relative in found:
-                raise SourceAcquisitionError(
-                    f"Snapshot path collected twice: {relative}"
-                )
-            found[relative] = _hash_file_at(directory_descriptor, entry.name)
 
     walk(snapshot_descriptor, ())
     return found
@@ -1164,34 +1165,35 @@ def verify_snapshot(receipt: AcquisitionReceipt) -> bool:
     except (NotImplementedError, OSError):
         return False
     try:
-        try:
-            status = os.stat(
-                snapshot_root.name,
-                dir_fd=parent_descriptor,
-                follow_symlinks=False,
-            )
-            if not stat.S_ISDIR(status.st_mode):
-                return False
-            if (status.st_dev, status.st_ino) != (
-                receipt.snapshot_device,
-                receipt.snapshot_inode,
-            ):
-                return False
-            snapshot_descriptor = _open_directory_at(
-                parent_descriptor,
-                snapshot_root.name,
-            )
-            try:
-                found = _collect_snapshot_file_hashes(snapshot_descriptor)
-            finally:
-                os.close(snapshot_descriptor)
-        except (OSError, SourceAcquisitionError):
+        status = os.stat(
+            snapshot_root.name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not stat.S_ISDIR(status.st_mode):
             return False
+        if (status.st_dev, status.st_ino) != (
+            receipt.snapshot_device,
+            receipt.snapshot_inode,
+        ):
+            return False
+        snapshot_descriptor = _open_directory_at(
+            parent_descriptor,
+            snapshot_root.name,
+        )
+        try:
+            found = _collect_snapshot_file_hashes(snapshot_descriptor)
+        finally:
+            os.close(snapshot_descriptor)
+    except (OSError, SourceAcquisitionError):
+        return False
     finally:
         os.close(parent_descriptor)
-    if found != authorized:
-        return False
-    return _snapshot_manifest_hash(manifest_lines) == receipt.snapshot_manifest_sha256
+    return (
+        found == authorized
+        and _snapshot_manifest_hash(manifest_lines)
+        == receipt.snapshot_manifest_sha256
+    )
 
 
 def build_receipt(

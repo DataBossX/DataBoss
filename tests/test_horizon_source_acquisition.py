@@ -11,6 +11,7 @@ import pytest
 
 import horizon.source_acquisition as source_acquisition
 from horizon.source_acquisition import (
+    AcquisitionReceipt,
     AuthorityAssertion,
     AuthorityContext,
     SourceAcquisitionError,
@@ -218,16 +219,20 @@ def _unlock_tree(path: Path) -> None:
         child.chmod(0o700 if child.is_dir() else 0o600)
 
 
-def test_snapshot_verification_rejects_extra_file(tmp_path: Path) -> None:
+def _authorized_snapshot_receipt(tmp_path: Path) -> AcquisitionReceipt:
     root = tmp_path / "sources"
     _complete_section(root, 15)
-    receipt = build_receipt(
+    return build_receipt(
         [SourceRoot("pc", root)],
         requested_sections=[15],
         authority_assertions=_authorities(root, "pc", 15),
         authority_context=_context(),
         snapshot_directory=tmp_path / "snapshot",
     )
+
+
+def test_snapshot_verification_rejects_extra_file(tmp_path: Path) -> None:
+    receipt = _authorized_snapshot_receipt(tmp_path)
     snapshot = Path(receipt.snapshot_root)
     _unlock_tree(snapshot)
     (snapshot / "pc" / "sneaky.pdf").write_bytes(b"not authorized")
@@ -238,15 +243,7 @@ def test_snapshot_verification_rejects_extra_file(tmp_path: Path) -> None:
 
 
 def test_snapshot_verification_rejects_internal_symlink(tmp_path: Path) -> None:
-    root = tmp_path / "sources"
-    _complete_section(root, 15)
-    receipt = build_receipt(
-        [SourceRoot("pc", root)],
-        requested_sections=[15],
-        authority_assertions=_authorities(root, "pc", 15),
-        authority_context=_context(),
-        snapshot_directory=tmp_path / "snapshot",
-    )
+    receipt = _authorized_snapshot_receipt(tmp_path)
     snapshot = Path(receipt.snapshot_root)
     _unlock_tree(snapshot)
     (snapshot / "pc" / "alias").symlink_to(
@@ -260,15 +257,7 @@ def test_snapshot_verification_rejects_internal_symlink(tmp_path: Path) -> None:
 def test_snapshot_verification_requires_recorded_identity(
     tmp_path: Path,
 ) -> None:
-    root = tmp_path / "sources"
-    _complete_section(root, 15)
-    receipt = build_receipt(
-        [SourceRoot("pc", root)],
-        requested_sections=[15],
-        authority_assertions=_authorities(root, "pc", 15),
-        authority_context=_context(),
-        snapshot_directory=tmp_path / "snapshot",
-    )
+    receipt = _authorized_snapshot_receipt(tmp_path)
 
     assert verify_snapshot(receipt)
     assert not verify_snapshot(
@@ -277,49 +266,26 @@ def test_snapshot_verification_requires_recorded_identity(
 
 
 def test_snapshot_cleanup_refuses_replaced_directory(tmp_path: Path) -> None:
-    root = tmp_path / "sources"
-    _complete_section(root, 15)
-    receipt = build_receipt(
-        [SourceRoot("pc", root)],
-        requested_sections=[15],
-        authority_assertions=_authorities(root, "pc", 15),
-        authority_context=_context(),
-        snapshot_directory=tmp_path / "snapshot",
-    )
+    receipt = _authorized_snapshot_receipt(tmp_path)
     snapshot = Path(receipt.snapshot_root)
-    device = receipt.snapshot_device
-    inode = receipt.snapshot_inode
-    _unlock_tree(snapshot)
-    for child in snapshot.iterdir():
-        if child.is_dir():
-            _unlock_tree(child)
-    source_acquisition._remove_snapshot(
-        snapshot,
-        expected_device=device,
-        expected_inode=inode,
-    )
+    original = snapshot.with_name(f"{snapshot.name}.original")
+    snapshot.rename(original)
     snapshot.mkdir()
     (snapshot / "decoy.txt").write_text("replacement", encoding="utf-8")
 
     with pytest.raises(SourceAcquisitionError, match="identity mismatch"):
         source_acquisition._remove_snapshot(
             snapshot,
-            expected_device=device,
-            expected_inode=inode,
+            expected_device=receipt.snapshot_device,
+            expected_inode=receipt.snapshot_inode,
         )
     assert (snapshot / "decoy.txt").read_text(encoding="utf-8") == "replacement"
+    assert original.is_dir()
+    assert verify_snapshot(replace(receipt, snapshot_root=str(original)))
 
 
 def test_snapshot_cleanup_refuses_missing_identity(tmp_path: Path) -> None:
-    root = tmp_path / "sources"
-    _complete_section(root, 15)
-    receipt = build_receipt(
-        [SourceRoot("pc", root)],
-        requested_sections=[15],
-        authority_assertions=_authorities(root, "pc", 15),
-        authority_context=_context(),
-        snapshot_directory=tmp_path / "snapshot",
-    )
+    receipt = _authorized_snapshot_receipt(tmp_path)
     snapshot = Path(receipt.snapshot_root)
 
     with pytest.raises(SourceAcquisitionError, match="identity missing"):

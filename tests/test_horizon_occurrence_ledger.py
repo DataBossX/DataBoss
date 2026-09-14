@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from horizon.occurrence_ledger import (
     OccurrenceLedgerError,
     compare_packet,
@@ -157,6 +159,7 @@ def test_p11_shaped_count_contradiction_is_blocking() -> None:
         "SYNTH-KEY-D",
         "SYNTH-KEY-E",
     ]
+    closed_keys = {"SYNTH-KEY-A", "SYNTH-KEY-B", "SYNTH-KEY-C"}
     payload = _packet(
         packet_id="SYNTH-P11-SHAPE",
         occurrences=[
@@ -164,7 +167,7 @@ def test_p11_shaped_count_contradiction_is_blocking() -> None:
                 f"occ-{index + 1:03d}",
                 key,
                 page=1 + index,
-                risk="closed_same_hash" if key in {"SYNTH-KEY-A", "SYNTH-KEY-B", "SYNTH-KEY-C"} else "disputed",
+                risk="closed_same_hash" if key in closed_keys else "disputed",
             )
             for index, key in enumerate(occurrence_keys)
         ],
@@ -267,12 +270,8 @@ def test_resume_cursor_skips_closed_ids_without_hiding_counts(
 def test_unknown_packet_fields_fail_closed() -> None:
     payload = _clean_packet()
     payload["comment"] = "ignore me"
-    try:
+    with pytest.raises(OccurrenceLedgerError, match="top-level"):
         parse_occurrence_packet(payload)
-    except OccurrenceLedgerError as exc:
-        assert "top-level" in str(exc)
-    else:
-        raise AssertionError("expected unknown fields to fail")
 
 
 def test_cli_writes_receipt_and_cursor(tmp_path: Path) -> None:

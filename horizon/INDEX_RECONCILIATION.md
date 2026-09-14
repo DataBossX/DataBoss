@@ -78,6 +78,7 @@ replace a pre-built packet when those indexes are themselves Penterra
 workbooks. `packages_complete` stays false.
 
 Remaining one-source blanks and conflicts are written to
-`sectionN-examiner-queue.json` by `horizon.examiner_queue` / `pc_operator
---execute`. That queue does not invent values. The examiner puts only
-source-proved text in `sectionN-deltas.json`.
+`sectionN-examiner-queue.json` and `sectionN-onesource-template.json` by
+`horizon.examiner_queue` / `pc_operator --execute`. Those files do not
+invent values. The examiner fills only source-proved text, then attests
+the template or writes `sectionN-deltas.json`.

@@ -79,7 +79,7 @@ def queue_from_scores(
         "notes": [
             "This queue does not invent legal, party, or date values",
             "One-source blanks require a writer-held source-proved fill",
-            "Put only source-proved text in sectionN-deltas.json",
+            "Put only source-proved text in sectionN-onesource-template.json or sectionN-deltas.json",
         ],
     }
 

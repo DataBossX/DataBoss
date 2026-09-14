@@ -253,6 +253,34 @@ def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> Non
     assert acquisition["technical_pass"] is True
     assert acquisition["detail"]["phase"] == "phase2_snapshot"
     assert (receipts / "intake-snapshot" / "section15").is_dir()
+    assert (receipts / "section15-acquisition.json").is_file()
+    live_master = root / "Section 15" / "Master Abstract.xlsx"
+    live_master.write_bytes(b"changed-after-phase2")
+    third = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert third.packages_complete is False
+    assert third.sections[0].execute_error == ""
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    acquisition = next(
+        gate for gate in finish["gates"] if gate["name"] == "source_acquisition"
+    )
+    assert acquisition["technical_pass"] is True
+    assert acquisition["detail"]["reused_snapshot"] is True
+    snap_master = (
+        receipts
+        / "intake-snapshot"
+        / "section15"
+        / "pc"
+        / "Section 15"
+        / "Master Abstract.xlsx"
+    )
+    assert snap_master.read_bytes() != b"changed-after-phase2"
 
 
 def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:

@@ -18,6 +18,8 @@ from horizon.source_acquisition import (
     SourceRoot,
     build_receipt,
     detect_section,
+    ensure_authority_snapshot,
+    load_receipt,
     main,
     verify_snapshot,
     write_receipt,
@@ -997,3 +999,57 @@ def test_receipt_failure_removes_private_snapshot(
 
     assert result == 1
     assert not snapshot.exists()
+
+
+def test_ensure_snapshot_reuses_verified_bytes_after_live_drift(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc"
+    _complete_section(root, 15)
+    authority = tmp_path / "authority.json"
+    _write_authority_manifest(authority, _authorities(root, "pc", 15))
+    project = tmp_path / "project_manifest.json"
+    _write_project_manifest(project, authority)
+    snapshot = tmp_path / "section15-snapshot"
+    receipt_path = tmp_path / "section15-acquisition.json"
+    first = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert first.technical_pass
+    assert verify_snapshot(first)
+    assert receipt_path.is_file()
+    live_master = root / "Section 15" / "Master Abstract.xlsx"
+    live_master.write_bytes(b"changed-after-snapshot")
+    second = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert second.technical_pass
+    assert Path(second.snapshot_root) == Path(first.snapshot_root)
+    snap_master = (
+        Path(second.snapshot_root) / "pc" / "Section 15" / "Master Abstract.xlsx"
+    )
+    assert snap_master.read_bytes() == b"master"
+    assert live_master.read_bytes() == b"changed-after-snapshot"
+    loaded = load_receipt(receipt_path)
+    assert verify_snapshot(loaded)
+    snap_master.chmod(0o600)
+    snap_master.write_bytes(b"tampered-snapshot")
+    with pytest.raises(SourceAcquisitionError, match="failed verification"):
+        ensure_authority_snapshot(
+            roots=[f"pc={root}"],
+            sections=[15],
+            authority_manifest=authority,
+            project_manifest=project,
+            snapshot_directory=snapshot,
+            acquisition_receipt=receipt_path,
+        )

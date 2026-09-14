@@ -58,6 +58,7 @@ from .source_acquisition import (
     SourceAcquisitionError,
     bind_phase_two_controls,
     build_receipt as build_acquisition_receipt,
+    ensure_authority_snapshot,
     filter_authority_assertions,
     parse_root,
     verify_snapshot,
@@ -125,8 +126,39 @@ def _acquisition_gate(
     authority_manifest: Optional[Path] = None,
     project_manifest: Optional[Path] = None,
     snapshot_directory: Optional[Path] = None,
+    acquisition_receipt: Optional[Path] = None,
 ) -> GateResult:
     try:
+        if (
+            authority_manifest is not None
+            and project_manifest is not None
+            and snapshot_directory is not None
+        ):
+            receipt_path = acquisition_receipt or (
+                snapshot_directory.expanduser().parent
+                / f"{snapshot_directory.expanduser().name}-acquisition.json"
+            )
+            reused = snapshot_directory.expanduser().exists()
+            receipt = ensure_authority_snapshot(
+                roots=roots,
+                sections=sections,
+                authority_manifest=authority_manifest,
+                project_manifest=project_manifest,
+                snapshot_directory=snapshot_directory,
+                acquisition_receipt=receipt_path,
+            )
+            return GateResult(
+                name="source_acquisition",
+                ran=True,
+                technical_pass=receipt.technical_pass,
+                detail={
+                    "snapshot_root": receipt.snapshot_root,
+                    "phase": "phase2_snapshot",
+                    "reused_snapshot": reused,
+                    "acquisition_receipt": str(receipt_path),
+                    "issue_count": len(receipt.issues),
+                },
+            )
         assertions, context, snapshot = bind_phase_two_controls(
             authority_manifest=authority_manifest,
             project_manifest=project_manifest,
@@ -427,6 +459,7 @@ def run_finish(
     authority_manifest: Optional[Path] = None,
     project_manifest: Optional[Path] = None,
     snapshot_directory: Optional[Path] = None,
+    acquisition_receipt: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -464,6 +497,7 @@ def run_finish(
                 authority_manifest=authority_manifest,
                 project_manifest=project_manifest,
                 snapshot_directory=snapshot_directory,
+                acquisition_receipt=acquisition_receipt,
             )
         )
     if page_render_packet is not None:
@@ -960,6 +994,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--authority-manifest", type=Path)
     parser.add_argument("--project-manifest", type=Path)
     parser.add_argument("--snapshot-directory", type=Path)
+    parser.add_argument("--acquisition-receipt", type=Path)
     return parser
 
 
@@ -995,6 +1030,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             authority_manifest=args.authority_manifest,
             project_manifest=args.project_manifest,
             snapshot_directory=args.snapshot_directory,
+            acquisition_receipt=args.acquisition_receipt,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

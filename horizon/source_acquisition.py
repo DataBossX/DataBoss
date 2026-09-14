@@ -1621,6 +1621,139 @@ def bind_phase_two_controls(
     )
 
 
+def receipt_from_dict(payload: Dict[str, object]) -> AcquisitionReceipt:
+    if not isinstance(payload, dict) or payload.get("schema_id") != SCHEMA_ID:
+        raise SourceAcquisitionError("Acquisition receipt schema is invalid")
+    files = [
+        SourceFile(**item) for item in payload.get("files") or []  # type: ignore[arg-type]
+    ]
+    comparisons = [
+        PathComparison(
+            section=item["section"],
+            relative_path=item["relative_path"],
+            status=item["status"],
+            roots=tuple(item["roots"]),
+            sha256_values=tuple(item["sha256_values"]),
+        )
+        for item in payload.get("path_comparisons") or []  # type: ignore[union-attr]
+    ]
+    matches = []
+    for item in payload.get("authority_matches") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("assertion"), dict):
+            raise SourceAcquisitionError("Authority match is invalid")
+        matches.append(
+            AuthorityMatch(
+                assertion=AuthorityAssertion(**item["assertion"]),
+                status=str(item.get("status") or ""),
+            )
+        )
+    raw_context = payload.get("authority_context")
+    context = (
+        AuthorityContext(**raw_context)
+        if isinstance(raw_context, dict)
+        else None
+    )
+    issues = [
+        SourceIssue(**item) for item in payload.get("issues") or []  # type: ignore[arg-type]
+    ]
+    sections = [
+        SectionSummary(**item) for item in payload.get("sections") or []  # type: ignore[arg-type]
+    ]
+    return AcquisitionReceipt(
+        generated_utc=str(payload.get("generated_utc") or ""),
+        roots=dict(payload.get("roots") or {}),
+        requested_sections=list(payload.get("requested_sections") or []),
+        required_roles=list(payload.get("required_roles") or []),
+        files=files,
+        path_comparisons=comparisons,
+        duplicate_content=list(payload.get("duplicate_content") or []),
+        authority_matches=matches,
+        authority_context=context,
+        snapshot_root=str(payload.get("snapshot_root") or ""),
+        snapshot_manifest_sha256=str(payload.get("snapshot_manifest_sha256") or ""),
+        snapshot_device=payload.get("snapshot_device"),  # type: ignore[arg-type]
+        snapshot_inode=payload.get("snapshot_inode"),  # type: ignore[arg-type]
+        issues=issues,
+        sections=sections,
+        technical_pass=bool(payload.get("technical_pass")),
+        schema_id=SCHEMA_ID,
+        schema_version=str(payload.get("schema_version") or SCHEMA_VERSION),
+    )
+
+
+def load_receipt(path: Path) -> AcquisitionReceipt:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceAcquisitionError(f"Cannot read acquisition receipt {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SourceAcquisitionError("Acquisition receipt must be a JSON object")
+    return receipt_from_dict(payload)
+
+
+def snapshot_path_for(receipt: AcquisitionReceipt, item: SourceFile) -> Path:
+    return Path(receipt.snapshot_root) / item.root_label / item.relative_path
+
+
+def ensure_authority_snapshot(
+    *,
+    roots: Sequence[str],
+    sections: Sequence[int],
+    authority_manifest: Path,
+    project_manifest: Path,
+    snapshot_directory: Path,
+    acquisition_receipt: Path,
+    required_roles: Sequence[str] = DEFAULT_REQUIRED_ROLES,
+) -> AcquisitionReceipt:
+    """Create a new authority snapshot or verify the existing one.
+
+    Downstream extraction must read the snapshot, not live Drive/PC paths.
+    """
+    assertions, context, snapshot = bind_phase_two_controls(
+        authority_manifest=authority_manifest,
+        project_manifest=project_manifest,
+        snapshot_directory=snapshot_directory,
+    )
+    if context is None or snapshot is None:
+        raise SourceAcquisitionError("Phase 2 controls did not bind")
+    assertions = filter_authority_assertions(assertions, sections)
+    snapshot = snapshot.expanduser()
+    receipt_path = acquisition_receipt.expanduser()
+    if snapshot.exists():
+        if not receipt_path.is_file():
+            raise SourceAcquisitionError(
+                "Authority snapshot exists without an acquisition receipt"
+            )
+        receipt = load_receipt(receipt_path)
+        if Path(receipt.snapshot_root).resolve() != snapshot.resolve():
+            raise SourceAcquisitionError(
+                "Acquisition receipt snapshot_root does not match the snapshot directory"
+            )
+        if not verify_snapshot(receipt):
+            raise SourceAcquisitionError(
+                "Existing authority snapshot failed verification"
+            )
+        return receipt
+    if receipt_path.exists():
+        raise SourceAcquisitionError(
+            "Acquisition receipt exists without an authority snapshot"
+        )
+    receipt = build_receipt(
+        [parse_root(raw) for raw in roots],
+        requested_sections=list(sections),
+        required_roles=list(required_roles),
+        authority_assertions=assertions,
+        authority_context=context,
+        snapshot_directory=snapshot,
+    )
+    if not receipt.snapshot_root or not verify_snapshot(receipt):
+        raise SourceAcquisitionError(
+            "Newly created authority snapshot failed verification"
+        )
+    write_receipt(receipt, receipt_path)
+    return receipt
+
+
 def parse_root(value: str) -> SourceRoot:
     label, separator, path = value.partition("=")
     label = label.strip()

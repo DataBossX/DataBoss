@@ -199,7 +199,11 @@ A passing receipt proves only that externally authorized source categories were
 copied byte-exact into the recorded read-only snapshot after repeated full
 hashes and without same-path conflicts. Downstream work must use that snapshot,
 not live Drive/PC paths, and must call `verify_snapshot(receipt)` immediately
-before reading it. Verification walks the entire snapshot tree through
+before reading it. Later finish runs call `ensure_authority_snapshot`: if the
+snapshot already exists, they reload the sibling acquisition receipt and
+verify; they do not create a second snapshot or re-read drifted live files.
+The PC operator remaps master/index exports onto those verified snapshot
+bytes. Verification walks the entire snapshot tree through
 descriptor-relative opens: extra files, internal symlinks, missing authorized
 bytes, hash drift, or a device/inode mismatch against the receipt all fail.
 Failed receipt publication removes only the snapshot whose recorded

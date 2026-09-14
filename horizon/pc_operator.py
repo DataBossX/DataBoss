@@ -12,7 +12,7 @@ import argparse
 import json
 import shlex
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -33,6 +33,7 @@ from .source_acquisition import (
     SourceFile,
     SourceIssue,
     build_receipt,
+    ensure_authority_snapshot,
     parse_root,
 )
 
@@ -610,6 +611,44 @@ def _complete_draft_sections(
     return complete
 
 
+def _bind_picks_to_snapshot(
+    picks: Sequence[CandidatePick],
+    receipt: AcquisitionReceipt,
+) -> List[CandidatePick]:
+    authorized = {
+        (match.assertion.root_label, match.assertion.relative_path)
+        for match in receipt.authority_matches
+        if match.status == "matched"
+    }
+    snapshot = Path(receipt.snapshot_root)
+    bound: List[CandidatePick] = []
+    for pick in picks:
+        key = (pick.root_label, pick.relative_path)
+        if key not in authorized:
+            continue
+        path = snapshot / pick.root_label / pick.relative_path
+        if not path.is_file():
+            continue
+        note = pick.note
+        extra = "bound to verified authority snapshot"
+        note = f"{note}; {extra}" if note else extra
+        bound.append(replace(pick, path=str(path), note=note))
+    if not any(pick.slot == "candidate" for pick in bound):
+        master = next((pick for pick in bound if pick.slot == "master"), None)
+        if master is not None and master.exportable:
+            bound.append(
+                replace(
+                    master,
+                    slot="candidate",
+                    note=(
+                        "Candidate is the snapshot master; live working "
+                        "workbooks are not authorized"
+                    ),
+                )
+            )
+    return bound
+
+
 def _same_hash_readback(
     inventory: Optional[AcquisitionReceipt],
     workbook: Path,
@@ -657,6 +696,34 @@ def _execute_section(
     if inventory is not None:
         discovered = _discover_packets(inventory.files, inventory.roots, order.section)
     bound = _merge_bindings(bindings, discovered)
+    snapshot = bound.snapshot_directory
+    if snapshot is not None:
+        snapshot = snapshot / f"section{order.section}"
+    acquisition_receipt = receipt_dir / f"section{order.section}-acquisition.json"
+    if (
+        bound.authority_manifest is not None
+        and bound.project_manifest is not None
+        and snapshot is not None
+    ):
+        try:
+            ensured = ensure_authority_snapshot(
+                roots=root_args,
+                sections=[order.section],
+                authority_manifest=bound.authority_manifest,
+                project_manifest=bound.project_manifest,
+                snapshot_directory=snapshot,
+                acquisition_receipt=acquisition_receipt,
+            )
+        except (OSError, SourceAcquisitionError) as exc:
+            order.execute_error = str(exc)
+            return
+        order.candidate_picks = _bind_picks_to_snapshot(
+            order.candidate_picks, ensured
+        )
+        master = _slot_path(order.candidate_picks, "master")
+        pdf_index = _slot_path(order.candidate_picks, "pdf_index")
+        handwritten = _slot_path(order.candidate_picks, "handwritten")
+        candidate = _slot_path(order.candidate_picks, "candidate")
     if not any((master, pdf_index, handwritten, bound.page_render_packet)):
         order.execute_error = "no exportable source workbooks or page-render packet"
         return
@@ -690,9 +757,6 @@ def _execute_section(
             if not repair_dir.exists() or not any(repair_dir.iterdir()):
                 repair = repair_dir
             letter = letter_path
-        snapshot = bound.snapshot_directory
-        if snapshot is not None:
-            snapshot = snapshot / f"section{order.section}"
         if bound.drive_readback is None and reuse_isolated:
             bound.drive_readback = _same_hash_readback(
                 inventory,
@@ -716,6 +780,9 @@ def _execute_section(
             authority_manifest=bound.authority_manifest,
             project_manifest=bound.project_manifest,
             snapshot_directory=snapshot,
+            acquisition_receipt=acquisition_receipt
+            if bound.authority_manifest is not None
+            else None,
         )
         finish_path.write_text(
             json.dumps(finish.to_dict(), indent=2, sort_keys=True),
@@ -729,6 +796,8 @@ def _execute_section(
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():
             order.executed_outputs.append(str(letter_path))
+        if acquisition_receipt.is_file():
+            order.executed_outputs.append(str(acquisition_receipt))
         if finish.packages_complete:
             order.holds.append(
                 "Finish runner reported packages_complete; owner review "

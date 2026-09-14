@@ -29,7 +29,9 @@ python3 -m horizon.pc_operator \
    sections whose required roles are classified, and the promoter re-hashes
    live roots before writing `source-authority.json` plus a hash-bound
    `project_manifest.json`. A later `--execute` on the same receipt-dir
-   discovers those files and snapshots `intake-snapshot/sectionN`.
+   discovers those files and snapshots `intake-snapshot/sectionN`. Later
+   executes verify that snapshot from `sectionN-acquisition.json` and export
+   authorized workbooks from the snapshot, not from drifted live files.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

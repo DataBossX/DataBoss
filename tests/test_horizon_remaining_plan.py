@@ -198,6 +198,68 @@ def test_remaining_plan_names_blank_and_conflict_counts(tmp_path: Path) -> None:
     assert "SYNTH" not in json.dumps(plan)
 
 
+def test_remaining_plan_queue_blanks_block_completion_when_finish_gates_pass(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    queue = tmp_path / "section15-examiner-queue.json"
+    queue.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "blank_count": 2,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": name,
+                "ran": True,
+                "technical_pass": True,
+                "detail": (
+                    {"isolated_copy": True}
+                    if name == "drive_readback"
+                    else (
+                        {"blank_required_count": 0, "conflict_count": 0}
+                        if name == "index_reconciliation"
+                        else {}
+                    )
+                ),
+            }
+            for name in (
+                "source_acquisition",
+                "reextraction",
+                "occurrence_ledger",
+                "index_reconciliation",
+                "workbook_qa",
+                "native_print",
+                "drive_readback",
+                "human_release",
+            )
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "index has 2 blank required field(s)" in plan["missing"]
+    assert "Print Preview section15-letter.xlsx on Windows Excel" not in plan["missing"]
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        not in plan["missing"]
+    )
+    assert "Attest owner-review of section15-letter.xlsx" not in plan["missing"]
+
+
 def test_remaining_plan_prefers_examiner_queue_over_stale_finish(
     tmp_path: Path,
 ) -> None:

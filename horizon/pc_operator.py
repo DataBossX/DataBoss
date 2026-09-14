@@ -1931,6 +1931,23 @@ def _refresh_order_authority(
     order.ready_for_extraction = bool(summary.ready_for_extraction)
 
 
+def _receipt_packages_complete(
+    work_orders: Sequence[SectionWorkOrder],
+    plans: Sequence[Dict[str, object]],
+) -> bool:
+    """True only when finish and remaining-plan both complete every section."""
+    if not work_orders:
+        return False
+    if not all(order.finish_packages_complete is True for order in work_orders):
+        return False
+    if not plans:
+        return True
+    planned = {plan.get("section") for plan in plans if isinstance(plan, dict)}
+    if any(order.section not in planned for order in work_orders):
+        return False
+    return all(plan.get("packages_complete") is True for plan in plans)
+
+
 def _write_section_remaining_plan(
     order: SectionWorkOrder,
     receipt_dir: Path,
@@ -3146,8 +3163,8 @@ def build_work_order(
             "Cannot execute recon/repair until readable pc=/drive= roots exist"
         )
     next_actions.append("Do not treat this receipt as package release")
+    plans: List[Dict[str, object]] = []
     if dest_path is not None:
-        plans: List[Dict[str, object]] = []
         for order in work_orders:
             plan_path, plan_error = _write_section_remaining_plan(order, dest_path)
             if plan_path:
@@ -3174,9 +3191,7 @@ def build_work_order(
                 )
             except (OSError, RemainingPlanError) as exc:
                 next_actions.append(f"Remaining-plan bundle failed: {exc}")
-    packages_complete = bool(work_orders) and all(
-        order.finish_packages_complete is True for order in work_orders
-    )
+    packages_complete = _receipt_packages_complete(work_orders, plans)
     return OperatorReceipt(
         generated_utc=datetime.now(timezone.utc).isoformat(),
         requested_sections=list(sections),

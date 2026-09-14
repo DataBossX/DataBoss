@@ -9,10 +9,13 @@ import openpyxl
 import pytest
 
 from horizon.isolated_delta import sha256_file
+from types import SimpleNamespace
+
 from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
     _crop_packet_matches_renders,
+    _receipt_packages_complete,
     _section_commands,
     build_work_order,
     main,
@@ -232,6 +235,30 @@ def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
     joined = "\n".join(order.next_commands)
     assert "--pdf-index" not in joined
     assert "--master" in joined
+
+
+def test_receipt_packages_complete_requires_remaining_plan() -> None:
+    order = SimpleNamespace(section=15, finish_packages_complete=True)
+    assert _receipt_packages_complete([order], []) is True
+    assert (
+        _receipt_packages_complete(
+            [order], [{"section": 15, "packages_complete": True}]
+        )
+        is True
+    )
+    assert (
+        _receipt_packages_complete(
+            [order], [{"section": 15, "packages_complete": False}]
+        )
+        is False
+    )
+    assert (
+        _receipt_packages_complete(
+            [order], [{"section": 13, "packages_complete": True}]
+        )
+        is False
+    )
+    assert _receipt_packages_complete([], []) is False
 
 
 def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:

@@ -147,7 +147,9 @@ python3 -m horizon.pc_operator \
    does not invent field values or copy cell text.
       `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate,
-   including a Drive Isolated/ copy of that section's file.
+   including a Drive Isolated/ copy of that section's file, and that
+   section's remaining-plan is also complete. Examiner-queue blanks or
+   conflicts keep the operator receipt incomplete.
 
 ## What it never does
 

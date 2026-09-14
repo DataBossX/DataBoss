@@ -23,7 +23,12 @@ from typing import Dict, List, Optional, Sequence
 from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
-from .index_export import IndexExportError, export_index_packet
+from .index_export import (
+    IndexExportError,
+    export_faces,
+    export_index_packet,
+    refresh_candidate,
+)
 from .index_reconciliation import IndexReconciliationError
 from .repair_loop import RepairLoopError, run_repair_loop
 from .isolated_delta import (
@@ -426,6 +431,8 @@ def _section_commands(
     pdf_index = _slot_path(picks, "pdf_index")
     handwritten = _slot_path(picks, "handwritten")
     candidate = _slot_path(picks, "candidate")
+    isolated_path = _latest_isolated_path(Path(receipt_dir), section)
+    finish_workbook = str(isolated_path) if isolated_path is not None else candidate
     packet = f"{receipt_dir}/section{section}-index-packet.json"
     if any((master, pdf_index, handwritten)):
         export_parts: List[object] = [
@@ -443,8 +450,8 @@ def _section_commands(
             export_parts.extend(["--pdf-index", pdf_index])
         if handwritten:
             export_parts.extend(["--handwritten", handwritten])
-        if candidate:
-            export_parts.extend(["--candidate", candidate])
+        if finish_workbook:
+            export_parts.extend(["--candidate", finish_workbook])
         commands.append(_quote_command(export_parts))
         finish_parts: List[object] = [
             "python3",
@@ -460,17 +467,22 @@ def _section_commands(
         for root in root_args:
             finish_parts.extend(["--root", root])
         finish_parts.append("--connect-status")
-        if candidate:
+        if finish_workbook:
             finish_parts.extend(
                 [
                     "--workbook",
-                    candidate,
+                    finish_workbook,
                     "--repair-dir",
-                    f"{receipt_dir}/section{section}-repair",
-                    "--print-layout-output",
-                    f"{receipt_dir}/section{section}-letter.xlsx",
+                    str(_next_empty_repair_dir(Path(receipt_dir), section)),
                 ]
             )
+            if isolated_path is None:
+                finish_parts.extend(
+                    [
+                        "--print-layout-output",
+                        f"{receipt_dir}/section{section}-letter.xlsx",
+                    ]
+                )
         _append_binding_flags(
             finish_parts,
             bindings,
@@ -950,6 +962,33 @@ def _write_onesource_template(
     except (OSError, IsolatedDeltaError) as exc:
         return None, str(exc)
     return str(dest), None
+
+
+def _refresh_on_disk_index_packet(
+    index_packet_path: Optional[Path],
+    workbook: Path,
+) -> Optional[str]:
+    if index_packet_path is None:
+        return None
+    try:
+        if not index_packet_path.is_file() or not workbook.is_file():
+            return None
+        packet = json.loads(index_packet_path.read_text(encoding="utf-8"))
+        if not isinstance(packet, dict):
+            return None
+        refreshed = refresh_candidate(packet, export_faces(workbook))
+        index_packet_path.write_text(
+            json.dumps(refreshed, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        IndexExportError,
+    ):
+        return None
+    return str(index_packet_path)
 
 
 def _write_examiner_queue(
@@ -2471,6 +2510,7 @@ def _execute_section(
             letter_path if letter_path.exists() else None
         )
         if isolated is not None:
+            _refresh_on_disk_index_packet(index_packet_path, isolated)
             ledger_outputs, ledger_error = _write_workbook_ledger_packets(
                 isolated, receipt_dir, order.section
             )

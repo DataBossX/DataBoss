@@ -265,6 +265,16 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     stale = openpyxl.load_workbook(letter, data_only=True)
     assert stale["Index"]["H9"].value in (None, "")
     stale.close()
+    packet = json.loads(
+        (receipts / "section15-index-packet.json").read_text(encoding="utf-8")
+    )
+    assert packet["candidate_rows"][0]["fields"]["legal_description"] == (
+        "SYNTH TRACT 15-45N-76W"
+    )
+    joined = "\n".join(receipt.sections[0].next_commands)
+    assert str(isolated) in joined
+    assert "Working Abstract.xlsx" not in joined
+    assert "--print-layout-output" not in joined
 
 
 def test_reuse_delta_reruns_agreed_repairs_onto_next_isolated(

@@ -93,6 +93,8 @@ python3 -m horizon.pc_operator \
    If `sectionN-letter.xlsx` or a later `sectionN-delta.xlsx` already
    exists, later `--execute` runs still apply new medium/high 2+ source
    fills onto the next isolated generation instead of freezing that copy.
+   Copy-paste finish/export commands also point `--workbook` / `--candidate`
+   at that current isolated file and do not reprint over an existing Letter.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,

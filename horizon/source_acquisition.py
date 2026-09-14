@@ -62,11 +62,13 @@ SUPPORTED_EXTENSIONS = {
 WORKBOOK_EXTENSIONS = {".xls", ".xlsm", ".xlsx"}
 IMAGE_EXTENSIONS = {".jpeg", ".jpg", ".png", ".tif", ".tiff"}
 SOURCE_DOCUMENT_EXTENSIONS = {".doc", ".docx", ".pdf", *IMAGE_EXTENSIONS}
+INDEX_EXTENSIONS = {*WORKBOOK_EXTENSIONS, ".pdf"}
+_CHAT_TOKENS = ("chat", "chats", "slack", "transcript")
 _SECTION_PATTERN = re.compile(
     r"(?i)(?:^|[^a-z0-9])sec(?:tion)?[\s_-]*0?(11|13|15)(?![a-z0-9])"
 )
 _TOWNSHIP_SECTION_PATTERN = re.compile(
-    r"(?i)(?:^|[/\\])0?(11|13|15)-\d{1,2}[ns]-\d{1,3}[ew](?:[/\\]|$)"
+    r"(?i)(?:^|[/\\])0?(11|13|15)-\d{1,2}[ns]-\d{1,3}[ew](?:[/\\]|[\s_.-]|$)"
 )
 _ISOLATED_SECTION_NAME = re.compile(
     r"(?i)^section(\d+)-(letter|delta(?:-\d+)?|workbook-export|workbook-occurrence)\."
@@ -306,10 +308,20 @@ def detect_section(relative_path: str) -> Optional[int]:
     return int(match.group(1)) if match else None
 
 
+def _has_path_token(normalized: str, tokens: Sequence[str]) -> bool:
+    for token in tokens:
+        if re.search(
+            rf"(?:^|[^a-z0-9]){re.escape(token)}(?:$|[^a-z0-9])",
+            normalized,
+        ):
+            return True
+    return False
+
+
 def classify_role(relative_path: str, extension: str) -> str:
     normalized = relative_path.casefold().replace("\\", "/")
     stem = Path(normalized).stem
-    if any(token in normalized for token in ("chat", "slack", "transcript")):
+    if _has_path_token(normalized, _CHAT_TOKENS):
         return "chat_export"
     if any(token in normalized for token in ("/ocr/", "ocr_", "_ocr", "extracted_text")):
         return "ocr_text"
@@ -319,12 +331,12 @@ def classify_role(relative_path: str, extension: str) -> str:
         or "hand-written" in normalized
     ):
         return "handwritten_index"
-    if "index" in normalized:
-        return "index"
     if extension in WORKBOOK_EXTENSIONS and any(
         token in stem for token in ("master", "report", "runsheet")
     ):
         return "master_workbook"
+    if "index" in normalized and extension in INDEX_EXTENSIONS:
+        return "index"
     if extension in SOURCE_DOCUMENT_EXTENSIONS:
         return "source_document"
     if extension in WORKBOOK_EXTENSIONS:

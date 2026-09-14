@@ -17,6 +17,7 @@ from horizon.source_acquisition import (
     SourceAcquisitionError,
     SourceRoot,
     build_receipt,
+    classify_role,
     detect_section,
     ensure_authority_snapshot,
     load_receipt,
@@ -416,6 +417,8 @@ def test_typed_index_does_not_satisfy_handwritten_index_role(tmp_path: Path) -> 
         ("Section 15/Master.xlsx", 15),
         ("sec_13/index.pdf", 13),
         ("11-45N-76W/Abstract/report.xlsx", 11),
+        ("11-45N-76W.xlsx", 11),
+        ("15-45N-76W Mineral Deed.pdf", 15),
         ("Section 15/Isolated/section13-letter.xlsx", 13),
         ("Section 13/Isolated/section15-delta-2.xlsx", 15),
         ("Section 15/Isolated/section11-workbook-export.json", 11),
@@ -430,6 +433,49 @@ def test_section_detection_requires_explicit_priority_section(
     expected: Optional[int],
 ) -> None:
     assert detect_section(relative_path) == expected
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "extension", "expected"),
+    [
+        ("Section 15/Chattel/Mortgage.pdf", ".pdf", "source_document"),
+        ("Section 15/chattel_mortgage.pdf", ".pdf", "source_document"),
+        ("Section 15/chat/slack-export.md", ".md", "chat_export"),
+        ("Section 15/chats/thread.json", ".json", "chat_export"),
+        ("Section 15/Indexes/Master Abstract.xlsx", ".xlsx", "master_workbook"),
+        ("Section 15/County Index.xlsx", ".xlsx", "index"),
+        ("Section 15/County Index.pdf", ".pdf", "index"),
+        ("Section 15/Handwritten Index.tif", ".tif", "handwritten_index"),
+        ("Section 15/notes-about-index.txt", ".txt", "supporting_record"),
+    ],
+)
+def test_classify_role_keeps_faces_and_indexes_distinct(
+    relative_path: str,
+    extension: str,
+    expected: str,
+) -> None:
+    assert classify_role(relative_path, extension) == expected
+
+
+def test_chattel_and_township_filenames_inventory_as_faces(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _write(root, "Section 15/Chattel/Mortgage.pdf", b"chattel-face")
+    _write(root, "15-45N-76W Mineral Deed.pdf", b"township-face")
+    _write(root, "Section 15/Indexes/Master Abstract.xlsx", b"master")
+    _write(root, "Section 15/notes-about-index.txt", b"notes")
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+    )
+    roles = {item.relative_path: item.candidate_role for item in receipt.files}
+    assert roles["Section 15/Chattel/Mortgage.pdf"] == "source_document"
+    assert roles["15-45N-76W Mineral Deed.pdf"] == "source_document"
+    assert roles["Section 15/Indexes/Master Abstract.xlsx"] == "master_workbook"
+    assert roles["Section 15/notes-about-index.txt"] == "supporting_record"
+    counts = receipt.sections[0].candidate_role_counts
+    assert counts.get("source_document") == 2
+    assert counts.get("master_workbook") == 1
+    assert counts.get("index", 0) == 0
 
 
 def test_isolated_letter_filename_wins_over_folder(tmp_path: Path) -> None:

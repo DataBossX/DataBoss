@@ -24,6 +24,16 @@ PENTERRA_HEADERS = [
 ]
 
 
+def _minimal_pdf() -> bytes:
+    return (
+        b"%PDF-1.1\n"
+        b"1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n"
+        b"2 0 obj<< /Type /Pages /Count 1 /Kids [3 0 R] >>endobj\n"
+        b"3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>endobj\n"
+        b"trailer<< /Root 1 0 R >>\n"
+    )
+
+
 def _write_penterra(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     workbook = openpyxl.Workbook()
@@ -60,7 +70,7 @@ def _section15_tree(root: Path) -> None:
     _write_penterra(section / "Working Abstract.xlsx")
     faces = section / "Recorded Faces"
     faces.mkdir(parents=True, exist_ok=True)
-    (faces / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth face")
+    (faces / "Instrument 1.pdf").write_bytes(_minimal_pdf())
 
 
 def test_operator_without_roots_is_blocked_and_incomplete() -> None:
@@ -286,6 +296,15 @@ def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> Non
         / "Master Abstract.xlsx"
     )
     assert snap_master.read_bytes() != b"changed-after-phase2"
+    census_packet = receipts / "section15-pdf-census-packet.json"
+    assert census_packet.is_file()
+    census_payload = json.loads(census_packet.read_text(encoding="utf-8"))
+    assert census_payload["files"][0]["expected_pages"] == 1
+    census_gate = next(
+        gate for gate in finish["gates"] if gate["name"] == "pdf_census"
+    )
+    assert census_gate["technical_pass"] is True
+    assert census_gate["detail"]["empty_text_files"] == 1
 
 
 def test_operator_discovers_receipt_dir_native_print(tmp_path: Path) -> None:
@@ -389,6 +408,20 @@ def test_operator_discovers_and_applies_delta_packet(tmp_path: Path) -> None:
     )
     delta = next(gate for gate in finish["gates"] if gate["name"] == "isolated_delta")
     assert delta["technical_pass"] is True
+    native = next(
+        command
+        for command in second.sections[0].next_commands
+        if "horizon.native_print" in command
+    )
+    release = next(
+        command
+        for command in second.sections[0].next_commands
+        if "horizon.human_release" in command
+    )
+    assert str(receipts / "section13-delta.xlsx") in native
+    assert "section13-letter.xlsx" not in native
+    assert str(receipts / "section13-delta.xlsx") in release
+    assert "section13-letter.xlsx" not in release
 
 
 def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> None:

@@ -251,6 +251,24 @@ def test_inventory_refuses_empty_dir_and_repo_output(tmp_path: Path) -> None:
     ) == 1
 
 
+def test_inventory_measures_only_supplied_paths(tmp_path: Path) -> None:
+    bind = tmp_path / "federal-pdfs"
+    nested = bind / "faces"
+    nested.mkdir(parents=True)
+    keep = nested / "part4.pdf"
+    keep.write_bytes(_minimal_pdf())
+    (bind / "other.pdf").write_bytes(_minimal_pdf())
+    output = tmp_path / "subset.json"
+    packet = write_inventory_packet(
+        bind_dir=bind,
+        output=output,
+        packet_id="SECTION13-CENSUS",
+        paths=[keep],
+    )
+    assert [item["path"] for item in packet["files"]] == ["faces/part4.pdf"]
+    assert packet["files"][0]["expected_pages"] == 1
+
+
 def test_finish_runner_compiles_page_renders_without_completing(
     tmp_path: Path,
 ) -> None:

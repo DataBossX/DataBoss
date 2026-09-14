@@ -125,40 +125,56 @@ def iter_bind_pdfs(bind_dir: Path) -> List[Path]:
     return found
 
 
+def _measure_pdf(path: Path, bind: Path) -> Dict[str, object]:
+    relative = path.relative_to(bind).as_posix()
+    data = path.read_bytes()
+    if not data.startswith(b"%PDF"):
+        raise PdfCensusError(f"{relative} is not a PDF")
+    counted, declared, _text_bytes = count_pdf_pages(data)
+    if counted < 1:
+        raise PdfCensusError(f"{relative} counted 0 pages")
+    if declared is not None and declared != counted:
+        raise PdfCensusError(
+            f"{relative} page-tree Count {declared} disagrees with "
+            f"counted {counted}"
+        )
+    return {
+        "path": relative,
+        "source_sha256": sha256_file(path),
+        "expected_pages": counted,
+    }
+
+
 def write_inventory_packet(
     *,
     bind_dir: Path,
     output: Path,
     packet_id: str,
+    paths: Optional[Sequence[Path]] = None,
 ) -> Dict[str, object]:
     """Measure PDFs in bind-dir. expected_pages is the counted page total.
 
     This does not invent legal text and does not copy a federal row count
     into expected_pages. Page-tree Count must agree with /Type /Page.
+    Pass ``paths`` to measure an authorized subset instead of every PDF.
     """
     token = _require_text(packet_id, "packet_id")
     bind = bind_dir.expanduser().resolve()
+    if paths is None:
+        selected = iter_bind_pdfs(bind)
+    else:
+        selected = []
+        for path in paths:
+            resolved = path.expanduser().resolve()
+            if bind not in resolved.parents and resolved != bind:
+                raise PdfCensusError(f"{resolved} escapes the bind directory")
+            if not resolved.is_file() or resolved.suffix.casefold() != ".pdf":
+                raise PdfCensusError(f"{resolved} is not a PDF file")
+            selected.append(resolved)
+        selected = sorted(set(selected))
     files: List[Dict[str, object]] = []
-    for path in iter_bind_pdfs(bind):
-        relative = path.relative_to(bind).as_posix()
-        data = path.read_bytes()
-        if not data.startswith(b"%PDF"):
-            raise PdfCensusError(f"{relative} is not a PDF")
-        counted, declared, _text_bytes = count_pdf_pages(data)
-        if counted < 1:
-            raise PdfCensusError(f"{relative} counted 0 pages")
-        if declared is not None and declared != counted:
-            raise PdfCensusError(
-                f"{relative} page-tree Count {declared} disagrees with "
-                f"counted {counted}"
-            )
-        files.append(
-            {
-                "path": relative,
-                "source_sha256": sha256_file(path),
-                "expected_pages": counted,
-            }
-        )
+    for path in selected:
+        files.append(_measure_pdf(path, bind))
     if not files:
         raise PdfCensusError("bind-dir contains no PDF files")
     packet: Dict[str, object] = {

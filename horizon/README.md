@@ -62,8 +62,11 @@ promotes that draft with `python -m horizon.authority_promote`; the next
 operator `--execute` discovers the hash-bound manifests and snapshots
 authorized bytes. Writer-held native Excel, owner-review, and PDF census packets written
 into the receipt directory are discovered the same way. `sectionN-pdfs/`
-is inventoried on `--execute` when present; `expected_pages` is the counted
-page total, not a federal row count. The draft itself is not Phase 2.
+is inventoried on `--execute` when present, as are authorized snapshot
+`source_document` PDFs after Phase 2. `expected_pages` is the counted
+page total, not a federal row count. Native print and owner-review bind
+the current isolated workbook (`sectionN-delta.xlsx` after a source-proved
+apply). The draft itself is not Phase 2.
 `python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.

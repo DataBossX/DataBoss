@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shlex
 import sys
@@ -37,6 +38,7 @@ from .source_acquisition import (
     build_receipt,
     ensure_authority_snapshot,
     parse_root,
+    snapshot_path_for,
 )
 
 _CANDIDATE_ROLE_EQUIVALENTS = {
@@ -465,10 +467,10 @@ def _section_commands(
             )
         )
         commands.append(
-            "Copy federal casefile PDFs into that bind-dir; "
+            "Census source_document PDFs or copies in sectionN-pdfs; "
             "expected_pages is the counted page total, not a row count"
         )
-    letter = f"{receipt_dir}/section{section}-letter.xlsx"
+    workbook = _current_isolated_workbook(receipt_dir, section)
     if bindings.native_print_receipt is None:
         commands.append(
             _quote_command(
@@ -478,7 +480,7 @@ def _section_commands(
                     "horizon.native_print",
                     "--write",
                     "--workbook",
-                    letter,
+                    workbook,
                     "--output",
                     f"{receipt_dir}/section{section}-native-print.json",
                     "--operator",
@@ -493,8 +495,9 @@ def _section_commands(
             )
         )
         commands.append(
-            "On Windows Excel, Print Preview the isolated Letter copy, "
-            "replace PAGE_COUNT and EXAMINER_NAME, then copy the Letter to Drive"
+            "On Windows Excel, Print Preview the current isolated workbook, "
+            "replace PAGE_COUNT and EXAMINER_NAME, then copy those same bytes "
+            "to Drive"
         )
     if bindings.human_release_token is None:
         commands.append(
@@ -504,7 +507,7 @@ def _section_commands(
                     "-m",
                     "horizon.human_release",
                     "--workbook",
-                    letter,
+                    workbook,
                     "--output",
                     f"{receipt_dir}/section{section}-owner-review.json",
                     "--operator",
@@ -525,7 +528,7 @@ def _section_commands(
                     "horizon.isolated_delta",
                     "--write",
                     "--workbook",
-                    letter,
+                    workbook,
                     "--deltas",
                     f"{receipt_dir}/section{section}-deltas.json",
                     "--output",
@@ -626,6 +629,7 @@ def _section_work_order(
                 ),
                 receipt_dir,
                 section,
+                inventory=inventory,
             ),
         ),
         holds=holds,
@@ -671,6 +675,66 @@ def _discover_packets(
 
 def _discover_receipt_dir_packets(receipt_dir: Path) -> Dict[str, Path]:
     return _discover_json_packets(sorted(receipt_dir.glob("*.json")))
+
+
+def _current_isolated_workbook(receipt_dir: str, section: int) -> str:
+    delta = Path(receipt_dir) / f"section{section}-delta.xlsx"
+    letter = Path(receipt_dir) / f"section{section}-letter.xlsx"
+    try:
+        if delta.is_file():
+            return str(delta.resolve())
+    except OSError:
+        pass
+    try:
+        if letter.is_file():
+            return str(letter.resolve())
+    except OSError:
+        pass
+    return f"{receipt_dir}/section{section}-letter.xlsx"
+
+
+def _source_document_pdfs(
+    inventory: Optional[AcquisitionReceipt],
+    section: int,
+) -> tuple[Optional[Path], List[Path]]:
+    if inventory is None:
+        return None, []
+    authorized = {
+        (match.assertion.root_label, match.assertion.relative_path)
+        for match in inventory.authority_matches
+        if match.status == "matched"
+        and match.assertion.section == section
+        and match.assertion.role == "source_document"
+    }
+    items = [
+        item
+        for item in inventory.files
+        if item.section == section
+        and item.extension == ".pdf"
+        and item.candidate_role == "source_document"
+    ]
+    paths: List[Path] = []
+    if inventory.snapshot_root:
+        snapshot = Path(inventory.snapshot_root)
+        for item in items:
+            if (item.root_label, item.relative_path) not in authorized:
+                continue
+            path = snapshot_path_for(inventory, item)
+            if path.is_file():
+                paths.append(path.resolve())
+        if not paths:
+            return None, []
+        return snapshot.resolve(), paths
+    for item in items:
+        path = Path(inventory.roots[item.root_label]) / item.relative_path
+        if path.is_file():
+            paths.append(path.resolve())
+    if not paths:
+        return None, []
+    bind = Path(os.path.commonpath([str(path) for path in paths]))
+    if bind.is_file():
+        bind = bind.parent
+    return bind, paths
 
 
 def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
@@ -726,6 +790,7 @@ def _bind_section_census(
     bindings: FinishBindings,
     receipt_dir: str,
     section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
 ) -> FinishBindings:
     packet = _section_census_packet(
         bindings.pdf_census_packet, receipt_dir, section
@@ -733,6 +798,8 @@ def _bind_section_census(
     bind_dir = bindings.pdf_bind_dir
     if bind_dir is None:
         bind_dir = _section_pdf_bind_dir(receipt_dir, section)
+    if bind_dir is None:
+        bind_dir, _paths = _source_document_pdfs(inventory, section)
     return replace(bindings, pdf_census_packet=packet, pdf_bind_dir=bind_dir)
 
 
@@ -740,9 +807,29 @@ def _inventory_pdf_census(
     bindings: FinishBindings,
     receipt_dir: Path,
     section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
 ) -> tuple[FinishBindings, Optional[str], Optional[str]]:
-    bound = _bind_section_census(bindings, str(receipt_dir), section)
-    if bound.pdf_census_packet is not None or bound.pdf_bind_dir is None:
+    bound = _bind_section_census(
+        bindings, str(receipt_dir), section, inventory=inventory
+    )
+    examiner_dir = _section_pdf_bind_dir(str(receipt_dir), section)
+    snapshot_bind, snapshot_paths = _source_document_pdfs(inventory, section)
+    auto_paths: Optional[List[Path]] = None
+    if bound.pdf_bind_dir is None:
+        return bound, None, None
+    can_write = examiner_dir is not None and bound.pdf_bind_dir == examiner_dir
+    if (
+        not can_write
+        and snapshot_bind is not None
+        and inventory is not None
+        and inventory.snapshot_root
+    ):
+        bound = replace(bound, pdf_bind_dir=snapshot_bind)
+        auto_paths = snapshot_paths
+        can_write = True
+    if bound.pdf_census_packet is not None:
+        return bound, None, None
+    if not can_write:
         return bound, None, None
     dest = receipt_dir / f"section{section}-pdf-census-packet.json"
     try:
@@ -750,6 +837,7 @@ def _inventory_pdf_census(
             bind_dir=bound.pdf_bind_dir,
             output=dest,
             packet_id=f"SECTION{section}-CENSUS",
+            paths=auto_paths,
         )
     except (OSError, PdfCensusError) as exc:
         return bound, None, str(exc)
@@ -913,22 +1001,18 @@ def _execute_section(
         for slot, path in from_roots.items():
             discovered.setdefault(slot, path)
     bound = _merge_bindings(bindings, discovered)
-    bound, inventoried, inventory_error = _inventory_pdf_census(
-        bound, receipt_dir, order.section
-    )
-    if inventory_error:
-        order.holds.append(f"PDF census inventory failed: {inventory_error}")
     snapshot = bound.snapshot_directory
     if snapshot is not None:
         snapshot = snapshot / f"section{order.section}"
     acquisition_receipt = receipt_dir / f"section{order.section}-acquisition.json"
+    phase2: Optional[AcquisitionReceipt] = None
     if (
         bound.authority_manifest is not None
         and bound.project_manifest is not None
         and snapshot is not None
     ):
         try:
-            ensured = ensure_authority_snapshot(
+            phase2 = ensure_authority_snapshot(
                 roots=root_args,
                 sections=[order.section],
                 authority_manifest=bound.authority_manifest,
@@ -940,14 +1024,30 @@ def _execute_section(
             order.execute_error = str(exc)
             return
         order.candidate_picks = _bind_picks_to_snapshot(
-            order.candidate_picks, ensured
+            order.candidate_picks, phase2
         )
         master = _slot_path(order.candidate_picks, "master")
         pdf_index = _slot_path(order.candidate_picks, "pdf_index")
         handwritten = _slot_path(order.candidate_picks, "handwritten")
         candidate = _slot_path(order.candidate_picks, "candidate")
+    bound, inventoried, inventory_error = _inventory_pdf_census(
+        bound,
+        receipt_dir,
+        order.section,
+        inventory=phase2,
+    )
+    if inventory_error:
+        order.holds.append(f"PDF census inventory failed: {inventory_error}")
     if not any((master, pdf_index, handwritten, bound.page_render_packet)):
         order.execute_error = "no exportable source workbooks or page-render packet"
+        order.next_commands = _section_commands(
+            order.section,
+            root_args=root_args,
+            picks=order.candidate_picks,
+            receipt_dir=str(receipt_dir),
+            missing_roles=order.missing_candidate_roles,
+            bindings=bound,
+        )
         return
     packet_path = receipt_dir / f"section{order.section}-index-packet.json"
     finish_path = receipt_dir / f"section{order.section}-finish.json"
@@ -989,17 +1089,19 @@ def _execute_section(
                 repair = None
                 delta_packet = bound.delta_packet
                 delta_output = delta_path
-        readback_book = (
+        current_book = (
             delta_path
             if delta_path.exists()
+            else None
+            if delta_packet is not None
             else letter_path
             if reuse_isolated
             else None
         )
-        if bound.drive_readback is None and readback_book is not None:
+        if bound.drive_readback is None and current_book is not None:
             bound.drive_readback = _same_hash_readback(
                 inventory,
-                readback_book,
+                current_book,
                 receipt_dir,
             )
         finish = run_finish(
@@ -1056,6 +1158,14 @@ def _execute_section(
     ) as exc:
         order.executed = True
         order.execute_error = str(exc)
+    order.next_commands = _section_commands(
+        order.section,
+        root_args=root_args,
+        picks=order.candidate_picks,
+        receipt_dir=str(receipt_dir),
+        missing_roles=order.missing_candidate_roles,
+        bindings=bound,
+    )
 
 
 def build_work_order(

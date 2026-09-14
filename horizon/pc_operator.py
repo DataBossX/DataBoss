@@ -393,7 +393,7 @@ def _append_binding_flags(
                 "--delta-packet",
                 bindings.delta_packet,
                 "--delta-output",
-                f"{receipt_dir}/section{section}-delta.xlsx",
+                str(_next_delta_output(Path(receipt_dir), section)),
             ]
         )
     if (
@@ -2477,7 +2477,7 @@ def _execute_section(
             if archived:
                 order.executed_outputs.append(archived)
             bound = replace(bound, delta_packet=None)
-        if not applying_delta and workbook is not None:
+        if not applying_delta and workbook is not None and letter is None:
             promoted = _promote_repair_isolated(
                 finish, workbook, receipt_dir, order.section
             )

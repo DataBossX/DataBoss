@@ -232,6 +232,58 @@ def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:
     assert crops < native
 
 
+def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 15"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    working = section / "Working Abstract.xlsx"
+    _write_penterra(working, legal="")
+    loaded = openpyxl.load_workbook(working)
+    sheet = loaded["Index"]
+    sheet.page_setup.orientation = "portrait"
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.print_title_rows = None
+    loaded.save(working)
+    loaded.close()
+    (section / "Recorded Faces").mkdir(parents=True)
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    assert letter.is_file()
+    assert not (receipts / "section15-delta.xlsx").is_file()
+    isolated = openpyxl.load_workbook(letter, data_only=True)
+    sheet = isolated["Index"]
+    assert sheet["H9"].value == "SYNTH TRACT 15-45N-76W"
+    assert sheet.page_setup.orientation == "landscape"
+    assert sheet.page_setup.paperSize == sheet.PAPERSIZE_LETTER
+    assert sheet.print_title_rows == "1:8"
+    isolated.close()
+    draft = json.loads(
+        (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")
+    )
+    letter_sha = __import__(
+        "horizon.isolated_delta", fromlist=["sha256_file"]
+    ).sha256_file(letter)
+    assert draft["workbook_sha256"] == letter_sha
+    finish_cmd = next(
+        command
+        for command in receipt.sections[0].next_commands
+        if "horizon.package_finish" in command
+    )
+    assert str(letter) in finish_cmd
+    assert "Working Abstract.xlsx" not in finish_cmd
+    assert "--print-layout-output" not in finish_cmd
+
+
 def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     tmp_path: Path,
 ) -> None:

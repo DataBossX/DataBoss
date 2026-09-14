@@ -90,9 +90,12 @@ python3 -m horizon.pc_operator \
    plus `horizon.package_finish` commands that point at a private receipt
    directory.    Fill hops (Section 11 crops, 2+ drafts, one-source
    templates) are listed before native Print Preview and owner-review.
-   If `sectionN-letter.xlsx` or a later `sectionN-delta.xlsx` already
-   exists, later `--execute` runs still apply new medium/high 2+ source
-   fills onto the next isolated generation instead of freezing that copy.
+   The first `--execute` keeps `sectionN-letter.xlsx` (print-layout
+   repaired) as the isolated workbook and does not promote the pre-layout
+   repair copy over it. If that Letter or a later `sectionN-delta.xlsx`
+   already exists, later `--execute` runs still apply new medium/high 2+
+   source fills onto the next isolated generation instead of freezing
+   that copy.
    Copy-paste finish/export commands also point `--workbook` / `--candidate`
    at that current isolated file and do not reprint over an existing Letter.
    Drive readback only binds Isolated/ or receipt-dir copies of that file,

@@ -38,6 +38,8 @@ from .index_reconciliation import (
     reconcile_indexes,
 )
 from .isolated_delta import IsolatedDeltaError, apply_deltas
+from .native_print import NativePrintError, assess_native_print
+from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
 from .repair_loop import RepairLoopError, run_repair_loop
 from .project_manifest import ControlFileError
 from .source_acquisition import (
@@ -311,12 +313,22 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Bind public township plats with --public-plat campbell,45n,76w "
             "and --public-plat johnson,47n,77w"
         )
+    if "print_layout_repair" not in ran:
+        actions.append(
+            "Pass --print-layout-output to write Letter/landscape/print-title "
+            "settings onto an isolated copy"
+        )
+    if "native_print" not in ran:
+        actions.append(
+            "On Windows Excel, Print Preview the isolated copy and pass "
+            "--native-print-receipt with the workbook hash, Letter, "
+            "landscape, print titles, and expected page count"
+        )
     for gate in gates:
         if gate.ran and gate.technical_pass is False:
             actions.append(f"Resolve blocking {gate.name}: {gate.error or gate.detail}")
     actions.append(
-        "Native Excel Print Preview and Drive readback remain required "
-        "before any owner-release claim"
+        "Drive readback remains required before any owner-release claim"
     )
     actions.append("Do not start a second controller; one writer per target")
     return actions
@@ -340,6 +352,8 @@ def run_finish(
     master_workbook: Optional[Path] = None,
     pdf_workbook: Optional[Path] = None,
     handwritten_workbook: Optional[Path] = None,
+    print_layout_output: Optional[Path] = None,
+    native_print_receipt: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -464,10 +478,80 @@ def run_finish(
                 )
             )
             qa_workbook = None
+    if print_layout_output is not None:
+        if qa_workbook is None:
+            raise PackageFinishError(
+                "Print-layout repair requires a workbook or isolated copy"
+            )
+        try:
+            layout = repair_print_layout(
+                qa_workbook,
+                print_layout_output,
+                profile_path=workbook_profile,
+            )
+            gates.append(
+                GateResult(
+                    name="print_layout_repair",
+                    ran=True,
+                    technical_pass=layout.technical_pass,
+                    detail={
+                        "applied": layout.applied,
+                        "isolated_workbook": layout.isolated_workbook,
+                    },
+                )
+            )
+            qa_workbook = print_layout_output
+        except (OSError, PrintLayoutRepairError) as exc:
+            gates.append(
+                GateResult(
+                    name="print_layout_repair",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
+            qa_workbook = None
     if qa_workbook is not None:
         gates.append(
             _workbook_gate(qa_workbook, workbook_profile, DEFAULT_WORKBOOK_CHECKS)
         )
+    if native_print_receipt is not None:
+        if qa_workbook is None:
+            gates.append(
+                GateResult(
+                    name="native_print",
+                    ran=True,
+                    technical_pass=False,
+                    error="Native print receipt requires a workbook to bind",
+                )
+            )
+        else:
+            try:
+                native = assess_native_print(
+                    _load_json(native_print_receipt),
+                    workbook=qa_workbook,
+                )
+                gates.append(
+                    GateResult(
+                        name="native_print",
+                        ran=True,
+                        technical_pass=native.technical_pass,
+                        detail={
+                            "page_count": native.page_count,
+                            "expected_page_count": native.expected_page_count,
+                            "issue_count": len(native.issues),
+                        },
+                    )
+                )
+            except (OSError, NativePrintError, PackageFinishError) as exc:
+                gates.append(
+                    GateResult(
+                        name="native_print",
+                        ran=True,
+                        technical_pass=False,
+                        error=str(exc),
+                    )
+                )
     if public_plats:
         gates.append(_cadastral_gate(public_plats))
     ran = [gate for gate in gates if gate.ran]
@@ -512,6 +596,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--master-workbook", type=Path)
     parser.add_argument("--pdf-workbook", type=Path)
     parser.add_argument("--handwritten-workbook", type=Path)
+    parser.add_argument("--print-layout-output", type=Path)
+    parser.add_argument("--native-print-receipt", type=Path)
     return parser
 
 
@@ -535,6 +621,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             master_workbook=args.master_workbook,
             pdf_workbook=args.pdf_workbook,
             handwritten_workbook=args.handwritten_workbook,
+            print_layout_output=args.print_layout_output,
+            native_print_receipt=args.native_print_receipt,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

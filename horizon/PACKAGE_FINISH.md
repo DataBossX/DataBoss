@@ -13,6 +13,8 @@ python3 -m horizon.package_finish \
   --index-packet /path/to/index-reconciliation-packet.json \
   --workbook /path/to/source-index.xlsx \
   --repair-dir /path/to/isolated-repair \
+  --print-layout-output /path/to/isolated-letter.xlsx \
+  --native-print-receipt /path/to/native-excel-print-receipt.json \
   --public-plat campbell,45n,76w \
   --public-plat johnson,47n,77w \
   --output /path/to/package-finish-receipt.json
@@ -40,6 +42,14 @@ only medium/high proposals to a new copy, then QA. Use it with
 `--delta-packet` plus `--delta-output` apply a writer-held source-proved
 packet to a **new** isolated copy, then run workbook QA on that copy. The
 source workbook is not modified. See [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md).
+
+`--print-layout-output` writes US Letter, landscape, and print titles from
+the Penterra profile onto an isolated copy. It does not replace native Excel.
+
+`--native-print-receipt` binds a writer-held Microsoft Excel / Windows Print
+Preview receipt to the current workbook hash. Page count must match the
+writer-held `expected_page_count`. LibreOffice, A4, or a missing print-title
+claim fails. This still is not Drive readback.
 
 `packages_complete` stays `false` until a verified acquisition snapshot,
 source-backed rows, native Excel Print Preview, Drive readback, and a human

@@ -1130,7 +1130,32 @@ def _write_isolated_with_print_layout(source: Path, dest: Path) -> bool:
             return False
 
 
+def _needs_print_layout(workbook: Path) -> bool:
+    try:
+        from openpyxl import load_workbook
+
+        loaded = load_workbook(workbook)
+        try:
+            if "Index" not in loaded.sheetnames:
+                return True
+            sheet = loaded["Index"]
+            if str(sheet.page_setup.orientation or "") != "landscape":
+                return True
+            if int(sheet.page_setup.paperSize or 0) != 1:
+                return True
+            titles = str(sheet.print_title_rows or "").replace("$", "")
+            if titles != "1:8":
+                return True
+        finally:
+            loaded.close()
+    except (OSError, TypeError, ValueError):
+        return True
+    return False
+
+
 def _apply_print_layout_in_place(workbook: Path) -> None:
+    if not _needs_print_layout(workbook):
+        return
     tmp = workbook.with_name(f"{workbook.stem}.layout-tmp{workbook.suffix}")
     try:
         if tmp.exists():

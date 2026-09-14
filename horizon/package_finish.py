@@ -33,6 +33,10 @@ from .reextraction_gate import (
     parse_ledger_export,
     parse_oracle,
 )
+from .index_reconciliation import (
+    IndexReconciliationError,
+    reconcile_indexes,
+)
 from .isolated_delta import IsolatedDeltaError, apply_deltas
 from .project_manifest import ControlFileError
 from .source_acquisition import (
@@ -284,6 +288,11 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Build an isolated occurrence packet from the checkable export "
             "and pass --occurrence-packet"
         )
+    if "index_reconciliation" not in ran:
+        actions.append(
+            "Build a master/PDF/handwritten index packet with expected "
+            "counts and pass --index-packet"
+        )
     if "isolated_delta" not in ran:
         actions.append(
             "Pass --delta-packet and --delta-output to apply source-proved "
@@ -318,6 +327,7 @@ def run_finish(
     tract_export: Optional[Path] = None,
     oracle: Optional[Path] = None,
     occurrence_packet: Optional[Path] = None,
+    index_packet: Optional[Path] = None,
     public_plats: Sequence[str] = (),
     workbook: Optional[Path] = None,
     workbook_profile: Optional[Path] = None,
@@ -333,6 +343,33 @@ def run_finish(
         gates.append(_reextraction_gate(tract_export, oracle))
     if occurrence_packet is not None:
         gates.append(_occurrence_gate(occurrence_packet))
+    if index_packet is not None:
+        try:
+            recon = reconcile_indexes(_load_json(index_packet))
+            gates.append(
+                GateResult(
+                    name="index_reconciliation",
+                    ran=True,
+                    technical_pass=recon.technical_pass,
+                    detail={
+                        "source_counts": recon.source_counts,
+                        "proposed_delta_count": len(recon.proposed_deltas),
+                        "conflict_count": recon.conflict_count,
+                        "blank_required_count": recon.blank_required_count,
+                        "low_confidence_blank_count": recon.low_confidence_blank_count,
+                        "issue_count": len(recon.issues),
+                    },
+                )
+            )
+        except (OSError, IndexReconciliationError, PackageFinishError) as exc:
+            gates.append(
+                GateResult(
+                    name="index_reconciliation",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
     qa_workbook = workbook
     if delta_packet is not None:
         if workbook is None or delta_output is None:
@@ -406,6 +443,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tract-export", type=Path)
     parser.add_argument("--oracle", type=Path)
     parser.add_argument("--occurrence-packet", type=Path)
+    parser.add_argument("--index-packet", type=Path)
     parser.add_argument("--public-plat", action="append", default=[])
     parser.add_argument("--workbook", type=Path)
     parser.add_argument("--workbook-profile", type=Path)
@@ -423,6 +461,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             tract_export=args.tract_export,
             oracle=args.oracle,
             occurrence_packet=args.occurrence_packet,
+            index_packet=args.index_packet,
             public_plats=args.public_plat,
             workbook=args.workbook,
             workbook_profile=args.workbook_profile,

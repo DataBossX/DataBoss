@@ -10,6 +10,7 @@ python3 -m horizon.package_finish \
   --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
   --tract-export /path/to/tract-ledger-export.json \
   --occurrence-packet /path/to/occurrence-packet.json \
+  --index-packet /path/to/index-reconciliation-packet.json \
   --workbook /path/to/source-index.xlsx \
   --delta-packet /path/to/source-proved-delta.json \
   --delta-output /path/to/isolated-index.xlsx \
@@ -24,6 +25,11 @@ type, grantor, grantee, Doc No, Rec Date, and legal description. Book-Page may
 be blank on modern e-recorded rows. The Index sheet must be US Letter
 (`paper_size` 1), landscape, with print titles on rows 1–8. A4 or a missing
 `pageSetup` / Print_Titles block fails. Pass `--workbook-profile` to override.
+
+`--index-packet` reconciles master, PDF, and handwritten indexes, scores
+required fields with provenance and confidence, and emits isolated-delta
+proposals only when at least two sources agree. See
+[`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md).
 
 `--delta-packet` plus `--delta-output` apply a writer-held source-proved
 packet to a **new** isolated copy, then run workbook QA on that copy. The

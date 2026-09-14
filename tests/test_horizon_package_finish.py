@@ -195,6 +195,54 @@ def test_a4_index_fails_letter_print_layout(tmp_path: Path) -> None:
     )
 
 
+def _index_packet() -> dict:
+    key = "2026-09901|"
+    fields = {
+        "document_type": "Mineral Deed",
+        "grantor": "SYNTH ALPHA LLC",
+        "grantee": "SYNTH BETA LLC",
+        "recorded_date": "1/2/2026",
+        "legal_description": "SYNTH TRACT 15-45N-76W",
+    }
+    face = {
+        "stable_key": key,
+        "source_sha256": _sha("recon-face"),
+        "page": 1,
+        "crop_id": "recon",
+        "fields": fields,
+    }
+    return {
+        "schema_id": "dbx.index_reconciliation_packet",
+        "schema_version": "1.0",
+        "packet_id": "SYNTH-FINISH-RECON",
+        "master": [face],
+        "pdf_index": [dict(face, source_sha256=_sha("recon-pdf"))],
+        "handwritten_index": [dict(face, source_sha256=_sha("recon-hand"))],
+        "candidate_rows": [dict(face, source_sha256=_sha("recon-cand"))],
+        "expected_counts": {
+            "master": 1,
+            "pdf_index": 1,
+            "handwritten_index": 1,
+            "candidate_rows": 1,
+        },
+        "orphan_allowlist": [],
+    }
+
+
+def test_index_reconciliation_gate_scores_fields_without_completing_packages(
+    tmp_path: Path,
+) -> None:
+    packet = tmp_path / "index.json"
+    packet.write_text(json.dumps(_index_packet()), encoding="utf-8")
+    receipt = run_finish(sections=[15, 13, 11], index_packet=packet)
+    assert receipt.packages_complete is False
+    assert receipt.technical_pass is True
+    gate = receipt.gates[0]
+    assert gate.name == "index_reconciliation"
+    assert gate.detail["conflict_count"] == 0
+    assert gate.detail["proposed_delta_count"] == 0
+
+
 def test_workbook_gate_runs_on_isolated_penterra_index(tmp_path: Path) -> None:
     workbook = tmp_path / "index.xlsx"
     _penterra_workbook(workbook)

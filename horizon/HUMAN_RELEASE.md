@@ -9,14 +9,15 @@
 4. Index fields are complete (`index_reconciliation` with zero blanks and
    conflicts, or a `repair_loop` that ended the same way)
 5. `workbook_qa` passed
-6. `native_print` passed
+6. `native_print` passed with a workbook hash
 7. `drive_readback` passed with an Isolated/ copy of that section's file
-8. `human_release` passed
+   and a workbook hash
+8. `human_release` passed with the same workbook hash
 
 A receipt-dir same-hash copy can satisfy the Drive readback hash gate.
 It does not complete a package. `packages_complete` stays false until
-finish records `isolated_copy` and the examiner queue has no remaining
-blanks or conflicts.
+finish records `isolated_copy`, Print Preview / Isolated/ / owner-review
+hashes match, and the examiner queue has no remaining blanks or conflicts.
 
 ## Token
 

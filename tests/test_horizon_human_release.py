@@ -83,9 +83,9 @@ def test_completion_requires_every_required_gate() -> None:
         _gate("occurrence_ledger"),
         _gate("index_reconciliation", blank_required_count=0, conflict_count=0),
         _gate("workbook_qa"),
-        _gate("native_print"),
-        _gate("drive_readback", isolated_copy=True),
-        _gate("human_release"),
+        _gate("native_print", workbook_sha256="a" * 64),
+        _gate("drive_readback", isolated_copy=True, workbook_sha256="a" * 64),
+        _gate("human_release", workbook_sha256="a" * 64),
     ]
     complete, missing = evaluate_package_completion(gates, requested_sections=[15])
     assert complete is True
@@ -107,6 +107,31 @@ def test_completion_requires_every_required_gate() -> None:
     assert any("Isolated/" in item for item in missing)
 
 
+def test_completion_requires_matching_isolated_hashes() -> None:
+    digest = "c" * 64
+    gates = [
+        _gate("source_acquisition"),
+        _gate("reextraction"),
+        _gate("occurrence_ledger"),
+        _gate("index_reconciliation", blank_required_count=0, conflict_count=0),
+        _gate("workbook_qa"),
+        _gate("native_print", workbook_sha256=digest),
+        _gate("drive_readback", isolated_copy=True, workbook_sha256=digest),
+        _gate("human_release", workbook_sha256=digest),
+    ]
+    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    assert complete is True
+    assert missing == []
+    gates[5] = _gate("native_print")
+    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    assert complete is False
+    assert any("native_print" in item and "hash" in item for item in missing)
+    gates[5] = _gate("native_print", workbook_sha256="d" * 64)
+    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    assert complete is False
+    assert any("hashes do not match" in item for item in missing)
+
+
 def test_repair_loop_can_satisfy_index_fields() -> None:
     gates = [
         _gate("source_acquisition"),
@@ -114,9 +139,9 @@ def test_repair_loop_can_satisfy_index_fields() -> None:
         _gate("occurrence_ledger"),
         _gate("repair_loop", remaining_blanks=0, remaining_conflicts=0),
         _gate("workbook_qa"),
-        _gate("native_print"),
-        _gate("drive_readback", isolated_copy=True),
-        _gate("human_release"),
+        _gate("native_print", workbook_sha256="b" * 64),
+        _gate("drive_readback", isolated_copy=True, workbook_sha256="b" * 64),
+        _gate("human_release", workbook_sha256="b" * 64),
     ]
     complete, missing = evaluate_package_completion(gates, requested_sections=[15])
     assert complete is True

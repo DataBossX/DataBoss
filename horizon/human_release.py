@@ -422,6 +422,23 @@ def evaluate_package_completion(
                 missing.append(
                     "required gate drive_readback Isolated/ copy is not bound"
                 )
+    bound: Dict[str, str] = {}
+    for name in ("native_print", "drive_readback", "human_release"):
+        gate = by_name.get(name)
+        if gate is None or not gate.technical_pass:
+            continue
+        detail = getattr(gate, "detail", {}) or {}
+        if not isinstance(detail, dict):
+            continue
+        digest = detail.get("workbook_sha256") or detail.get("readback_sha256")
+        if not isinstance(digest, str) or not digest:
+            missing.append(f"required gate {name} workbook hash is missing")
+            continue
+        bound[name] = digest.casefold()
+    if bound and len(set(bound.values())) > 1:
+        missing.append(
+            "Print Preview, Isolated/, and owner-review hashes do not match"
+        )
     if not _index_fields_complete(by_name):
         missing.append(
             "index fields are not complete (reconciliation or repair loop)"

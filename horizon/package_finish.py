@@ -33,15 +33,21 @@ from .reextraction_gate import (
     parse_ledger_export,
     parse_oracle,
 )
+from .project_manifest import ControlFileError
 from .source_acquisition import (
     PRIORITY_SECTIONS,
     SourceAcquisitionError,
     build_receipt as build_acquisition_receipt,
     parse_root,
 )
+from .workbook_qa import inspect_workbook, load_workbook_profile
 
 RECEIPT_SCHEMA_ID = "dbx.package_finish_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
+DEFAULT_WORKBOOK_PROFILE = (
+    Path(__file__).resolve().parent / "profiles" / "penterra_index_v1.json"
+)
+DEFAULT_WORKBOOK_CHECKS = ("abstract_required_fields",)
 
 
 class PackageFinishError(ValueError):
@@ -173,6 +179,47 @@ def _occurrence_gate(packet_path: Path) -> GateResult:
     )
 
 
+def _workbook_gate(
+    workbook_path: Path,
+    profile_path: Optional[Path],
+    checks: Sequence[str],
+) -> GateResult:
+    try:
+        profile = load_workbook_profile(profile_path or DEFAULT_WORKBOOK_PROFILE)
+        report = inspect_workbook(
+            workbook_path,
+            list(checks or DEFAULT_WORKBOOK_CHECKS),
+            profile=profile,
+        )
+    except (OSError, ControlFileError, ValueError) as exc:
+        return GateResult(
+            name="workbook_qa",
+            ran=True,
+            technical_pass=False,
+            error=str(exc),
+        )
+    findings = [
+        {
+            "check_id": finding.check_id,
+            "code": finding.code,
+            "sheet": finding.sheet,
+            "cell": finding.cell,
+            "message": finding.message,
+        }
+        for finding in report.findings
+    ]
+    return GateResult(
+        name="workbook_qa",
+        ran=True,
+        technical_pass=report.score.technical_pass,
+        detail={
+            "workbook_sha256": report.sha256,
+            "findings": findings[:20],
+            "finding_count": len(findings),
+        },
+    )
+
+
 def _cadastral_gate(plats: Sequence[str]) -> GateResult:
     bindings = []
     try:
@@ -233,6 +280,12 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Build an isolated occurrence packet from the checkable export "
             "and pass --occurrence-packet"
         )
+    if "workbook_qa" not in ran:
+        actions.append(
+            "Pass --workbook pointing at the isolated candidate index "
+            f"(default profile {DEFAULT_WORKBOOK_PROFILE.name} checks "
+            "document type, parties, doc no, recorded date, and legal)"
+        )
     if "public_cadastral" not in ran:
         actions.append(
             "Bind public township plats with --public-plat campbell,45n,76w "
@@ -257,6 +310,8 @@ def run_finish(
     oracle: Optional[Path] = None,
     occurrence_packet: Optional[Path] = None,
     public_plats: Sequence[str] = (),
+    workbook: Optional[Path] = None,
+    workbook_profile: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -267,6 +322,10 @@ def run_finish(
         gates.append(_reextraction_gate(tract_export, oracle))
     if occurrence_packet is not None:
         gates.append(_occurrence_gate(occurrence_packet))
+    if workbook is not None:
+        gates.append(
+            _workbook_gate(workbook, workbook_profile, DEFAULT_WORKBOOK_CHECKS)
+        )
     if public_plats:
         gates.append(_cadastral_gate(public_plats))
     ran = [gate for gate in gates if gate.ran]
@@ -301,6 +360,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--oracle", type=Path)
     parser.add_argument("--occurrence-packet", type=Path)
     parser.add_argument("--public-plat", action="append", default=[])
+    parser.add_argument("--workbook", type=Path)
+    parser.add_argument("--workbook-profile", type=Path)
     return parser
 
 
@@ -314,6 +375,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             oracle=args.oracle,
             occurrence_packet=args.occurrence_packet,
             public_plats=args.public_plat,
+            workbook=args.workbook,
+            workbook_profile=args.workbook_profile,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

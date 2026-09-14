@@ -1,0 +1,42 @@
+{
+  "abstract_tables": [
+    {
+      "id": "section_index",
+      "sheet": "Index",
+      "header_row": 8,
+      "start_row": 9,
+      "key_field": "instrument_number",
+      "key_normalization": "alnum_upper",
+      "columns": {
+        "document_type": "A",
+        "grantor": "B",
+        "grantee": "C",
+        "instrument_number": "D",
+        "book_page": "E",
+        "document_date": "F",
+        "recorded_date": "G",
+        "legal_description": "H",
+        "comments": "I"
+      },
+      "expected_headers": {
+        "document_type": "Document Type",
+        "grantor": "Grantor",
+        "grantee": "Grantee",
+        "instrument_number": ["Doc No", "Document Number", "Instrument Number"],
+        "book_page": ["Book-Page", "Book/Page", "Book Page"],
+        "document_date": ["Date of Doc", "Document Date"],
+        "recorded_date": ["Rec Date", "Recorded Date"],
+        "legal_description": "Legal Description",
+        "comments": "Comments"
+      },
+      "required_fields": [
+        "document_type",
+        "grantor",
+        "grantee",
+        "instrument_number",
+        "recorded_date",
+        "legal_description"
+      ]
+    }
+  ]
+}

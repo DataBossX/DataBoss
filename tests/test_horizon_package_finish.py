@@ -4,7 +4,61 @@ import hashlib
 import json
 from pathlib import Path
 
+import openpyxl
+
 from horizon.package_finish import main, run_finish
+from horizon.workbook_qa import inspect_workbook, load_workbook_profile
+
+
+PENTERRA_HEADERS = [
+    "Document Type",
+    "Grantor",
+    "Grantee",
+    "Doc No",
+    "Book-Page",
+    "Date of Doc",
+    "Rec Date",
+    "Legal Description",
+    "Comments",
+]
+PENTERRA_PROFILE = (
+    Path(__file__).resolve().parents[1]
+    / "horizon"
+    / "profiles"
+    / "penterra_index_v1.json"
+)
+
+
+def _penterra_workbook(path: Path, *, blank_legal: bool = False) -> None:
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Index"
+    for label in (
+        "Index County",
+        "Lands",
+        "Date",
+        "Starting Date",
+        "Date Posted Thru",
+        "Indexed By",
+        "Project",
+    ):
+        sheet.append([label, "SYNTH"])
+    sheet.append(PENTERRA_HEADERS)
+    sheet.append(
+        [
+            "Mineral Deed",
+            "SYNTH ALPHA LLC",
+            "SYNTH BETA LLC",
+            "2026-09901",
+            "",
+            "1/1/2026",
+            "1/2/2026",
+            "" if blank_legal else "SYNTH TRACT 15-45N-76W",
+            "",
+        ]
+    )
+    workbook.save(path)
+    workbook.close()
 
 
 def _sha(label: str) -> str:
@@ -100,6 +154,32 @@ def test_chained_checkable_packets_pass_gates_but_not_packages(
         "public_cadastral",
     }
     assert all(gate.technical_pass for gate in receipt.gates)
+
+
+def test_penterra_profile_blocks_blank_legal(tmp_path: Path) -> None:
+    workbook = tmp_path / "index.xlsx"
+    _penterra_workbook(workbook, blank_legal=True)
+    report = inspect_workbook(
+        workbook,
+        ["abstract_required_fields"],
+        profile=load_workbook_profile(PENTERRA_PROFILE),
+    )
+    assert not report.score.technical_pass
+    assert any(
+        finding.code == "abstract_required_field_blank"
+        and finding.cell == "H9"
+        for finding in report.findings
+    )
+
+
+def test_workbook_gate_runs_on_isolated_penterra_index(tmp_path: Path) -> None:
+    workbook = tmp_path / "index.xlsx"
+    _penterra_workbook(workbook)
+    receipt = run_finish(sections=[15], workbook=workbook)
+    assert receipt.packages_complete is False
+    assert receipt.technical_pass is True
+    assert receipt.gates[0].name == "workbook_qa"
+    assert receipt.gates[0].technical_pass is True
 
 
 def test_cli_empty_run_writes_blocked_receipt(tmp_path: Path) -> None:

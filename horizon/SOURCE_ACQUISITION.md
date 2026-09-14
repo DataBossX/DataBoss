@@ -174,9 +174,12 @@ Failed receipt publication removes only the snapshot whose recorded
 device/inode still match; a replaced directory is left untouched. Control
 manifests are read the same way. File modes are defense in depth, not the
 trust decision. The receipt does not prove the legal facts inside the files.
-Next run OCR/extraction, occurrence/unique-key/R6 ledger comparison
-(`OCCURRENCE_LEDGER.md`), row-level provenance and confidence, master/index
-reconciliation, strict workbook QA, native Excel Print Preview, Drive
-readback, and the hash-bound human release gate. Receipt schema `1.1`
+On the PC, chain those gates with `python3 -m horizon.package_finish`
+(`PACKAGE_FINISH.md`). Next run OCR/extraction, occurrence/unique-key/R6
+ledger comparison (`OCCURRENCE_LEDGER.md`), re-extraction of bare document
+numbers (`REEXTRACTION.md`), public cadastral plat binding, row-level
+provenance and confidence, master/index reconciliation, strict workbook QA,
+native Excel Print Preview, Drive readback, and the hash-bound human release
+gate. Receipt schema `1.1`
 records snapshot device/inode so later verify and cleanup bind the same
 directory.

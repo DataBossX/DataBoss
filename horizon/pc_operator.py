@@ -424,6 +424,7 @@ def _section_commands(
     receipt_dir: str,
     missing_roles: Sequence[str],
     bindings: FinishBindings,
+    remaining_first: bool = False,
 ) -> List[str]:
     commands: List[str] = []
     if missing_roles:
@@ -431,6 +432,7 @@ def _section_commands(
             "Locate examiner-held files for missing roles: "
             + ", ".join(missing_roles)
         )
+    prelude_count = len(commands)
     master = _slot_path(picks, "master")
     pdf_index = _slot_path(picks, "pdf_index")
     handwritten = _slot_path(picks, "handwritten")
@@ -519,6 +521,7 @@ def _section_commands(
             "Export master, PDF, and handwritten indexes to Penterra xlsx "
             "on the PC, then rerun python3 -m horizon.pc_operator"
         )
+    export_end = len(commands)
     if bindings.pdf_census_packet is None:
         bind_dir = bindings.pdf_bind_dir or f"{receipt_dir}/section{section}-pdfs"
         commands.append(
@@ -730,6 +733,11 @@ def _section_commands(
             "Attest the owner-review draft with EXAMINER_NAME after the "
             "current isolated workbook is ready for owner review only"
         )
+    if remaining_first and isolated_path is not None:
+        prelude = commands[:prelude_count]
+        export_cmds = commands[prelude_count:export_end]
+        rest = commands[export_end:]
+        return prelude + rest + export_cmds
     return commands
 
 
@@ -2539,6 +2547,7 @@ def _execute_section(
             receipt_dir=str(receipt_dir),
             missing_roles=order.missing_candidate_roles,
             bindings=bound,
+            remaining_first=True,
         )
         return
     packet_path = receipt_dir / f"section{order.section}-index-packet.json"
@@ -2870,6 +2879,7 @@ def _execute_section(
         receipt_dir=str(receipt_dir),
         missing_roles=order.missing_candidate_roles,
         bindings=bound,
+        remaining_first=True,
     )
     plan_path, plan_error = _write_section_remaining_plan(order, receipt_dir)
     if plan_path:

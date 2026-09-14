@@ -389,6 +389,7 @@ def remaining_plan(
             "Classified files still need Phase-2 authority before extraction",
             "Finish source_acquisition role gaps win over Phase-1 work-order gaps",
             "next_commands lists authority_promote first while classified roles await Phase 2",
+            "After an isolated Letter or delta exists, fills and Print Preview come before re-export",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",

@@ -276,6 +276,42 @@ def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:
     assert crops < native
 
 
+def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+
+    def first(commands: list[str], needle: str) -> int:
+        return next(index for index, item in enumerate(commands) if needle in item)
+
+    commands = receipt.sections[0].next_commands
+    assert first(commands, "horizon.native_print") < first(
+        commands, "horizon.index_export"
+    )
+    assert first(commands, "horizon.human_release") < first(
+        commands, "horizon.package_finish"
+    )
+    finish_cmd = next(
+        command for command in commands if "horizon.package_finish" in command
+    )
+    assert str(receipts / "section15-letter.xlsx") in finish_cmd
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    plan_cmds = plan["next_commands"]
+    assert first(plan_cmds, "horizon.native_print") < first(
+        plan_cmds, "horizon.index_export"
+    )
+
+
 def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     section = root / "Section 15"

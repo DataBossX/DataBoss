@@ -130,7 +130,9 @@ python3 -m horizon.pc_operator \
    roles that still need Phase-2 `authority_promote`, per-field
    blank/conflict counts from the examiner queue (field names only),
    existing queues, and a connection snapshot (roots readable, Excel,
-   Slack/Notion, cursor worker). It does not invent field values or
+   Slack/Notion, cursor worker). After an isolated Letter or delta
+   exists, next-commands list fills and Print Preview of that file
+   before a copy-paste re-export. It does not invent field values or
    copy cell text.
       `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate.

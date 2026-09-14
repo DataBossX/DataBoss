@@ -860,7 +860,14 @@ def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
         "cursor worker" in action for action in bundle["connections"]["next_actions"]
     )
     assert "path" not in json.dumps(bundle["connections"]["roots"])
-    assert any("remaining-plan.json" in action for action in receipt.next_actions)
+    assert any(
+        "Review remaining-plan.json and do next first" in action
+        for action in receipt.next_actions
+    )
+    assert any(
+        action.startswith("Next (section 15):") for action in receipt.next_actions
+    )
+    assert not any(str(tmp_path) in action for action in receipt.next_actions if "Next" in action)
     write_remaining_plan_bundle(bundle["sections"], tmp_path / "copy.json")
     copied = json.loads((tmp_path / "copy.json").read_text(encoding="utf-8"))
     assert copied["priority_sections"] == [15, 13, 11]

@@ -3204,14 +3204,26 @@ def build_work_order(
         if plans:
             bundle_path = dest_path / "remaining-plan.json"
             try:
-                write_remaining_plan_bundle(
+                bundle = write_remaining_plan_bundle(
                     plans,
                     bundle_path,
                     connections=connections.to_dict(),
                 )
                 next_actions.append(
-                    f"Review {bundle_path} in priority order 15, then 13, then 11"
+                    "Review remaining-plan.json and do next first "
+                    "(15, then 13, then 11)"
                 )
+                hop = bundle.get("next")
+                if isinstance(hop, dict):
+                    action = hop.get("action")
+                    section = hop.get("section")
+                    if isinstance(action, str) and action and "\n" not in action:
+                        if type(section) is int:
+                            line = f"Next (section {section}): {action}"
+                        else:
+                            line = f"Next (connect): {action}"
+                        if line not in next_actions:
+                            next_actions.append(line)
             except (OSError, RemainingPlanError) as exc:
                 next_actions.append(f"Remaining-plan bundle failed: {exc}")
     packages_complete = _receipt_packages_complete(work_orders, plans)

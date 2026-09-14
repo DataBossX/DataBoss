@@ -267,6 +267,39 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     stale.close()
 
 
+def test_reuse_delta_reruns_agreed_repairs_onto_next_isolated(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 15"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    _write_penterra(section / "Working Abstract.xlsx", legal="")
+    faces = section / "Recorded Faces"
+    faces.mkdir(parents=True, exist_ok=True)
+    (faces / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    _write_penterra(receipts / "section15-letter.xlsx", legal="")
+    current = receipts / "section15-delta.xlsx"
+    _write_penterra(current, legal="")
+    before = current.read_bytes()
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    assert current.read_bytes() == before
+    chained = receipts / "section15-delta-2.xlsx"
+    assert chained.is_file()
+    repaired = openpyxl.load_workbook(chained, data_only=True)
+    assert repaired["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    repaired.close()
+
+
 def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     root.mkdir()

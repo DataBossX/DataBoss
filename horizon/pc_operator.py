@@ -2268,7 +2268,7 @@ def _execute_section(
         latest = _latest_isolated_path(receipt_dir, order.section)
         if latest is not None and _isolated_delta_generation(latest, order.section):
             workbook = latest
-            repair = None
+            repair = _next_empty_repair_dir(receipt_dir, order.section)
             letter = None
         delta_paths = list(sorted(receipt_dir.glob("*.json")))
         if inventory is not None:

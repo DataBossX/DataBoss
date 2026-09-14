@@ -90,9 +90,10 @@ python3 -m horizon.pc_operator \
    plus `horizon.package_finish` commands that point at a private receipt
    directory.    Fill hops (Section 11 crops, 2+ drafts, one-source
    templates) are listed before native Print Preview and owner-review.
-   If `sectionN-letter.xlsx` already exists, later `--execute` runs still
-   apply new medium/high 2+ source fills onto `sectionN-delta.xlsx`
-   instead of freezing the first Letter copy.
+   If `sectionN-letter.xlsx` or a later `sectionN-delta.xlsx` already
+   exists, later `--execute` runs still apply new medium/high 2+ source
+   fills onto the next isolated generation instead of freezing that copy.
+   Writer-held attested deltas still apply first and skip this auto-repair.
 5. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /

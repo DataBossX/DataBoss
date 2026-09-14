@@ -45,7 +45,11 @@ from .page_render_export import (
     crop_fill_queue_from_draft,
     write_crops_draft,
 )
-from .package_finish import PackageFinishError, run_finish
+from .package_finish import (
+    PackageFinishError,
+    apply_examiner_queue_gaps,
+    run_finish,
+)
 from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
 from .pdf_census import (
     PdfCensusError,
@@ -2957,6 +2961,15 @@ def _execute_section(
                     )
                     order.finish_technical_pass = finish.technical_pass
                     order.finish_packages_complete = finish.packages_complete
+            finish = apply_examiner_queue_gaps(
+                finish, blank_count=blanks, conflict_count=conflicts
+            )
+            finish_path.write_text(
+                json.dumps(finish.to_dict(), indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            order.finish_technical_pass = finish.technical_pass
+            order.finish_packages_complete = finish.packages_complete
         if finish.packages_complete:
             order.holds.append(
                 "Finish runner reported packages_complete; owner review "

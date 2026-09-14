@@ -9,7 +9,13 @@ import pytest
 
 from horizon.human_release import OWNER_REVIEW_STATEMENT
 from horizon.isolated_delta import sha256_file
-from horizon.package_finish import PackageFinishError, main, run_finish
+from horizon.package_finish import (
+    FinishReceipt,
+    PackageFinishError,
+    apply_examiner_queue_gaps,
+    main,
+    run_finish,
+)
 from horizon.workbook_qa import inspect_workbook, load_workbook_profile
 
 
@@ -127,6 +133,24 @@ def _occurrence_packet() -> dict:
         ],
         "allowlist": [],
     }
+
+
+def test_examiner_queue_gaps_keep_finish_incomplete() -> None:
+    receipt = FinishReceipt(
+        generated_utc="2026-09-14T00:00:00+00:00",
+        requested_sections=[15],
+        gates=[],
+        next_actions=["Owner review only"],
+        packages_complete=True,
+        technical_pass=True,
+    )
+    held = apply_examiner_queue_gaps(receipt, blank_count=2, conflict_count=1)
+    assert held.packages_complete is False
+    assert "examiner queue has 2 blank required field(s)" in held.next_actions
+    assert "examiner queue has 1 conflict(s)" in held.next_actions
+    clean = apply_examiner_queue_gaps(receipt, blank_count=0, conflict_count=0)
+    assert clean.packages_complete is True
+    assert clean.next_actions == ["Owner review only"]
 
 
 def test_empty_run_is_blocked_and_never_complete() -> None:

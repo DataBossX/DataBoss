@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -117,12 +117,38 @@ class FinishReceipt:
     schema_version: str = RECEIPT_SCHEMA_VERSION
     notes: List[str] = field(default_factory=lambda: [
         "packages_complete stays false until a verified snapshot, "
-        "source-backed rows, native Excel, and human release all exist",
+        "source-backed rows, native Excel, Drive Isolated/, human release, "
+        "and an empty examiner queue all exist",
         "technical_pass is only the gates that actually ran",
     ])
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
+
+
+def apply_examiner_queue_gaps(
+    receipt: FinishReceipt,
+    *,
+    blank_count: int,
+    conflict_count: int,
+) -> FinishReceipt:
+    """Keep packages_complete false while the examiner queue has gaps."""
+    blanks = blank_count if isinstance(blank_count, int) and blank_count > 0 else 0
+    conflicts = (
+        conflict_count if isinstance(conflict_count, int) and conflict_count > 0 else 0
+    )
+    if blanks == 0 and conflicts == 0:
+        return receipt
+    actions = list(receipt.next_actions)
+    if blanks:
+        line = f"examiner queue has {blanks} blank required field(s)"
+        if line not in actions:
+            actions.append(line)
+    if conflicts:
+        line = f"examiner queue has {conflicts} conflict(s)"
+        if line not in actions:
+            actions.append(line)
+    return replace(receipt, packages_complete=False, next_actions=actions)
 
 
 def _load_json(path: Path) -> Dict[str, object]:

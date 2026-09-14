@@ -79,8 +79,9 @@ instead of creating a second copy. Downstream index export must read those
 verified snapshot bytes, not drifted live Drive/PC files. Without Phase 2
 controls, acquisition stays Phase 1 inventory and cannot authorize
 extraction. `packages_complete` is true only when every required gate passed,
-Drive readback is an Isolated/ copy, and a writer-held
-`--human-release-token` matches the isolated workbook hash.
+Drive readback is an Isolated/ copy, a writer-held
+`--human-release-token` matches the isolated workbook hash, and the
+examiner queue has no remaining blanks or conflicts.
 Finish next-actions name `Print Preview {name} on Windows Excel`,
 `Copy {name} into Drive Section N/Isolated/`, and
 `Attest owner-review of {name}` until those hops are bound.

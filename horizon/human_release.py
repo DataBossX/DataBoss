@@ -2,8 +2,9 @@
 
 ``packages_complete`` is true only when every required finish gate ran and
 passed, Drive readback is an Isolated/ copy, and a writer-held
-owner-review token matches the isolated workbook hash. The token cannot
-claim external delivery or READY_TO_SUBMIT.
+owner-review token matches the isolated workbook hash. After execute,
+finish receipts stay incomplete while the examiner queue has blanks or
+conflicts. The token cannot claim external delivery or READY_TO_SUBMIT.
 """
 
 from __future__ import annotations

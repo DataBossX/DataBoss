@@ -15,7 +15,8 @@
 
 A receipt-dir same-hash copy can satisfy the Drive readback hash gate.
 It does not complete a package. `packages_complete` stays false until
-finish records `isolated_copy`.
+finish records `isolated_copy` and the examiner queue has no remaining
+blanks or conflicts.
 
 ## Token
 

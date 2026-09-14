@@ -658,6 +658,79 @@ def test_remaining_plan_supporting_queue_does_not_block_completion(
     assert "crop" not in "".join(plan["missing"])
 
 
+def test_remaining_plan_onesource_and_delta_drafts_block_completion(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    digest = sha256_file(letter)
+    (tmp_path / "section15-onesource-template.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_template",
+                "status": "UNAPPROVED_DRAFT",
+                "source_workbook_sha256": digest,
+                "deltas": [
+                    {"row_key": "k1", "field": "legal_description", "value": ""},
+                    {"row_key": "k2", "field": "recorded_date", "value": ""},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-delta-draft.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_draft",
+                "status": "UNAPPROVED_DRAFT",
+                "source_workbook_sha256": digest,
+                "deltas": [{"row_key": "k3", "field": "grantor", "value": "x"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "2 one-source row(s) still need writer-held text" in plan["missing"]
+    assert "1 source-proved delta(s) still need attest" in plan["missing"]
+    dumped = json.dumps(plan)
+    assert "DO NOT COPY" not in dumped
+    assert "k1" not in dumped
+
+
+def test_remaining_plan_ignores_stale_hash_onesource_draft(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-onesource-template.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_template",
+                "status": "UNAPPROVED_DRAFT",
+                "source_workbook_sha256": "d" * 64,
+                "deltas": [
+                    {"row_key": "k1", "field": "legal_description", "value": ""},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is True
+    assert "one-source" not in "".join(plan["missing"])
+
+
 def test_remaining_plan_keeps_print_hop_when_finish_hash_is_stale(
     tmp_path: Path,
 ) -> None:

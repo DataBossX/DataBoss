@@ -714,10 +714,18 @@ def _section_commands(
             hops["native_print"]
             + ", then attest the draft with PAGE_COUNT and EXAMINER_NAME"
         )
-    if not (
-        bindings.drive_readback is not None
-        and is_drive_isolated_copy(Path(bindings.drive_readback), section)
-    ):
+    isolated_bound = False
+    if bindings.drive_readback is not None:
+        readback = Path(bindings.drive_readback)
+        if is_drive_isolated_copy(readback, section):
+            try:
+                isolated_bound = (
+                    Path(workbook).is_file()
+                    and sha256_file(readback) == sha256_file(Path(workbook))
+                )
+            except OSError:
+                isolated_bound = False
+    if not isolated_bound:
         hops = named_isolated_hops(Path(workbook).name, section)
         commands.append(
             hops["drive_readback"] + " so the next execute can bind readback"

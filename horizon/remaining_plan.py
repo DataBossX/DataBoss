@@ -58,17 +58,32 @@ FILL_QUEUE_GAPS = (
     (
         "crop_fill_queue",
         "dbx.crop_fill_queue",
+        "items",
         "{n} page-render crop(s) still need face text",
     ),
     (
         "handwritten_scan_queue",
         "dbx.handwritten_scan_queue",
+        "items",
         "{n} handwritten scan(s) still need a Penterra xlsx",
     ),
     (
         "empty_text_queue",
         "dbx.empty_text_pdf_queue",
+        "items",
         "{n} image-only PDF(s) still have empty extracted text",
+    ),
+    (
+        "onesource_template",
+        "dbx.source_proved_delta_template",
+        "deltas",
+        "{n} one-source row(s) still need writer-held text",
+    ),
+    (
+        "delta_draft",
+        "dbx.source_proved_delta_draft",
+        "deltas",
+        "{n} source-proved delta(s) still need attest",
     ),
 )
 
@@ -205,16 +220,31 @@ def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
     )
 
 
-def _fill_queue_lines(receipt_dir: Path, section: int) -> List[str]:
+def _fill_queue_lines(
+    receipt_dir: Path,
+    section: int,
+    isolated_sha256: str = "",
+) -> List[str]:
     lines: List[str] = []
-    for slot, schema_id, template in FILL_QUEUE_GAPS:
+    for slot, schema_id, collection, template in FILL_QUEUE_GAPS:
         payload = _load_queue(
             receipt_dir, OPEN_QUEUE_FILES[slot].format(section=section), schema_id
         )
-        items = payload.get("items")
-        if not isinstance(items, list):
+        if slot in {"onesource_template", "delta_draft"}:
+            if payload.get("status") != "UNAPPROVED_DRAFT":
+                continue
+            if isolated_sha256:
+                bound = payload.get("source_workbook_sha256")
+                if (
+                    isinstance(bound, str)
+                    and bound
+                    and bound.casefold() != isolated_sha256.casefold()
+                ):
+                    continue
+        rows = payload.get(collection)
+        if not isinstance(rows, list):
             continue
-        count = sum(1 for item in items if isinstance(item, dict))
+        count = sum(1 for item in rows if isinstance(item, dict))
         if count:
             lines.append(template.format(n=count))
     return lines
@@ -412,9 +442,23 @@ def remaining_plan(
         field_gaps=field_gaps,
         by_field=by_field,
     )
+    isolated: Dict[str, object] = {}
+    if isolated_workbook is not None:
+        try:
+            book = isolated_workbook.expanduser()
+            if book.is_file():
+                isolated = {
+                    "name": book.name,
+                    "sha256": sha256_file(book),
+                }
+        except OSError:
+            isolated = {}
+    name = isolated.get("name")
+    digest = isolated.get("sha256")
+    isolated_sha = digest if isinstance(digest, str) and digest else ""
     extra.extend(
         line
-        for line in _fill_queue_lines(receipt_dir, section)
+        for line in _fill_queue_lines(receipt_dir, section, isolated_sha)
         if line not in extra
     )
     missing = extra + [item for item in missing if item not in extra]
@@ -432,20 +476,6 @@ def remaining_plan(
             ),
             *commands,
         ]
-    isolated: Dict[str, object] = {}
-    if isolated_workbook is not None:
-        try:
-            book = isolated_workbook.expanduser()
-            if book.is_file():
-                isolated = {
-                    "name": book.name,
-                    "sha256": sha256_file(book),
-                }
-        except OSError:
-            isolated = {}
-    name = isolated.get("name")
-    digest = isolated.get("sha256")
-    isolated_sha = digest if isinstance(digest, str) and digest else ""
     if isinstance(name, str) and name:
         named = named_isolated_hops(name, section)
         for gate_name, line in named.items():
@@ -496,7 +526,7 @@ def remaining_plan(
             "After an isolated Letter or delta exists, fills and Print Preview come before re-export",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
-            "Open crop, handwritten-scan, and empty-text queues keep the plan incomplete",
+            "Open crop, handwritten-scan, empty-text, one-source, and delta-draft queues keep the plan incomplete",
             "Chat/OCR supporting queues are review-only and do not complete or fill",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",

@@ -54,7 +54,9 @@ python3 -m horizon.pc_operator \
    receipt-dir bind is upgraded so finish records `isolated_copy`.
    Remaining-plan and next-commands keep
    `Copy {name} into Drive Section N/Isolated/` until the bound copy is
-   under Isolated/ and hashes that same isolated file.    Client source
+   under Isolated/ and hashes that same isolated file. Next-commands
+   keep Isolated/ when the Drive copy is the right name but the wrong
+   hash.    Client source
    files are never copied into this
    repository.    After recon/repair, `--execute` writes
    `sectionN-examiner-queue.json` listing remaining blanks and conflicts
@@ -154,9 +156,10 @@ python3 -m horizon.pc_operator \
    section's remaining-plan is also complete. A missing remaining-plan
    (write failure or empty plan list) is fail-closed. Examiner-queue
    blanks or conflicts keep the operator receipt incomplete. Open
-   crop-fill, handwritten-scan, and empty-text queues keep
-   remaining-plan incomplete. Chat/OCR supporting queues are
-   review-only.
+   crop-fill, handwritten-scan, empty-text, one-source, and
+   delta-draft queues keep remaining-plan incomplete when they are
+   hash-bound to the current isolated file. Chat/OCR supporting
+   queues are review-only.
 
 ## What it never does
 

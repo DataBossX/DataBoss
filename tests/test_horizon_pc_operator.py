@@ -359,6 +359,19 @@ def test_next_commands_name_current_isolated_drive_copy(tmp_path: Path) -> None:
         "Copy section13-delta-2.xlsx into Drive Section 13/Isolated/" in item
         for item in drive_bound
     )
+    isolated.write_bytes(b"STALE-ISOLATED-COPY")
+    stale_bound = _section_commands(
+        13,
+        root_args=["pc=/tmp"],
+        picks=[],
+        receipt_dir=str(receipts),
+        missing_roles=[],
+        bindings=FinishBindings(drive_readback=isolated),
+    )
+    assert any(
+        "Copy section13-delta-2.xlsx into Drive Section 13/Isolated/" in item
+        for item in stale_bound
+    )
 
 
 def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:

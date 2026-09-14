@@ -95,7 +95,9 @@ python3 -m horizon.pc_operator \
    repair copy over it. If that Letter or a later `sectionN-delta.xlsx`
    already exists, later `--execute` runs still apply new medium/high 2+
    source fills onto the next isolated generation instead of freezing
-   that copy.
+   that copy. Promoted and follow-up isolated copies also receive the
+   Letter/landscape/print-title layout so A4 or missing titles do not
+   persist.
    Copy-paste finish/export commands also point `--workbook` / `--candidate`
    at that current isolated file and do not reprint over an existing Letter.
    Drive readback only binds Isolated/ or receipt-dir copies of that file,

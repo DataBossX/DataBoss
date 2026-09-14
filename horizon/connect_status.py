@@ -142,6 +142,14 @@ def probe_connections(roots: Sequence[str] = ()) -> ConnectStatusReceipt:
             "OCR is not on this host; use writer-held page-render crops instead "
             "of guessing document numbers"
         )
+    actions.append(
+        "Review Slack/chat/OCR supporting files only; they are not legal "
+        "authority and must not fill index cells"
+    )
+    actions.append(
+        "Transcribe hashed handwritten scans into a Penterra xlsx; "
+        "Horizon does not OCR index rows"
+    )
     actions.append("Do not treat this receipt as package release")
     return ConnectStatusReceipt(
         generated_utc=datetime.now(timezone.utc).isoformat(),

@@ -45,6 +45,7 @@ from .page_render_export import (
     write_crops_draft,
 )
 from .package_finish import PackageFinishError, run_finish
+from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
 from .pdf_census import (
     PdfCensusError,
     census_packet,
@@ -1113,6 +1114,37 @@ def _next_empty_repair_dir(receipt_dir: Path, section: int) -> Path:
         generation += 1
 
 
+def _write_isolated_with_print_layout(source: Path, dest: Path) -> bool:
+    try:
+        if dest.exists():
+            return False
+        repair_print_layout(source, dest)
+        return dest.is_file()
+    except (OSError, PrintLayoutRepairError):
+        try:
+            if dest.exists():
+                dest.unlink()
+            shutil.copy2(source, dest)
+            return dest.is_file()
+        except OSError:
+            return False
+
+
+def _apply_print_layout_in_place(workbook: Path) -> None:
+    tmp = workbook.with_name(f"{workbook.stem}.layout-tmp{workbook.suffix}")
+    try:
+        if tmp.exists():
+            tmp.unlink()
+        repair_print_layout(workbook, tmp)
+        tmp.replace(workbook)
+    except (OSError, PrintLayoutRepairError):
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            return
+
+
 def _promote_repair_isolated(
     finish: object,
     source_workbook: Path,
@@ -1144,11 +1176,7 @@ def _promote_repair_isolated(
     except OSError:
         return None
     dest = _next_delta_output(receipt_dir, section)
-    try:
-        if dest.exists():
-            return None
-        shutil.copy2(final_path, dest)
-    except OSError:
+    if not _write_isolated_with_print_layout(final_path, dest):
         return None
     return dest
 
@@ -1188,11 +1216,7 @@ def _follow_up_repair_isolated(
     except OSError:
         return None
     dest = _next_delta_output(receipt_dir, section)
-    try:
-        if dest.exists():
-            return None
-        shutil.copy2(final, dest)
-    except OSError:
+    if not _write_isolated_with_print_layout(final, dest):
         return None
     return dest
 
@@ -2485,6 +2509,7 @@ def _execute_section(
                 order.executed_outputs.append(str(promoted))
         latest = _latest_isolated_path(receipt_dir, order.section)
         if applying_delta and isolated_ok and latest is not None:
+            _apply_print_layout_in_place(latest)
             if index_packet_path is not None:
                 followed = _follow_up_repair_isolated(
                     latest, receipt_dir, order.section, index_packet_path

@@ -300,6 +300,13 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     receipts.mkdir()
     letter = receipts / "section15-letter.xlsx"
     _write_penterra(letter, legal="")
+    loaded = openpyxl.load_workbook(letter)
+    sheet = loaded["Index"]
+    sheet.page_setup.orientation = "portrait"
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.print_title_rows = None
+    loaded.save(letter)
+    loaded.close()
     before = letter.read_bytes()
     receipt = build_work_order(
         roots=[f"pc={root}"],
@@ -313,6 +320,9 @@ def test_reuse_letter_reruns_agreed_repairs_onto_next_isolated(
     assert isolated.is_file()
     repaired = openpyxl.load_workbook(isolated, data_only=True)
     assert repaired["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    assert repaired["Index"].page_setup.orientation == "landscape"
+    assert int(repaired["Index"].page_setup.paperSize) == 1
+    assert str(repaired["Index"].print_title_rows).replace("$", "") == "1:8"
     repaired.close()
     stale = openpyxl.load_workbook(letter, data_only=True)
     assert stale["Index"]["H9"].value in (None, "")

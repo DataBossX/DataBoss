@@ -68,6 +68,10 @@ python3 -m horizon.pc_operator \
    Windows Excel Print Preview; Horizon does not invent the page count.
    Native-print and owner-review packets that do not match the current
    isolated hash are unbound so the next command reprints and reissues.
+   A leftover receipt that names this section and hashes the current
+   isolated workbook is bound instead of forcing a reprint when the
+   conventional `sectionN-native-print.json` or
+   `sectionN-owner-review.json` is absent or stale.
    `--execute` also writes `sectionN-owner-review-draft.json`; attest it
    with a named examiner after owner review only. Remaining 2+ source
    blanks are written to `sectionN-delta-draft.json`; attest that draft
@@ -77,7 +81,8 @@ python3 -m horizon.pc_operator \
    a writer holds source-proved text. A matching
    packet applies onto the next isolated generation (`sectionN-delta-2.xlsx`
    after the first apply) and the spent packet is archived so the next
-   attest can reuse `sectionN-delta-packet.json`. For section 11,
+   attest can reuse `sectionN-delta-packet.json`. Archived
+   `*-applied-*.json` packets are not rebound. For section 11,
    `--execute` writes `section11-crops-draft.json` from hashed files in
    `section11-renders/` (or `section11-crops/`). After Phase 2, authorized
    snapshot `source_document` renders are used when that examiner

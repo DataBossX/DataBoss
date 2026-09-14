@@ -875,8 +875,12 @@ def _section_work_order(
     )
     bound = _bind_section_workbook_packets(bound, receipt_dir, section)
     isolated = Path(_current_isolated_workbook(receipt_dir, section))
+    json_paths = _json_candidate_paths(Path(receipt_dir), inventory)
     bound, stale_holds = _unbind_stale_workbook_packets(
-        bound, isolated if isolated.is_file() else None, section
+        bound,
+        isolated if isolated.is_file() else None,
+        section,
+        leftover_paths=json_paths,
     )
     holds.extend(stale_holds)
     bound = _bind_section_crops(
@@ -890,19 +894,8 @@ def _section_work_order(
         bound, bound.page_render_bind_dir
     )
     holds.extend(crop_holds)
-    try:
-        receipt_json = sorted(Path(receipt_dir).glob("*.json"))
-    except OSError:
-        receipt_json = []
     delta_candidates = _discover_schema_paths(
-        [
-            *receipt_json,
-            *[
-                Path(inventory.roots[item.root_label]) / item.relative_path
-                for item in files
-                if item.extension == ".json" and item.root_label in inventory.roots
-            ],
-        ],
+        json_paths,
         "dbx.source_proved_delta_packet",
     )
     bound, delta_holds = _select_delta_packet(
@@ -1186,6 +1179,55 @@ def _discover_schema_paths(paths: Sequence[Path], schema_id: str) -> List[Path]:
     return found
 
 
+def _json_candidate_paths(
+    receipt_dir: Path,
+    inventory: Optional[AcquisitionReceipt] = None,
+) -> List[Path]:
+    paths: List[Path] = []
+    try:
+        paths.extend(sorted(receipt_dir.glob("*.json")))
+    except OSError:
+        pass
+    if inventory is None:
+        return paths
+    for item in inventory.files:
+        if item.extension != ".json" or item.root_label not in inventory.roots:
+            continue
+        paths.append(Path(inventory.roots[item.root_label]) / item.relative_path)
+    return paths
+
+
+def _ordered_section_packets(
+    bound: Optional[Path],
+    candidates: Sequence[Path],
+    section: int,
+    schema_id: str,
+    conventional: str,
+) -> List[Path]:
+    ordered: List[Path] = []
+    if bound is not None and _schema_packet_matches_section(
+        bound, section, schema_id
+    ):
+        ordered.append(bound)
+    for path in candidates:
+        if path in ordered:
+            continue
+        if _schema_packet_matches_section(path, section, schema_id):
+            ordered.append(path)
+    return _paths_preferring_conventional(ordered, conventional)
+
+
+def _first_hash_matched_packet(
+    ordered: Sequence[Path],
+    actual: str,
+    digest_fn: Callable[[Path], Optional[str]],
+) -> Optional[Path]:
+    for path in ordered:
+        if digest_fn(path) == actual:
+            return path
+    return None
+
+
 def _isolated_delta_generation(path: Path, section: int) -> Optional[int]:
     name = path.name
     if name == f"section{section}-delta.xlsx":
@@ -1432,24 +1474,24 @@ def _select_delta_packet(
     section: int,
 ) -> tuple[FinishBindings, List[str]]:
     """Bind a delta packet only when it matches this section and isolated hash."""
-    ordered: List[Path] = []
     bound_packet = bindings.delta_packet
-    if bound_packet is not None and not _schema_packet_matches_section(
-        bound_packet, section, "dbx.source_proved_delta_packet"
+    if bound_packet is not None and (
+        "-applied-" in bound_packet.stem
+        or not _schema_packet_matches_section(
+            bound_packet, section, "dbx.source_proved_delta_packet"
+        )
     ):
         bound_packet = None
         bindings = replace(bindings, delta_packet=None)
-    if bound_packet is not None:
-        ordered.append(bound_packet)
-    for path in candidates:
-        if path in ordered:
-            continue
-        if _schema_packet_matches_section(
-            path, section, "dbx.source_proved_delta_packet"
-        ):
-            ordered.append(path)
-    ordered = _paths_preferring_conventional(
-        ordered, f"section{section}-delta-packet.json"
+    live_candidates = [
+        path for path in candidates if "-applied-" not in path.stem
+    ]
+    ordered = _ordered_section_packets(
+        bound_packet,
+        live_candidates,
+        section,
+        "dbx.source_proved_delta_packet",
+        f"section{section}-delta-packet.json",
     )
     if workbook is None or not workbook.is_file() or not ordered:
         return bindings, []
@@ -1491,27 +1533,51 @@ def _unbind_stale_workbook_packets(
     bindings: FinishBindings,
     workbook: Optional[Path],
     section: int,
+    leftover_paths: Sequence[Path] = (),
 ) -> tuple[FinishBindings, List[str]]:
-    """Drop packets that do not match this section's isolated bytes."""
+    """Drop packets that do not match this section's isolated bytes.
+
+    Conventional sectionN receipts stay first. A leftover that names this
+    section and hashes the current isolated workbook is fallback when the
+    conventional print or owner-review file is absent or stale.
+    """
     if workbook is None or not workbook.is_file():
         return bindings, []
     actual = sha256_file(workbook)
     holds: List[str] = []
-    native = bindings.native_print_receipt
-    release = bindings.human_release_token
-    readback = bindings.drive_readback
-    if native is not None and _packet_workbook_sha256(native) != actual:
+    native = _first_hash_matched_packet(
+        _ordered_section_packets(
+            bindings.native_print_receipt,
+            leftover_paths,
+            section,
+            "dbx.native_print_receipt",
+            f"section{section}-native-print.json",
+        ),
+        actual,
+        _packet_workbook_sha256,
+    )
+    if native is None and bindings.native_print_receipt is not None:
         holds.append(
             "Native print receipt is bound to a different workbook hash; "
             "reprint the current isolated workbook"
         )
-        native = None
-    if release is not None and _packet_workbook_sha256(release) != actual:
+    release = _first_hash_matched_packet(
+        _ordered_section_packets(
+            bindings.human_release_token,
+            leftover_paths,
+            section,
+            "dbx.human_release_token",
+            f"section{section}-owner-review.json",
+        ),
+        actual,
+        _packet_workbook_sha256,
+    )
+    if release is None and bindings.human_release_token is not None:
         holds.append(
             "Owner-review token is bound to a different workbook hash; "
             "reissue it against the current isolated workbook"
         )
-        release = None
+    readback = bindings.drive_readback
     if readback is not None:
         other = _isolated_workbook_section(readback)
         folders = (
@@ -2930,7 +2996,10 @@ def _execute_section(
         )
         if current_book is not None:
             bound, stale_holds = _unbind_stale_workbook_packets(
-                bound, current_book, order.section
+                bound,
+                current_book,
+                order.section,
+                leftover_paths=_json_candidate_paths(receipt_dir, inventory),
             )
             order.holds.extend(stale_holds)
         if bound.drive_readback is None and current_book is not None:
@@ -3105,7 +3174,10 @@ def _execute_section(
                     f"One-source fill template failed: {template_error}"
                 )
             bound, stale_holds = _unbind_stale_workbook_packets(
-                bound, isolated, order.section
+                bound,
+                isolated,
+                order.section,
+                leftover_paths=_json_candidate_paths(receipt_dir, inventory),
             )
             order.holds.extend(stale_holds)
             if bound.drive_readback is None:

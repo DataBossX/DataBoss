@@ -1228,6 +1228,93 @@ def test_operator_drops_stale_native_print_after_delta(tmp_path: Path) -> None:
     assert draft["workbook_sha256"] == sha256_file(receipts / "section15-delta.xlsx")
 
 
+def test_execute_uses_leftover_print_of_current_isolated(
+    tmp_path: Path,
+) -> None:
+    from horizon.isolated_delta import write_delta_packet
+    from horizon.native_print import write_native_print_packet
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    write_native_print_packet(
+        workbook=letter,
+        output=receipts / "section15-native-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                "row_key": "2026-09901|",
+                "field": "comments",
+                "value": "SYNTH SOURCE NOTE",
+                "source_sha256": "a" * 64,
+                "page": 1,
+                "crop_id": "note",
+                "replace": False,
+            }
+        ],
+        output=receipts / "section15-delta-packet.json",
+        packet_id="SYNTH-P15-LEFTOVER-PRINT",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    isolated = receipts / "section15-delta.xlsx"
+    assert isolated.is_file()
+    write_native_print_packet(
+        workbook=isolated,
+        output=receipts / "aaa-p15-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    third = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert third.packages_complete is False
+    assert all(
+        "reprint the current isolated workbook" not in hold
+        for hold in third.sections[0].holds
+    )
+    assert all(
+        "Source-proved delta packet is bound to a different workbook hash"
+        not in hold
+        for hold in third.sections[0].holds
+    )
+    assert all(
+        "horizon.native_print" not in command
+        for command in third.sections[0].next_commands
+    )
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    native = next(gate for gate in finish["gates"] if gate["name"] == "native_print")
+    assert native["technical_pass"] is True
+    assert native["detail"]["workbook_sha256"] == sha256_file(isolated)
+
+
 def test_operator_discovers_receipt_dir_native_print(tmp_path: Path) -> None:
     from horizon.native_print import write_native_print_packet
 
@@ -2177,6 +2264,31 @@ def test_select_delta_prefers_conventional_then_hash_matched_leftover(
     assert holds == []
 
 
+def test_select_delta_ignores_archived_applied_packet(tmp_path: Path) -> None:
+    workbook = tmp_path / "section15-letter.xlsx"
+    _write_penterra(workbook)
+    digest = sha256_file(workbook)
+    archived = tmp_path / "section15-delta-packet-applied-deadbeef.json"
+    archived.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "packet_id": "SECTION15-DELTA",
+                "source_workbook_sha256": digest,
+            }
+        ),
+        encoding="utf-8",
+    )
+    bound, holds = _select_delta_packet(
+        FinishBindings(delta_packet=archived),
+        [archived],
+        workbook,
+        15,
+    )
+    assert bound.delta_packet is None
+    assert holds == []
+
+
 def test_section_census_packet_oserror_does_not_return_other_section(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2252,6 +2364,107 @@ def test_unbind_keeps_same_hash_readback_under_host_section_folder(
     )
     assert dropped.drive_readback is None
     assert any("different section Isolated" in hold for hold in dropped_holds)
+
+
+def test_unbind_uses_leftover_print_when_conventional_is_stale(
+    tmp_path: Path,
+) -> None:
+    from horizon.human_release import write_human_release_token
+    from horizon.native_print import write_native_print_packet
+
+    letter = tmp_path / "section15-letter.xlsx"
+    current = tmp_path / "section15-delta.xlsx"
+    _write_penterra(letter)
+    _write_penterra(current, legal="SYNTH DELTA TRACT")
+    conventional_print = tmp_path / "section15-native-print.json"
+    leftover_print = tmp_path / "aaa-p15-print.json"
+    write_native_print_packet(
+        workbook=letter,
+        output=conventional_print,
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    write_native_print_packet(
+        workbook=current,
+        output=leftover_print,
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    conventional_review = tmp_path / "section15-owner-review.json"
+    leftover_review = tmp_path / "aaa-p15-owner-review.json"
+    write_human_release_token(
+        workbook=letter,
+        output=conventional_review,
+        operator="Pat Examiner",
+        sections=[15],
+        packet_id="SECTION15-OWNER-REVIEW",
+    )
+    write_human_release_token(
+        workbook=current,
+        output=leftover_review,
+        operator="Pat Examiner",
+        sections=[15],
+        packet_id="SECTION15-OWNER-REVIEW",
+    )
+    leftovers = [
+        conventional_print,
+        leftover_print,
+        conventional_review,
+        leftover_review,
+    ]
+    bound, holds = _unbind_stale_workbook_packets(
+        FinishBindings(
+            native_print_receipt=conventional_print,
+            human_release_token=conventional_review,
+        ),
+        current,
+        15,
+        leftover_paths=leftovers,
+    )
+    assert bound.native_print_receipt == leftover_print
+    assert bound.human_release_token == leftover_review
+    assert holds == []
+
+    both, both_holds = _unbind_stale_workbook_packets(
+        FinishBindings(
+            native_print_receipt=leftover_print,
+            human_release_token=leftover_review,
+        ),
+        current,
+        15,
+        leftover_paths=leftovers,
+    )
+    assert both.native_print_receipt == leftover_print
+    assert both.human_release_token == leftover_review
+    assert both_holds == []
+
+    current_conventional_print = tmp_path / "section15-native-print-current.json"
+    current_conventional_print.write_bytes(leftover_print.read_bytes())
+    current_conventional_print.rename(conventional_print)
+    current_conventional_review = tmp_path / "section15-owner-review-current.json"
+    current_conventional_review.write_bytes(leftover_review.read_bytes())
+    current_conventional_review.rename(conventional_review)
+    preferred, preferred_holds = _unbind_stale_workbook_packets(
+        FinishBindings(
+            native_print_receipt=leftover_print,
+            human_release_token=leftover_review,
+        ),
+        current,
+        15,
+        leftover_paths=[
+            leftover_print,
+            conventional_print,
+            leftover_review,
+            conventional_review,
+        ],
+    )
+    assert preferred.native_print_receipt == conventional_print
+    assert preferred.human_release_token == conventional_review
+    assert preferred_holds == []
 
 
 def test_execute_does_not_reuse_other_section_pdf_bind_dir(tmp_path: Path) -> None:

@@ -212,6 +212,141 @@ def test_snapshot_verification_detects_post_receipt_tampering(
     assert not verify_snapshot(receipt)
 
 
+def _unlock_tree(path: Path) -> None:
+    path.chmod(0o700)
+    for child in path.rglob("*"):
+        child.chmod(0o700 if child.is_dir() else 0o600)
+
+
+def test_snapshot_verification_rejects_extra_file(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    snapshot = Path(receipt.snapshot_root)
+    _unlock_tree(snapshot)
+    (snapshot / "pc" / "sneaky.pdf").write_bytes(b"not authorized")
+
+    assert receipt.snapshot_device is not None
+    assert receipt.snapshot_inode is not None
+    assert not verify_snapshot(receipt)
+
+
+def test_snapshot_verification_rejects_internal_symlink(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    snapshot = Path(receipt.snapshot_root)
+    _unlock_tree(snapshot)
+    (snapshot / "pc" / "alias").symlink_to(
+        snapshot / "pc" / "Section 15",
+        target_is_directory=True,
+    )
+
+    assert not verify_snapshot(receipt)
+
+
+def test_snapshot_verification_requires_recorded_identity(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+
+    assert verify_snapshot(receipt)
+    assert not verify_snapshot(
+        replace(receipt, snapshot_device=None, snapshot_inode=None)
+    )
+
+
+def test_snapshot_cleanup_refuses_replaced_directory(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    snapshot = Path(receipt.snapshot_root)
+    device = receipt.snapshot_device
+    inode = receipt.snapshot_inode
+    _unlock_tree(snapshot)
+    for child in snapshot.iterdir():
+        if child.is_dir():
+            _unlock_tree(child)
+    source_acquisition._remove_snapshot(
+        snapshot,
+        expected_device=device,
+        expected_inode=inode,
+    )
+    snapshot.mkdir()
+    (snapshot / "decoy.txt").write_text("replacement", encoding="utf-8")
+
+    with pytest.raises(SourceAcquisitionError, match="identity mismatch"):
+        source_acquisition._remove_snapshot(
+            snapshot,
+            expected_device=device,
+            expected_inode=inode,
+        )
+    assert (snapshot / "decoy.txt").read_text(encoding="utf-8") == "replacement"
+
+
+def test_snapshot_cleanup_refuses_missing_identity(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15],
+        authority_assertions=_authorities(root, "pc", 15),
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    snapshot = Path(receipt.snapshot_root)
+
+    with pytest.raises(SourceAcquisitionError, match="identity missing"):
+        source_acquisition._remove_snapshot(
+            snapshot,
+            expected_device=None,
+            expected_inode=None,
+        )
+    assert snapshot.is_dir()
+    assert verify_snapshot(receipt)
+
+
+def test_control_file_symlink_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    real = tmp_path / "authority.json"
+    _write_authority_manifest(real, _authorities(root, "pc", 15))
+    linked = tmp_path / "authority-link.json"
+    linked.symlink_to(real)
+
+    with pytest.raises(SourceAcquisitionError, match="symlink"):
+        source_acquisition.load_authority_manifest(
+            linked,
+            expected_sha256=source_acquisition.sha256_file(real),
+        )
+
+
 def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _complete_section(root, 15)

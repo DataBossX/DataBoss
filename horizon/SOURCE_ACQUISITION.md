@@ -167,9 +167,16 @@ A passing receipt proves only that externally authorized source categories were
 copied byte-exact into the recorded read-only snapshot after repeated full
 hashes and without same-path conflicts. Downstream work must use that snapshot,
 not live Drive/PC paths, and must call `verify_snapshot(receipt)` immediately
-before reading it. File modes are defense in depth, not the trust decision; a
-snapshot fails if any authorized byte or its snapshot-manifest hash changes.
-The receipt does not prove the legal facts inside the files. Next run
-OCR/extraction, row-level provenance and confidence, master/index
-reconciliation, strict workbook QA, native Excel Print Preview, Drive readback,
-and the hash-bound human release gate.
+before reading it. Verification walks the entire snapshot tree through
+descriptor-relative opens: extra files, internal symlinks, missing authorized
+bytes, hash drift, or a device/inode mismatch against the receipt all fail.
+Failed receipt publication removes only the snapshot whose recorded
+device/inode still match; a replaced directory is left untouched. Control
+manifests are read the same way. File modes are defense in depth, not the
+trust decision. The receipt does not prove the legal facts inside the files.
+Next run OCR/extraction, occurrence/unique-key/R6 ledger comparison
+(`OCCURRENCE_LEDGER.md`), row-level provenance and confidence, master/index
+reconciliation, strict workbook QA, native Excel Print Preview, Drive
+readback, and the hash-bound human release gate. Receipt schema `1.1`
+records snapshot device/inode so later verify and cleanup bind the same
+directory.

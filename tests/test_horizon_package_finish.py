@@ -630,6 +630,10 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
     )
     assert receipt.packages_complete is True
     assert receipt.technical_pass is True
+    drive_gate = next(
+        gate for gate in receipt.gates if gate.name == "drive_readback"
+    )
+    assert drive_gate.detail.get("isolated_copy") is False
     reextraction = next(
         gate for gate in receipt.gates if gate.name == "reextraction"
     )

@@ -341,6 +341,8 @@ def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
         "index",
         "handwritten_index",
     ]
+    assert receipt.snapshot_root == ""
+    assert not (tmp_path / "snapshot").exists()
 
 
 def test_handwritten_index_does_not_satisfy_index_role(tmp_path: Path) -> None:
@@ -375,6 +377,8 @@ def test_handwritten_index_does_not_satisfy_index_role(tmp_path: Path) -> None:
     assert not receipt.technical_pass
     assert receipt.sections[0].missing_required_roles == ["index"]
     assert receipt.sections[0].candidate_role_counts["handwritten_index"] == 1
+    assert receipt.snapshot_root == ""
+    assert not (tmp_path / "snapshot").exists()
 
 
 def test_typed_index_does_not_satisfy_handwritten_index_role(tmp_path: Path) -> None:
@@ -409,6 +413,102 @@ def test_typed_index_does_not_satisfy_handwritten_index_role(tmp_path: Path) -> 
     assert not receipt.technical_pass
     assert receipt.sections[0].missing_required_roles == ["handwritten_index"]
     assert receipt.sections[0].candidate_role_counts["index"] == 1
+    assert receipt.snapshot_root == ""
+    assert not (tmp_path / "snapshot").exists()
+
+
+def test_incomplete_phase2_rebuilds_after_missing_index_is_authorized(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc"
+    _write(root, "Section 13/Master Abstract.xlsx", b"master")
+    _write(root, "Section 13/Handwritten Index.tif", b"scan")
+    _write(root, "Section 13/Recorded Face.pdf", b"face")
+    authority = tmp_path / "authority.json"
+    project = tmp_path / "project_manifest.json"
+    snapshot = tmp_path / "section13-snapshot"
+    receipt_path = tmp_path / "section13-acquisition.json"
+    first_assertions = [
+        AuthorityAssertion(
+            root_label="pc",
+            relative_path=f"Section 13/{relative_path}",
+            section=13,
+            role=role,
+            expected_sha256=source_acquisition.sha256_file(
+                root / "Section 13" / relative_path
+            ),
+        )
+        for role, relative_path in {
+            "master_workbook": "Master Abstract.xlsx",
+            "handwritten_index": "Handwritten Index.tif",
+            "source_document": "Recorded Face.pdf",
+        }.items()
+    ]
+    _write_authority_manifest(authority, first_assertions)
+    _write_project_manifest(project, authority)
+    first = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[13],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert first.technical_pass is False
+    assert first.sections[0].missing_required_roles == ["index"]
+    assert first.snapshot_root == ""
+    assert not snapshot.exists()
+    _write(root, "Section 13/County Index.pdf", b"index")
+    complete = _authorities(
+        root, "pc", 13, source_name="Recorded Face.pdf"
+    )
+    _write_authority_manifest(authority, complete)
+    _write_project_manifest(project, authority)
+    second = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[13],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert second.technical_pass is True
+    assert second.snapshot_root
+    assert snapshot.exists()
+    assert verify_snapshot(second)
+    assert (snapshot / "pc" / "Section 13" / "County Index.pdf").is_file()
+
+
+def test_ensure_rebuilds_leftover_incomplete_snapshot(tmp_path: Path) -> None:
+    root = tmp_path / "pc"
+    _complete_section(root, 15)
+    authority = tmp_path / "authority.json"
+    project = tmp_path / "project_manifest.json"
+    snapshot = tmp_path / "section15-snapshot"
+    receipt_path = tmp_path / "section15-acquisition.json"
+    _write_authority_manifest(authority, _authorities(root, "pc", 15))
+    _write_project_manifest(project, authority)
+    first = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert first.technical_pass is True
+    write_receipt(replace(first, technical_pass=False), receipt_path)
+    rebuilt = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert rebuilt.technical_pass is True
+    assert snapshot.exists()
+    assert verify_snapshot(rebuilt)
 
 
 @pytest.mark.parametrize(

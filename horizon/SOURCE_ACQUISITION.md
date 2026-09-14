@@ -147,7 +147,10 @@ Exit codes:
 
 - `0`: every requested section has hash-matched authority assertions and a
   verified private snapshot for all required roles, with no path conflicts,
-  rejected links, unstable files, or traversal failures.
+  rejected links, unstable files, or traversal failures. A snapshot is not
+  created, and a leftover incomplete snapshot is not reused, until those
+  roles are authorized. Retry the same `--snapshot-directory` after the
+  missing typed index or handwritten index is promoted.
 - `2`: a receipt was written, but intake is blocked.
 - `1`: CLI controls, roots, authority manifest, or output location are unsafe
   or malformed; no receipt is promised.

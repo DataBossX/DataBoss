@@ -867,6 +867,23 @@ def _summarize_section(
     )
 
 
+def _required_roles_authorized(
+    sections: Sequence[int],
+    authority_matches: Sequence[AuthorityMatch],
+    required_roles: Sequence[str],
+) -> bool:
+    authorized = {
+        (match.assertion.section, match.assertion.role)
+        for match in authority_matches
+        if match.status == "matched"
+    }
+    return all(
+        (section, role) in authorized
+        for section in sections
+        for role in required_roles
+    )
+
+
 def _open_directory_at(parent_descriptor: int, name: str) -> int:
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     return os.open(name, flags, dir_fd=parent_descriptor)
@@ -1316,9 +1333,15 @@ def build_receipt(
     snapshot_manifest_sha256 = ""
     snapshot_device = None
     snapshot_inode = None
-    if authority_context and not issues and not any(
-        comparison.status == "hash_conflict"
-        for comparison in comparisons
+    if (
+        authority_context
+        and not issues
+        and not any(
+            comparison.status == "hash_conflict" for comparison in comparisons
+        )
+        and _required_roles_authorized(
+            requested_sections, authority_matches, required_roles
+        )
     ):
         assert snapshot_directory is not None
         (
@@ -1746,15 +1769,23 @@ def ensure_authority_snapshot(
             raise SourceAcquisitionError(
                 "Acquisition receipt snapshot_root does not match the snapshot directory"
             )
-        if not verify_snapshot(receipt):
-            raise SourceAcquisitionError(
-                "Existing authority snapshot failed verification"
-            )
-        return receipt
-    if receipt_path.exists():
-        raise SourceAcquisitionError(
-            "Acquisition receipt exists without an authority snapshot"
+        if receipt.technical_pass:
+            if not verify_snapshot(receipt):
+                raise SourceAcquisitionError(
+                    "Existing authority snapshot failed verification"
+                )
+            return receipt
+        _remove_snapshot(
+            snapshot,
+            expected_device=receipt.snapshot_device,
+            expected_inode=receipt.snapshot_inode,
         )
+    elif receipt_path.exists():
+        prior = load_receipt(receipt_path)
+        if prior.technical_pass or prior.snapshot_root:
+            raise SourceAcquisitionError(
+                "Acquisition receipt exists without an authority snapshot"
+            )
     receipt = build_receipt(
         [parse_root(raw) for raw in roots],
         requested_sections=list(sections),
@@ -1763,7 +1794,9 @@ def ensure_authority_snapshot(
         authority_context=context,
         snapshot_directory=snapshot,
     )
-    if not receipt.snapshot_root or not verify_snapshot(receipt):
+    if receipt.technical_pass and (
+        not receipt.snapshot_root or not verify_snapshot(receipt)
+    ):
         raise SourceAcquisitionError(
             "Newly created authority snapshot failed verification"
         )

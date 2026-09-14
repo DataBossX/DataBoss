@@ -265,7 +265,7 @@ def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:
     assert sheet["H9"].value == "SYNTH TRACT 15-45N-76W"
     assert sheet.page_setup.orientation == "landscape"
     assert int(sheet.page_setup.paperSize) == 1
-    assert sheet.print_title_rows == "1:8"
+    assert str(sheet.print_title_rows).replace("$", "") == "1:8"
     isolated.close()
     draft = json.loads(
         (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")

@@ -65,7 +65,10 @@ claim fails. This still is not Drive readback.
 
 Phase 2 source authority is opt-in: pass `--authority-manifest`,
 `--project-manifest`, and a new `--snapshot-directory` outside every source
-root. Without those, acquisition stays Phase 1 inventory and cannot authorize
+root. Later runs verify the existing snapshot from `--acquisition-receipt`
+instead of creating a second copy. Downstream index export must read those
+verified snapshot bytes, not drifted live Drive/PC files. Without Phase 2
+controls, acquisition stays Phase 1 inventory and cannot authorize
 extraction. `packages_complete` is true only when every required gate passed
 and a writer-held `--human-release-token` matches the isolated workbook hash.
 The token statement must be the owner-review declaration;

@@ -446,6 +446,8 @@ def evaluate_package_completion(
     by_name = _gate_map(gates)
     expected = _normalize_workbook_sha256(workbook_sha256)
     missing: List[str] = []
+    if not expected:
+        missing.append("isolated workbook hash is required")
     for name in REQUIRED_COMPLETION_GATES:
         gate = by_name.get(name)
         if gate is None or not gate.technical_pass:

@@ -81,15 +81,25 @@ def test_completion_requires_every_required_gate() -> None:
         _gate("source_acquisition"),
         _gate("reextraction"),
         _gate("occurrence_ledger"),
-        _gate("index_reconciliation", blank_required_count=0, conflict_count=0),
-        _gate("workbook_qa"),
+        _gate(
+            "index_reconciliation",
+            blank_required_count=0,
+            conflict_count=0,
+            workbook_sha256="a" * 64,
+        ),
+        _gate("workbook_qa", workbook_sha256="a" * 64),
         _gate("native_print", workbook_sha256="a" * 64),
         _gate("drive_readback", isolated_copy=True, workbook_sha256="a" * 64),
         _gate("human_release", workbook_sha256="a" * 64),
     ]
-    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    complete, missing = evaluate_package_completion(
+        gates, requested_sections=[15], workbook_sha256="a" * 64
+    )
     assert complete is True
     assert missing == []
+    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    assert complete is False
+    assert any("isolated workbook hash is required" in item for item in missing)
 
     gates[-2] = _gate("drive_readback", passed=False)
     complete, missing = evaluate_package_completion(gates, requested_sections=[15])
@@ -113,13 +123,20 @@ def test_completion_requires_matching_isolated_hashes() -> None:
         _gate("source_acquisition"),
         _gate("reextraction"),
         _gate("occurrence_ledger"),
-        _gate("index_reconciliation", blank_required_count=0, conflict_count=0),
-        _gate("workbook_qa"),
+        _gate(
+            "index_reconciliation",
+            blank_required_count=0,
+            conflict_count=0,
+            workbook_sha256=digest,
+        ),
+        _gate("workbook_qa", workbook_sha256=digest),
         _gate("native_print", workbook_sha256=digest),
         _gate("drive_readback", isolated_copy=True, workbook_sha256=digest),
         _gate("human_release", workbook_sha256=digest),
     ]
-    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    complete, missing = evaluate_package_completion(
+        gates, requested_sections=[15], workbook_sha256=digest
+    )
     assert complete is True
     assert missing == []
     gates[5] = _gate("native_print")
@@ -179,13 +196,20 @@ def test_repair_loop_can_satisfy_index_fields() -> None:
         _gate("source_acquisition"),
         _gate("reextraction"),
         _gate("occurrence_ledger"),
-        _gate("repair_loop", remaining_blanks=0, remaining_conflicts=0),
-        _gate("workbook_qa"),
+        _gate(
+            "repair_loop",
+            remaining_blanks=0,
+            remaining_conflicts=0,
+            workbook_sha256="b" * 64,
+        ),
+        _gate("workbook_qa", workbook_sha256="b" * 64),
         _gate("native_print", workbook_sha256="b" * 64),
         _gate("drive_readback", isolated_copy=True, workbook_sha256="b" * 64),
         _gate("human_release", workbook_sha256="b" * 64),
     ]
-    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    complete, missing = evaluate_package_completion(
+        gates, requested_sections=[15], workbook_sha256="b" * 64
+    )
     assert complete is True
     assert missing == []
     gates[3] = _gate("repair_loop", remaining_blanks=2, remaining_conflicts=0)

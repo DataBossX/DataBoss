@@ -1,6 +1,7 @@
 # Human release and package completion
 
-`packages_complete` is not a vibe check. It is true only when:
+`packages_complete` is not a vibe check. It is true only when the
+current isolated workbook hash is present and:
 
 1. `source_acquisition` passed
 2. `reextraction` passed (page-render crops, tract export, or isolated

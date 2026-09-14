@@ -153,7 +153,8 @@ def _payload_names_section(
     packet_id = str(payload.get("packet_id") or "")
     if packet_id:
         marks.update(_section_marks(packet_id))
-    return section in marks
+    priority = {mark for mark in marks if mark in PRIORITY_SECTIONS}
+    return priority == {section}
 
 
 class PcOperatorError(ValueError):

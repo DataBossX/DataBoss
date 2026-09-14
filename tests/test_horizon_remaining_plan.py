@@ -660,6 +660,19 @@ def test_remaining_plan_supporting_queue_does_not_block_completion(
     assert "crop" not in "".join(plan["missing"])
 
 
+def test_remaining_plan_requires_isolated_workbook(tmp_path: Path) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+    )
+    assert plan["packages_complete"] is False
+    assert plan["isolated_workbook"] == {}
+    assert any("isolated workbook hash is required" in item for item in plan["missing"])
+
+
 def test_remaining_plan_onesource_and_delta_drafts_block_completion(
     tmp_path: Path,
 ) -> None:

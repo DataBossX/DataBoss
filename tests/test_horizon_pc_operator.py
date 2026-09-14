@@ -1904,12 +1904,25 @@ def test_discover_receipt_dir_packets_stays_on_named_section(tmp_path: Path) -> 
         ),
         encoding="utf-8",
     )
+    (tmp_path / "section15-section13-census.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "packet_id": "SECTION15-CENSUS",
+            }
+        ),
+        encoding="utf-8",
+    )
     found15 = _discover_receipt_dir_packets(tmp_path, 15)
     found13 = _discover_receipt_dir_packets(tmp_path, 13)
     assert found15["native_print_receipt"].name == "zzz-p15-print.json"
     assert found13["native_print_receipt"].name == "aaa-p13-print.json"
     assert found13["pdf_census_packet"].name == "aaa-p13-census.json"
     assert "pdf_census_packet" not in found15
+    assert all(
+        path.name != "section15-section13-census.json"
+        for path in (*found15.values(), *found13.values())
+    )
     assert all(
         path.name != "print-packet.json" for path in found15.values()
     )

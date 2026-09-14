@@ -103,6 +103,45 @@ def test_remaining_plan_names_blank_and_conflict_counts(tmp_path: Path) -> None:
     assert "SYNTH" not in json.dumps(plan)
 
 
+def test_remaining_plan_prefers_examiner_queue_over_stale_finish(
+    tmp_path: Path,
+) -> None:
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "index_reconciliation",
+                "ran": True,
+                "technical_pass": False,
+                "detail": {
+                    "blank_required_count": 5,
+                    "conflict_count": 2,
+                    "low_confidence_blank_count": 1,
+                    "candidate_from": "index_packet",
+                },
+            }
+        ],
+    }
+    queue = tmp_path / "section15-examiner-queue.json"
+    queue.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(section=15, finish=finish, receipt_dir=tmp_path)
+    assert plan["field_gaps"]["blank_required_count"] == 0
+    assert plan["field_gaps"]["conflict_count"] == 0
+    assert plan["field_gaps"]["low_confidence_blank_count"] == 1
+    assert "index has 5 blank required field(s)" not in plan["missing"]
+    assert "index has 2 conflict(s)" not in plan["missing"]
+
+
 def test_remaining_plan_reads_examiner_queue_counts(tmp_path: Path) -> None:
     queue = tmp_path / "section11-examiner-queue.json"
     queue.write_text(

@@ -290,8 +290,8 @@ def remaining_plan(
     )
     candidate_roles = _ordered_roles(_string_list(list(missing_candidate_roles)))
     field_gaps = _merge_field_gaps(
-        _field_gaps_from_finish(gates),
         _field_gaps_from_queue(receipt_dir, section),
+        _field_gaps_from_finish(gates),
     )
     by_field = _by_field_from_queue(receipt_dir, section)
     extra = _gap_lines(
@@ -327,6 +327,7 @@ def remaining_plan(
             "This plan does not invent legal, party, or date values",
             "Typed index and handwritten_index are separate required roles",
             "by_field counts names only; it does not copy cell text",
+            "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",
         ],

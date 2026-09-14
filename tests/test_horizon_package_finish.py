@@ -434,6 +434,94 @@ def _crop_packet() -> dict[str, object]:
     }
 
 
+def test_combined_authority_is_filtered_to_requested_section(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc"
+    for section in (15, 13):
+        _penterra_workbook(root / f"Section {section}" / "Master Abstract.xlsx")
+        _penterra_workbook(root / f"Section {section}" / "County Index.xlsx")
+        faces = root / f"Section {section}" / "Recorded Faces"
+        faces.mkdir(parents=True, exist_ok=True)
+        (faces / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth")
+    files = []
+    for section in (15, 13):
+        files.extend(
+            [
+                (
+                    "master_workbook",
+                    f"Section {section}/Master Abstract.xlsx",
+                    section,
+                ),
+                ("index", f"Section {section}/County Index.xlsx", section),
+                (
+                    "source_document",
+                    f"Section {section}/Recorded Faces/Instrument 1.pdf",
+                    section,
+                ),
+            ]
+        )
+    authority = tmp_path / "authority.json"
+    authority.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_authority_manifest",
+                "schema_version": "1.0",
+                "project_id": "DBX-TEST",
+                "decision_id": "SOURCE-AUTH-001",
+                "approved_by": "Synthetic Test Examiner",
+                "authorities": [
+                    {
+                        "root_label": "pc",
+                        "relative_path": relative,
+                        "section": section,
+                        "role": role,
+                        "expected_sha256": sha256_file(root / relative),
+                    }
+                    for role, relative, section in files
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    project = tmp_path / "project_manifest.json"
+    project.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.project_manifest",
+                "schema_version": "1.1",
+                "project_id": "DBX-TEST",
+                "source_policy": "IMMUTABLE_READ_ONLY",
+                "authority_hashes": {"source_authority": sha256_file(authority)},
+                "candidate_deliverables": [
+                    {
+                        "path": "candidate.xlsx",
+                        "reported_sha256": "0" * 64,
+                        "status": "CANDIDATE",
+                    }
+                ],
+                "required_checks": ["source_acquisition"],
+                "release_policy": {
+                    "technical_verification_is_not_release": True,
+                    "approved_hash_required": True,
+                    "human_gate": "G7",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = run_finish(
+        sections=[15],
+        roots=[f"pc={root}"],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    gate = next(item for item in receipt.gates if item.name == "source_acquisition")
+    assert gate.technical_pass is True
+    assert receipt.packages_complete is False
+
+
 def test_phase_two_authority_can_pass_acquisition(tmp_path: Path) -> None:
     root = tmp_path / "pc"
     section = root / "Section 15"

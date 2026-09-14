@@ -175,7 +175,8 @@ device/inode still match; a replaced directory is left untouched. Control
 manifests are read the same way. File modes are defense in depth, not the
 trust decision. The receipt does not prove the legal facts inside the files.
 On the PC, chain those gates with `python3 -m horizon.package_finish`
-(`PACKAGE_FINISH.md`). Next run OCR/extraction, occurrence/unique-key/R6
+(`PACKAGE_FINISH.md`). A combined 15/13/11 authority manifest is filtered
+to the sections requested on that finish run. Next run OCR/extraction, occurrence/unique-key/R6
 ledger comparison (`OCCURRENCE_LEDGER.md`), re-extraction of bare document
 numbers (`REEXTRACTION.md`), public cadastral plat binding, row-level
 provenance and confidence, master/index reconciliation, strict workbook QA,

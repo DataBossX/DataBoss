@@ -58,6 +58,7 @@ from .source_acquisition import (
     SourceAcquisitionError,
     bind_phase_two_controls,
     build_receipt as build_acquisition_receipt,
+    filter_authority_assertions,
     parse_root,
     verify_snapshot,
 )
@@ -131,6 +132,7 @@ def _acquisition_gate(
             project_manifest=project_manifest,
             snapshot_directory=snapshot_directory,
         )
+        assertions = filter_authority_assertions(assertions, sections)
         receipt = build_acquisition_receipt(
             [parse_root(root) for root in roots],
             requested_sections=list(sections),

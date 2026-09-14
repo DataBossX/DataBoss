@@ -8,7 +8,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from horizon.pc_operator import PcOperatorError, build_work_order, main
+from horizon.pc_operator import FinishBindings, PcOperatorError, build_work_order, main
 
 
 PENTERRA_HEADERS = [
@@ -113,6 +113,19 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert by_section[11].ready_for_extraction is False
     assert any("page-render" in command for command in by_section[11].next_commands)
     assert any("Phase 2" in action for action in receipt.next_actions)
+    bound = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        bindings=FinishBindings(
+            authority_manifest=tmp_path / "authority.json",
+            project_manifest=tmp_path / "project.json",
+        ),
+    )
+    joined_bound = "\n".join(bound.sections[0].next_commands)
+    assert "--authority-manifest" in joined_bound
+    assert "--project-manifest" in joined_bound
+    assert "--snapshot-directory" in joined_bound
 
 
 def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
@@ -162,6 +175,23 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     assert payload["packages_complete"] is False
     assert source.read_bytes() == before
     assert any("Executed isolated" in action for action in receipt.next_actions)
+    letter = receipts / "section15-letter.xlsx"
+    copy = receipts / "drive-copy.xlsx"
+    copy.write_bytes(letter.read_bytes())
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    drive_gate = next(
+        gate for gate in finish["gates"] if gate["name"] == "drive_readback"
+    )
+    assert drive_gate["technical_pass"] is True
 
 
 def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:

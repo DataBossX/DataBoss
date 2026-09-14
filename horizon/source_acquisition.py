@@ -1552,6 +1552,20 @@ def write_receipt(
         os.close(directory_descriptor)
 
 
+def filter_authority_assertions(
+    assertions: Sequence[AuthorityAssertion],
+    requested_sections: Sequence[int],
+) -> Tuple[AuthorityAssertion, ...]:
+    """Keep hash-bound assertions that apply to this finish run."""
+    requested = set(requested_sections)
+    filtered = tuple(item for item in assertions if item.section in requested)
+    if assertions and not filtered:
+        raise SourceAcquisitionError(
+            "Authority manifest has no assertions for the requested sections"
+        )
+    return filtered
+
+
 def bind_phase_two_controls(
     *,
     authority_manifest: Optional[Path] = None,

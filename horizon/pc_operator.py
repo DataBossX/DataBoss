@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Sequence
 
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
+from .isolated_delta import sha256_file
 from .package_finish import PackageFinishError, run_finish
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
@@ -293,6 +294,41 @@ def _slot_path(picks: Sequence[CandidatePick], slot: str) -> Optional[str]:
     return None
 
 
+def _append_binding_flags(
+    parts: List[object],
+    bindings: FinishBindings,
+    *,
+    receipt_dir: str,
+    section: int,
+) -> None:
+    if bindings.page_render_packet is not None:
+        parts.extend(["--page-render-packet", bindings.page_render_packet])
+    if bindings.native_print_receipt is not None:
+        parts.extend(["--native-print-receipt", bindings.native_print_receipt])
+    if bindings.human_release_token is not None:
+        parts.extend(["--human-release-token", bindings.human_release_token])
+    if bindings.pdf_census_packet is not None:
+        parts.extend(["--pdf-census-packet", bindings.pdf_census_packet])
+    if bindings.pdf_bind_dir is not None:
+        parts.extend(["--pdf-bind-dir", bindings.pdf_bind_dir])
+    if bindings.drive_readback is not None:
+        parts.extend(["--drive-readback", bindings.drive_readback])
+    if (
+        bindings.authority_manifest is not None
+        and bindings.project_manifest is not None
+    ):
+        parts.extend(
+            [
+                "--authority-manifest",
+                bindings.authority_manifest,
+                "--project-manifest",
+                bindings.project_manifest,
+                "--snapshot-directory",
+                f"{receipt_dir}/snapshot-section{section}",
+            ]
+        )
+
+
 def _section_commands(
     section: int,
     *,
@@ -300,6 +336,7 @@ def _section_commands(
     picks: Sequence[CandidatePick],
     receipt_dir: str,
     missing_roles: Sequence[str],
+    bindings: FinishBindings,
 ) -> List[str]:
     commands: List[str] = []
     if missing_roles:
@@ -356,6 +393,32 @@ def _section_commands(
                     f"{receipt_dir}/section{section}-letter.xlsx",
                 ]
             )
+        _append_binding_flags(
+            finish_parts,
+            bindings,
+            receipt_dir=receipt_dir,
+            section=section,
+        )
+        commands.append(_quote_command(finish_parts))
+    elif bindings.page_render_packet is not None:
+        finish_parts: List[object] = [
+            "python3",
+            "-m",
+            "horizon.package_finish",
+            "--section",
+            section,
+            "--output",
+            f"{receipt_dir}/section{section}-finish.json",
+        ]
+        for root in root_args:
+            finish_parts.extend(["--root", root])
+        finish_parts.append("--connect-status")
+        _append_binding_flags(
+            finish_parts,
+            bindings,
+            receipt_dir=receipt_dir,
+            section=section,
+        )
         commands.append(_quote_command(finish_parts))
     else:
         commands.append(
@@ -387,6 +450,7 @@ def _section_work_order(
     root_args: Sequence[str],
     receipt_dir: str,
     required_roles: Sequence[str],
+    bindings: FinishBindings,
 ) -> SectionWorkOrder:
     holds = list(SECTION_HOLDS.get(section, ()))
     if inventory is None:
@@ -433,6 +497,10 @@ def _section_work_order(
             picks=picks,
             receipt_dir=receipt_dir,
             missing_roles=missing_candidates,
+            bindings=_merge_bindings(
+                bindings,
+                _discover_packets(files, inventory.roots, section),
+            ),
         ),
         holds=holds,
     )
@@ -494,6 +562,37 @@ def _merge_bindings(
     return merged
 
 
+def _same_hash_readback(
+    inventory: Optional[AcquisitionReceipt],
+    workbook: Path,
+    receipt_dir: Path,
+) -> Optional[Path]:
+    digest = sha256_file(workbook)
+    exclude = workbook.resolve()
+    candidates: List[Path] = []
+    if inventory is not None:
+        for item in inventory.files:
+            if item.sha256 != digest:
+                continue
+            candidates.append(
+                Path(inventory.roots[item.root_label]) / item.relative_path
+            )
+    candidates.extend(path for path in receipt_dir.glob("*.xlsx"))
+    for path in candidates:
+        try:
+            resolved = path.resolve()
+        except OSError:
+            continue
+        if resolved == exclude:
+            continue
+        try:
+            if sha256_file(resolved) == digest:
+                return resolved
+        except OSError:
+            continue
+    return None
+
+
 def _execute_section(
     order: SectionWorkOrder,
     *,
@@ -546,6 +645,12 @@ def _execute_section(
         snapshot = bound.snapshot_directory
         if snapshot is not None:
             snapshot = snapshot / f"section{order.section}"
+        if bound.drive_readback is None and reuse_isolated:
+            bound.drive_readback = _same_hash_readback(
+                inventory,
+                letter_path,
+                receipt_dir,
+            )
         finish = run_finish(
             sections=[order.section],
             roots=list(root_args),
@@ -631,6 +736,7 @@ def build_work_order(
         except (OSError, SourceAcquisitionError) as exc:
             inventory_error = str(exc)
             phase = "blocked"
+    explicit = bindings or FinishBindings()
     work_orders = [
         _section_work_order(
             section,
@@ -638,10 +744,10 @@ def build_work_order(
             root_args=readable,
             receipt_dir=dest,
             required_roles=required_roles,
+            bindings=explicit,
         )
         for section in sections
     ]
-    explicit = bindings or FinishBindings()
     if (
         execute
         and explicit.snapshot_directory is not None

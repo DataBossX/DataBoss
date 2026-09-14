@@ -22,7 +22,7 @@ python3 -m horizon.package_finish \
   --repair-dir /path/to/isolated-repair \
   --print-layout-output /path/to/isolated-letter.xlsx \
   --native-print-receipt /path/to/native-excel-print-receipt.json \
-  --drive-readback /path/to/drive-copy.xlsx \
+  --drive-readback /path/to/Section 15/Isolated/section15-letter.xlsx \
   --human-release-token /path/to/owner-review-token.json \
   --public-plat campbell,45n,76w \
   --public-plat johnson,47n,77w \
@@ -81,6 +81,8 @@ controls, acquisition stays Phase 1 inventory and cannot authorize
 extraction. `packages_complete` is true only when every required gate passed,
 Drive readback is an Isolated/ copy, and a writer-held
 `--human-release-token` matches the isolated workbook hash.
+Finish next-actions name `Copy {name} into Drive Section N/Isolated/`
+until that copy is bound.
 The token statement must be the owner-review declaration;
 `external_release` must be false. `READY_TO_SUBMIT` and external-delivery
 claims are rejected. This runner cannot satisfy that predicate from an

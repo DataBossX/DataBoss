@@ -33,6 +33,15 @@ def is_drive_isolated_copy(path: Path, section: int) -> bool:
     return False
 
 
+def isolated_workbook_filename(path: Optional[Path], section: int) -> str:
+    """Name the current isolated Letter or delta, or sectionN-letter.xlsx."""
+    if path is not None:
+        match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
+        if match is not None and int(match.group(1)) == section:
+            return path.name
+    return f"section{section}-letter.xlsx"
+
+
 class DriveReadbackError(ValueError):
     """Raised when Drive readback cannot be bound safely."""
 

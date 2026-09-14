@@ -13,6 +13,7 @@ from horizon.drive_readback import (
     DriveReadbackError,
     assess_drive_readback,
     is_drive_isolated_copy,
+    isolated_workbook_filename,
 )
 from horizon.occurrence_build import build_occurrence_packet
 from horizon.occurrence_ledger import compare_packet, parse_occurrence_packet
@@ -93,6 +94,13 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     )
     assert not is_drive_isolated_copy(
         Path("Section 15/Isolated/section15-letter.xlsx"), 13
+    )
+    assert (
+        isolated_workbook_filename(Path("section15-delta-2.xlsx"), 15)
+        == "section15-delta-2.xlsx"
+    )
+    assert isolated_workbook_filename(Path("Working Abstract.xlsx"), 15) == (
+        "section15-letter.xlsx"
     )
 
 

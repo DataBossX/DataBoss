@@ -48,6 +48,7 @@ from .drive_readback import (
     DriveReadbackError,
     assess_drive_readback,
     is_drive_isolated_copy,
+    isolated_workbook_filename,
 )
 from .human_release import (
     HumanReleaseError,
@@ -355,7 +356,21 @@ def _cadastral_gate(plats: Sequence[str]) -> GateResult:
     )
 
 
-def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[str]:
+def _drive_isolated_bound(gates: Sequence[GateResult]) -> bool:
+    for gate in gates:
+        if gate.name != "drive_readback" or not gate.ran:
+            continue
+        if not gate.technical_pass:
+            return False
+        return gate.detail.get("isolated_copy") is True
+    return False
+
+
+def _next_actions(
+    gates: Sequence[GateResult],
+    sections: Sequence[int],
+    workbook: Optional[Path] = None,
+) -> List[str]:
     ran = {gate.name for gate in gates if gate.ran}
     actions = []
     if "source_acquisition" not in ran:
@@ -416,11 +431,12 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Pass --human-release-token with the owner-review declaration "
             "bound to the isolated workbook hash; external_release must be false"
         )
-    if "drive_readback" not in ran:
-        actions.append(
-            "Pass --drive-readback with a distinct Drive/PC copy of the "
-            "isolated workbook to bind SHA-256 readback"
-        )
+    if not _drive_isolated_bound(gates):
+        for section in sections:
+            name = isolated_workbook_filename(workbook, section)
+            line = f"Copy {name} into Drive Section {section}/Isolated/"
+            if line not in actions:
+                actions.append(line)
     if "native_print" not in ran:
         actions.append(
             "On Windows Excel, Print Preview the isolated copy and pass "
@@ -438,7 +454,7 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
         if gate.ran and gate.technical_pass is False:
             actions.append(f"Resolve blocking {gate.name}: {gate.error or gate.detail}")
     actions.append(
-        "Drive readback remains required before any owner-release claim"
+        "Drive Isolated/ remains required before any owner-release claim"
     )
     actions.append("Do not start a second controller; one writer per target")
     return actions
@@ -1040,7 +1056,7 @@ def run_finish(
         gates,
         requested_sections=sections,
     )
-    next_actions = _next_actions(gates, sections)
+    next_actions = _next_actions(gates, sections, workbook=qa_workbook)
     if packages_complete:
         next_actions.append(
             "Owner review only; this is not an external client delivery"

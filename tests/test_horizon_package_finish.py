@@ -135,6 +135,14 @@ def test_empty_run_is_blocked_and_never_complete() -> None:
     assert receipt.technical_pass is False
     assert receipt.gates == []
     assert any("Mount PC/Drive" in action for action in receipt.next_actions)
+    assert any(
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/" in action
+        for action in receipt.next_actions
+    )
+    assert any(
+        "Copy section13-letter.xlsx into Drive Section 13/Isolated/" in action
+        for action in receipt.next_actions
+    )
 
 
 def test_chained_checkable_packets_pass_gates_but_not_packages(
@@ -643,6 +651,10 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
         gate for gate in receipt.gates if gate.name == "occurrence_ledger"
     )
     assert occurrence.detail.get("built_from") == "workbook"
+    assert not any(
+        "Copy " in action and "Isolated/" in action
+        for action in receipt.next_actions
+    )
 
 
 def test_cli_empty_run_writes_blocked_receipt(tmp_path: Path) -> None:

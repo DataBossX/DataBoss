@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 from .authority_draft import draft_from_files, write_draft
+from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import sha256_file
@@ -40,7 +41,7 @@ _CANDIDATE_ROLE_EQUIVALENTS = {
 }
 
 RECEIPT_SCHEMA_ID = "dbx.pc_operator_receipt"
-RECEIPT_SCHEMA_VERSION = "1.2"
+RECEIPT_SCHEMA_VERSION = "1.3"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_RECEIPT_PLACEHOLDER = "<private-receipts>"
 SECTION_HOLDS = {
@@ -153,10 +154,12 @@ class OperatorReceipt:
             "technical_pass means readable roots were probed and Phase 1 ran",
             "--execute writes isolated packets under receipt-dir only",
             "authority-draft.json is UNAPPROVED_DRAFT and cannot bind Phase 2",
+            "authority_promote requires a named examiner and live hash re-check",
         ]
     )
     authority_draft_path: Optional[str] = None
     authority_draft: Optional[Dict[str, object]] = None
+    authority_promote_command: Optional[str] = None
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
@@ -566,6 +569,47 @@ def _merge_bindings(
     return merged
 
 
+def _discover_promoted_controls(
+    receipt_dir: Path,
+) -> tuple[Optional[Path], Optional[Path]]:
+    authority = receipt_dir / "source-authority.json"
+    project = receipt_dir / "project_manifest.json"
+    if not authority.is_file() or not project.is_file():
+        return None, None
+    try:
+        authority_payload = json.loads(authority.read_text(encoding="utf-8"))
+        project_payload = json.loads(project.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None, None
+    if not isinstance(authority_payload, dict) or not isinstance(project_payload, dict):
+        return None, None
+    if (
+        authority_payload.get("schema_id") != "dbx.source_authority_manifest"
+        or project_payload.get("schema_id") != "dbx.project_manifest"
+    ):
+        return None, None
+    return authority, project
+
+
+def _complete_draft_sections(
+    draft: Dict[str, object],
+    required_roles: Sequence[str],
+) -> List[int]:
+    complete: List[int] = []
+    authorities = draft.get("authorities") or []
+    if not isinstance(authorities, list):
+        return complete
+    for section in PRIORITY_SECTIONS:
+        present = {
+            item.get("role")
+            for item in authorities
+            if isinstance(item, dict) and item.get("section") == section
+        }
+        if all(role in present for role in required_roles):
+            complete.append(section)
+    return complete
+
+
 def _same_hash_readback(
     inventory: Optional[AcquisitionReceipt],
     workbook: Path,
@@ -741,6 +785,13 @@ def build_work_order(
             inventory_error = str(exc)
             phase = "blocked"
     explicit = bindings or FinishBindings()
+    if dest_path is not None and explicit.authority_manifest is None:
+        found_authority, found_project = _discover_promoted_controls(dest_path)
+        if found_authority is not None and found_project is not None:
+            explicit.authority_manifest = found_authority
+            explicit.project_manifest = found_project
+            if explicit.snapshot_directory is None:
+                explicit.snapshot_directory = dest_path / "intake-snapshot"
     work_orders = [
         _section_work_order(
             section,
@@ -795,6 +846,7 @@ def build_work_order(
             )
     authority_draft = None
     authority_draft_path = None
+    authority_promote_command = None
     if dest_path is not None:
         authority_draft = draft_from_files(
             [] if inventory is None else inventory.files,
@@ -808,6 +860,25 @@ def build_work_order(
             "cannot bind Phase 2 until a named examiner promotes it to "
             "dbx.source_authority_manifest"
         )
+        confirm_sections = _complete_draft_sections(authority_draft, required_roles)
+        if confirm_sections and explicit.authority_manifest is None:
+            authority_promote_command = build_promote_command(
+                draft_path=authority_draft_path,
+                output=str(dest_path / "source-authority.json"),
+                project_manifest_output=str(dest_path / "project_manifest.json"),
+                confirm_sections=confirm_sections,
+                roots=readable,
+            )
+            next_actions.append(
+                "Replace EXAMINER_PROJECT_ID, EXAMINER_DECISION_ID, and "
+                "EXAMINER_NAME, then run: "
+                + authority_promote_command
+            )
+        if explicit.authority_manifest is not None:
+            next_actions.append(
+                "Discovered or bound source-authority.json; Phase 2 snapshot "
+                "uses intake-snapshot/sectionN under receipt-dir"
+            )
     if inventory_error:
         next_actions.append(f"Resolve inventory error: {inventory_error}")
     ready = [order.section for order in work_orders if order.ready_for_extraction]
@@ -858,6 +929,7 @@ def build_work_order(
         technical_pass=phase == "phase1_inventory",
         authority_draft_path=authority_draft_path,
         authority_draft=authority_draft,
+        authority_promote_command=authority_promote_command,
     )
 
 
@@ -947,6 +1019,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "technical_pass": receipt.technical_pass,
                 "packages_complete": receipt.packages_complete,
                 "authority_draft_path": receipt.authority_draft_path,
+                "authority_promote_command": receipt.authority_promote_command,
                 "sections": [
                     {
                         "section": order.section,

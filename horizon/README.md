@@ -57,8 +57,10 @@ verification never means client release.
 
 On the PC that can see section roots, `python -m horizon.pc_operator` probes
 connections, runs Phase 1 inventory, writes an unapproved authority draft
-under `--receipt-dir`, and emits per-section next commands. The draft is not
-Phase 2 and cannot authorize a snapshot.
+under `--receipt-dir`, and emits per-section next commands. A named examiner
+promotes that draft with `python -m horizon.authority_promote`; the next
+operator `--execute` discovers the hash-bound manifests and snapshots
+authorized bytes. The draft itself is not Phase 2.
 `python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.

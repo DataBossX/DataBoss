@@ -120,7 +120,11 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert draft["status"] == "UNAPPROVED_DRAFT"
     assert draft["approved_by"] == ""
     assert receipt.authority_draft_path == str(draft_path.resolve())
-    assert receipt.schema_version == "1.2"
+    assert receipt.schema_version == "1.3"
+    assert receipt.authority_promote_command is not None
+    assert "horizon.authority_promote" in receipt.authority_promote_command
+    assert "EXAMINER_NAME" in receipt.authority_promote_command
+    assert "--confirm-section 15" in receipt.authority_promote_command
     roles = {item["role"] for item in draft["authorities"] if item["section"] == 15}
     assert roles == {"source_document", "master_workbook", "index"}
     assert any("UNAPPROVED_DRAFT" in action for action in receipt.next_actions)
@@ -205,6 +209,50 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
         gate for gate in finish["gates"] if gate["name"] == "drive_readback"
     )
     assert drive_gate["technical_pass"] is True
+
+
+def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> None:
+    from horizon.authority_promote import promote
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    assert first.authority_promote_command is not None
+    promote(
+        draft_path=Path(first.authority_draft_path),
+        output=receipts / "source-authority.json",
+        project_manifest_output=receipts / "project_manifest.json",
+        project_id="DBX-TEST",
+        decision_id="SOURCE-AUTH-001",
+        approved_by="Pat Examiner",
+        confirm_sections=[15],
+        roots=[f"pc={root}"],
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert second.authority_promote_command is None
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    acquisition = next(
+        gate for gate in finish["gates"] if gate["name"] == "source_acquisition"
+    )
+    assert acquisition["technical_pass"] is True
+    assert acquisition["detail"]["phase"] == "phase2_snapshot"
+    assert (receipts / "intake-snapshot" / "section15").is_dir()
 
 
 def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:

@@ -23,9 +23,13 @@ python3 -m horizon.pc_operator \
 3. When `--receipt-dir` is set (with or without `--execute`), writes
    `authority-draft.json` (`dbx.source_authority_draft`, status
    `UNAPPROVED_DRAFT`). Empty `project_id` / `decision_id` / `approved_by`.
-   That file cannot be passed as `--authority-manifest`. A named examiner
-   must copy it to `dbx.source_authority_manifest`, fill those fields, and
-   hash-bind it in the project manifest.
+   That file cannot be passed as `--authority-manifest`. The receipt names a
+   `horizon.authority_promote` command. A named examiner replaces
+   `EXAMINER_PROJECT_ID` / `EXAMINER_DECISION_ID` / `EXAMINER_NAME`, confirms
+   sections whose required roles are classified, and the promoter re-hashes
+   live roots before writing `source-authority.json` plus a hash-bound
+   `project_manifest.json`. A later `--execute` on the same receipt-dir
+   discovers those files and snapshots `intake-snapshot/sectionN`.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`
@@ -52,6 +56,7 @@ python3 -m horizon.pc_operator \
 `technical_pass` means Phase 1 inventory ran against readable roots.
 `--execute` does not start Phase 2 and does not invent field values.
 Phase 1 is expected to leave required-role gaps until a human-approved
-authority manifest exists. Receipt schema `1.2` records the draft path.
+authority manifest exists. Receipt schema `1.3` records the draft path and
+the promote command.
 
 Do not commit the operator receipt. It can contain private paths and hashes.

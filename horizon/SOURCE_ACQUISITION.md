@@ -57,8 +57,28 @@ python3 -m horizon.authority_draft \
 
 That CLI always exits `2`. The file is `dbx.source_authority_draft` /
 `UNAPPROVED_DRAFT` with empty `project_id`, `decision_id`, and `approved_by`.
-Phase 2 rejects it. Review its hashes, then create a separate authority
-manifest from an approved custody or examiner decision:
+Phase 2 rejects it. A named examiner promotes only after reviewing the hashes
+and re-checking live bytes:
+
+```bash
+python3 -m horizon.authority_promote \
+  --draft "/mnt/d/DataBossX/AcquisitionReceipts/authority-draft.json" \
+  --output "/mnt/d/DataBossX/AcquisitionReceipts/source-authority.json" \
+  --project-manifest-output "/mnt/d/DataBossX/AcquisitionReceipts/project_manifest.json" \
+  --project-id "DBX-CAMPBELL-45N-76W" \
+  --decision-id "SOURCE-AUTH-20260914-001" \
+  --approved-by "Pat Examiner" \
+  --confirm-section 15 \
+  --root "pc=/mnt/d/DataBossX/Projects" \
+  --root "drive=/mnt/g/My Drive/DataBossX/Projects"
+```
+
+Placeholders such as `EXAMINER_NAME` or `Named human examiner` are rejected.
+The promoter refuses stale hashes, incomplete required roles, and writes
+inside this repository. Then rerun `pc_operator --execute` against the same
+receipt directory so it can discover the promoted files and take a Phase 2
+snapshot. A hand-built authority manifest remains valid when it uses the
+approved schema:
 
 ```json
 {
@@ -66,7 +86,7 @@ manifest from an approved custody or examiner decision:
   "schema_version": "1.0",
   "project_id": "DBX-CAMPBELL-45N-76W",
   "decision_id": "SOURCE-AUTH-20260909-001",
-  "approved_by": "Named human examiner",
+      "approved_by": "Pat Examiner",
   "authorities": [
     {
       "root_label": "pc",

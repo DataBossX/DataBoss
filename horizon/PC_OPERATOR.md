@@ -88,7 +88,8 @@ python3 -m horizon.pc_operator \
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`
    plus `horizon.package_finish` commands that point at a private receipt
-   directory.
+   directory. Fill hops (Section 11 crops, 2+ drafts, one-source
+   templates) are listed before native Print Preview and owner-review.
 5. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /

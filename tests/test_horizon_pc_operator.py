@@ -8,7 +8,13 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from horizon.pc_operator import FinishBindings, PcOperatorError, build_work_order, main
+from horizon.pc_operator import (
+    FinishBindings,
+    PcOperatorError,
+    _section_commands,
+    build_work_order,
+    main,
+)
 
 
 PENTERRA_HEADERS = [
@@ -182,6 +188,48 @@ def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
     joined = "\n".join(order.next_commands)
     assert "--pdf-index" not in joined
     assert "--master" in joined
+
+
+def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:
+    receipts = tmp_path / "receipts"
+    receipts.mkdir()
+    (receipts / "section15-delta-draft.json").write_text("{}", encoding="utf-8")
+    (receipts / "section15-onesource-template.json").write_text(
+        "{}", encoding="utf-8"
+    )
+    commands = _section_commands(
+        15,
+        root_args=["pc=/tmp"],
+        picks=[],
+        receipt_dir=str(receipts),
+        missing_roles=[],
+        bindings=FinishBindings(),
+    )
+
+    def first(needle: str) -> int:
+        return next(index for index, item in enumerate(commands) if needle in item)
+
+    assert first("horizon.isolated_delta") < first("horizon.native_print")
+    assert first("horizon.native_print") < first("horizon.human_release")
+    commands11 = _section_commands(
+        11,
+        root_args=["pc=/tmp"],
+        picks=[],
+        receipt_dir=str(receipts),
+        missing_roles=[],
+        bindings=FinishBindings(),
+    )
+    crops = next(
+        index
+        for index, item in enumerate(commands11)
+        if "horizon.page_render_export" in item
+    )
+    native = next(
+        index
+        for index, item in enumerate(commands11)
+        if "horizon.native_print" in item
+    )
+    assert crops < native
 
 
 def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:

@@ -549,64 +549,42 @@ def _section_commands(
             "not legal authority and must not fill index cells"
         )
     workbook = _current_isolated_workbook(receipt_dir, section)
-    if bindings.native_print_receipt is None:
-        draft = f"{receipt_dir}/section{section}-native-print-draft.json"
-        commands.append(
-            _quote_command(
-                [
-                    "python3",
-                    "-m",
-                    "horizon.native_print",
-                    "--attest",
-                    "--from-draft",
-                    draft,
-                    "--workbook",
-                    workbook,
-                    "--output",
-                    f"{receipt_dir}/section{section}-native-print.json",
-                    "--operator",
-                    "EXAMINER_NAME",
-                    "--page-count",
-                    "PAGE_COUNT",
-                ]
-            )
-        )
-        commands.append(
-            "On Windows Excel, Print Preview the current isolated workbook, "
-            "then attest the draft with PAGE_COUNT and EXAMINER_NAME"
-        )
-    if bindings.drive_readback is None:
-        commands.append(
-            "Copy the current isolated workbook onto the mounted drive= "
-            f"section folder as section{section}-letter.xlsx or "
-            f"section{section}-delta.xlsx so the next execute can bind readback"
-        )
-    if bindings.human_release_token is None:
-        draft = f"{receipt_dir}/section{section}-owner-review-draft.json"
-        commands.append(
-            _quote_command(
-                [
-                    "python3",
-                    "-m",
-                    "horizon.human_release",
-                    "--attest",
-                    "--from-draft",
-                    draft,
-                    "--workbook",
-                    workbook,
-                    "--output",
-                    f"{receipt_dir}/section{section}-owner-review.json",
-                    "--operator",
-                    "EXAMINER_NAME",
-                ]
-            )
-        )
-        commands.append(
-            "Attest the owner-review draft with EXAMINER_NAME after the "
-            "current isolated workbook is ready for owner review only"
-        )
     queue_path = Path(receipt_dir) / f"section{section}-examiner-queue.json"
     queue_needs_fill = _queue_has_items(queue_path)
+    if section == 11 and bindings.page_render_packet is None:
+        render_dir = _section_render_bind_dir(Path(receipt_dir), section)
+        if render_dir is None:
+            draft = Path(receipt_dir) / f"section{section}-crops-draft.json"
+            try:
+                payload = json.loads(draft.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+            bind_text = payload.get("bind_dir") if isinstance(payload, dict) else ""
+            if isinstance(bind_text, str) and bind_text.strip():
+                render_dir = Path(bind_text)
+        commands.append(
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.page_render_export",
+                    "--attest",
+                    "--from-draft",
+                    f"{receipt_dir}/section{section}-crops-draft.json",
+                    "--bind-dir",
+                    str(render_dir) if render_dir is not None else "RENDER_DIR",
+                    "--output",
+                    f"{receipt_dir}/section{section}-crops.json",
+                    "--operator",
+                    "EXAMINER_NAME",
+                ]
+            )
+        )
+        commands.append(
+            "Fill only face text in section11-crops-draft.json from the "
+            "hashed page renders, then attest; leave bare document numbers "
+            "bare. Horizon does not invent docnos"
+        )
     draft_path = Path(receipt_dir) / f"section{section}-delta-draft.json"
     if bindings.delta_packet is None and draft_path.is_file():
         commands.append(
@@ -678,39 +656,61 @@ def _section_commands(
             f"Put only source-proved fills in section{section}-deltas.json; "
             "do not invent legal, party, or date values from the fill queue"
         )
-    if section == 11 and bindings.page_render_packet is None:
-        render_dir = _section_render_bind_dir(Path(receipt_dir), section)
-        if render_dir is None:
-            draft = Path(receipt_dir) / f"section{section}-crops-draft.json"
-            try:
-                payload = json.loads(draft.read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-                payload = {}
-            bind_text = payload.get("bind_dir") if isinstance(payload, dict) else ""
-            if isinstance(bind_text, str) and bind_text.strip():
-                render_dir = Path(bind_text)
+    if bindings.native_print_receipt is None:
+        draft = f"{receipt_dir}/section{section}-native-print-draft.json"
         commands.append(
             _quote_command(
                 [
                     "python3",
                     "-m",
-                    "horizon.page_render_export",
+                    "horizon.native_print",
                     "--attest",
                     "--from-draft",
-                    f"{receipt_dir}/section{section}-crops-draft.json",
-                    "--bind-dir",
-                    str(render_dir) if render_dir is not None else "RENDER_DIR",
+                    draft,
+                    "--workbook",
+                    workbook,
                     "--output",
-                    f"{receipt_dir}/section{section}-crops.json",
+                    f"{receipt_dir}/section{section}-native-print.json",
+                    "--operator",
+                    "EXAMINER_NAME",
+                    "--page-count",
+                    "PAGE_COUNT",
+                ]
+            )
+        )
+        commands.append(
+            "On Windows Excel, Print Preview the current isolated workbook, "
+            "then attest the draft with PAGE_COUNT and EXAMINER_NAME"
+        )
+    if bindings.drive_readback is None:
+        commands.append(
+            "Copy the current isolated workbook onto the mounted drive= "
+            f"section folder as section{section}-letter.xlsx or "
+            f"section{section}-delta.xlsx so the next execute can bind readback"
+        )
+    if bindings.human_release_token is None:
+        draft = f"{receipt_dir}/section{section}-owner-review-draft.json"
+        commands.append(
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.human_release",
+                    "--attest",
+                    "--from-draft",
+                    draft,
+                    "--workbook",
+                    workbook,
+                    "--output",
+                    f"{receipt_dir}/section{section}-owner-review.json",
                     "--operator",
                     "EXAMINER_NAME",
                 ]
             )
         )
         commands.append(
-            "Fill only face text in section11-crops-draft.json from the "
-            "hashed page renders, then attest; leave bare document numbers "
-            "bare. Horizon does not invent docnos"
+            "Attest the owner-review draft with EXAMINER_NAME after the "
+            "current isolated workbook is ready for owner review only"
         )
     return commands
 

@@ -1,0 +1,22 @@
+{
+  "blm": {
+    "leases": 12,
+    "lease_document_pdfs": 27,
+    "incomplete_series": {},
+    "serial_register_pages": {
+      "WYW-51703": 2,
+      "WYW-89855": 1,
+      "WYW-188048": 1,
+      "WYW-0309257": 1,
+      "WYW-51704": 2,
+      "WYW-48009": 2,
+      "WYW-5955": 2,
+      "WYW-72484": 2,
+      "WYW-47318": 2,
+      "WYW-42622": 2,
+      "WYW-21220": 1,
+      "WYW-72485": 1
+    },
+    "leases_without_srp": []
+  }
+}

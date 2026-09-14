@@ -1,0 +1,29 @@
+{
+  "source_folder": "BLM Fed Files (Additional)",
+  "source_folder_id": "1nwzIHvTshGitB6jn5VNbAlctrhqxpSh5",
+  "verified_utc": "2026-09-14",
+  "lease_documents": [
+    {"lease": "WYW-0309257", "parts_declared": 4, "part_files": ["Part 1 of 4", "Part 2 of 4", "Part 3 of 4", "Part 4 of 4"]},
+    {"lease": "WYW-188048", "parts_declared": 1, "part_files": ["(single)"]},
+    {"lease": "WYW-21220", "parts_declared": 1, "part_files": ["(single)"]},
+    {"lease": "WYW-42622", "parts_declared": 2, "part_files": ["Part 1 of 2", "Part 2 of 2"]},
+    {"lease": "WYW-47318", "parts_declared": 4, "part_files": ["Part 1 of 4", "Part 2 of 4", "Part 3 of 4", "Part 4 of 4"]},
+    {"lease": "WYW-48009", "parts_declared": 2, "part_files": ["Part 1 of 2", "Part 2 of 2"]},
+    {"lease": "WYW-51703", "parts_declared": 1, "part_files": ["(single)"]},
+    {"lease": "WYW-51704", "parts_declared": 6, "part_files": ["Part 1 of 6", "Part 2 of 6", "Part 3 of 6", "Part 4 of 6", "Part 5 of 6", "Part 6 of 6"]},
+    {"lease": "WYW-5955", "parts_declared": 1, "part_files": ["(single)"]},
+    {"lease": "WYW-72484", "parts_declared": 1, "part_files": ["(single)"]},
+    {"lease": "WYW-72485", "parts_declared": 2, "part_files": ["Part 1 of 2", "Part 2 of 2"]},
+    {"lease": "WYW-89855", "parts_declared": 2, "part_files": ["Part 1 of 2", "Part 2 of 2"]}
+  ],
+  "serial_register_pages_dated": [
+    "WYW-0309257 (8.04.2026)", "WYW-188048 (8.12.2026)", "WYW-21220 (8.12.2026)",
+    "WYW-42622 (8.04.2026)", "WYW-47318 (8.04.2026)", "WYW-48009 (8.04.2026)",
+    "WYW-51703 (8.04.2026)", "WYW-51704 (8.04.2026)", "WYW-5955 (8.4.2026)",
+    "WYW-72484 (8.04.2026)", "WYW-72485 (8.08.2026)", "WYW-89855 (8.08.2026)"
+  ],
+  "serial_register_pages_undated_duplicates": [
+    "WYW-42622", "WYW-47318", "WYW-48009", "WYW-51703", "WYW-51704", "WYW-5955", "WYW-72484"
+  ],
+  "archive_zip": {"title": "BLM Fed Files (Additional).zip", "bytes": 1675640542}
+}

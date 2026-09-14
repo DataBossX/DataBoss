@@ -1448,6 +1448,9 @@ def _select_delta_packet(
             path, section, "dbx.source_proved_delta_packet"
         ):
             ordered.append(path)
+    ordered = _paths_preferring_conventional(
+        ordered, f"section{section}-delta-packet.json"
+    )
     if workbook is None or not workbook.is_file() or not ordered:
         return bindings, []
     actual = sha256_file(workbook)
@@ -2154,6 +2157,20 @@ def _crop_packet_matches_section(path: Path, section: int) -> bool:
     )
 
 
+def _paths_preferring_conventional(
+    paths: Sequence[Path], conventional: str
+) -> List[Path]:
+    """Put sectionN-* first; leftover first-wins stay fallback."""
+    preferred: List[Path] = []
+    rest: List[Path] = []
+    for path in paths:
+        if path.name == conventional:
+            preferred.append(path)
+        else:
+            rest.append(path)
+    return preferred + rest
+
+
 def _prefer_conventional_packet(
     candidate: Optional[Path],
     receipt_dir: str,
@@ -2216,6 +2233,13 @@ def _bind_section_workbook_packets(
             section,
             "dbx.human_release_token",
             f"section{section}-owner-review.json",
+        ),
+        delta_packet=_section_named_packet(
+            bindings.delta_packet,
+            receipt_dir,
+            section,
+            "dbx.source_proved_delta_packet",
+            f"section{section}-delta-packet.json",
         ),
     )
 

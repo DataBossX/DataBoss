@@ -143,10 +143,11 @@ python3 -m horizon.pc_operator \
    on the named section the same way, including conventional folders such
    as `Section 15` or `11-45N-76W`. The nearest section-named folder wins
    over a host ancestor. A same-hash readback under a host folder is not
-   unbound unless Isolated/ names another section. Census packets, crop packets, native-print receipts,
-   and owner-review tokens stay on the matching section the same way.
+   unbound unless Isolated/ names another section.    Census packets, crop packets, native-print receipts,
+   owner-review tokens, and attested delta packets stay on the matching
+   section the same way.
    Conventional `sectionN-*.json` receipts win over leftover first-wins
-   that also name that section.
+   that also name that section, including `sectionN-delta-packet.json`.
    Crops rebound with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority

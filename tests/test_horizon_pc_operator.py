@@ -17,6 +17,7 @@ from horizon.pc_operator import (
     PcOperatorError,
     _crop_packet_matches_renders,
     _bind_dir_for_section,
+    _bind_section_workbook_packets,
     _discover_receipt_dir_packets,
     _drive_section_dir,
     _publish_isolated_to_drive,
@@ -25,6 +26,7 @@ from horizon.pc_operator import (
     _section_census_packet,
     _section_crop_packet,
     _section_named_packet,
+    _select_delta_packet,
     _unbind_stale_workbook_packets,
     _section_commands,
     _section_folder_dest,
@@ -2075,6 +2077,26 @@ def test_section_packets_prefer_conventional_over_leftover(
         ),
         encoding="utf-8",
     )
+    leftover_delta = tmp_path / "aaa-p15-deltas.json"
+    leftover_delta.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "packet_id": "SECTION15-DELTA",
+            }
+        ),
+        encoding="utf-8",
+    )
+    conventional_delta = tmp_path / "section15-delta-packet.json"
+    conventional_delta.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "packet_id": "SECTION15-DELTA",
+            }
+        ),
+        encoding="utf-8",
+    )
     assert (
         _section_named_packet(
             leftover_print,
@@ -2090,6 +2112,69 @@ def test_section_packets_prefer_conventional_over_leftover(
         _section_census_packet(leftover_census, str(tmp_path), 15)
         == conventional_census
     )
+    bound = _bind_section_workbook_packets(
+        FinishBindings(delta_packet=leftover_delta),
+        str(tmp_path),
+        15,
+    )
+    assert bound.delta_packet == conventional_delta
+
+
+def test_select_delta_prefers_conventional_then_hash_matched_leftover(
+    tmp_path: Path,
+) -> None:
+    workbook = tmp_path / "section15-letter.xlsx"
+    _write_penterra(workbook)
+    digest = sha256_file(workbook)
+    leftover = tmp_path / "aaa-p15-deltas.json"
+    leftover.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "packet_id": "SECTION15-DELTA",
+                "source_workbook_sha256": digest,
+            }
+        ),
+        encoding="utf-8",
+    )
+    conventional = tmp_path / "section15-delta-packet.json"
+    conventional.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "packet_id": "SECTION15-DELTA",
+                "source_workbook_sha256": digest,
+            }
+        ),
+        encoding="utf-8",
+    )
+    bound, holds = _select_delta_packet(
+        FinishBindings(delta_packet=leftover),
+        [leftover, conventional],
+        workbook,
+        15,
+    )
+    assert bound.delta_packet == conventional
+    assert holds == []
+
+    conventional.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "packet_id": "SECTION15-DELTA",
+                "source_workbook_sha256": "0" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    bound, holds = _select_delta_packet(
+        FinishBindings(delta_packet=leftover),
+        [leftover, conventional],
+        workbook,
+        15,
+    )
+    assert bound.delta_packet == leftover
+    assert holds == []
 
 
 def test_section_census_packet_oserror_does_not_return_other_section(
@@ -2294,6 +2379,64 @@ def test_execute_discovers_named_print_after_other_section_leftover(
         "horizon.native_print" not in command
         for command in second.sections[0].next_commands
     )
+
+
+def test_execute_prefers_conventional_delta_over_leftover(tmp_path: Path) -> None:
+    from horizon.isolated_delta import write_delta_packet
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    leftover_delta = {
+        "row_key": "2026-09901|",
+        "field": "comments",
+        "value": "LEFTOVER FIRST-WINS NOTE",
+        "source_sha256": "a" * 64,
+        "page": 1,
+        "crop_id": "leftover",
+        "replace": False,
+    }
+    write_delta_packet(
+        workbook=letter,
+        deltas=[leftover_delta],
+        output=receipts / "aaa-p15-deltas.json",
+        packet_id="SECTION15-DELTA-LEFTOVER",
+    )
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                **leftover_delta,
+                "value": "CONVENTIONAL PACKET NOTE",
+                "crop_id": "conventional",
+            }
+        ],
+        output=receipts / "section15-delta-packet.json",
+        packet_id="SECTION15-DELTA",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    isolated = receipts / "section15-delta.xlsx"
+    assert isolated.is_file()
+    applied = openpyxl.load_workbook(isolated, data_only=True)
+    assert applied["Index"]["I9"].value == "CONVENTIONAL PACKET NOTE"
+    applied.close()
+    assert list(receipts.glob("section15-delta-packet-applied-*.json"))
+    assert (receipts / "aaa-p15-deltas.json").is_file()
 
 
 def test_execute_does_not_apply_other_section_delta_packet(tmp_path: Path) -> None:

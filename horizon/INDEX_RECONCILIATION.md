@@ -82,3 +82,10 @@ Remaining one-source blanks and conflicts are written to
 `horizon.examiner_queue` / `pc_operator --execute`. Those files do not
 invent values. The examiner fills only source-proved text, then attests
 the template or writes `sectionN-deltas.json`.
+
+Handwritten-index images and PDFs are hashed into
+`sectionN-handwritten-scan-draft.json`. Remaining scans are listed in
+`sectionN-handwritten-scan-queue.json` for transcription into a Penterra
+xlsx. Phase 1 live scans stay out unless copied into
+`sectionN-handwritten-scans/`. After Phase 2, authorized snapshot
+handwritten scans are hashed. Horizon does not OCR or invent rows.

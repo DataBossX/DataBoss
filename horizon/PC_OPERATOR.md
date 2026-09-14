@@ -74,6 +74,11 @@ python3 -m horizon.pc_operator \
    `section11-crop-fill-queue.json` for remaining face fills. Attest the
    draft after a writer holds source-proved text. Crop packets whose
    page hashes no longer match the live renders are unbound.
+   Handwritten-index images/PDFs are hashed into
+   `sectionN-handwritten-scan-draft.json` from
+   `sectionN-handwritten-scans/` or, after Phase 2, authorized snapshot
+   scans. Remaining pages go to `sectionN-handwritten-scan-queue.json`
+   for transcription into a Penterra xlsx. Horizon does not OCR.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

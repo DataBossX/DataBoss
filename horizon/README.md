@@ -66,6 +66,9 @@ is inventoried on `--execute` when present, as are authorized snapshot
 `source_document` PDFs after Phase 2. `expected_pages` is the counted
 page total, not a federal row count. Image-only empty-text PDFs are
 listed in `sectionN-empty-text-queue.json` for face review.
+Handwritten-index scans are hashed into
+`sectionN-handwritten-scan-draft.json` and listed for transcription;
+Horizon does not OCR or invent index rows.
 `--execute` writes
 `sectionN-native-print-draft.json` and `sectionN-owner-review-draft.json`
 bound to the current isolated hash; attest the print draft after Windows

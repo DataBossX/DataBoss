@@ -55,6 +55,11 @@ from .examiner_queue import (
     onesource_rows_from_queue,
     proposed_deltas_from_queue,
 )
+from .handwritten_scan import (
+    HandwrittenScanError,
+    handwritten_scan_queue_from_draft,
+    write_handwritten_scan_draft,
+)
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     IMAGE_EXTENSIONS,
@@ -522,6 +527,15 @@ def _section_commands(
             "Review image-only PDFs in "
             f"section{section}-empty-text-queue.json from the hashed faces; "
             "do not invent legal text from page count"
+        )
+    handwritten_queue = (
+        Path(receipt_dir) / f"section{section}-handwritten-scan-queue.json"
+    )
+    if handwritten_queue.is_file():
+        commands.append(
+            "Transcribe hashed handwritten scans from "
+            f"section{section}-handwritten-scan-queue.json into a Penterra "
+            "xlsx; Horizon does not OCR or invent index rows"
         )
     workbook = _current_isolated_workbook(receipt_dir, section)
     if bindings.native_print_receipt is None:
@@ -1376,6 +1390,114 @@ def _section_render_bind_dir(receipt_dir: Path, section: int) -> Optional[Path]:
     return None
 
 
+def _source_handwritten_scans(
+    inventory: Optional[AcquisitionReceipt],
+    section: int,
+) -> tuple[Optional[Path], List[Path]]:
+    """Authorized Phase 2 snapshot handwritten scans only. Phase 1 stays out."""
+    if inventory is None or not inventory.snapshot_root:
+        return None, []
+    authorized = {
+        (match.assertion.root_label, match.assertion.relative_path)
+        for match in inventory.authority_matches
+        if match.status == "matched"
+        and match.assertion.section == section
+        and match.assertion.role == "handwritten_index"
+    }
+    scan_ext = {".pdf", *IMAGE_EXTENSIONS}
+    paths: List[Path] = []
+    snapshot = Path(inventory.snapshot_root)
+    for item in inventory.files:
+        if item.section != section:
+            continue
+        if item.extension not in scan_ext:
+            continue
+        if item.candidate_role != "handwritten_index":
+            continue
+        if (item.root_label, item.relative_path) not in authorized:
+            continue
+        path = snapshot_path_for(inventory, item)
+        if path.is_file():
+            paths.append(path.resolve())
+    if not paths:
+        return None, []
+    return snapshot.resolve(), paths
+
+
+def _section_handwritten_scan_dir(receipt_dir: Path, section: int) -> Optional[Path]:
+    candidate = receipt_dir / f"section{section}-handwritten-scans"
+    try:
+        if candidate.is_dir():
+            return candidate.resolve()
+    except OSError:
+        return None
+    return None
+
+
+def _write_section_handwritten_scan_draft(
+    receipt_dir: Path,
+    section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    dest = receipt_dir / f"section{section}-handwritten-scan-draft.json"
+    examiner = _section_handwritten_scan_dir(receipt_dir, section)
+    snap_bind, snap_paths = _source_handwritten_scans(inventory, section)
+    try:
+        if examiner is not None:
+            write_handwritten_scan_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-HANDWRITTEN",
+                bind_dir=examiner,
+            )
+        elif snap_bind is not None:
+            write_handwritten_scan_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-HANDWRITTEN",
+                bind_dir=snap_bind,
+                paths=snap_paths,
+            )
+        else:
+            write_handwritten_scan_draft(
+                output=dest,
+                packet_id=f"SECTION{section}-HANDWRITTEN",
+            )
+    except (OSError, HandwrittenScanError) as exc:
+        return None, str(exc)
+    return str(dest), None
+
+
+def _write_handwritten_scan_queue(
+    draft_path: Optional[str],
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str], int]:
+    dest = receipt_dir / f"section{section}-handwritten-scan-queue.json"
+    if not draft_path:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    try:
+        draft = json.loads(Path(draft_path).read_text(encoding="utf-8"))
+        if not isinstance(draft, dict):
+            return None, "handwritten-scan draft is not a JSON object", 0
+        queue = handwritten_scan_queue_from_draft(draft)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        HandwrittenScanError,
+    ) as exc:
+        return None, str(exc), 0
+    items = queue.get("items")
+    count = len(items) if isinstance(items, list) else 0
+    if count == 0:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    dest.write_text(json.dumps(queue, indent=2, sort_keys=True), encoding="utf-8")
+    return str(dest), None, count
+
+
 def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
     candidate = Path(receipt_dir) / f"section{section}-pdfs"
     try:
@@ -1819,6 +1941,31 @@ def _execute_section(
             f"{empty_count} image-only PDF(s) still have empty extracted text; "
             f"see section{order.section}-empty-text-queue.json"
         )
+    handwritten_draft, handwritten_error = _write_section_handwritten_scan_draft(
+        receipt_dir, order.section, inventory=phase2
+    )
+    if handwritten_draft:
+        order.executed_outputs.append(handwritten_draft)
+    if handwritten_error:
+        order.holds.append(
+            f"Handwritten-scan draft failed: {handwritten_error}"
+        )
+    handwritten_queue, handwritten_queue_error, scan_count = (
+        _write_handwritten_scan_queue(
+            handwritten_draft, receipt_dir, order.section
+        )
+    )
+    if handwritten_queue:
+        order.executed_outputs.append(handwritten_queue)
+    if handwritten_queue_error:
+        order.holds.append(
+            f"Handwritten-scan queue failed: {handwritten_queue_error}"
+        )
+    elif scan_count:
+        order.holds.append(
+            f"{scan_count} handwritten scan(s) still need a Penterra xlsx; "
+            f"see section{order.section}-handwritten-scan-queue.json"
+        )
     crops_draft, crops_error = _write_section_crops_draft(
         receipt_dir, order.section, inventory=phase2
     )
@@ -1970,6 +2117,10 @@ def _execute_section(
             order.executed_outputs.append(queue_path)
         if empty_queue:
             order.executed_outputs.append(empty_queue)
+        if handwritten_draft:
+            order.executed_outputs.append(handwritten_draft)
+        if handwritten_queue:
+            order.executed_outputs.append(handwritten_queue)
         if index_packet_path is not None:
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():

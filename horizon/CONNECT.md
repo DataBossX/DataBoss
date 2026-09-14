@@ -30,11 +30,13 @@ python3 -m horizon.pc_operator \
   --output /mnt/d/DataBossX/AcquisitionReceipts/pc-operator.json
 ```
 
-The operator probes connections, runs Phase 1 inventory only, and emits
-per-section next commands (three-workbook `index_export`, then
+The operator probes connections, runs Phase 1 inventory, writes
+`authority-draft.json` (`UNAPPROVED_DRAFT`) under `--receipt-dir`, and
+emits per-section next commands (three-workbook `index_export`, then
 `package_finish`). Pass `--execute` on the PC to run those isolated hops
 into a private `--receipt-dir` outside this repository. It does not copy
-client files into the repo and does not start Phase 2. See
+client files into the repo and does not start Phase 2. Phase 2 rejects
+the draft until a named examiner promotes it. See
 [`PC_OPERATOR.md`](PC_OPERATOR.md).
 
 ## Occurrence packet from page-render crops

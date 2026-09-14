@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .authority_draft import draft_from_files, write_draft
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import sha256_file
@@ -39,7 +40,7 @@ _CANDIDATE_ROLE_EQUIVALENTS = {
 }
 
 RECEIPT_SCHEMA_ID = "dbx.pc_operator_receipt"
-RECEIPT_SCHEMA_VERSION = "1.1"
+RECEIPT_SCHEMA_VERSION = "1.2"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_RECEIPT_PLACEHOLDER = "<private-receipts>"
 SECTION_HOLDS = {
@@ -151,8 +152,11 @@ class OperatorReceipt:
             "Do not start a second Landman Helper controller",
             "technical_pass means readable roots were probed and Phase 1 ran",
             "--execute writes isolated packets under receipt-dir only",
+            "authority-draft.json is UNAPPROVED_DRAFT and cannot bind Phase 2",
         ]
     )
+    authority_draft_path: Optional[str] = None
+    authority_draft: Optional[Dict[str, object]] = None
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
@@ -712,13 +716,13 @@ def build_work_order(
     if any(role not in SOURCE_ROLES for role in required_roles):
         raise PcOperatorError(f"Required roles must come from {sorted(SOURCE_ROLES)}")
     dest_path: Optional[Path] = None
-    if execute:
-        if receipt_dir is None:
-            raise PcOperatorError(
-                "--execute requires --receipt-dir outside this repository"
-            )
+    if receipt_dir is not None:
         dest_path = assert_private_receipt_dir(receipt_dir)
         dest_path.mkdir(parents=True, exist_ok=True)
+    elif execute:
+        raise PcOperatorError(
+            "--execute requires --receipt-dir outside this repository"
+        )
     connections = probe_connections(roots)
     readable = _readable_root_args(connections)
     dest = str(dest_path) if dest_path is not None else _receipt_dir(receipt_dir)
@@ -789,6 +793,21 @@ def build_work_order(
                 f"--execute --receipt-dir {dest}; never write into the "
                 "public repository"
             )
+    authority_draft = None
+    authority_draft_path = None
+    if dest_path is not None:
+        authority_draft = draft_from_files(
+            [] if inventory is None else inventory.files,
+            requested_sections=sections,
+            required_roles=required_roles,
+        )
+        draft_path = write_draft(authority_draft, dest_path / "authority-draft.json")
+        authority_draft_path = str(draft_path)
+        next_actions.append(
+            f"Review {authority_draft_path}; it is UNAPPROVED_DRAFT and "
+            "cannot bind Phase 2 until a named examiner promotes it to "
+            "dbx.source_authority_manifest"
+        )
     if inventory_error:
         next_actions.append(f"Resolve inventory error: {inventory_error}")
     ready = [order.section for order in work_orders if order.ready_for_extraction]
@@ -837,6 +856,8 @@ def build_work_order(
         next_actions=next_actions,
         packages_complete=packages_complete,
         technical_pass=phase == "phase1_inventory",
+        authority_draft_path=authority_draft_path,
+        authority_draft=authority_draft,
     )
 
 
@@ -859,7 +880,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--receipt-dir",
         type=Path,
-        help="Private directory named in generated commands; required with --execute",
+        help=(
+            "Private directory outside this repo. Writes authority-draft.json. "
+            "Required with --execute"
+        ),
     )
     parser.add_argument(
         "--execute",
@@ -922,6 +946,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "acquisition_phase": receipt.acquisition_phase,
                 "technical_pass": receipt.technical_pass,
                 "packages_complete": receipt.packages_complete,
+                "authority_draft_path": receipt.authority_draft_path,
                 "sections": [
                     {
                         "section": order.section,

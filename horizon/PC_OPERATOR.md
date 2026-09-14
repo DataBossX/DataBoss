@@ -19,13 +19,19 @@ python3 -m horizon.pc_operator \
    whether a `cursor worker` is registered on this host.
 2. If at least one root exists and is readable, runs **Phase 1** source
    inventory (hash + classify). It does **not** take a Phase 2 snapshot and
-   does **not** accept an authority manifest.
-3. For each requested section, names classified-file gaps and still-unauthorized
+   does **not** treat filename classification as legal authority.
+3. When `--receipt-dir` is set (with or without `--execute`), writes
+   `authority-draft.json` (`dbx.source_authority_draft`, status
+   `UNAPPROVED_DRAFT`). Empty `project_id` / `decision_id` / `approved_by`.
+   That file cannot be passed as `--authority-manifest`. A named examiner
+   must copy it to `dbx.source_authority_manifest`, fill those fields, and
+   hash-bind it in the project manifest.
+4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`
    plus `horizon.package_finish` commands that point at a private receipt
-   directory. Filename classification is not legal authority.
-4. With `--execute`, those isolated hops actually run into `--receipt-dir`.
+   directory.
+5. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /
    `--snapshot-directory` are passed through so Phase 2 can authorize
@@ -39,12 +45,13 @@ python3 -m horizon.pc_operator \
 - Copy client files into this public repository
 - Invent legal, party, recorded-date, or document-type values
 - Start a second Landman Helper controller
-- Claim `packages_complete`
+- Claim `packages_complete` from Phase 1 or from an unapproved draft
 - Treat filename classification as legal authority
+- Bind `authority-draft.json` as Phase 2
 
 `technical_pass` means Phase 1 inventory ran against readable roots.
 `--execute` does not start Phase 2 and does not invent field values.
 Phase 1 is expected to leave required-role gaps until a human-approved
-authority manifest exists.
+authority manifest exists. Receipt schema `1.2` records the draft path.
 
 Do not commit the operator receipt. It can contain private paths and hashes.

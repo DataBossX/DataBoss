@@ -44,9 +44,21 @@ python3 -m horizon.source_acquisition \
 ```
 
 This first receipt is expected to exit `2`. Filename classification is only a
-candidate inventory and cannot establish legal authority. Review its hashes,
-then create a separate authority manifest from an approved custody or examiner
-decision:
+candidate inventory and cannot establish legal authority. On the PC, the
+operator also writes an unapproved hash draft:
+
+```bash
+python3 -m horizon.authority_draft \
+  --root "pc=/mnt/d/DataBossX/Projects" \
+  --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
+  --section 15 --section 13 --section 11 \
+  --output "/mnt/d/DataBossX/AcquisitionReceipts/authority-draft.json"
+```
+
+That CLI always exits `2`. The file is `dbx.source_authority_draft` /
+`UNAPPROVED_DRAFT` with empty `project_id`, `decision_id`, and `approved_by`.
+Phase 2 rejects it. Review its hashes, then create a separate authority
+manifest from an approved custody or examiner decision:
 
 ```json
 {

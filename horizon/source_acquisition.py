@@ -575,6 +575,14 @@ def load_authority_manifest(
         raise SourceAcquisitionError(
             "Source authority hash differs from the project manifest"
         )
+    if isinstance(payload, dict) and (
+        payload.get("schema_id") == "dbx.source_authority_draft"
+        or payload.get("status") == "UNAPPROVED_DRAFT"
+    ):
+        raise SourceAcquisitionError(
+            "UNAPPROVED_DRAFT cannot bind Phase 2; promote to "
+            "dbx.source_authority_manifest first"
+        )
     if not isinstance(payload, dict) or set(payload) != {
         "schema_id",
         "schema_version",

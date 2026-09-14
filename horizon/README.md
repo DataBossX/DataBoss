@@ -56,7 +56,9 @@ contracts. Checks that have no deterministic validator remain blocking; technica
 verification never means client release.
 
 On the PC that can see section roots, `python -m horizon.pc_operator` probes
-connections, runs Phase 1 inventory, and emits per-section next commands.
+connections, runs Phase 1 inventory, writes an unapproved authority draft
+under `--receipt-dir`, and emits per-section next commands. The draft is not
+Phase 2 and cannot authorize a snapshot.
 `python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.

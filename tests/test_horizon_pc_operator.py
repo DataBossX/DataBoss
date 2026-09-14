@@ -113,6 +113,17 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert by_section[11].ready_for_extraction is False
     assert any("page-render" in command for command in by_section[11].next_commands)
     assert any("Phase 2" in action for action in receipt.next_actions)
+    draft_path = receipts / "authority-draft.json"
+    assert draft_path.is_file()
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
+    assert draft["schema_id"] == "dbx.source_authority_draft"
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["approved_by"] == ""
+    assert receipt.authority_draft_path == str(draft_path.resolve())
+    assert receipt.schema_version == "1.2"
+    roles = {item["role"] for item in draft["authorities"] if item["section"] == 15}
+    assert roles == {"source_document", "master_workbook", "index"}
+    assert any("UNAPPROVED_DRAFT" in action for action in receipt.next_actions)
     bound = build_work_order(
         roots=[f"pc={root}"],
         sections=[15],
@@ -175,6 +186,8 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     assert payload["packages_complete"] is False
     assert source.read_bytes() == before
     assert any("Executed isolated" in action for action in receipt.next_actions)
+    assert (receipts / "authority-draft.json").is_file()
+    assert receipt.authority_draft["status"] == "UNAPPROVED_DRAFT"
     letter = receipts / "section15-letter.xlsx"
     copy = receipts / "drive-copy.xlsx"
     copy.write_bytes(letter.read_bytes())
@@ -198,6 +211,8 @@ def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:
     repo_horizon = Path(__file__).resolve().parents[1] / "horizon"
     with pytest.raises(PcOperatorError, match="outside this repository"):
         build_work_order(execute=True, receipt_dir=repo_horizon)
+    with pytest.raises(PcOperatorError, match="outside this repository"):
+        build_work_order(receipt_dir=repo_horizon)
     with pytest.raises(PcOperatorError, match="receipt-dir"):
         build_work_order(execute=True)
 

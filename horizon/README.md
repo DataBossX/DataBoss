@@ -55,6 +55,12 @@ hard human release gate, use `python -m horizon.controlled_loop`. See
 contracts. Checks that have no deterministic validator remain blocking; technical
 verification never means client release.
 
+On the PC that can see section roots, `python -m horizon.package_finish` chains
+acquisition, re-extraction, occurrence ledger, isolated source-proved deltas,
+and Penterra workbook QA. See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md) and
+[`ISOLATED_DELTA.md`](ISOLATED_DELTA.md). `packages_complete` stays false until
+a verified snapshot, source-backed rows, native Excel, and human release exist.
+
 ### Build a report from the reference workbook (Intelligence Layer)
 
 Point `--build-from` at a workbook that has an **OGL** sheet and a **Runsheet**

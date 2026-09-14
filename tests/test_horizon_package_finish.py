@@ -58,6 +58,9 @@ def _penterra_workbook(path: Path, *, blank_legal: bool = False) -> None:
             "",
         ]
     )
+    sheet.page_setup.orientation = "landscape"
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
+    sheet.print_title_rows = "1:8"
     workbook.save(path)
     workbook.close()
 
@@ -170,6 +173,25 @@ def test_penterra_profile_blocks_blank_legal(tmp_path: Path) -> None:
         finding.code == "abstract_required_field_blank"
         and finding.cell == "H9"
         for finding in report.findings
+    )
+
+
+def test_a4_index_fails_letter_print_layout(tmp_path: Path) -> None:
+    workbook = tmp_path / "index.xlsx"
+    _penterra_workbook(workbook)
+    loaded = openpyxl.load_workbook(workbook)
+    loaded["Index"].page_setup.paperSize = loaded["Index"].PAPERSIZE_A4
+    loaded.save(workbook)
+    loaded.close()
+    receipt = run_finish(sections=[15], workbook=workbook)
+    assert receipt.packages_complete is False
+    assert receipt.technical_pass is False
+    qa = next(gate for gate in receipt.gates if gate.name == "workbook_qa")
+    assert qa.technical_pass is False
+    assert any(
+        finding["code"] == "abstract_layout_mismatch"
+        and finding["cell"] == ""
+        for finding in qa.detail["findings"]
     )
 
 

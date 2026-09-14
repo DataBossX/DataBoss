@@ -996,6 +996,7 @@ def _check_abstract_print_layout(
             actual_value = supported[setting](worksheet)
             if setting in _LAYOUT_REFERENCE_SETTINGS:
                 expected_value = _normalize_print_reference(expected_value)
+                actual_value = _normalize_print_reference(actual_value)
             if actual_value != expected_value:
                 findings.append(
                     QAFinding(

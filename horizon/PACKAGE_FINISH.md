@@ -21,7 +21,9 @@ python3 -m horizon.package_finish \
 `--workbook` defaults to `horizon/profiles/penterra_index_v1.json`: seven-row
 header block, then the nine-column Penterra table. Required cells are document
 type, grantor, grantee, Doc No, Rec Date, and legal description. Book-Page may
-be blank on modern e-recorded rows. Pass `--workbook-profile` to override.
+be blank on modern e-recorded rows. The Index sheet must be US Letter
+(`paper_size` 1), landscape, with print titles on rows 1–8. A4 or a missing
+`pageSetup` / Print_Titles block fails. Pass `--workbook-profile` to override.
 
 `--delta-packet` plus `--delta-output` apply a writer-held source-proved
 packet to a **new** isolated copy, then run workbook QA on that copy. The

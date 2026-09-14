@@ -48,7 +48,10 @@ RECEIPT_SCHEMA_VERSION = "1.0"
 DEFAULT_WORKBOOK_PROFILE = (
     Path(__file__).resolve().parent / "profiles" / "penterra_index_v1.json"
 )
-DEFAULT_WORKBOOK_CHECKS = ("abstract_required_fields",)
+DEFAULT_WORKBOOK_CHECKS = (
+    "abstract_required_fields",
+    "abstract_print_layout",
+)
 
 
 class PackageFinishError(ValueError):

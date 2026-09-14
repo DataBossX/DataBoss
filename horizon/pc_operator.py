@@ -154,7 +154,18 @@ def _payload_names_section(
     if packet_id:
         marks.update(_section_marks(packet_id))
     priority = {mark for mark in marks if mark in PRIORITY_SECTIONS}
-    return priority == {section}
+    if priority != {section}:
+        return False
+    raw_sections = payload.get("sections")
+    if isinstance(raw_sections, list) and raw_sections:
+        token_sections = {
+            item
+            for item in raw_sections
+            if type(item) is int and item in PRIORITY_SECTIONS
+        }
+        if token_sections and token_sections != {section}:
+            return False
+    return True
 
 
 def _bind_dir_for_section(candidate: Optional[Path], section: int) -> Optional[Path]:

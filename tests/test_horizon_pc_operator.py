@@ -1982,6 +1982,33 @@ def test_discover_receipt_dir_packets_stays_on_named_section(tmp_path: Path) -> 
     )
 
 
+def test_discover_owner_review_stays_on_token_sections(tmp_path: Path) -> None:
+    (tmp_path / "section15-owner-review.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.human_release_token",
+                "packet_id": "SECTION15-OWNER-REVIEW",
+                "sections": [15, 13],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section13-owner-review.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.human_release_token",
+                "packet_id": "SECTION13-OWNER-REVIEW",
+                "sections": [13],
+            }
+        ),
+        encoding="utf-8",
+    )
+    found15 = _discover_receipt_dir_packets(tmp_path, 15)
+    found13 = _discover_receipt_dir_packets(tmp_path, 13)
+    assert "human_release_token" not in found15
+    assert found13["human_release_token"].name == "section13-owner-review.json"
+
+
 def test_section_census_packet_oserror_does_not_return_other_section(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

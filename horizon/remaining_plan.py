@@ -21,6 +21,8 @@ from .human_release import evaluate_package_completion
 from .isolated_delta import sha256_file
 from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
 
+_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
+
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
 PLAN_SCHEMA_VERSION = "1.5"
 BUNDLE_SCHEMA_ID = "dbx.remaining_plan_bundle"
@@ -221,6 +223,46 @@ def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
     )
 
 
+def _priority_section_marks(*texts: str) -> set[int]:
+    marks: set[int] = set()
+    for text in texts:
+        if not text:
+            continue
+        marks.update(int(match.group(1)) for match in _SECTION_MARK.finditer(text))
+    return {mark for mark in marks if mark in PRIORITY_SECTIONS}
+
+
+def _queue_exclusive_section(
+    payload: Dict[str, object],
+    filename: str,
+    section: int,
+) -> bool:
+    if not payload:
+        return True
+    marks = _priority_section_marks(filename, str(payload.get("packet_id") or ""))
+    raw_sections = payload.get("sections")
+    if isinstance(raw_sections, list):
+        marks.update(
+            item
+            for item in raw_sections
+            if type(item) is int and item in PRIORITY_SECTIONS
+        )
+    if not marks:
+        return True
+    return marks == {section}
+
+
+def _queue_section_gap(
+    payload: Dict[str, object],
+    filename: str,
+    section: int,
+    label: str,
+) -> str:
+    if not payload or _queue_exclusive_section(payload, filename, section):
+        return ""
+    return f"{label} is bound to another section"
+
+
 def _queue_bound_to_isolated(
     payload: Dict[str, object],
     isolated_sha256: str,
@@ -260,9 +302,10 @@ def _fill_queue_lines(
 ) -> List[str]:
     lines: List[str] = []
     for slot, schema_id, collection, template in FILL_QUEUE_GAPS:
-        payload = _load_queue(
-            receipt_dir, OPEN_QUEUE_FILES[slot].format(section=section), schema_id
-        )
+        filename = OPEN_QUEUE_FILES[slot].format(section=section)
+        payload = _load_queue(receipt_dir, filename, schema_id)
+        if not _queue_exclusive_section(payload, filename, section):
+            continue
         if slot in {"onesource_template", "delta_draft"}:
             if payload.get("status") != "UNAPPROVED_DRAFT":
                 continue
@@ -308,12 +351,42 @@ def _fill_draft_hash_gaps(
     return lines
 
 
+def _fill_section_gaps(receipt_dir: Path, section: int) -> List[str]:
+    lines: List[str] = []
+    slots = (
+        ("examiner_queue", EXAMINER_QUEUE_SCHEMA_ID, "examiner queue"),
+        ("crop_fill_queue", "dbx.crop_fill_queue", "crop fill queue"),
+        (
+            "handwritten_scan_queue",
+            "dbx.handwritten_scan_queue",
+            "handwritten scan queue",
+        ),
+        ("empty_text_queue", "dbx.empty_text_pdf_queue", "empty-text queue"),
+        (
+            "onesource_template",
+            "dbx.source_proved_delta_template",
+            "onesource template",
+        ),
+        ("delta_draft", "dbx.source_proved_delta_draft", "delta draft"),
+    )
+    for slot, schema_id, label in slots:
+        filename = OPEN_QUEUE_FILES[slot].format(section=section)
+        payload = _load_queue(receipt_dir, filename, schema_id)
+        gap = _queue_section_gap(payload, filename, section, label)
+        if gap:
+            lines.append(gap)
+    return lines
+
+
 def _field_gaps_from_queue(
     receipt_dir: Path,
     section: int,
     isolated_sha256: str = "",
 ) -> Dict[str, int]:
     payload = _load_examiner_queue(receipt_dir, section)
+    filename = OPEN_QUEUE_FILES["examiner_queue"].format(section=section)
+    if not _queue_exclusive_section(payload, filename, section):
+        return {}
     if not _queue_bound_to_isolated(payload, isolated_sha256):
         return {}
     gaps: Dict[str, int] = {}
@@ -334,6 +407,9 @@ def _by_field_from_queue(
     isolated_sha256: str = "",
 ) -> Dict[str, Dict[str, int]]:
     payload = _load_examiner_queue(receipt_dir, section)
+    filename = OPEN_QUEUE_FILES["examiner_queue"].format(section=section)
+    if not _queue_exclusive_section(payload, filename, section):
+        return {}
     if not _queue_bound_to_isolated(payload, isolated_sha256):
         return {}
     items = payload.get("items")
@@ -542,6 +618,11 @@ def remaining_plan(
         for line in _fill_draft_hash_gaps(receipt_dir, section, isolated_sha)
         if line not in extra
     )
+    extra.extend(
+        line
+        for line in _fill_section_gaps(receipt_dir, section)
+        if line not in extra
+    )
     missing = extra + [item for item in missing if item not in extra]
     if extra:
         complete = False
@@ -664,6 +745,7 @@ def remaining_plan(
             "examiner-queue counts bound to a different workbook hash are ignored",
             "examiner-queue counts without a workbook hash are ignored once an isolated file exists",
             "onesource and delta drafts without a workbook hash are ignored once an isolated file exists",
+            "fill queues whose packet_id names another priority section are ignored",
             "Drive Isolated/ stays until the bound copy is under Isolated/",
             "Drive Isolated/ stays until that copy hashes the current isolated file",
             "technical_pass is not package release",

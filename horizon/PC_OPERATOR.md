@@ -137,8 +137,9 @@ python3 -m horizon.pc_operator \
    are discovered by `schema_id` when present, or passed explicitly.
    Discovery keeps only packets whose name or `packet_id` names that
    section (`SECTION{N}` / `sectionN` / `P{N}`).    A leftover that names
-   more than one priority section is not bound. Unlabeled leftovers are
-   not auto-bound. CLI `--pdf-bind-dir` / `--page-render-bind-dir` stay
+   more than one priority section is not bound. Owner-review tokens whose
+   `sections` field names another priority section are not bound.
+   Unlabeled leftovers are not auto-bound. CLI `--pdf-bind-dir` / `--page-render-bind-dir` stay
    on the named section the same way. Census packets, crop packets, native-print receipts,
    and owner-review tokens stay on the matching section the same way.
    Crops rebound with `sectionN-renders` before finish.

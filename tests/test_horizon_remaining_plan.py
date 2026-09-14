@@ -664,6 +664,35 @@ def test_remaining_plan_fill_queues_block_completion(
     assert "DO NOT COPY" not in dumped
 
 
+def test_remaining_plan_other_section_fill_queue_does_not_apply_counts(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION11-CROPS",
+                "items": [
+                    {"page": 1, "action": "source_proved_fill"},
+                    {"page": 2, "action": "source_proved_fill"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "2 page-render crop(s) still need face text" not in plan["missing"]
+    assert "crop fill queue is bound to another section" in plan["missing"]
+
+
 def test_remaining_plan_supporting_queue_does_not_block_completion(
     tmp_path: Path,
 ) -> None:

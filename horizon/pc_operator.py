@@ -1877,6 +1877,11 @@ def _write_section_remaining_plan(
             finish = payload
     try:
         isolated = Path(_current_isolated_workbook(str(receipt_dir), order.section))
+        unauthorized = [
+            role
+            for role in order.missing_required_roles
+            if role not in order.missing_candidate_roles
+        ]
         plan = remaining_plan(
             section=order.section,
             finish=finish,
@@ -1885,6 +1890,7 @@ def _write_section_remaining_plan(
             next_commands=order.next_commands,
             missing_required_roles=order.missing_required_roles,
             missing_candidate_roles=order.missing_candidate_roles,
+            unauthorized_classified_roles=unauthorized,
             isolated_workbook=isolated if isolated.is_file() else None,
         )
         dest = receipt_dir / f"section{order.section}-remaining-plan.json"

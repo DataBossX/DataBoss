@@ -35,10 +35,11 @@ hashed handwritten scans, and promote authority. OCR is not a source of
 legal facts. Chat and OCR files hashed into
 `sectionN-supporting-record-queue.json` are review-only and must not
 fill index cells. After `--execute`, review `remaining-plan.json` in
-order 15, then 13, then 11. The plan names missing typed/handwritten
-index roles, per-field blank/conflict counts, and connection gaps
-(worker, Slack/Notion, Excel, readable roots). Do not start a second
-controller.
+order 15, then 13, then 11. The plan names files that are still
+missing, classified typed/handwritten index roles that still need
+Phase-2 `authority_promote`, per-field blank/conflict counts, and
+connection gaps (worker, Slack/Notion, Excel, readable roots). Do
+not start a second controller.
 
 ## PC work order
 

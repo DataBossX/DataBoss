@@ -1,8 +1,9 @@
 """Build a remaining-gates plan from finish evidence.
 
 The plan does not invent legal, party, or date values. It names
-unfinished gates, missing source roles, and blank/conflict counts
-from finish receipts or examiner queues that already exist.
+unfinished gates, missing source files, classified roles that still
+need Phase-2 authority, and blank/conflict counts from finish
+receipts or examiner queues that already exist.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from .isolated_delta import sha256_file
 from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
 
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
-PLAN_SCHEMA_VERSION = "1.3"
+PLAN_SCHEMA_VERSION = "1.4"
 BUNDLE_SCHEMA_ID = "dbx.remaining_plan_bundle"
 BUNDLE_SCHEMA_VERSION = "1.1"
 EXAMINER_QUEUE_SCHEMA_ID = "dbx.examiner_fill_queue"
@@ -223,12 +224,24 @@ def _gap_lines(
     *,
     missing_required_roles: Sequence[str],
     missing_candidate_roles: Sequence[str],
+    unauthorized_classified_roles: Sequence[str],
     field_gaps: Dict[str, int],
     by_field: Dict[str, Dict[str, int]],
 ) -> List[str]:
     lines: List[str] = []
+    unauthorized = set(unauthorized_classified_roles)
     for role in missing_required_roles:
-        lines.append(f"missing required role {role}")
+        if role in unauthorized:
+            lines.append(
+                f"required role {role} is classified but not Phase-2 authorized"
+            )
+        else:
+            lines.append(f"missing required role {role}")
+    if unauthorized:
+        lines.append(
+            "Promote classified files with horizon.authority_promote "
+            "before Phase 2 snapshots"
+        )
     for role in missing_candidate_roles:
         label = f"missing classified candidate {role}"
         if label not in lines and f"missing required role {role}" not in lines:
@@ -264,6 +277,7 @@ def remaining_plan(
     next_commands: Sequence[str] = (),
     missing_required_roles: Sequence[str] = (),
     missing_candidate_roles: Sequence[str] = (),
+    unauthorized_classified_roles: Sequence[str] = (),
     isolated_workbook: Optional[Path] = None,
 ) -> Dict[str, object]:
     if section not in PRIORITY_SECTIONS:
@@ -291,6 +305,9 @@ def remaining_plan(
         _roles_from_finish(gates, section),
     )
     candidate_roles = _ordered_roles(_string_list(list(missing_candidate_roles)))
+    unauthorized_roles = _ordered_roles(
+        _string_list(list(unauthorized_classified_roles))
+    )
     field_gaps = _merge_field_gaps(
         _field_gaps_from_queue(receipt_dir, section),
         _field_gaps_from_finish(gates),
@@ -299,6 +316,7 @@ def remaining_plan(
     extra = _gap_lines(
         missing_required_roles=required_roles,
         missing_candidate_roles=candidate_roles,
+        unauthorized_classified_roles=unauthorized_roles,
         field_gaps=field_gaps,
         by_field=by_field,
     )
@@ -333,6 +351,7 @@ def remaining_plan(
         "missing": missing,
         "missing_required_roles": required_roles,
         "missing_candidate_roles": candidate_roles,
+        "unauthorized_classified_roles": unauthorized_roles,
         "field_gaps": {**field_gaps, "by_field": by_field},
         "gates": [
             {
@@ -348,6 +367,8 @@ def remaining_plan(
         "notes": [
             "This plan does not invent legal, party, or date values",
             "Typed index and handwritten_index are separate required roles",
+            "Classified-but-unauthorized roles are Phase-2 holds, not missing files",
+            "Classified files still need Phase-2 authority before extraction",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",

@@ -70,12 +70,64 @@ def test_remaining_plan_names_missing_index_roles_from_finish(tmp_path: Path) ->
         ],
     }
     plan = remaining_plan(section=15, finish=finish, receipt_dir=tmp_path)
-    assert plan["schema_version"] == "1.3"
+    assert plan["schema_version"] == "1.4"
     assert plan["missing_required_roles"] == ["index", "handwritten_index"]
+    assert plan["unauthorized_classified_roles"] == []
     assert "missing required role index" in plan["missing"]
     assert "missing required role handwritten_index" in plan["missing"]
     assert plan["packages_complete"] is False
     assert "legal" not in json.dumps(plan["missing"])
+
+
+def test_remaining_plan_names_classified_roles_awaiting_phase2(
+    tmp_path: Path,
+) -> None:
+    plan = remaining_plan(
+        section=15,
+        finish=None,
+        receipt_dir=tmp_path,
+        missing_required_roles=["index", "handwritten_index"],
+        missing_candidate_roles=[],
+        unauthorized_classified_roles=["index", "handwritten_index"],
+    )
+    assert plan["schema_version"] == "1.4"
+    assert plan["unauthorized_classified_roles"] == [
+        "index",
+        "handwritten_index",
+    ]
+    assert (
+        "required role index is classified but not Phase-2 authorized"
+        in plan["missing"]
+    )
+    assert "missing required role index" not in plan["missing"]
+    assert any("authority_promote" in item for item in plan["missing"])
+    assert plan["packages_complete"] is False
+
+
+def test_remaining_plan_separates_missing_files_from_unauthorized_roles(
+    tmp_path: Path,
+) -> None:
+    plan = remaining_plan(
+        section=15,
+        finish=None,
+        receipt_dir=tmp_path,
+        missing_required_roles=["index", "handwritten_index"],
+        missing_candidate_roles=["handwritten_index"],
+        unauthorized_classified_roles=["index"],
+    )
+    assert plan["schema_version"] == "1.4"
+    assert plan["unauthorized_classified_roles"] == ["index"]
+    assert (
+        "required role index is classified but not Phase-2 authorized"
+        in plan["missing"]
+    )
+    assert "missing required role handwritten_index" in plan["missing"]
+    assert "missing required role index" not in plan["missing"]
+    assert (
+        "required role handwritten_index is classified but not Phase-2 authorized"
+        not in plan["missing"]
+    )
+    assert any("authority_promote" in item for item in plan["missing"])
 
 
 def test_remaining_plan_names_blank_and_conflict_counts(tmp_path: Path) -> None:
@@ -233,7 +285,7 @@ def test_remaining_plan_names_isolated_workbook_without_cell_text(
         receipt_dir=tmp_path,
         isolated_workbook=letter,
     )
-    assert plan["schema_version"] == "1.3"
+    assert plan["schema_version"] == "1.4"
     assert plan["isolated_workbook"]["name"] == "section15-letter.xlsx"
     assert plan["isolated_workbook"]["sha256"] == sha256_file(letter)
     assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]

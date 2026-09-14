@@ -172,6 +172,44 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert "--snapshot-directory" in joined_bound
 
 
+def test_operator_remaining_plan_names_classified_roles_as_phase2(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert plan["schema_version"] == "1.4"
+    assert plan["unauthorized_classified_roles"] == [
+        "source_document",
+        "master_workbook",
+        "index",
+        "handwritten_index",
+    ]
+    assert plan["missing_candidate_roles"] == []
+    assert (
+        "required role index is classified but not Phase-2 authorized"
+        in plan["missing"]
+    )
+    assert (
+        "required role handwritten_index is classified but not Phase-2 authorized"
+        in plan["missing"]
+    )
+    assert "missing required role index" not in plan["missing"]
+    assert "missing required role handwritten_index" not in plan["missing"]
+    assert any("authority_promote" in item for item in plan["missing"])
+
+
 def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     section = root / "Section 13"

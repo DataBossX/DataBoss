@@ -122,10 +122,12 @@ python3 -m horizon.pc_operator \
    and the receipt directory gets `remaining-plan.json` in priority
    order 15, then 13, then 11. The plan names the current isolated
    Letter or delta (name and SHA-256 only), unfinished gates,
-   missing typed/handwritten index roles, per-field blank/conflict
-   counts from the examiner queue (field names only), existing queues,
-   and a connection snapshot (roots readable, Excel, Slack/Notion,
-   cursor worker). It does not invent field values or copy cell text.
+   files that are still missing, classified typed/handwritten index
+   roles that still need Phase-2 `authority_promote`, per-field
+   blank/conflict counts from the examiner queue (field names only),
+   existing queues, and a connection snapshot (roots readable, Excel,
+   Slack/Notion, cursor worker). It does not invent field values or
+   copy cell text.
       `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate.
 

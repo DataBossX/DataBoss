@@ -1,106 +1,116 @@
 # ACK Receipt — DBX Checker Integration Order
 
-- **Status: BLOCKED — no downstream action taken.**
-- Receipt location: this file did not previously exist. No "existing private
-  receipt location" was found anywhere in this repository (see Findings
-  below), so this receipt is being written at a newly created, clearly
-  labeled path (`docs/receipts/`) rather than an invented one.
+- **Status: NOT EXECUTED IN THIS ENVIRONMENT.**
+- Receipt location: this file did not previously exist. No existing
+  receipt store was found *in this inspected repository/revision*, so this
+  receipt is written at a newly created, clearly labeled path
+  (`docs/receipts/`) rather than an invented one.
+- This is a public repository. Per `SECURITY.md`, this receipt excludes
+  cloud document identifiers, session/telemetry locators, and any other
+  private locator — see "What this receipt deliberately omits" below.
 
 ## 1. Timestamp
 
-`2026-09-14T18:45:51Z` (UTC, from `date -u`)
+`2026-09-14T18:45:51Z` (UTC, from `date -u`), corrected/sanitized
+`2026-09-14T19:0x:xxZ`.
 
-## 2. Authenticated session / worker identity
+## 2. Scope of this checkout (corrected)
 
-- Session: Claude Code Remote session
-  `https://claude.ai/code/session_015b1RpVhtJ1XdXpE9mtQxte`
-- This is the only agent/worker active against this checkout in this session.
-  No other Claude Code Remote session, dispatcher, or worker process was
-  found to be attached to this repo or branch (checked via git history and
-  `mcp__github__list_pull_requests`, which returned zero PRs for this branch).
+This receipt describes only what was inspected: **a cloud checkout of the
+public GitHub repository, running in an ephemeral Linux sandbox.** Verified
+directly:
 
-## 3. Repo / branch / dirty state (verified)
+- `hostname` → `vm`; `uname -a` → Linux, x86_64, cloud sandbox kernel
+- Working directory → `/home/user/DataBoss` (this git checkout)
+- No `C:\...` path exists on this host (Windows paths are not applicable to
+  this Linux sandbox)
+- `127.0.0.1:4210` → connection refused (nothing listening locally)
 
-- Repo path: `/home/user/DataBoss`
-- Remote: `https://github.com/DataBossX/DataBoss`
-- Branch: `claude/dbx-checker-integration-order-ssukp1` (already checked out,
-  matches the assigned branch)
-- HEAD: `582d95161cf8220fb37f5224e21e57dcc5c3121c`
-- Working tree: **clean** (`git status --porcelain` → 0 lines)
-- Open PR for this branch: **none** (`list_pull_requests` → `[]`)
+**This does not prove that no separate PC installation, controller,
+dispatcher, or local runtime exists.** It proves only that *this sandboxed
+checkout* does not have one and cannot observe one. The original version of
+this receipt overstated the finding as "no dispatcher/controller/queue
+exists" — that was wrong. The corrected finding is:
 
-## 4. Existing controller / queue / dispatcher health
+> Not found in the inspected repository/revision; actual PC runtime not
+> inspected.
 
-**Finding: none of this infrastructure exists in the codebase.**
+A clean working tree and an empty open-PR list are evidence about *this
+checkout's git state* only. They are not writer-lease evidence and do not
+establish sole-writer status against any process outside this checkout.
 
-Searched the full tree (`find` + `grep -rliE`) for any implementation of a
-controller, dispatcher, task queue, worker-lease/heartbeat mechanism, or
-receipt store:
+## 3. Repo / branch / dirty state (verified, this checkout only)
 
-- No matches for `dispatcher`, `job_id`, `worker_ack`, `heartbeat`,
-  `WRITER_COUNT` anywhere in code — the only hit in the whole repo is
-  `docs/DATABOSSX_OS_BLUEPRINT.md`, which is a **design document** for a
-  target architecture (FastAPI control API, SQLite task engine, orchestrator
-  + worker leases) that the blueprint itself says still needs to be *built*
-  (see its "Build sequence", Phases 0–6 — none are marked complete).
-- No `controller`, `queue`, `checker` runtime directories or modules beyond
-  UI-level naming (`mineral_deal_room/src/pages/ReviewQueue.tsx`,
-  `doto_image_commander/pages/2_Queue.py`), neither of which is a task
-  dispatcher.
-- No receipts directory existed before this file.
+- Branch: `claude/dbx-checker-integration-order-ssukp1`
+- Working tree: clean at inspection time (`git status --porcelain` → 0
+  lines)
+- No open PR existed for this branch before this task began
 
-Conclusion: **there is no existing dispatcher to obtain a real job ID, worker
-ACK, or heartbeat from.** Per the order's own rule ("Do not label anything
-RUNNING until the existing dispatcher returns a real job ID, worker ACK, and
-heartbeat"), nothing in this task can be marked RUNNING, and no new
-controller/queue/database/watcher/report-writer will be created to satisfy
-that requirement (the order also explicitly forbids standing up a second one
-of any of those, and per the blueprint's "One writer" rule, none should be
-created ad hoc without being the actual orchestrator).
+## 4. Controller / queue / dispatcher — corrected finding
 
-## 5. Sole code-writer status
+Searched this checkout's tree for controller/dispatcher/queue/heartbeat
+implementations. Result: **not found in the inspected repository/revision.**
+`docs/DATABOSSX_OS_BLUEPRINT.md` describes a target architecture for this
+system; its build phases are marked not-yet-complete in that document. No
+conclusion is drawn about any runtime that may exist outside this checkout
+(e.g., on a separately authorized PC) — that was not inspected and is out of
+reach of this sandbox.
 
-No other agent, session, or process was observed writing to this branch or
-repo during this task (clean working tree at start, no other open PR/branch
-activity). This session is the sole writer for the duration of this task.
+No second controller, dispatcher, queue, database, or watcher was created to
+compensate for this. None will be, per the order's own instruction and
+`docs/DATABOSSX_OS_BLUEPRINT.md` rule 10 ("One writer").
 
-## 6. Checker-kit download plan
+## 5. Checker-kit / source order document
 
-**Not available — blocked.**
+Not inspected. The linked source document could not be fetched from this
+sandbox (outbound access to its hosting domain is blocked by the network
+egress proxy here — this is a property of this sandbox, not a statement
+about the document's existence or content). A blocked fetch is evidence of
+"unreadable," not evidence of "empty" or "does not exist."
 
-The order's source document
-(`https://drive.google.com/file/d/1blfeXczHlIz3kkSzHJ8MYgedKX_cEdF2/view`)
-could not be fetched:
+No checker package, ZIP, or binary has been downloaded, verified, or
+executed as part of this task.
 
-```
-WebFetch → https://drive.google.com/file/d/1blfeXczHlIz3kkSzHJ8MYgedKX_cEdF2/view
-Error: EGRESS_BLOCKED — "Access to drive.google.com is blocked by the
-network egress proxy."
-```
+## 6. What this receipt deliberately omits
 
-Because the source document is unreadable from this sandboxed session, there
-is no verified checker-kit identity, download URL, checksum, or version to
-plan against. No download, fetch, or execution of any "checker-kit" has been
-attempted, and none will be attempted based on assumption or paraphrase.
+Per `SECURITY.md` ("Never place secrets or client evidence in prompts,
+model memory, audit events, public artifacts... Keep public code/synthetic
+fixtures separate from private client operations"), this version removes,
+relative to the first draft:
+
+- The private Drive document's file identifier/URL
+- The Claude Code session URL/identifier
+- Any other locator that is only meaningful to a specific private runtime
+
+None of the omitted values were secrets or credentials; they were treated as
+private locators/telemetry not appropriate for a public repository, per this
+task's explicit instruction.
 
 ## 7. Actions NOT taken (by design)
 
 - No canary run, no candidate generation, no checker invocation.
 - No canonical report/workbook mutation.
 - No second controller, queue, database, watcher, or report writer created.
-- No code downloaded or executed from the linked document.
+- No code downloaded or executed from any linked document.
+- No claim of RUNNING status, managed job ID, worker ACK, or heartbeat —
+  none were observed, and none are asserted.
 
-## 8. What is needed to unblock
+## 8. Follow-up
 
-One of:
+A dependency-free, stateless task-capability preflight helper was added in
+this same branch (`src/databossx/capability_preflight.py`, tests in
+`tests/test_capability_preflight.py`) specifically to make this class of
+distinction mechanical and testable going forward: cloud vs. verified-PC
+access, unreadable vs. empty input, readable attachments vs. unavailable
+Drive links, independent direct-session tests vs. managed dispatcher jobs,
+current vs. stale/unverified evidence, and redaction of sensitive locators
+before anything is published. It makes no network or filesystem calls and
+does not talk to any controller, dispatcher, queue, or database.
 
-1. The actual contents of the Drive document, pasted or attached directly
-   (this session cannot reach `drive.google.com`), **or**
-2. Confirmation of which existing system (outside this sandboxed checkout)
-   already runs the dispatcher/controller/queue referenced by the order, so
-   this session can address it instead of assuming one needs to be built
-   here, **or**
-3. If no such system exists yet anywhere, explicit confirmation that this
-   task is actually "build Phase 1/2 of `DATABOSSX_OS_BLUEPRINT.md`" rather
-   than "integrate with an existing running system" — those are very
-   different tasks.
+Run its tests:
+
+```
+python3 -m unittest tests.test_capability_preflight -v
+```
+
+Result at the time of this commit: 19 tests, all passing.

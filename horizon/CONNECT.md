@@ -17,6 +17,21 @@ python3 -m horizon.connect_status \
 `packages_complete` stays false. Slack/Notion still need Cursor Desktop
 auth. Do not start a second Landman Helper controller.
 
+## Current cloud-agent blockers
+
+This Linux cloud VM cannot finish live 15/13/11 packages. Re-probe each
+run before treating a connection as available:
+
+- No `cursor worker` is registered (`list-self-hosted-workers` is empty)
+- Slack and Notion MCP still need Cursor Desktop authentication
+- `/mnt` and `/media` are empty; no rclone/gdrive credentials
+- Microsoft Excel, LibreOffice, tesseract, and pdftotext are not installed
+- Client PDFs, xlsx masters, and handwritten indexes are not in this repo
+
+The PC that can see Drive remains the only host that can run
+`pc_operator --execute`, attest Print Preview / owner-review / 2+ source
+delta drafts, and promote authority. Do not start a second controller.
+
 ## PC work order
 
 On the host that can see Drive/PC roots:

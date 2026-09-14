@@ -10,7 +10,10 @@ from openpyxl import Workbook, load_workbook
 from horizon.isolated_delta import (
     IsolatedDeltaError,
     apply_deltas,
+    attest_delta_draft,
+    parse_delta_packet,
     sha256_file,
+    write_delta_draft,
     write_delta_packet,
 )
 from horizon.stable_key import stable_key
@@ -269,3 +272,44 @@ def test_write_delta_packet_binds_workbook_hash_without_inventing(
             output=tmp_path / "bad.json",
             packet_id="SYNTH-BAD",
         )
+
+
+def test_delta_draft_cannot_apply_until_attested(tmp_path: Path) -> None:
+    source = tmp_path / "source.xlsx"
+    _penterra_index(source)
+    deltas = _packet("0" * 64)["deltas"]
+    draft = write_delta_draft(
+        workbook=source,
+        deltas=deltas,
+        output=tmp_path / "draft.json",
+        packet_id="SYNTH-P13-LEGAL",
+    )
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["schema_id"] == "dbx.source_proved_delta_draft"
+    with pytest.raises(IsolatedDeltaError, match="invalid top-level"):
+        parse_delta_packet(draft)
+    with pytest.raises(IsolatedDeltaError, match="named examiner"):
+        attest_delta_draft(
+            draft,
+            workbook=source,
+            output=tmp_path / "nope.json",
+            operator="EXAMINER_NAME",
+        )
+    source.write_bytes(b"CHANGED")
+    with pytest.raises(IsolatedDeltaError, match="does not match"):
+        attest_delta_draft(
+            draft,
+            workbook=source,
+            output=tmp_path / "stale.json",
+            operator="Pat Examiner",
+        )
+    _penterra_index(source)
+    packet = attest_delta_draft(
+        draft,
+        workbook=source,
+        output=tmp_path / "packet.json",
+        operator="Pat Examiner",
+    )
+    assert packet["schema_id"] == "dbx.source_proved_delta_packet"
+    isolated = tmp_path / "copy.xlsx"
+    assert apply_deltas(source, isolated, packet).applied == 1

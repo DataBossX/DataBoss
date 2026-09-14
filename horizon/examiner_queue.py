@@ -19,7 +19,7 @@ from .index_reconciliation import (
     IndexReconciliationError,
     reconcile_indexes,
 )
-from .isolated_delta import sha256_file
+from .isolated_delta import ALLOWED_FIELDS, REQUIRED_DELTA_KEYS, sha256_file
 
 QUEUE_SCHEMA_ID = "dbx.examiner_fill_queue"
 QUEUE_SCHEMA_VERSION = "1.0"
@@ -82,6 +82,51 @@ def queue_from_scores(
             "Put only source-proved text in sectionN-deltas.json",
         ],
     }
+
+
+def proposed_deltas_from_queue(queue: Dict[str, object]) -> List[Dict[str, object]]:
+    """Collect medium/high agreed fills. One-source and conflicts stay out."""
+    if not isinstance(queue, dict) or queue.get("schema_id") != QUEUE_SCHEMA_ID:
+        raise ExaminerQueueError("examiner fill queue schema is invalid")
+    items = queue.get("items")
+    if not isinstance(items, list):
+        raise ExaminerQueueError("examiner fill queue items must be a list")
+    deltas: List[Dict[str, object]] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ExaminerQueueError(f"items[{index}] must be an object")
+        if item.get("action") != "proposed_delta_pending":
+            continue
+        proposed = item.get("proposed_value")
+        field_name = item.get("field")
+        if not isinstance(proposed, str) or not proposed.strip():
+            continue
+        if field_name not in ALLOWED_FIELDS:
+            raise ExaminerQueueError(f"items[{index}] field is not allowed")
+        provenance = item.get("provenance")
+        if not isinstance(provenance, list) or not provenance:
+            raise ExaminerQueueError(
+                f"items[{index}] proposed fill is missing provenance"
+            )
+        first = provenance[0]
+        if not isinstance(first, dict):
+            raise ExaminerQueueError(f"items[{index}] provenance[0] is invalid")
+        page = first.get("page")
+        if type(page) is not int or page < 1:
+            raise ExaminerQueueError(f"items[{index}] provenance page is invalid")
+        delta = {
+            "row_key": item.get("row_key"),
+            "field": field_name,
+            "value": proposed,
+            "source_sha256": first.get("source_sha256"),
+            "page": page,
+            "crop_id": first.get("crop_id"),
+            "replace": False,
+        }
+        if set(delta) != REQUIRED_DELTA_KEYS:
+            raise ExaminerQueueError(f"items[{index}] could not build a delta")
+        deltas.append(delta)
+    return deltas
 
 
 def build_examiner_queue(

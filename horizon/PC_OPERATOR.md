@@ -54,7 +54,9 @@ python3 -m horizon.pc_operator \
    Native-print and owner-review packets that do not match the current
    isolated hash are unbound so the next command reprints and reissues.
    `--execute` also writes `sectionN-owner-review-draft.json`; attest it
-   with a named examiner after owner review only.
+   with a named examiner after owner review only. Remaining 2+ source
+   blanks are written to `sectionN-delta-draft.json`; attest that draft
+   to apply them. One-source blanks stay out of the draft.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

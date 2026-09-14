@@ -18,13 +18,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-from .examiner import write_new_json
+from .examiner import require_named_examiner, write_new_json
 from .project_manifest import ControlFileError
 from .stable_key import StableKeyError, stable_key
 from .workbook_qa import load_workbook_profile
 
 PACKET_SCHEMA_ID = "dbx.source_proved_delta_packet"
 PACKET_SCHEMA_VERSION = "1.0"
+DRAFT_SCHEMA_ID = "dbx.source_proved_delta_draft"
+DRAFT_SCHEMA_VERSION = "1.0"
+DRAFT_STATUS = "UNAPPROVED_DRAFT"
 RECEIPT_SCHEMA_ID = "dbx.isolated_delta_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
 REQUIRED_PACKET_KEYS = {
@@ -265,6 +268,90 @@ def write_delta_packet(
     return packet
 
 
+def write_delta_draft(
+    *,
+    workbook: Path,
+    deltas: Sequence[Dict[str, object]],
+    output: Path,
+    packet_id: str,
+) -> Dict[str, object]:
+    """Hash-bind medium/high proposals. Does not apply or invent values."""
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise IsolatedDeltaError(f"workbook does not exist: {resolved}")
+    token = packet_id.strip()
+    if not token or "\n" in token:
+        raise IsolatedDeltaError("packet_id must be a single-line string")
+    if not isinstance(deltas, list) or not deltas:
+        raise IsolatedDeltaError("delta draft requires medium/high proposals")
+    parse_delta_packet(
+        {
+            "schema_id": PACKET_SCHEMA_ID,
+            "schema_version": PACKET_SCHEMA_VERSION,
+            "packet_id": token,
+            "source_workbook_sha256": sha256_file(resolved),
+            "deltas": list(deltas),
+        }
+    )
+    draft = {
+        "schema_id": DRAFT_SCHEMA_ID,
+        "schema_version": DRAFT_SCHEMA_VERSION,
+        "status": DRAFT_STATUS,
+        "packet_id": token,
+        "source_workbook_sha256": sha256_file(resolved),
+        "operator": "",
+        "deltas": list(deltas),
+        "notes": [
+            "UNAPPROVED_DRAFT cannot bind isolated_delta",
+            "One-source blanks and conflicts are not in this draft",
+            "Attest with a named examiner; Horizon does not invent values",
+        ],
+    }
+    output = output.expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(draft, indent=2, sort_keys=True), encoding="utf-8")
+    return draft
+
+
+def attest_delta_draft(
+    draft: Dict[str, object],
+    *,
+    workbook: Path,
+    output: Path,
+    operator: str,
+) -> Dict[str, object]:
+    """Promote a 2+ source draft. Horizon does not invent field values."""
+    try:
+        require_named_examiner(operator)
+    except ValueError as exc:
+        raise IsolatedDeltaError(str(exc)) from exc
+    if (
+        draft.get("schema_id") != DRAFT_SCHEMA_ID
+        or draft.get("schema_version") != DRAFT_SCHEMA_VERSION
+        or draft.get("status") != DRAFT_STATUS
+    ):
+        raise IsolatedDeltaError("source-proved delta draft schema is invalid")
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise IsolatedDeltaError(f"workbook does not exist: {resolved}")
+    actual = sha256_file(resolved)
+    expected = str(draft.get("source_workbook_sha256") or "").casefold()
+    if actual != expected:
+        raise IsolatedDeltaError(
+            "Workbook hash does not match the delta draft; rebuild the "
+            "draft against the current isolated workbook"
+        )
+    raw_deltas = draft.get("deltas")
+    if not isinstance(raw_deltas, list) or not raw_deltas:
+        raise IsolatedDeltaError("delta draft has no medium/high proposals")
+    return write_delta_packet(
+        workbook=resolved,
+        deltas=raw_deltas,
+        output=output,
+        packet_id=str(draft.get("packet_id") or ""),
+    )
+
+
 def apply_deltas(
     source_workbook: Path,
     output_workbook: Path,
@@ -410,12 +497,15 @@ def build_parser() -> argparse.ArgumentParser:
         description="Apply or write source-proved deltas. Does not invent values."
     )
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--attest", action="store_true")
+    parser.add_argument("--from-draft", type=Path)
     parser.add_argument("--workbook", type=Path, required=True)
     parser.add_argument("--packet", type=Path)
     parser.add_argument("--deltas", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--receipt", type=Path)
     parser.add_argument("--packet-id")
+    parser.add_argument("--operator")
     parser.add_argument("--profile", type=Path)
     return parser
 
@@ -423,6 +513,30 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.attest:
+            if args.from_draft is None or args.operator is None:
+                raise IsolatedDeltaError(
+                    "--attest requires --from-draft and --operator; "
+                    "Horizon does not invent field values"
+                )
+            packet = attest_delta_draft(
+                _load_json(args.from_draft),
+                workbook=args.workbook,
+                output=args.output,
+                operator=args.operator,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "source_workbook_sha256": packet["source_workbook_sha256"],
+                        "delta_count": len(packet["deltas"]),
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
         if args.write:
             if args.deltas is None or args.packet_id is None:
                 raise IsolatedDeltaError(

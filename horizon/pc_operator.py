@@ -24,7 +24,7 @@ from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
-from .isolated_delta import sha256_file
+from .isolated_delta import IsolatedDeltaError, sha256_file, write_delta_draft
 from .human_release import HumanReleaseError, write_human_release_draft
 from .native_print import NativePrintError, write_native_print_draft
 from .package_finish import PackageFinishError, run_finish
@@ -34,7 +34,11 @@ from .workbook_ledger import (
     workbook_to_occurrence_packet,
     workbook_to_tract_export,
 )
-from .examiner_queue import ExaminerQueueError, build_examiner_queue
+from .examiner_queue import (
+    ExaminerQueueError,
+    build_examiner_queue,
+    proposed_deltas_from_queue,
+)
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     PRIORITY_SECTIONS,
@@ -554,6 +558,30 @@ def _section_commands(
         )
     queue_path = Path(receipt_dir) / f"section{section}-examiner-queue.json"
     queue_needs_fill = _queue_has_items(queue_path)
+    draft_path = Path(receipt_dir) / f"section{section}-delta-draft.json"
+    if bindings.delta_packet is None and draft_path.is_file():
+        commands.append(
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.isolated_delta",
+                    "--attest",
+                    "--from-draft",
+                    str(draft_path),
+                    "--workbook",
+                    workbook,
+                    "--output",
+                    f"{receipt_dir}/section{section}-delta-packet.json",
+                    "--operator",
+                    "EXAMINER_NAME",
+                ]
+            )
+        )
+        commands.append(
+            "Attest the 2+ source delta draft with EXAMINER_NAME; "
+            "one-source blanks stay out of that draft"
+        )
     if bindings.delta_packet is None and (section == 13 or queue_needs_fill):
         commands.append(
             _quote_command(
@@ -731,6 +759,45 @@ def _queue_has_items(path: Path) -> bool:
         return False
     items = payload.get("items")
     return isinstance(items, list) and bool(items)
+
+
+def _write_proposed_delta_draft(
+    queue_path: Optional[str],
+    workbook: Path,
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str]]:
+    dest = receipt_dir / f"section{section}-delta-draft.json"
+    if not queue_path:
+        if dest.is_file():
+            dest.unlink()
+        return None, None
+    try:
+        queue = json.loads(Path(queue_path).read_text(encoding="utf-8"))
+        if not isinstance(queue, dict):
+            return None, "examiner queue is not a JSON object"
+        deltas = proposed_deltas_from_queue(queue)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        ExaminerQueueError,
+    ) as exc:
+        return None, str(exc)
+    if not deltas:
+        if dest.is_file():
+            dest.unlink()
+        return None, None
+    try:
+        write_delta_draft(
+            workbook=workbook,
+            deltas=deltas,
+            output=dest,
+            packet_id=f"SECTION{section}-DELTA",
+        )
+    except (OSError, IsolatedDeltaError) as exc:
+        return None, str(exc)
+    return str(dest), None
 
 
 def _write_examiner_queue(
@@ -1408,6 +1475,13 @@ def _execute_section(
                     f"{blanks} blank required field(s) and {conflicts} "
                     f"conflict(s) remain; see section{order.section}-examiner-queue.json"
                 )
+            draft_path, draft_error = _write_proposed_delta_draft(
+                queue_path, isolated, receipt_dir, order.section
+            )
+            if draft_path:
+                order.executed_outputs.append(draft_path)
+            if draft_error:
+                order.holds.append(f"Source-proved delta draft failed: {draft_error}")
             bound, stale_holds = _unbind_stale_workbook_packets(bound, isolated)
             order.holds.extend(stale_holds)
             try:

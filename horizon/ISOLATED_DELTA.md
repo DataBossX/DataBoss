@@ -36,6 +36,23 @@ closed and the isolated copy is deleted.
 
 Write a packet from examiner-held deltas. Horizon does not invent values.
 
+`pc_operator --execute` writes `sectionN-delta-draft.json`
+(`dbx.source_proved_delta_draft`, `UNAPPROVED_DRAFT`) only for remaining
+medium/high (2+ source) blanks. One-source blanks and conflicts stay out.
+That draft cannot bind `isolated_delta`. Attest it with a named examiner.
+
+```bash
+python3 -m horizon.isolated_delta \
+  --attest \
+  --from-draft /path/to/section15-delta-draft.json \
+  --workbook /path/to/isolated-letter.xlsx \
+  --output /path/to/source-proved-delta.json \
+  --operator "Pat Examiner"
+```
+
+The older path still wraps examiner-authored `sectionN-deltas.json` for
+one-source source-proved fills:
+
 ```bash
 python3 -m horizon.isolated_delta \
   --write \

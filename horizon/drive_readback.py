@@ -31,13 +31,18 @@ _FOLDER_TOWNSHIP = re.compile(
 )
 
 
-def _part_section(part: str) -> Optional[int]:
+def part_folder_section(part: str) -> Optional[int]:
+    """Priority section named by one folder, or None."""
     if part.casefold() == "isolated":
         return None
     match = _FOLDER_SECTION.search(part) or _FOLDER_TOWNSHIP.fullmatch(part)
     if match is None:
         return None
     return int(match.group(1))
+
+
+def _part_section(part: str) -> Optional[int]:
+    return part_folder_section(part)
 
 
 def path_folder_sections(path: Path) -> List[int]:

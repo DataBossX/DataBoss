@@ -23,7 +23,11 @@ from typing import Callable, Dict, List, Optional, Sequence
 from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
-from .drive_readback import is_drive_isolated_copy, path_folder_sections
+from .drive_readback import (
+    is_drive_isolated_copy,
+    part_folder_section,
+    path_folder_sections,
+)
 from .index_export import (
     IndexExportError,
     export_faces,
@@ -168,14 +172,32 @@ def _payload_names_section(
     return True
 
 
+def _path_has_isolated(path: Path) -> bool:
+    return any(part.casefold() == "isolated" for part in Path(path).parts)
+
+
+def _part_priority_sections(part: str) -> set[int]:
+    marks = _section_marks(part)
+    folder = part_folder_section(part)
+    if folder is not None:
+        marks.add(folder)
+    return {mark for mark in marks if mark in PRIORITY_SECTIONS}
+
+
+def _bind_dir_priority_sections(path: Path) -> set[int]:
+    """Nearest section-named folder wins; host ancestors do not steal it."""
+    parts = [part for part in Path(path).parts if part not in {"/", ""}]
+    for part in reversed(parts):
+        priority = _part_priority_sections(part)
+        if priority:
+            return priority
+    return set()
+
+
 def _bind_dir_for_section(candidate: Optional[Path], section: int) -> Optional[Path]:
     if candidate is None:
         return None
-    marks: set[int] = set()
-    for part in Path(candidate).parts:
-        marks.update(_section_marks(part))
-    priority = {mark for mark in marks if mark in PRIORITY_SECTIONS}
-    if priority != {section}:
+    if _bind_dir_priority_sections(candidate) != {section}:
         return None
     return candidate
 
@@ -1489,7 +1511,9 @@ def _unbind_stale_workbook_packets(
         release = None
     if readback is not None:
         other = _isolated_workbook_section(readback)
-        folders = path_folder_sections(readback)
+        folders = (
+            path_folder_sections(readback) if _path_has_isolated(readback) else []
+        )
         if (other is not None and other != section) or any(
             number != section for number in folders
         ):
@@ -2476,9 +2500,9 @@ def _same_hash_readback(
             other = _isolated_workbook_section(path)
             if other is not None and other != section:
                 continue
-            if any(
-                number != section
-                for number in path_folder_sections(Path(item.relative_path))
+            relative = Path(item.relative_path)
+            if _path_has_isolated(relative) and any(
+                number != section for number in path_folder_sections(relative)
             ):
                 continue
             candidates.append(path)

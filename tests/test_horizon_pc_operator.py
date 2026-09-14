@@ -25,6 +25,7 @@ from horizon.pc_operator import (
     _section_census_packet,
     _section_crop_packet,
     _section_named_packet,
+    _unbind_stale_workbook_packets,
     _section_commands,
     _section_folder_dest,
     build_work_order,
@@ -2131,6 +2132,41 @@ def test_bind_dir_stays_on_named_section(tmp_path: Path) -> None:
     assert _bind_dir_for_section(dual, 15) is None
     assert _bind_dir_for_section(dual, 13) is None
     assert _bind_dir_for_section(None, 15) is None
+    spaced = tmp_path / "Section 15" / "PDFs"
+    township = tmp_path / "11-45N-76W" / "renders"
+    sec13 = tmp_path / "sec_13" / "faces"
+    nested = tmp_path / "Section 15 Work" / "Section 13" / "pdfs"
+    for path in (spaced, township, sec13, nested):
+        path.mkdir(parents=True)
+    assert _bind_dir_for_section(spaced, 15) == spaced
+    assert _bind_dir_for_section(township, 11) == township
+    assert _bind_dir_for_section(sec13, 13) == sec13
+    assert _bind_dir_for_section(nested, 13) == nested
+    assert _bind_dir_for_section(nested, 15) is None
+
+
+def test_unbind_keeps_same_hash_readback_under_host_section_folder(
+    tmp_path: Path,
+) -> None:
+    host = tmp_path / "Section 15 Work" / "receipts"
+    host.mkdir(parents=True)
+    letter = host / "section13-letter.xlsx"
+    letter.write_bytes(b"SYNTH-13")
+    bound, holds = _unbind_stale_workbook_packets(
+        FinishBindings(drive_readback=letter), letter, 13
+    )
+    assert bound.drive_readback == letter
+    assert holds == []
+    planted = tmp_path / "Section 15" / "Isolated" / "section13-letter.xlsx"
+    planted.parent.mkdir(parents=True)
+    planted.write_bytes(b"SYNTH-13")
+    workbook = tmp_path / "section13-letter.xlsx"
+    workbook.write_bytes(b"SYNTH-13")
+    dropped, dropped_holds = _unbind_stale_workbook_packets(
+        FinishBindings(drive_readback=planted), workbook, 13
+    )
+    assert dropped.drive_readback is None
+    assert any("different section Isolated" in hold for hold in dropped_holds)
 
 
 def test_execute_does_not_reuse_other_section_pdf_bind_dir(tmp_path: Path) -> None:

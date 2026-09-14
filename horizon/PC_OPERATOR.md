@@ -140,7 +140,10 @@ python3 -m horizon.pc_operator \
    more than one priority section is not bound. Owner-review tokens whose
    `sections` field names another priority section are not bound.
    Unlabeled leftovers are not auto-bound. CLI `--pdf-bind-dir` / `--page-render-bind-dir` stay
-   on the named section the same way. Census packets, crop packets, native-print receipts,
+   on the named section the same way, including conventional folders such
+   as `Section 15` or `11-45N-76W`. The nearest section-named folder wins
+   over a host ancestor. A same-hash readback under a host folder is not
+   unbound unless Isolated/ names another section. Census packets, crop packets, native-print receipts,
    and owner-review tokens stay on the matching section the same way.
    Conventional `sectionN-*.json` receipts win over leftover first-wins
    that also name that section.

@@ -98,8 +98,10 @@ python3 -m horizon.pc_operator \
    Census packets are kept on the matching `SECTION{N}` / `sectionN` id.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority
-   order 15, then 13, then 11. The plan names unfinished gates and
-   existing queues only.    `packages_complete` is true only if every requested section's finish
+   order 15, then 13, then 11. The plan names unfinished gates,
+   missing typed/handwritten index roles, blank/conflict counts from
+   finish evidence or the examiner queue, and existing queues. It does
+   not invent field values.    `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate.
 
 ## What it never does

@@ -49,6 +49,81 @@ def test_remaining_plan_records_open_queues_only(tmp_path: Path) -> None:
     assert "no finish receipt" in plan["missing"]
 
 
+def test_remaining_plan_names_missing_index_roles_from_finish(tmp_path: Path) -> None:
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "source_acquisition",
+                "ran": True,
+                "technical_pass": False,
+                "detail": {
+                    "sections": [
+                        {
+                            "section": 15,
+                            "ready_for_extraction": False,
+                            "missing_required_roles": ["index", "handwritten_index"],
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+    plan = remaining_plan(section=15, finish=finish, receipt_dir=tmp_path)
+    assert plan["schema_version"] == "1.1"
+    assert plan["missing_required_roles"] == ["index", "handwritten_index"]
+    assert "missing required role index" in plan["missing"]
+    assert "missing required role handwritten_index" in plan["missing"]
+    assert plan["packages_complete"] is False
+    assert "legal" not in json.dumps(plan["missing"])
+
+
+def test_remaining_plan_names_blank_and_conflict_counts(tmp_path: Path) -> None:
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "index_reconciliation",
+                "ran": True,
+                "technical_pass": False,
+                "detail": {
+                    "blank_required_count": 3,
+                    "conflict_count": 1,
+                    "low_confidence_blank_count": 2,
+                },
+            }
+        ],
+    }
+    plan = remaining_plan(section=13, finish=finish, receipt_dir=tmp_path)
+    assert plan["field_gaps"]["blank_required_count"] == 3
+    assert plan["field_gaps"]["conflict_count"] == 1
+    assert "index has 3 blank required field(s)" in plan["missing"]
+    assert "index has 1 conflict(s)" in plan["missing"]
+    assert "index has 2 low-confidence blank(s)" in plan["missing"]
+    assert "SYNTH" not in json.dumps(plan)
+
+
+def test_remaining_plan_reads_examiner_queue_counts(tmp_path: Path) -> None:
+    queue = tmp_path / "section11-examiner-queue.json"
+    queue.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "blank_count": 4,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(section=11, finish=None, receipt_dir=tmp_path)
+    assert plan["field_gaps"]["blank_required_count"] == 4
+    assert "index has 4 blank required field(s)" in plan["missing"]
+    assert "conflict" not in "".join(
+        item for item in plan["missing"] if "index has" in item
+    )
+
+
 def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     for section in (15, 13, 11):
@@ -68,6 +143,9 @@ def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
         assert plan["section"] == section
         assert plan["packages_complete"] is False
         assert plan["missing"]
+        assert "handwritten_index" in plan["missing_required_roles"]
+        assert "missing required role handwritten_index" in plan["missing"]
+        assert "missing required role index" in plan["missing"]
     bundle = json.loads((receipts / "remaining-plan.json").read_text(encoding="utf-8"))
     assert bundle["schema_id"] == "dbx.remaining_plan_bundle"
     assert [item["section"] for item in bundle["sections"]] == [15, 13, 11]

@@ -35,7 +35,9 @@ hashed handwritten scans, and promote authority. OCR is not a source of
 legal facts. Chat and OCR files hashed into
 `sectionN-supporting-record-queue.json` are review-only and must not
 fill index cells. After `--execute`, review `remaining-plan.json` in
-order 15, then 13, then 11. Do not start a second controller.
+order 15, then 13, then 11. The plan names missing typed/handwritten
+index roles and remaining blank/conflict counts. Do not start a second
+controller.
 
 ## PC work order
 

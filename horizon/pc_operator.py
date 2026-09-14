@@ -1639,6 +1639,8 @@ def _write_section_remaining_plan(
             receipt_dir=receipt_dir,
             holds=order.holds,
             next_commands=order.next_commands,
+            missing_required_roles=order.missing_required_roles,
+            missing_candidate_roles=order.missing_candidate_roles,
         )
         dest = receipt_dir / f"section{order.section}-remaining-plan.json"
         write_remaining_plan(plan, dest)

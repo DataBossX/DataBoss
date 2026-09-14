@@ -1566,6 +1566,16 @@ def _remove_snapshot(
         os.close(parent_descriptor)
 
 
+def _clear_incomplete_receipt(receipt_path: Path) -> None:
+    try:
+        if receipt_path.is_file():
+            receipt_path.unlink()
+    except OSError as exc:
+        raise SourceAcquisitionError(
+            "Cannot clear leftover incomplete acquisition receipt"
+        ) from exc
+
+
 def write_receipt(
     receipt: AcquisitionReceipt,
     output_path: Path,
@@ -1780,12 +1790,14 @@ def ensure_authority_snapshot(
             expected_device=receipt.snapshot_device,
             expected_inode=receipt.snapshot_inode,
         )
+        _clear_incomplete_receipt(receipt_path)
     elif receipt_path.exists():
         prior = load_receipt(receipt_path)
-        if prior.technical_pass or prior.snapshot_root:
+        if prior.technical_pass:
             raise SourceAcquisitionError(
                 "Acquisition receipt exists without an authority snapshot"
             )
+        _clear_incomplete_receipt(receipt_path)
     receipt = build_receipt(
         [parse_root(raw) for raw in roots],
         requested_sections=list(sections),

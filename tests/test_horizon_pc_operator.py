@@ -17,10 +17,13 @@ from horizon.pc_operator import (
     PcOperatorError,
     _crop_packet_matches_renders,
     _discover_receipt_dir_packets,
+    _drive_section_dir,
+    _publish_isolated_to_drive,
     _receipt_packages_complete,
     _same_hash_readback,
     _section_census_packet,
     _section_commands,
+    _section_folder_dest,
     build_work_order,
     main,
 )
@@ -830,6 +833,76 @@ def test_execute_publishes_section13_into_its_own_isolated_tree(
         "Copy section13-letter.xlsx into Drive Section 13/Isolated/"
         not in plan["missing"]
     )
+
+
+def test_section_folder_dest_does_not_target_isolated(tmp_path: Path) -> None:
+    drive = tmp_path / "drive"
+    host = drive / "Section 15 Work" / "Section 13" / "Isolated"
+    host.mkdir(parents=True)
+    (drive / "Section 13" / "Isolated").mkdir(parents=True)
+    (drive / "Isolated").mkdir()
+    assert _section_folder_dest(
+        drive,
+        Path("Section 13/Isolated/section13-letter.xlsx"),
+        13,
+    ) == (drive / "Section 13").resolve()
+    assert _section_folder_dest(
+        drive,
+        Path("Section 15 Work/Section 13/Isolated/section13-letter.xlsx"),
+        13,
+    ) == (drive / "Section 15 Work" / "Section 13").resolve()
+    assert _section_folder_dest(
+        drive, Path("Isolated/section13-letter.xlsx"), 13
+    ) is None
+
+
+def test_execute_does_not_publish_into_nested_isolated(tmp_path: Path) -> None:
+    from horizon.source_acquisition import SourceRoot, build_receipt
+
+    pc = tmp_path / "pc-root"
+    drive = tmp_path / "drive-root"
+    section13 = pc / "Section 13"
+    _write_penterra(section13 / "Master Abstract.xlsx")
+    _write_penterra(section13 / "County Index.xlsx")
+    _write_penterra(section13 / "Handwritten Index.xlsx")
+    host = drive / "Section 15 Work" / "Section 13"
+    _write_penterra(host / "Master Abstract.xlsx")
+    _write_penterra(host / "County Index.xlsx")
+    _write_penterra(host / "Handwritten Index.xlsx")
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section13-letter.xlsx"
+    assert letter.is_file()
+    planted = host / "Isolated" / "section13-letter.xlsx"
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_bytes(letter.read_bytes())
+    inventory = build_receipt(
+        [SourceRoot("drive", drive)],
+        requested_sections=[13],
+    )
+    dest = _drive_section_dir(inventory, 13)
+    assert dest is not None
+    assert dest.name.casefold() != "isolated"
+    assert dest == host.resolve()
+    published, hold = _publish_isolated_to_drive(inventory, 13, letter)
+    assert hold is None
+    assert published == planted.resolve()
+    assert not (planted.parent / "Isolated").exists()
+    second = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert not (host / "Isolated" / "Isolated").exists()
+    assert planted.read_bytes() == letter.read_bytes()
 
 
 def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:

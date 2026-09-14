@@ -150,7 +150,10 @@ Exit codes:
   rejected links, unstable files, or traversal failures. A snapshot is not
   created, and a leftover incomplete snapshot is not reused, until those
   roles are authorized. Retry the same `--snapshot-directory` after the
-  missing typed index or handwritten index is promoted.
+  missing typed index or handwritten index is promoted. An incomplete
+  leftover receipt whose snapshot is gone is cleared so the same
+  directory can be rebuilt after a transient snapshot error. A verified
+  receipt without a snapshot still fail-closes.
 - `2`: a receipt was written, but intake is blocked.
 - `1`: CLI controls, roots, authority manifest, or output location are unsafe
   or malformed; no receipt is promised.

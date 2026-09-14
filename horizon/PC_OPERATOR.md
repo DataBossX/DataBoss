@@ -119,7 +119,9 @@ python3 -m horizon.pc_operator \
    section's file, not another section's Letter and not the live working
    abstract. Inventory classifies `sectionN-letter.xlsx` /
    `sectionN-delta.xlsx` by that filename even when the file sits under
-   another section folder.
+   another section folder. Drive publish dest is the section-named
+   folder, never Isolated itself, so later execute does not write
+   Isolated/Isolated.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,

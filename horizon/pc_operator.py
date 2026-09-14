@@ -2467,15 +2467,25 @@ def _section_folder_dest(root: Path, relative: Path, section: int) -> Optional[P
     for part in relative.parts[:-1]:
         acc.append(part)
         folders = path_folder_sections(Path(*acc, "file.xlsx"))
-        if section in folders and all(number == section for number in folders):
-            named = root.joinpath(*acc)
-            break
+        if section not in folders or any(number != section for number in folders):
+            continue
+        dest_parts = acc[:-1] if acc[-1].casefold() == "isolated" else list(acc)
+        if not dest_parts or dest_parts[-1].casefold() == "isolated":
+            continue
+        last_folders = path_folder_sections(Path(dest_parts[-1], "file.xlsx"))
+        if last_folders != [section]:
+            continue
+        named = root.joinpath(*dest_parts)
+        break
     if named is None and relative.parts:
-        folders = path_folder_sections(Path(relative.parts[0], "file.xlsx"))
+        first = relative.parts[0]
+        if first.casefold() == "isolated":
+            return None
+        folders = path_folder_sections(Path(first, "file.xlsx"))
         if folders and any(number != section for number in folders):
             return None
-        named = root / relative.parts[0]
-    if named is None:
+        named = root / first
+    if named is None or named.name.casefold() == "isolated":
         return None
     try:
         if named.is_dir():
@@ -2508,7 +2518,7 @@ def _drive_section_dir(
         if any(number != section for number in path_folder_sections(relative)):
             continue
         dest = _section_folder_dest(root, relative, section)
-        if dest is None:
+        if dest is None or dest.name.casefold() == "isolated":
             continue
         if section in path_folder_sections(dest / "placeholder.xlsx"):
             preferred.append(dest)

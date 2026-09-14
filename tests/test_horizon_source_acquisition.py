@@ -511,6 +511,133 @@ def test_ensure_rebuilds_leftover_incomplete_snapshot(tmp_path: Path) -> None:
     assert verify_snapshot(rebuilt)
 
 
+def test_ensure_rebuilds_after_incomplete_snapshot_is_gone(tmp_path: Path) -> None:
+    root = tmp_path / "pc"
+    _complete_section(root, 15)
+    authority = tmp_path / "authority.json"
+    project = tmp_path / "project_manifest.json"
+    snapshot = tmp_path / "section15-snapshot"
+    receipt_path = tmp_path / "section15-acquisition.json"
+    _write_authority_manifest(authority, _authorities(root, "pc", 15))
+    _write_project_manifest(project, authority)
+    first = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert first.technical_pass is True
+    write_receipt(replace(first, technical_pass=False), receipt_path)
+    source_acquisition._remove_snapshot(
+        snapshot,
+        expected_device=first.snapshot_device,
+        expected_inode=first.snapshot_inode,
+    )
+    rebuilt = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert rebuilt.technical_pass is True
+    assert snapshot.exists()
+    assert verify_snapshot(rebuilt)
+
+
+def test_ensure_rebuild_retries_after_transient_snapshot_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "pc"
+    _complete_section(root, 15)
+    authority = tmp_path / "authority.json"
+    project = tmp_path / "project_manifest.json"
+    snapshot = tmp_path / "section15-snapshot"
+    receipt_path = tmp_path / "section15-acquisition.json"
+    _write_authority_manifest(authority, _authorities(root, "pc", 15))
+    _write_project_manifest(project, authority)
+    first = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert first.technical_pass is True
+    write_receipt(replace(first, technical_pass=False), receipt_path)
+    original = source_acquisition.build_receipt
+
+    def boom(*args: object, **kwargs: object) -> object:
+        raise SourceAcquisitionError("transient snapshot error")
+
+    monkeypatch.setattr(source_acquisition, "build_receipt", boom)
+    with pytest.raises(SourceAcquisitionError, match="transient snapshot error"):
+        ensure_authority_snapshot(
+            roots=[f"pc={root}"],
+            sections=[15],
+            authority_manifest=authority,
+            project_manifest=project,
+            snapshot_directory=snapshot,
+            acquisition_receipt=receipt_path,
+        )
+    assert not snapshot.exists()
+    monkeypatch.setattr(source_acquisition, "build_receipt", original)
+    rebuilt = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert rebuilt.technical_pass is True
+    assert snapshot.exists()
+    assert verify_snapshot(rebuilt)
+
+
+def test_ensure_fail_closes_verified_receipt_without_snapshot(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc"
+    _complete_section(root, 15)
+    authority = tmp_path / "authority.json"
+    project = tmp_path / "project_manifest.json"
+    snapshot = tmp_path / "section15-snapshot"
+    receipt_path = tmp_path / "section15-acquisition.json"
+    _write_authority_manifest(authority, _authorities(root, "pc", 15))
+    _write_project_manifest(project, authority)
+    first = ensure_authority_snapshot(
+        roots=[f"pc={root}"],
+        sections=[15],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=snapshot,
+        acquisition_receipt=receipt_path,
+    )
+    assert first.technical_pass is True
+    source_acquisition._remove_snapshot(
+        snapshot,
+        expected_device=first.snapshot_device,
+        expected_inode=first.snapshot_inode,
+    )
+    with pytest.raises(
+        SourceAcquisitionError, match="without an authority snapshot"
+    ):
+        ensure_authority_snapshot(
+            roots=[f"pc={root}"],
+            sections=[15],
+            authority_manifest=authority,
+            project_manifest=project,
+            snapshot_directory=snapshot,
+            acquisition_receipt=receipt_path,
+        )
+    assert not snapshot.exists()
+
+
 @pytest.mark.parametrize(
     ("relative_path", "expected"),
     [

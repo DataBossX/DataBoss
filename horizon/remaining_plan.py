@@ -89,6 +89,11 @@ FILL_QUEUE_GAPS = (
         "{n} source-proved delta(s) still need attest",
     ),
 )
+CROP_FILL_SECTION = 11
+
+
+def _score_fill_slot(slot: str, section: int) -> bool:
+    return slot != "crop_fill_queue" or section == CROP_FILL_SECTION
 
 
 class RemainingPlanError(ValueError):
@@ -302,6 +307,8 @@ def _fill_queue_lines(
 ) -> List[str]:
     lines: List[str] = []
     for slot, schema_id, collection, template in FILL_QUEUE_GAPS:
+        if not _score_fill_slot(slot, section):
+            continue
         filename = OPEN_QUEUE_FILES[slot].format(section=section)
         payload = _load_queue(receipt_dir, filename, schema_id)
         if not _queue_exclusive_section(payload, filename, section):
@@ -370,6 +377,8 @@ def _fill_section_gaps(receipt_dir: Path, section: int) -> List[str]:
         ("delta_draft", "dbx.source_proved_delta_draft", "delta draft"),
     )
     for slot, schema_id, label in slots:
+        if not _score_fill_slot(slot, section):
+            continue
         filename = OPEN_QUEUE_FILES[slot].format(section=section)
         payload = _load_queue(receipt_dir, filename, schema_id)
         gap = _queue_section_gap(payload, filename, section, label)
@@ -734,7 +743,8 @@ def remaining_plan(
             "After an isolated Letter or delta exists, fills and Print Preview come before re-export",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
-            "Open crop, handwritten-scan, empty-text, one-source, and delta-draft queues keep the plan incomplete",
+            "Open handwritten-scan, empty-text, one-source, and delta-draft queues keep the plan incomplete",
+            "Open crop-fill queues keep section 11 incomplete",
             "Chat/OCR supporting queues are review-only and do not complete or fill",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
@@ -746,6 +756,7 @@ def remaining_plan(
             "examiner-queue counts without a workbook hash are ignored once an isolated file exists",
             "onesource and delta drafts without a workbook hash are ignored once an isolated file exists",
             "fill queues whose packet_id names another priority section are ignored",
+            "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",
             "Drive Isolated/ stays until that copy hashes the current isolated file",
             "technical_pass is not package release",

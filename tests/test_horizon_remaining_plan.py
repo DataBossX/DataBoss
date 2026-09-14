@@ -609,18 +609,6 @@ def test_remaining_plan_fill_queues_block_completion(
 ) -> None:
     letter = tmp_path / "section15-letter.xlsx"
     letter.write_bytes(b"SYNTH-LETTER")
-    (tmp_path / "section15-crop-fill-queue.json").write_text(
-        json.dumps(
-            {
-                "schema_id": "dbx.crop_fill_queue",
-                "items": [
-                    {"page": 1, "action": "source_proved_fill"},
-                    {"page": 2, "action": "source_proved_fill"},
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
     (tmp_path / "section15-handwritten-scan-queue.json").write_text(
         json.dumps(
             {
@@ -656,7 +644,6 @@ def test_remaining_plan_fill_queues_block_completion(
         holds=["2 chat/OCR file(s) are review-only"],
     )
     assert plan["packages_complete"] is False
-    assert "2 page-render crop(s) still need face text" in plan["missing"]
     assert "1 handwritten scan(s) still need a Penterra xlsx" in plan["missing"]
     assert "1 image-only PDF(s) still have empty extracted text" in plan["missing"]
     assert "review-only" not in "".join(plan["missing"])
@@ -664,16 +651,65 @@ def test_remaining_plan_fill_queues_block_completion(
     assert "DO NOT COPY" not in dumped
 
 
-def test_remaining_plan_other_section_fill_queue_does_not_apply_counts(
+def test_remaining_plan_crop_fill_queue_blocks_section_11_only(
     tmp_path: Path,
 ) -> None:
-    letter = tmp_path / "section15-letter.xlsx"
-    letter.write_bytes(b"SYNTH-LETTER")
+    letter15 = tmp_path / "section15-letter.xlsx"
+    letter15.write_bytes(b"SYNTH-LETTER-15")
+    letter11 = tmp_path / "section11-letter.xlsx"
+    letter11.write_bytes(b"SYNTH-LETTER-11")
     (tmp_path / "section15-crop-fill-queue.json").write_text(
         json.dumps(
             {
                 "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION15-CROPS",
+                "items": [
+                    {"page": 1, "action": "source_proved_fill"},
+                    {"page": 2, "action": "source_proved_fill"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section11-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
                 "packet_id": "SECTION11-CROPS",
+                "items": [{"page": 1, "action": "source_proved_fill"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan15 = remaining_plan(
+        section=15,
+        finish=_green_finish(letter15),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter15,
+    )
+    plan11 = remaining_plan(
+        section=11,
+        finish=_green_finish(letter11),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter11,
+    )
+    assert plan15["packages_complete"] is True
+    assert "page-render crop" not in "".join(plan15["missing"])
+    assert "crop fill queue" not in "".join(plan15["missing"])
+    assert plan11["packages_complete"] is False
+    assert "1 page-render crop(s) still need face text" in plan11["missing"]
+
+
+def test_remaining_plan_other_section_fill_queue_does_not_apply_counts(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section11-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section11-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION15-CROPS",
                 "items": [
                     {"page": 1, "action": "source_proved_fill"},
                     {"page": 2, "action": "source_proved_fill"},
@@ -683,7 +719,7 @@ def test_remaining_plan_other_section_fill_queue_does_not_apply_counts(
         encoding="utf-8",
     )
     plan = remaining_plan(
-        section=15,
+        section=11,
         finish=_green_finish(letter),
         receipt_dir=tmp_path,
         isolated_workbook=letter,

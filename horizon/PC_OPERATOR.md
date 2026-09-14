@@ -170,11 +170,10 @@ python3 -m horizon.pc_operator \
    examiner queue without a workbook hash is not scored against the
    current isolated file and keeps remaining-plan incomplete. Leftover
    one-source and delta drafts without a workbook hash are ignored the
-   same way and also keep remaining-plan incomplete. Open
-   crop-fill, handwritten-scan, empty-text, one-source, and
+   same way and also keep remaining-plan incomplete.    Open handwritten-scan, empty-text, one-source, and
    delta-draft queues keep remaining-plan incomplete when they are
-   hash-bound to the current isolated file. Chat/OCR supporting
-   queues are review-only.
+   hash-bound to the current isolated file. Crop-fill queues are scored
+   only for section 11. Chat/OCR supporting queues are review-only.
 
 ## What it never does
 

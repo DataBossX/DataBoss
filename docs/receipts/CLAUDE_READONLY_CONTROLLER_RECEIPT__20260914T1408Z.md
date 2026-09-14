@@ -245,3 +245,133 @@ restart, publish, send, share, sign, or credential change. No credits spent. No 
 10. P3, P12, J24, P1 lanes listed in the handoff — **not examined this session.**
 
 **Prepared is not SENT, ACK, RUNNING, or COMPLETE.** Nothing in this receipt authorizes a write.
+
+---
+
+# ADDENDUM A — 2026-09-14T14:2xZ — Bible fully read, UNKNOWN #9 closed
+
+**Reading completeness.** `DataBossX Master Game Plan Bible` was read to **100%**, not the ~6% stated
+in UNKNOWN #9 above. Method: the exported payload (139,792 chars, SHA-256 of the read payload
+`75965fe35a470cfec11108246adaebe7e1f226b45b1e104298e84eb4333deb4e`) repeats every cell across 12
+columns. Deterministic de-duplication yields **835 unique cells / 68,826 chars (2.0x)**, all of which
+were read. **UNKNOWN #9 is CLOSED.** Sections 1, 5 and 7 above are corrected below; the original text
+is preserved, not deleted.
+
+## A.1 CORRECTION to §1 — the controller IS named; it is not in this repo
+
+§1 said the controller's source location is UNKNOWN. It is now named by the Bible:
+
+| Item | Value |
+|---|---|
+| Landman Helper local tree | `C:\DataBoss\Files\DataBossXLandmanHelper` — **LOCAL TREE UNREACHABLE** |
+| Canonical Command Center | `rodneydanger84/DataBossX` **PR #78** — "feat: add canonical local Command Center", OPEN/DRAFT/UNMERGED at `556a4cf63b4e2e405a4963de63bb57fda81bdf07` |
+| Command workspace site | `rodneydanger84/databossx-site` **PR #19** — OPEN/DRAFT/UNMERGED/MERGEABLE at `9c1937d42c8a311a6c9d13f3e969dc7f793a1785` |
+| Working branch | `feature/secure-command-workspace-site` @ `d5f6f8d64b5f1f4249f9d92fd487f7c9055da8ea` — 51/51 tests, lint, build PASS, **LOCAL ONLY, never pushed** |
+
+**This repository (`DataBossX/DataBoss`) is not the Landman Helper repo and not the Command Center
+repo.** Both live under the `rodneydanger84` owner, which is **outside this session's repository
+scope** — I cannot read or push there from here. The §1 conclusion ("no Landman Helper controller in
+this repo") stands and is now explained rather than merely observed.
+
+**Historical local state (2026-09-12, not current):** 221 dirty changes; `LOCAL TREE UNREACHABLE /
+DIRTY STATE HISTORICAL`. The Bible's own rule: "September 12 branch/HEAD/dirty counts cannot
+establish the current tree while the sole PC is offline."
+
+## A.2 CORRECTION to §5 — phone control: built, synthetically proven, blocker NAMED
+
+§5 said UNKNOWN with no detail. The Bible supplies the precise state. **The conclusion does not
+change — it still does not work — but the blocker is now named, which makes it actionable.**
+
+| Component | Receipted state |
+|---|---|
+| Hosted command workspace | `databossx-command-workspace.ryangille.chatgpt.site` — Sites project `appgprj_6aa1bf338a888191a4ec883cb40ed855`, **active**, custom-access, **single owner**, D1 binding `DB`, no env vars. Published v5 (`3c400dec…` / SHA256 `e2793e65…`) succeeded. |
+| Synthetic loopback (E-026) | **PASS** — `POST /api/commands` → `202 PENDING_CUSTODY`; owner `GET /api/queue` → `200` matching receipt |
+| **Bridge pull** | **`503 BRIDGE_NOT_ENROLLED`** ← the blocker |
+| Authenticated render (E-027) | **PASS** — loopback root returned 36,041 bytes containing PRIVATE COMMAND / Current gate / Lane health / Command + receipt queue / `REPORT_WRITES=0` |
+| Live unauthenticated `/api/queue` | `401` Sites sign-in — **no auth bypass; no public exposure** |
+| Registered device | **exactly one**: `RyansPC`, id `f794686b-1efc-4f34-bc88-941598296cd4` — **token valid, status OFFLINE, last seen `2026-09-09T08:27:02Z`**. Explicit ping fails; connector returns "No devices available". |
+| Browser connector | **disconnected** (Opera list-tabs returns "Browser not connected") |
+| Live D1 | 8 legacy tables present (`bridge_deliveries`, `bridge_request_nonces`, `bridge_sessions`, `commands`, `control_snapshots`, `receipts`, `task_leases`, `worker_consumption_receipts`), **all 0 rows**; recovery/event tables **absent** — consistent with no deployment |
+
+**Verdict: `SYNTHETIC API/RENDER PASS; VISUAL QA UNKNOWN`.** The loop is built and passes against
+itself on `127.0.0.1`. It has **never completed a round trip to a physical device.** Two independent
+blockers, both of which must clear:
+
+1. **`BRIDGE_NOT_ENROLLED`** — the PC-side companion is not enrolled against this account.
+2. **Sole registered device offline since 2026-09-09** — 5 days before this receipt.
+
+**Smallest safe next action (unchanged in spirit, now specific): re-enroll the local companion on
+RyansPC under this exact account, then run one authenticated read-only status query and keep the
+returned receipt.** That receipt — and only that receipt — would let anyone claim phone control works.
+**It does not exist. No such claim is made here.** Synthetic loopback is not a device.
+
+## A.3 STRENGTHENED §6 — the P13 custody blocker is closed, and it was the named handoff gate
+
+The Bible states the blocker in three independent places, most explicitly:
+
+> "P13 newest receipt READY on content, but exact superseding ZIP SHA1967093e… **not found by exact
+> Drive/Library search or authenticated Abstract-folder listing**; custody check required before handoff."
+> … "authenticated Abstract folder contains older/different files and an **older 297,015-byte**
+> exact-five ZIP."
+
+**That blocker is now closed by direct evidence** (§6 above): the container is at Drive
+`1fuYuONCtv4qLJLGX_Aond3rgw53mvZpc`, 102,536 bytes, SHA-256
+`1967093eb65f90e271543f3a78c209a103425cd278852d01709b66caf2f3381e` — **exact match**, CRC PASS,
+exact-five member contract verified with per-member CRC32 + SHA-256.
+
+**Why every prior search missed it:** the searches were scoped to the **authenticated Section13
+Abstract folder**. The container is in **My Drive root** (`0APmjo072BS3FUk9PVA`), created
+`2026-09-14T13:35:03Z`. It was never missing — it was misfiled.
+
+**Consequences, stated plainly:**
+- **Do NOT reconstruct the package from member bytes.** The Bible's fallback ("recreate only from the
+  exact verified member bytes under governed copy-on-write") is **not needed** and would create a
+  second artifact competing with a proven-correct one.
+- **Do NOT substitute the older 297,015-byte / 291,198 B / 283,850 B / 279,806 B exact-five packages.**
+  None of them is the receipt-bound winner.
+- P13's remaining gap is **a filing move, not a content action**: move file ID
+  `1fuYuONCtv4qLJLGX_Aond3rgw53mvZpc` into the Section13 Abstract folder **preserving the file ID**,
+  so the SHA and every existing reference stay valid. Writer-gated; **not performed here**.
+
+## A.4 NEW — owner execution order (QueueV16.0) this session did not previously have
+
+> "OWNER ORDER 2026-09-14 / QueueV16.0: preserve completed Campbell P13 and Johnson P13 for owner
+> review; hold Campbell P11 for exact source-date and 119-field adjudication; active build order
+> **P14 → P3 → P1 → P12 → Johnson P24**, with bounded skips for true blockers. P15 is
+> delivered/frozen. No client send, signing, incumbent overwrite or blind production write is authorized."
+
+Registered package identities confirmed (do not overwrite any of these):
+
+| Target | Bytes | SHA-256 | State |
+|---|---:|---|---|
+| P11 R5 exact7 | 109,346 | `df7b994b…e815` | **FACTUAL/COVERAGE HOLD — NOT READY** |
+| P13 exact5 | 102,536 | `1967093e…3381e` | **READY, unsigned — custody now proven** |
+| P14 exact8 | 151,228 | `38D3D940…E51B` | OWNER REVIEW READY, writer0 |
+| J13 exact9 | 125,201 | `9084D580…F5BC` | OWNER REVIEW, source-limited (7 faces missing) |
+| P15 exact6 | 106,814 | `899e89c4…5f6b` | **DELIVERED / FROZEN** — format donor only |
+
+## A.5 UNRESOLVED CONTRADICTION — surfaced, not resolved
+
+The Bible states the sole registered device has been **offline since 2026-09-09T08:27:02Z** and that
+there is currently **no active production writer**. Yet Drive received substantial writes at
+**14:05–14:07Z today** (§3: the 461-key tract ledger, the federal event ledger, `build_p11_source_census.py`).
+
+**Both cannot be complete descriptions of reality.** Either (a) the writer is a cloud/session agent
+that is not the registered RyansPC device, or (b) the device-registration telemetry is stale. The
+Bible itself allows the first reading: *"Separate local-session activity is not disproved."*
+
+**I do not resolve this.** I have no lease-table read and no device session. It matters because the
+single-writer gate is enforced against the *registered device*, and something outside that registration
+is writing. **Flagging it as an open control question is the correct action; guessing is not.**
+
+## A.6 Corrected UNKNOWN ledger
+
+- **CLOSED #9** — Bible read to 100%.
+- **CLOSED (P13 custody)** — container located, SHA exact-matched, CRC verified.
+- **NARROWED #1** — controller path and repos now named (`C:\DataBoss\Files\DataBossXLandmanHelper`; `rodneydanger84/DataBossX#78`; `rodneydanger84/databossx-site#19`). Still unreachable: those repos are outside this session's scope and the PC is offline.
+- **NARROWED #7** — phone control blocker named: `BRIDGE_NOT_ENROLLED` + sole device offline since 2026-09-09. Still **NOT WORKING, NOT CLAIMED**.
+- **UNCHANGED** #2 (lease/fence/heartbeat unreadable), #3, #4, #5, #6, #8, #10.
+- **NEW #11** — the §A.5 contradiction between "device offline / no active writer" and live Drive writes.
+- **NEW #12** — P3 `ODS_TO_XLSX_CUSTODY_IDENTITY=UNKNOWN`: the receipt-referenced ODS (SHA `445109E6…E12FB`) is not retrievable; current XLSX (`c23b8c…b3ab78`, 23,278 B) correlates at row 14 only.
+
+Nothing in this addendum authorizes a write. Prepared is not SENT, ACK, RUNNING, or COMPLETE.

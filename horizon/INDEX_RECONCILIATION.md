@@ -42,3 +42,29 @@ python3 -m horizon.package_finish \
 Proposed deltas in the receipt are writer-held. Apply them only through
 `horizon.isolated_delta` against a copy whose SHA-256 matches the delta
 packet. `technical_pass` is not package release.
+
+## Export and repair loop
+
+Export a Penterra workbook as faces, or run up to 10 isolated
+detect-and-repair passes. Each pass refreshes `candidate_rows` from the
+current copy, reconciles, and applies only medium/high proposals to a **new**
+file. Conflicts apply nothing. The original workbook is not modified.
+
+```bash
+python3 -m horizon.index_export \
+  --workbook /path/to/source-index.xlsx \
+  --packet-id SYNTH-OR-LIVE-PACKET \
+  --output /path/to/candidate-faces.json
+
+python3 -m horizon.repair_loop \
+  --workbook /path/to/source-index.xlsx \
+  --index-packet /path/to/index-reconciliation-packet.json \
+  --output-dir /path/to/isolated-repair \
+  --receipt /path/to/repair-loop-receipt.json \
+  --packet-id live-repair \
+  --max-loops 10
+```
+
+`--master-workbook`, `--pdf-workbook`, and `--handwritten-workbook` can
+replace a pre-built packet when those indexes are themselves Penterra
+workbooks. `packages_complete` stays false.

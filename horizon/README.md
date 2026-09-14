@@ -57,8 +57,8 @@ verification never means client release.
 
 On the PC that can see section roots, `python -m horizon.package_finish` chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
-reconciliation, isolated source-proved deltas, and Penterra workbook QA. See
-[`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
+reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.
+See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md), and
 [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md). `packages_complete` stays false until
 a verified snapshot, source-backed rows, native Excel, and human release exist.

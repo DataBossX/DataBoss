@@ -12,8 +12,7 @@ python3 -m horizon.package_finish \
   --occurrence-packet /path/to/occurrence-packet.json \
   --index-packet /path/to/index-reconciliation-packet.json \
   --workbook /path/to/source-index.xlsx \
-  --delta-packet /path/to/source-proved-delta.json \
-  --delta-output /path/to/isolated-index.xlsx \
+  --repair-dir /path/to/isolated-repair \
   --public-plat campbell,45n,76w \
   --public-plat johnson,47n,77w \
   --output /path/to/package-finish-receipt.json
@@ -30,6 +29,13 @@ be blank on modern e-recorded rows. The Index sheet must be US Letter
 required fields with provenance and confidence, and emits isolated-delta
 proposals only when at least two sources agree. See
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md).
+
+`--repair-dir` runs up to `--max-loops` (default 10) isolated
+detect-and-repair passes: export the current candidate, reconcile, apply
+only medium/high proposals to a new copy, then QA. Use it with
+`--index-packet` or with `--master-workbook` / `--pdf-workbook` /
+`--handwritten-workbook`. Do not combine `--repair-dir` with
+`--delta-packet`. See [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md).
 
 `--delta-packet` plus `--delta-output` apply a writer-held source-proved
 packet to a **new** isolated copy, then run workbook QA on that copy. The

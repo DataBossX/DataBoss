@@ -38,6 +38,7 @@ from .index_reconciliation import (
     reconcile_indexes,
 )
 from .isolated_delta import IsolatedDeltaError, apply_deltas
+from .repair_loop import RepairLoopError, run_repair_loop
 from .project_manifest import ControlFileError
 from .source_acquisition import (
     PRIORITY_SECTIONS,
@@ -293,10 +294,11 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Build a master/PDF/handwritten index packet with expected "
             "counts and pass --index-packet"
         )
-    if "isolated_delta" not in ran:
+    if "repair_loop" not in ran and "isolated_delta" not in ran:
         actions.append(
-            "Pass --delta-packet and --delta-output to apply source-proved "
-            "field fills to an isolated workbook copy"
+            "Pass --repair-dir with --workbook and --index-packet to run "
+            "up to 10 isolated detect-and-repair passes, or pass "
+            "--delta-packet and --delta-output for a single apply"
         )
     if "workbook_qa" not in ran:
         actions.append(
@@ -333,6 +335,11 @@ def run_finish(
     workbook_profile: Optional[Path] = None,
     delta_packet: Optional[Path] = None,
     delta_output: Optional[Path] = None,
+    repair_dir: Optional[Path] = None,
+    max_loops: int = 10,
+    master_workbook: Optional[Path] = None,
+    pdf_workbook: Optional[Path] = None,
+    handwritten_workbook: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -343,7 +350,7 @@ def run_finish(
         gates.append(_reextraction_gate(tract_export, oracle))
     if occurrence_packet is not None:
         gates.append(_occurrence_gate(occurrence_packet))
-    if index_packet is not None:
+    if index_packet is not None and repair_dir is None:
         try:
             recon = reconcile_indexes(_load_json(index_packet))
             gates.append(
@@ -371,6 +378,57 @@ def run_finish(
                 )
             )
     qa_workbook = workbook
+    if repair_dir is not None:
+        if workbook is None:
+            raise PackageFinishError("Repair loop requires --workbook")
+        if delta_packet is not None:
+            raise PackageFinishError(
+                "Use --repair-dir or --delta-packet, not both"
+            )
+        try:
+            packet = _load_json(index_packet) if index_packet is not None else None
+            repair = run_repair_loop(
+                workbook=workbook,
+                output_dir=repair_dir,
+                packet_id=str(
+                    (packet or {}).get("packet_id") or "repair-loop"
+                ),
+                index_packet=packet,
+                master_workbook=master_workbook,
+                pdf_workbook=pdf_workbook,
+                handwritten_workbook=handwritten_workbook,
+                profile_path=workbook_profile,
+                max_loops=max_loops,
+            )
+            gates.append(
+                GateResult(
+                    name="repair_loop",
+                    ran=True,
+                    technical_pass=repair.technical_pass,
+                    detail={
+                        "passes": len(repair.passes),
+                        "final_workbook": repair.final_workbook,
+                        "remaining_blanks": repair.remaining_blanks,
+                        "remaining_conflicts": repair.remaining_conflicts,
+                        "packages_complete": repair.packages_complete,
+                    },
+                )
+            )
+            qa_workbook = Path(repair.final_workbook)
+        except (
+            OSError,
+            RepairLoopError,
+            PackageFinishError,
+        ) as exc:
+            gates.append(
+                GateResult(
+                    name="repair_loop",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
+            qa_workbook = None
     if delta_packet is not None:
         if workbook is None or delta_output is None:
             raise PackageFinishError(
@@ -449,6 +507,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--workbook-profile", type=Path)
     parser.add_argument("--delta-packet", type=Path)
     parser.add_argument("--delta-output", type=Path)
+    parser.add_argument("--repair-dir", type=Path)
+    parser.add_argument("--max-loops", type=int, default=10)
+    parser.add_argument("--master-workbook", type=Path)
+    parser.add_argument("--pdf-workbook", type=Path)
+    parser.add_argument("--handwritten-workbook", type=Path)
     return parser
 
 
@@ -467,6 +530,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             workbook_profile=args.workbook_profile,
             delta_packet=args.delta_packet,
             delta_output=args.delta_output,
+            repair_dir=args.repair_dir,
+            max_loops=args.max_loops,
+            master_workbook=args.master_workbook,
+            pdf_workbook=args.pdf_workbook,
+            handwritten_workbook=args.handwritten_workbook,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

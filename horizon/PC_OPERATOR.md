@@ -112,7 +112,9 @@ python3 -m horizon.pc_operator \
    file, not from leftover live working-abstract blanks.
    Drive readback only binds Isolated/ or receipt-dir copies of that
    section's file, not another section's Letter and not the live working
-   abstract.
+   abstract. Inventory classifies `sectionN-letter.xlsx` /
+   `sectionN-delta.xlsx` by that filename even when the file sits under
+   another section folder.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,

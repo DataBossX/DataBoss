@@ -233,7 +233,11 @@ def named_isolated_hops(name: str, section: int) -> Dict[str, str]:
     }
 
 
-def _named_hop_done(gate_name: str, gates: Sequence[_GateView]) -> bool:
+def _named_hop_done(
+    gate_name: str,
+    gates: Sequence[_GateView],
+    isolated_sha256: str = "",
+) -> bool:
     for gate in gates:
         if gate.name != gate_name:
             continue
@@ -241,6 +245,11 @@ def _named_hop_done(gate_name: str, gates: Sequence[_GateView]) -> bool:
             return False
         if gate_name == "drive_readback":
             return gate.detail.get("isolated_copy") is True
+        if isolated_sha256 and gate_name in {"native_print", "human_release"}:
+            bound = gate.detail.get("workbook_sha256")
+            if not isinstance(bound, str) or not bound:
+                return False
+            return bound.casefold() == isolated_sha256.casefold()
         return True
     return False
 
@@ -376,11 +385,25 @@ def remaining_plan(
         except OSError:
             isolated = {}
     name = isolated.get("name")
+    digest = isolated.get("sha256")
+    isolated_sha = digest if isinstance(digest, str) and digest else ""
     if isinstance(name, str) and name:
         named = named_isolated_hops(name, section)
         for gate_name, line in named.items():
-            if not _named_hop_done(gate_name, gates) and line not in missing:
+            if (
+                not _named_hop_done(gate_name, gates, isolated_sha)
+                and line not in missing
+            ):
                 missing.append(line)
+                complete = False
+        for gate in gates:
+            if gate.name != "index_reconciliation" or not gate.ran:
+                continue
+            source = gate.detail.get("candidate_from")
+            if isinstance(source, str) and source and source != "workbook":
+                line = f"index reconciliation scored {source}, not {name}"
+                if line not in missing:
+                    missing.append(line)
                 complete = False
     return {
         "schema_id": PLAN_SCHEMA_ID,
@@ -416,6 +439,8 @@ def remaining_plan(
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
+            "Print Preview and owner-review stay until finish hashes that isolated file",
+            "index reconciliation must score the isolated workbook, not a leftover packet",
             "Drive Isolated/ stays until the bound copy is under Isolated/",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",

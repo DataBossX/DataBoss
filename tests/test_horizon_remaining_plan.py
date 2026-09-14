@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from horizon.isolated_delta import sha256_file
 from horizon.remaining_plan import remaining_plan, write_remaining_plan_bundle
 from horizon.pc_operator import build_work_order
 
@@ -226,9 +227,17 @@ def test_remaining_plan_queue_blanks_block_completion_when_finish_gates_pass(
                     {"isolated_copy": True}
                     if name == "drive_readback"
                     else (
-                        {"blank_required_count": 0, "conflict_count": 0}
+                        {
+                            "blank_required_count": 0,
+                            "conflict_count": 0,
+                            "candidate_from": "workbook",
+                        }
                         if name == "index_reconciliation"
-                        else {}
+                        else (
+                            {"workbook_sha256": sha256_file(letter)}
+                            if name in {"native_print", "human_release"}
+                            else {}
+                        )
                     )
                 ),
             }
@@ -380,8 +389,6 @@ def test_remaining_plan_names_required_fields_without_copying_values(
 def test_remaining_plan_names_isolated_workbook_without_cell_text(
     tmp_path: Path,
 ) -> None:
-    from horizon.isolated_delta import sha256_file
-
     letter = tmp_path / "section15-letter.xlsx"
     letter.write_bytes(b"SYNTH-LETTER")
     plan = remaining_plan(
@@ -417,7 +424,7 @@ def test_remaining_plan_keeps_named_drive_and_review_hops_after_print(
                 "name": "native_print",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {},
+                "detail": {"workbook_sha256": sha256_file(letter)},
             }
         ],
     }
@@ -449,7 +456,7 @@ def test_remaining_plan_drops_named_drive_and_review_hops_when_those_gates_pass(
                 "name": "native_print",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {},
+                "detail": {"workbook_sha256": sha256_file(letter)},
             },
             {
                 "name": "drive_readback",
@@ -461,7 +468,7 @@ def test_remaining_plan_drops_named_drive_and_review_hops_when_those_gates_pass(
                 "name": "human_release",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {},
+                "detail": {"workbook_sha256": sha256_file(letter)},
             },
         ],
     }
@@ -493,7 +500,7 @@ def test_remaining_plan_keeps_isolated_hop_until_drive_isolated_copy(
                 "name": "native_print",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {},
+                "detail": {"workbook_sha256": sha256_file(letter)},
             },
             {
                 "name": "drive_readback",
@@ -505,7 +512,7 @@ def test_remaining_plan_keeps_isolated_hop_until_drive_isolated_copy(
                 "name": "human_release",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {},
+                "detail": {"workbook_sha256": sha256_file(letter)},
             },
         ],
     }
@@ -523,6 +530,98 @@ def test_remaining_plan_keeps_isolated_hop_until_drive_isolated_copy(
     assert "Attest owner-review of section15-letter.xlsx" not in plan["missing"]
     assert plan["packages_complete"] is False
     assert str(tmp_path) not in "".join(plan["missing"])
+
+
+def test_remaining_plan_keeps_print_hop_when_finish_hash_is_stale(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "native_print",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {"workbook_sha256": "a" * 64},
+            },
+            {
+                "name": "human_release",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {"workbook_sha256": "b" * 64},
+            },
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]
+    assert "Attest owner-review of section15-letter.xlsx" in plan["missing"]
+    assert plan["packages_complete"] is False
+
+
+def test_remaining_plan_keeps_print_hop_when_finish_omits_hash(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "native_print",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {},
+            }
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]
+    assert plan["packages_complete"] is False
+
+
+def test_remaining_plan_requires_recon_on_isolated_workbook(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "index_reconciliation",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {
+                    "candidate_from": "index_packet",
+                    "blank_required_count": 0,
+                    "conflict_count": 0,
+                },
+            }
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert (
+        "index reconciliation scored index_packet, not section15-letter.xlsx"
+        in plan["missing"]
+    )
+    assert plan["packages_complete"] is False
 
 
 def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:

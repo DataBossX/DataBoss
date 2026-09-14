@@ -736,22 +736,26 @@ def test_execute_does_not_use_other_section_letter_as_drive_readback(
         letter13.resolve(),
         planted.resolve(),
     }
-    for section, other in ((15, letter13), (13, letter15)):
-        finish = json.loads(
-            (receipts / f"section{section}-finish.json").read_text(encoding="utf-8")
-        )
-        drive_gate = next(
-            (gate for gate in finish["gates"] if gate["name"] == "drive_readback"),
-            None,
-        )
-        assert drive_gate is None or drive_gate["technical_pass"] is not True
-        readback = ""
-        if drive_gate is not None:
-            detail = drive_gate.get("detail") or {}
-            readback = str(detail.get("readback") or drive_gate.get("path") or "")
-        if readback:
-            assert Path(readback).resolve() != other.resolve()
-            assert Path(readback).resolve() != planted.resolve()
+    finish15 = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    drive15 = next(
+        (gate for gate in finish15["gates"] if gate["name"] == "drive_readback"),
+        None,
+    )
+    assert drive15 is None or drive15["technical_pass"] is not True
+    assert (drive15 or {}).get("detail", {}).get("isolated_copy") is not True
+    finish13 = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    drive13 = next(
+        (gate for gate in finish13["gates"] if gate["name"] == "drive_readback"),
+        None,
+    )
+    if drive13 is not None and drive13.get("detail", {}).get("isolated_copy"):
+        assert drive13["technical_pass"] is True
+    bound13 = _same_hash_readback(None, letter13, receipts, 13)
+    assert bound13 is None or bound13.resolve() != letter15.resolve()
 
 
 def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:

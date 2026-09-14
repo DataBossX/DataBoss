@@ -183,8 +183,10 @@ python3 -m horizon.source_acquisition \
 ```
 
 Folders or filenames must explicitly identify the section, for example
-`Section 15`, `sec_13`, or `11-45N-76W`. Instrument numbers containing `11`,
-`13`, or `15` are not treated as section identifiers. Root labels must identify
+`Section 15`, `sec_13`, or `11-45N-76W`. Isolated outputs named
+`sectionN-letter.xlsx` or `sectionN-delta.xlsx` follow that filename even
+when they sit under another section folder. Instrument numbers containing
+`11`, `13`, or `15` are not treated as section identifiers. Root labels must identify
 their source kind: `pc`, `drive`, `chat`, or a suffixed form such as `drive_2`.
 
 ## Resolve a blocked receipt

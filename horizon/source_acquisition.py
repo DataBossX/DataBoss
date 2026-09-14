@@ -68,6 +68,9 @@ _SECTION_PATTERN = re.compile(
 _TOWNSHIP_SECTION_PATTERN = re.compile(
     r"(?i)(?:^|[/\\])0?(11|13|15)-\d{1,2}[ns]-\d{1,3}[ew](?:[/\\]|$)"
 )
+_ISOLATED_SECTION_NAME = re.compile(
+    r"(?i)^section(\d+)-(letter|delta(?:-\d+)?|workbook-export|workbook-occurrence)\."
+)
 _HIDDEN_PARTS = {".git", ".svn", "__pycache__", ".pytest_cache"}
 
 
@@ -292,6 +295,11 @@ def _read_control_bytes(
 
 def detect_section(relative_path: str) -> Optional[int]:
     """Return a prioritized section only when the path explicitly names it."""
+    isolated = _ISOLATED_SECTION_NAME.match(Path(relative_path).name)
+    if isolated is not None:
+        number = int(isolated.group(1))
+        if number in PRIORITY_SECTIONS:
+            return number
     match = _SECTION_PATTERN.search(relative_path)
     if match is None:
         match = _TOWNSHIP_SECTION_PATTERN.search(relative_path)

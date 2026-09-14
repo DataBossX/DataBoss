@@ -416,6 +416,9 @@ def test_typed_index_does_not_satisfy_handwritten_index_role(tmp_path: Path) -> 
         ("Section 15/Master.xlsx", 15),
         ("sec_13/index.pdf", 13),
         ("11-45N-76W/Abstract/report.xlsx", 11),
+        ("Section 15/Isolated/section13-letter.xlsx", 13),
+        ("Section 13/Isolated/section15-delta-2.xlsx", 15),
+        ("Section 15/Isolated/section11-workbook-export.json", 11),
         ("instrument-2024-00115.pdf", None),
         ("Section 150/source.pdf", None),
         ("Section 15x/source.pdf", None),
@@ -427,6 +430,28 @@ def test_section_detection_requires_explicit_priority_section(
     expected: Optional[int],
 ) -> None:
     assert detect_section(relative_path) == expected
+
+
+def test_isolated_letter_filename_wins_over_folder(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _complete_section(root, 15)
+    _write(root, "Section 15/Isolated/section13-letter.xlsx", b"other-section")
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[15, 13],
+    )
+    planted = next(
+        item
+        for item in receipt.files
+        if item.relative_path.endswith("section13-letter.xlsx")
+    )
+    assert planted.section == 13
+    assert all(
+        item.relative_path.endswith("section13-letter.xlsx") is False
+        or item.section == 13
+        for item in receipt.files
+        if item.section == 15
+    )
 
 
 def test_duplicate_content_at_different_paths_is_reported(tmp_path: Path) -> None:

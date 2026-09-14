@@ -988,6 +988,7 @@ def run_finish(
                             "page_count": native.page_count,
                             "expected_page_count": native.expected_page_count,
                             "issue_count": len(native.issues),
+                            "workbook_sha256": native.workbook_sha256,
                         },
                     )
                 )
@@ -1066,6 +1067,7 @@ def run_finish(
                             "operator": release.operator,
                             "issue_count": len(release.issues),
                             "sections": release.sections,
+                            "workbook_sha256": release.workbook_sha256,
                         },
                     )
                 )

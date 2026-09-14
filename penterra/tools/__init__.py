@@ -7,6 +7,7 @@ Design rules (from the 2026-09-14 completion mandate):
   * Tools are pure/read-only. They never modify canonical source files.
 """
 __all__ = [
+    "crosskey",
     "stable_key", "identity", "pdf_census", "dupe_pages",
     "blanks", "parity", "package", "replay", "lease",
 ]

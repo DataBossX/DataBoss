@@ -16,10 +16,20 @@ from .human_release import evaluate_package_completion
 from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
 
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
-PLAN_SCHEMA_VERSION = "1.1"
+PLAN_SCHEMA_VERSION = "1.2"
 BUNDLE_SCHEMA_ID = "dbx.remaining_plan_bundle"
-BUNDLE_SCHEMA_VERSION = "1.0"
+BUNDLE_SCHEMA_VERSION = "1.1"
 EXAMINER_QUEUE_SCHEMA_ID = "dbx.examiner_fill_queue"
+KNOWN_PLAN_FIELDS = (
+    "document_type",
+    "grantor",
+    "grantee",
+    "instrument_number",
+    "book_page",
+    "document_date",
+    "recorded_date",
+    "legal_description",
+)
 _FIELD_GAP_KEYS = (
     "blank_required_count",
     "conflict_count",
@@ -144,7 +154,7 @@ def _field_gaps_from_finish(gates: Sequence[_GateView]) -> Dict[str, int]:
     return gaps
 
 
-def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
+def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
     path = receipt_dir / f"section{section}-examiner-queue.json"
     try:
         if not path.is_file():
@@ -156,6 +166,11 @@ def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
         return {}
     if payload.get("schema_id") != EXAMINER_QUEUE_SCHEMA_ID:
         return {}
+    return payload
+
+
+def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
+    payload = _load_examiner_queue(receipt_dir, section)
     gaps: Dict[str, int] = {}
     mapping = {
         "blank_count": "blank_required_count",
@@ -166,6 +181,32 @@ def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
         if value is not None:
             gaps[dest] = value
     return gaps
+
+
+def _by_field_from_queue(receipt_dir: Path, section: int) -> Dict[str, Dict[str, int]]:
+    payload = _load_examiner_queue(receipt_dir, section)
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return {}
+    counts: Dict[str, Dict[str, int]] = {
+        field: {"blank": 0, "conflict": 0} for field in KNOWN_PLAN_FIELDS
+    }
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        field = item.get("field")
+        action = item.get("action")
+        if field not in counts:
+            continue
+        if action == "resolve_conflict":
+            counts[field]["conflict"] += 1
+        elif action in {"source_proved_fill", "proposed_delta_pending"}:
+            counts[field]["blank"] += 1
+    return {
+        field: slot
+        for field, slot in counts.items()
+        if slot["blank"] or slot["conflict"]
+    }
 
 
 def _merge_field_gaps(*groups: Dict[str, int]) -> Dict[str, int]:
@@ -182,6 +223,7 @@ def _gap_lines(
     missing_required_roles: Sequence[str],
     missing_candidate_roles: Sequence[str],
     field_gaps: Dict[str, int],
+    by_field: Dict[str, Dict[str, int]],
 ) -> List[str]:
     lines: List[str] = []
     for role in missing_required_roles:
@@ -201,6 +243,14 @@ def _gap_lines(
         count = field_gaps.get(key)
         if isinstance(count, int) and count > 0:
             lines.append(template.format(n=count))
+    for field in KNOWN_PLAN_FIELDS:
+        slot = by_field.get(field) or {}
+        blank = slot.get("blank") or 0
+        conflict = slot.get("conflict") or 0
+        if blank:
+            lines.append(f"{field} has {blank} blank(s)")
+        if conflict:
+            lines.append(f"{field} has {conflict} conflict(s)")
     return lines
 
 
@@ -243,10 +293,12 @@ def remaining_plan(
         _field_gaps_from_finish(gates),
         _field_gaps_from_queue(receipt_dir, section),
     )
+    by_field = _by_field_from_queue(receipt_dir, section)
     extra = _gap_lines(
         missing_required_roles=required_roles,
         missing_candidate_roles=candidate_roles,
         field_gaps=field_gaps,
+        by_field=by_field,
     )
     missing = extra + [item for item in missing if item not in extra]
     if extra:
@@ -259,7 +311,7 @@ def remaining_plan(
         "missing": missing,
         "missing_required_roles": required_roles,
         "missing_candidate_roles": candidate_roles,
-        "field_gaps": field_gaps,
+        "field_gaps": {**field_gaps, "by_field": by_field},
         "gates": [
             {
                 "name": gate.name,
@@ -274,6 +326,7 @@ def remaining_plan(
         "notes": [
             "This plan does not invent legal, party, or date values",
             "Typed index and handwritten_index are separate required roles",
+            "by_field counts names only; it does not copy cell text",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",
         ],
@@ -290,9 +343,60 @@ def write_remaining_plan(
     return plan
 
 
+def _public_connections(raw: Optional[Dict[str, object]]) -> Dict[str, object]:
+    if not isinstance(raw, dict):
+        return {}
+    roots: List[Dict[str, object]] = []
+    for item in raw.get("roots") or []:
+        if not isinstance(item, dict):
+            continue
+        label = item.get("label")
+        if not isinstance(label, str) or not label:
+            continue
+        roots.append(
+            {
+                "label": label,
+                "exists": bool(item.get("exists")),
+                "is_dir": bool(item.get("is_dir")),
+                "readable": bool(item.get("readable")),
+            }
+        )
+    tools_raw = raw.get("tools")
+    tools = (
+        {key: bool(value) for key, value in tools_raw.items() if isinstance(key, str)}
+        if isinstance(tools_raw, dict)
+        else {}
+    )
+    desktop_raw = raw.get("desktop_sessions")
+    desktop = (
+        {
+            key: value
+            for key, value in desktop_raw.items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
+        if isinstance(desktop_raw, dict)
+        else {}
+    )
+    actions = [
+        item for item in raw.get("next_actions") or [] if isinstance(item, str)
+    ]
+    count = raw.get("connected_root_count")
+    return {
+        "connected_root_count": count if isinstance(count, int) and count >= 0 else 0,
+        "technical_pass": bool(raw.get("technical_pass")),
+        "packages_complete": False,
+        "roots": roots,
+        "tools": tools,
+        "desktop_sessions": desktop,
+        "next_actions": actions,
+    }
+
+
 def write_remaining_plan_bundle(
     plans: Sequence[Dict[str, object]],
     output: Path,
+    *,
+    connections: Optional[Dict[str, object]] = None,
 ) -> Dict[str, object]:
     ordered = sorted(
         (plan for plan in plans if isinstance(plan, dict)),
@@ -307,8 +411,10 @@ def write_remaining_plan_bundle(
         "packages_complete": bool(ordered)
         and all(plan.get("packages_complete") is True for plan in ordered),
         "sections": ordered,
+        "connections": _public_connections(connections),
         "notes": [
             "Priority order is 15, then 13, then 11",
+            "Start cursor worker on the PC; authenticate Slack/Notion in Cursor Desktop",
             "This bundle does not invent legal facts or release a package",
         ],
     }

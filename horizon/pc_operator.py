@@ -2633,7 +2633,11 @@ def build_work_order(
         if plans:
             bundle_path = dest_path / "remaining-plan.json"
             try:
-                write_remaining_plan_bundle(plans, bundle_path)
+                write_remaining_plan_bundle(
+                    plans,
+                    bundle_path,
+                    connections=connections.to_dict(),
+                )
                 next_actions.append(
                     f"Review {bundle_path} in priority order 15, then 13, then 11"
                 )

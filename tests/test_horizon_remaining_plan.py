@@ -70,7 +70,7 @@ def test_remaining_plan_names_missing_index_roles_from_finish(tmp_path: Path) ->
         ],
     }
     plan = remaining_plan(section=15, finish=finish, receipt_dir=tmp_path)
-    assert plan["schema_version"] == "1.1"
+    assert plan["schema_version"] == "1.2"
     assert plan["missing_required_roles"] == ["index", "handwritten_index"]
     assert "missing required role index" in plan["missing"]
     assert "missing required role handwritten_index" in plan["missing"]
@@ -124,6 +124,63 @@ def test_remaining_plan_reads_examiner_queue_counts(tmp_path: Path) -> None:
     )
 
 
+def test_remaining_plan_names_required_fields_without_copying_values(
+    tmp_path: Path,
+) -> None:
+    queue = tmp_path / "section15-examiner-queue.json"
+    queue.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "blank_count": 3,
+                "conflict_count": 1,
+                "items": [
+                    {
+                        "field": "legal_description",
+                        "action": "source_proved_fill",
+                        "candidate_value": "",
+                        "proposed_value": "DO NOT COPY THIS LEGAL",
+                    },
+                    {
+                        "field": "legal_description",
+                        "action": "proposed_delta_pending",
+                        "proposed_value": "ALSO DO NOT COPY",
+                    },
+                    {
+                        "field": "recorded_date",
+                        "action": "resolve_conflict",
+                        "conflict_values": {"master": "1/1/2020"},
+                    },
+                    {
+                        "field": "grantor",
+                        "action": "source_proved_fill",
+                    },
+                    {
+                        "field": "invented_secret",
+                        "action": "source_proved_fill",
+                        "proposed_value": "CLIENT PARTY NAME",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(section=15, finish=None, receipt_dir=tmp_path)
+    by_field = plan["field_gaps"]["by_field"]
+    assert by_field["legal_description"] == {"blank": 2, "conflict": 0}
+    assert by_field["recorded_date"] == {"blank": 0, "conflict": 1}
+    assert by_field["grantor"] == {"blank": 1, "conflict": 0}
+    assert "invented_secret" not in by_field
+    assert "legal_description has 2 blank(s)" in plan["missing"]
+    assert "recorded_date has 1 conflict(s)" in plan["missing"]
+    dumped = json.dumps(plan)
+    assert "DO NOT COPY THIS LEGAL" not in dumped
+    assert "ALSO DO NOT COPY" not in dumped
+    assert "CLIENT PARTY NAME" not in dumped
+    assert "1/1/2020" not in dumped
+
+
 def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     for section in (15, 13, 11):
@@ -148,8 +205,15 @@ def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:
         assert "missing required role index" in plan["missing"]
     bundle = json.loads((receipts / "remaining-plan.json").read_text(encoding="utf-8"))
     assert bundle["schema_id"] == "dbx.remaining_plan_bundle"
+    assert bundle["schema_version"] == "1.1"
     assert [item["section"] for item in bundle["sections"]] == [15, 13, 11]
     assert bundle["packages_complete"] is False
+    assert bundle["connections"]["packages_complete"] is False
+    assert "pc" in {item["label"] for item in bundle["connections"]["roots"]}
+    assert any(
+        "cursor worker" in action for action in bundle["connections"]["next_actions"]
+    )
+    assert "path" not in json.dumps(bundle["connections"]["roots"])
     assert any("remaining-plan.json" in action for action in receipt.next_actions)
     write_remaining_plan_bundle(bundle["sections"], tmp_path / "copy.json")
     copied = json.loads((tmp_path / "copy.json").read_text(encoding="utf-8"))

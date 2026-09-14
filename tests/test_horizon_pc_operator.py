@@ -831,6 +831,68 @@ def test_operator_discovers_receipt_dir_native_print(tmp_path: Path) -> None:
     assert native["technical_pass"] is True
 
 
+def test_execute_keeps_native_print_packets_on_their_section(
+    tmp_path: Path,
+) -> None:
+    from horizon.native_print import write_native_print_packet
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    section13 = root / "Section 13"
+    _write_penterra(section13 / "Master Abstract.xlsx")
+    _write_penterra(section13 / "County Index.xlsx")
+    _write_penterra(section13 / "Handwritten Index.xlsx")
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    write_native_print_packet(
+        workbook=receipts / "section13-letter.xlsx",
+        output=receipts / "section13-native-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION13-PRINT",
+    )
+    write_native_print_packet(
+        workbook=receipts / "section15-letter.xlsx",
+        output=receipts / "section15-native-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    by_section = {order.section: order for order in second.sections}
+    for section in (15, 13):
+        finish = json.loads(
+            (receipts / f"section{section}-finish.json").read_text(encoding="utf-8")
+        )
+        native = next(
+            gate for gate in finish["gates"] if gate["name"] == "native_print"
+        )
+        assert native["technical_pass"] is True
+        assert all(
+            "horizon.native_print" not in command
+            for command in by_section[section].next_commands
+        )
+        assert all(
+            "reprint the current isolated workbook" not in hold
+            for hold in by_section[section].holds
+        )
+
+
 def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:
     repo_horizon = Path(__file__).resolve().parents[1] / "horizon"
     with pytest.raises(PcOperatorError, match="outside this repository"):

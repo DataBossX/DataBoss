@@ -789,6 +789,7 @@ def _section_work_order(
         section,
         inventory=inventory,
     )
+    bound = _bind_section_workbook_packets(bound, receipt_dir, section)
     isolated = Path(_current_isolated_workbook(receipt_dir, section))
     bound, stale_holds = _unbind_stale_workbook_packets(
         bound, isolated if isolated.is_file() else None
@@ -2004,6 +2005,52 @@ def _crop_packet_matches_section(path: Path, section: int) -> bool:
     )
 
 
+def _section_named_packet(
+    candidate: Optional[Path],
+    receipt_dir: str,
+    section: int,
+    schema_id: str,
+    conventional: str,
+) -> Optional[Path]:
+    if candidate is not None and _schema_packet_matches_section(
+        candidate, section, schema_id
+    ):
+        return candidate
+    path = Path(receipt_dir) / conventional
+    try:
+        if path.is_file() and _schema_packet_matches_section(
+            path, section, schema_id
+        ):
+            return path
+    except OSError:
+        return None
+    return None
+
+
+def _bind_section_workbook_packets(
+    bindings: FinishBindings,
+    receipt_dir: str,
+    section: int,
+) -> FinishBindings:
+    return replace(
+        bindings,
+        native_print_receipt=_section_named_packet(
+            bindings.native_print_receipt,
+            receipt_dir,
+            section,
+            "dbx.native_print_receipt",
+            f"section{section}-native-print.json",
+        ),
+        human_release_token=_section_named_packet(
+            bindings.human_release_token,
+            receipt_dir,
+            section,
+            "dbx.human_release_token",
+            f"section{section}-owner-review.json",
+        ),
+    )
+
+
 def _section_crop_packet(
     candidate: Optional[Path],
     receipt_dir: str,
@@ -2408,6 +2455,7 @@ def _execute_section(
         for slot, path in from_roots.items():
             discovered.setdefault(slot, path)
     bound = _merge_bindings(bindings, discovered)
+    bound = _bind_section_workbook_packets(bound, str(receipt_dir), order.section)
     snapshot = bound.snapshot_directory
     if snapshot is not None:
         snapshot = snapshot / f"section{order.section}"

@@ -38,7 +38,12 @@ from .page_render_export import (
     write_crops_draft,
 )
 from .package_finish import PackageFinishError, run_finish
-from .pdf_census import PdfCensusError, write_inventory_packet
+from .pdf_census import (
+    PdfCensusError,
+    census_packet,
+    write_empty_text_queue,
+    write_inventory_packet,
+)
 from .workbook_ledger import (
     WorkbookLedgerError,
     workbook_to_occurrence_packet,
@@ -510,6 +515,13 @@ def _section_commands(
         commands.append(
             "Census source_document PDFs or copies in sectionN-pdfs; "
             "expected_pages is the counted page total, not a row count"
+        )
+    queue_path = Path(receipt_dir) / f"section{section}-empty-text-queue.json"
+    if queue_path.is_file():
+        commands.append(
+            "Review image-only PDFs in "
+            f"section{section}-empty-text-queue.json from the hashed faces; "
+            "do not invent legal text from page count"
         )
     workbook = _current_isolated_workbook(receipt_dir, section)
     if bindings.native_print_receipt is None:
@@ -1471,6 +1483,43 @@ def _inventory_pdf_census(
     return replace(bound, pdf_census_packet=dest), str(dest), None
 
 
+def _write_empty_text_queue(
+    bound: FinishBindings,
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str], int]:
+    dest = receipt_dir / f"section{section}-empty-text-queue.json"
+    receipt_path = receipt_dir / f"section{section}-pdf-census-receipt.json"
+    if bound.pdf_census_packet is None or bound.pdf_bind_dir is None:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    try:
+        packet = json.loads(Path(bound.pdf_census_packet).read_text(encoding="utf-8"))
+        if not isinstance(packet, dict):
+            return None, "PDF census packet is not a JSON object", 0
+        receipt = census_packet(packet, bind_dir=bound.pdf_bind_dir)
+        receipt_path.write_text(
+            json.dumps(receipt.to_dict(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        queue = write_empty_text_queue(packet, receipt, dest)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        PdfCensusError,
+    ) as exc:
+        return None, str(exc), 0
+    items = queue.get("items")
+    count = len(items) if isinstance(items, list) else 0
+    if count == 0:
+        if dest.is_file():
+            dest.unlink()
+        return str(receipt_path), None, 0
+    return str(dest), None, count
+
+
 def _merge_bindings(
     explicit: FinishBindings,
     discovered: Dict[str, Path],
@@ -1758,6 +1807,18 @@ def _execute_section(
     )
     if inventory_error:
         order.holds.append(f"PDF census inventory failed: {inventory_error}")
+    empty_queue, empty_error, empty_count = _write_empty_text_queue(
+        bound, receipt_dir, order.section
+    )
+    if empty_queue:
+        order.executed_outputs.append(empty_queue)
+    if empty_error:
+        order.holds.append(f"Empty-text PDF queue failed: {empty_error}")
+    elif empty_count:
+        order.holds.append(
+            f"{empty_count} image-only PDF(s) still have empty extracted text; "
+            f"see section{order.section}-empty-text-queue.json"
+        )
     crops_draft, crops_error = _write_section_crops_draft(
         receipt_dir, order.section, inventory=phase2
     )
@@ -1907,6 +1968,8 @@ def _execute_section(
             order.executed_outputs.append(crops_draft)
         if queue_path:
             order.executed_outputs.append(queue_path)
+        if empty_queue:
+            order.executed_outputs.append(empty_queue)
         if index_packet_path is not None:
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():

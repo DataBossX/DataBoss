@@ -104,8 +104,18 @@ python3 -m horizon.pdf_census \
 `--inventory` walks the bind directory, hashes each PDF, and writes
 `expected_pages` from the counted `/Type /Page` total. It does not copy a
 federal row count into that field. Image-only PDFs can pass the hash/count
-bind while `empty_text_files` stays visible. Do not invent legal text from
-a page count.
+bind while `empty_text_files` stays visible. `pc_operator --execute` writes
+`sectionN-empty-text-queue.json` (`dbx.empty_text_pdf_queue`) listing those
+files for face review. Do not invent legal text from a page count.
+
+```bash
+python3 -m horizon.pdf_census \
+  --inventory \
+  --bind-dir /path/to/federal-pdfs \
+  --output /path/to/pdf-page-census-packet.json \
+  --packet-id SECTION13-CENSUS \
+  --empty-text-queue /path/to/empty-text-queue.json
+```
 
 Exit codes:
 

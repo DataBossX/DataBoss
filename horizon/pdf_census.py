@@ -24,6 +24,8 @@ PACKET_SCHEMA_ID = "dbx.pdf_page_census_packet"
 PACKET_SCHEMA_VERSION = "1.0"
 RECEIPT_SCHEMA_ID = "dbx.pdf_page_census_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
+QUEUE_SCHEMA_ID = "dbx.empty_text_pdf_queue"
+QUEUE_SCHEMA_VERSION = "1.0"
 REQUIRED_PACKET_KEYS = {
     "schema_id",
     "schema_version",
@@ -293,6 +295,55 @@ def census_packet(
     )
 
 
+def empty_text_queue_from_census(
+    packet: Dict[str, object],
+    receipt: PdfCensusReceipt,
+) -> Dict[str, object]:
+    """List image-only PDFs. Does not invent legal, party, or date values."""
+    if not isinstance(packet, dict) or packet.get("schema_id") != PACKET_SCHEMA_ID:
+        raise PdfCensusError("PDF census packet schema is invalid")
+    raw_files = packet.get("files")
+    if not isinstance(raw_files, list) or len(raw_files) != len(receipt.files):
+        raise PdfCensusError("census receipt does not match the packet files")
+    items: List[Dict[str, object]] = []
+    for raw, measured in zip(raw_files, receipt.files):
+        if not measured.empty_text:
+            continue
+        path = raw.get("path") if isinstance(raw, dict) else None
+        items.append(
+            {
+                "path": path if isinstance(path, str) else measured.path,
+                "source_sha256": measured.source_sha256,
+                "counted_pages": measured.counted_pages,
+                "extracted_text_bytes": measured.extracted_text_bytes,
+                "action": "face_review",
+            }
+        )
+    return {
+        "schema_id": QUEUE_SCHEMA_ID,
+        "schema_version": QUEUE_SCHEMA_VERSION,
+        "packet_id": receipt.packet_id,
+        "items": items,
+        "notes": [
+            "This queue does not invent legal, party, or date values",
+            "Image-only PDFs stay empty-text until a face is read",
+            "Do not copy a page count into a legal description",
+        ],
+    }
+
+
+def write_empty_text_queue(
+    packet: Dict[str, object],
+    receipt: PdfCensusReceipt,
+    output: Path,
+) -> Dict[str, object]:
+    queue = empty_text_queue_from_census(packet, receipt)
+    dest = output.expanduser()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(queue, indent=2, sort_keys=True), encoding="utf-8")
+    return queue
+
+
 def _load_json(path: Path) -> Dict[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -322,6 +373,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--packet-id")
+    parser.add_argument("--empty-text-queue", type=Path)
     return parser
 
 
@@ -339,6 +391,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 packet_id=args.packet_id,
             )
             receipt = census_packet(packet, bind_dir=args.bind_dir)
+            if args.empty_text_queue is not None:
+                write_empty_text_queue(packet, receipt, args.empty_text_queue)
             print(
                 json.dumps(
                     {
@@ -364,7 +418,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "Pass --packet to verify a census packet, or --inventory "
                 "to measure bind-dir"
             )
-        receipt = census_packet(_load_json(args.packet), bind_dir=args.bind_dir)
+        packet = _load_json(args.packet)
+        receipt = census_packet(packet, bind_dir=args.bind_dir)
+        if args.empty_text_queue is not None:
+            write_empty_text_queue(packet, receipt, args.empty_text_queue)
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),
             encoding="utf-8",

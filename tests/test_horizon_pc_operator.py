@@ -900,6 +900,17 @@ def test_execute_inventories_section_pdfs_and_binds_census(tmp_path: Path) -> No
     census = next(gate for gate in finish["gates"] if gate["name"] == "pdf_census")
     assert census["technical_pass"] is True
     assert census["detail"]["empty_text_files"] == 1
+    queue_path = receipts / "section13-empty-text-queue.json"
+    assert queue_path.is_file()
+    queue = json.loads(queue_path.read_text(encoding="utf-8"))
+    assert queue["schema_id"] == "dbx.empty_text_pdf_queue"
+    assert queue["items"][0]["path"] == "part4.pdf"
+    assert queue["items"][0]["action"] == "face_review"
+    assert "462" not in json.dumps(queue)
+    assert any(
+        "empty extracted text" in hold for hold in receipt.sections[0].holds
+    )
+    assert (receipts / "section13-pdf-census-receipt.json").is_file()
     second = build_work_order(
         roots=[f"pc={root}"],
         sections=[13],

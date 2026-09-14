@@ -18,7 +18,14 @@ from horizon.page_render_export import (
     write_crop_packet,
     write_crops_draft,
 )
-from horizon.pdf_census import PdfCensusError, census_packet, main as census_main, write_inventory_packet
+from horizon.pdf_census import (
+    PdfCensusError,
+    census_packet,
+    empty_text_queue_from_census,
+    main as census_main,
+    write_empty_text_queue,
+    write_inventory_packet,
+)
 from horizon.reextraction_gate import assess_ledger, parse_ledger_export
 
 
@@ -328,6 +335,48 @@ def test_pdf_census_binds_hash_and_flags_empty_text(tmp_path: Path) -> None:
     )
     assert wrong.technical_pass is False
     assert any("expected 462" in issue for issue in wrong.files[0].issues)
+
+
+def test_empty_text_queue_lists_image_only_pdfs_without_legal_text(
+    tmp_path: Path,
+) -> None:
+    bind = tmp_path / "federal-pdfs"
+    bind.mkdir()
+    (bind / "part4.pdf").write_bytes(_minimal_pdf())
+    packet = write_inventory_packet(
+        bind_dir=bind,
+        output=tmp_path / "census-packet.json",
+        packet_id="SECTION13-CENSUS",
+    )
+    receipt = census_packet(packet, bind_dir=bind)
+    queue = empty_text_queue_from_census(packet, receipt)
+    assert queue["schema_id"] == "dbx.empty_text_pdf_queue"
+    assert len(queue["items"]) == 1
+    assert queue["items"][0]["path"] == "part4.pdf"
+    assert queue["items"][0]["action"] == "face_review"
+    assert queue["items"][0]["counted_pages"] == 1
+    assert "legal" not in queue["items"][0]
+    assert "grantor" not in queue["items"][0]
+    assert "462" not in json.dumps(queue)
+    dest = tmp_path / "empty-text-queue.json"
+    written = write_empty_text_queue(packet, receipt, dest)
+    assert dest.is_file()
+    assert written["items"][0]["source_sha256"] == packet["files"][0]["source_sha256"]
+    assert census_main(
+        [
+            "--inventory",
+            "--bind-dir",
+            str(bind),
+            "--output",
+            str(tmp_path / "second.json"),
+            "--packet-id",
+            "SECTION13-CENSUS-2",
+            "--empty-text-queue",
+            str(tmp_path / "cli-queue.json"),
+        ]
+    ) == 0
+    cli_queue = json.loads((tmp_path / "cli-queue.json").read_text(encoding="utf-8"))
+    assert cli_queue["schema_id"] == "dbx.empty_text_pdf_queue"
 
 
 def test_inventory_writes_counted_pages_not_row_count(tmp_path: Path) -> None:

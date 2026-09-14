@@ -37,7 +37,9 @@ python3 -m horizon.pc_operator \
    on the next `--execute`. A `sectionN-pdfs/` directory is bound as
    `--pdf-bind-dir`. If that directory exists and no census packet is present,
    `--execute` inventories it (`expected_pages` = counted `/Type /Page`, not
-   a row count) into `sectionN-pdf-census-packet.json`. After Phase 2,
+   a row count) into `sectionN-pdf-census-packet.json` and lists
+   image-only empty-text files in `sectionN-empty-text-queue.json`.
+   After Phase 2,
    authorized `source_document` PDFs in the snapshot are measured the same
    way when `sectionN-pdfs/` is absent. Deltas apply to an isolated
    `sectionN-delta.xlsx`. Native print, owner-review, and Drive readback

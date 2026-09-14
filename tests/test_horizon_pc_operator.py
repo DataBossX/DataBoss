@@ -725,6 +725,12 @@ def test_apply_delta_then_repairs_remaining_agreed_fills(
     assert repaired["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
     assert repaired["Index"]["I9"].value == "SYNTH SOURCE NOTE"
     repaired.close()
+    payload = json.loads((receipts / "section15-finish.json").read_text())
+    names = [gate["name"] for gate in payload["gates"]]
+    assert "workbook_qa" in names
+    assert "isolated_delta" not in names
+    qa = next(gate for gate in payload["gates"] if gate["name"] == "workbook_qa")
+    assert qa["technical_pass"] is True
 
 
 def test_operator_chains_a_second_delta_onto_current_isolated(

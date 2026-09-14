@@ -2440,6 +2440,31 @@ def _execute_section(
             if followed is not None:
                 order.executed_outputs.append(str(followed))
                 latest = followed
+                finish = run_finish(
+                    sections=[order.section],
+                    roots=list(root_args),
+                    connect_status=True,
+                    index_packet=index_packet_path,
+                    workbook=followed,
+                    page_render_packet=bound.page_render_packet,
+                    native_print_receipt=None,
+                    human_release_token=None,
+                    pdf_census_packet=bound.pdf_census_packet,
+                    pdf_bind_dir=bound.pdf_bind_dir,
+                    drive_readback=None,
+                    authority_manifest=bound.authority_manifest,
+                    project_manifest=bound.project_manifest,
+                    snapshot_directory=snapshot,
+                    acquisition_receipt=acquisition_receipt
+                    if bound.authority_manifest is not None
+                    else None,
+                )
+                finish_path.write_text(
+                    json.dumps(finish.to_dict(), indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
+                order.finish_technical_pass = finish.technical_pass
+                order.finish_packages_complete = finish.packages_complete
         if latest is not None:
             order.executed_outputs.append(str(latest))
         if acquisition_receipt.is_file():

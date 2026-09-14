@@ -94,7 +94,8 @@ python3 -m horizon.pc_operator \
    exists, later `--execute` runs still apply new medium/high 2+ source
    fills onto the next isolated generation instead of freezing that copy.
    Writer-held attested deltas still apply first; the same execute then
-   runs auto-repair on the new isolated copy for any remaining 2+ fills.
+   runs auto-repair on the new isolated copy for any remaining 2+ fills
+   and rewrites `sectionN-finish.json` against that current isolated file.
 5. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /

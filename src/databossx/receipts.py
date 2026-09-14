@@ -28,18 +28,25 @@ def canonical_dumps(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def sha256_canonical(value: Any) -> str:
+    return sha256_bytes(canonical_dumps(value).encode("utf-8"))
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _unsigned_body(body: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: body[key] for key in body if key != "receipt_sha256"}
+
+
 def receipt_digest(body: Mapping[str, Any]) -> str:
-    payload = {key: body[key] for key in body if key != "receipt_sha256"}
-    return sha256_bytes(canonical_dumps(payload).encode("utf-8"))
+    return sha256_canonical(_unsigned_body(body))
 
 
 def seal_receipt(body: Mapping[str, Any]) -> dict[str, Any]:
-    sealed = {key: body[key] for key in body if key != "receipt_sha256"}
-    sealed["receipt_sha256"] = receipt_digest(sealed)
+    sealed = _unsigned_body(body)
+    sealed["receipt_sha256"] = sha256_canonical(sealed)
     return sealed
 
 

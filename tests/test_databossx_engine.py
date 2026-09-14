@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -182,6 +181,18 @@ def test_candidate_comparison_marks_agreement_without_evidence_unsupported():
         ],
     )
     assert report.fields[0].status == "UNSUPPORTED"
+    assert report.winner_candidate_id is None
+
+
+def test_candidate_comparison_conflict_when_unsupported_value_disagrees():
+    report = compare_candidates(
+        "grantee",
+        [
+            Candidate("a", "local", {"grantee": "Ada Cole"}, {"grantee": ["sha-a"]}),
+            Candidate("b", "llm", {"grantee": "Other LLC"}, {}),
+        ],
+    )
+    assert report.fields[0].status == "CONFLICT"
     assert report.winner_candidate_id is None
 
 

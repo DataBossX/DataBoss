@@ -6,10 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Mapping, Sequence
 
 from .database import DataBossDatabase
 from .hashing import StoredAsset, copy_file_to_vault
+from .receipts import canonical_dumps
 
 
 def utc_stamp(moment: datetime | None = None) -> str:
@@ -138,7 +139,13 @@ def complete_task(
         conn.commit()
 
 
-def persist_receipt_row(conn, project_id: str, kind: str, status: str, sealed: dict) -> None:
+def persist_receipt_row(
+    conn,
+    project_id: str,
+    kind: str,
+    status: str,
+    sealed: Mapping[str, Any],
+) -> None:
     conn.execute(
         """
         INSERT OR REPLACE INTO engine_receipts (
@@ -150,15 +157,27 @@ def persist_receipt_row(conn, project_id: str, kind: str, status: str, sealed: d
             project_id,
             kind,
             status,
-            canonical_json(sealed),
+            canonical_dumps(sealed),
         ),
     )
 
 
-def canonical_json(value: object) -> str:
-    from .receipts import canonical_dumps
-
-    return canonical_dumps(value)
+def persist_comparison_row(
+    conn,
+    project_id: str,
+    subject_key: str,
+    result_json: str,
+    conflict_count: int,
+    receipt_sha256: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO candidate_comparisons (
+            project_id, subject_key, result_json, conflict_count, receipt_sha256
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (project_id, subject_key, result_json, conflict_count, receipt_sha256),
+    )
 
 
 def persist_cache_row(

@@ -9,8 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
-from .hashing import sha256_bytes
-from .receipts import canonical_dumps
+from .receipts import canonical_dumps, sha256_canonical
 
 
 AGREE = "AGREE"
@@ -103,6 +102,29 @@ def _evidence(candidate: Candidate, field: str) -> tuple[str, ...]:
     return tuple(item for item in raw if item)
 
 
+def _field_status(
+    *,
+    missing: bool,
+    supported: Sequence[FieldObservation],
+    unsupported: Sequence[FieldObservation],
+    distinct: tuple[str, ...],
+) -> str:
+    if unsupported and not supported:
+        return UNSUPPORTED
+    if unsupported:
+        # Unevidenced values are never a vote. Differing bare assertions
+        # stay conflicts; matching ones stay unsupported.
+        unsupported_values = {_normalize(obs.value) for obs in unsupported}
+        if len(distinct) > 1 or unsupported_values - set(distinct):
+            return CONFLICT
+        return UNSUPPORTED
+    if missing:
+        return MISSING if len(distinct) <= 1 else CONFLICT
+    if len(distinct) > 1:
+        return CONFLICT
+    return AGREE
+
+
 def compare_candidates(
     subject_key: str,
     candidates: Iterable[Candidate],
@@ -121,25 +143,18 @@ def compare_candidates(
             for candidate in catalog
             if field in candidate.values
         ]
-        missing = len(observations) != len(catalog)
         supported = [obs for obs in observations if obs.evidence_hashes]
         unsupported = [obs for obs in observations if not obs.evidence_hashes]
         distinct = tuple(sorted({_normalize(obs.value) for obs in supported}))
-        if unsupported and not supported:
-            status = UNSUPPORTED
-        elif unsupported and supported:
-            # A bare assertion sitting beside evidenced values is not a vote.
-            status = UNSUPPORTED if len(distinct) <= 1 else CONFLICT
-        elif missing:
-            status = MISSING if len(distinct) <= 1 else CONFLICT
-        elif len(distinct) > 1:
-            status = CONFLICT
-        else:
-            status = AGREE
         comparisons.append(
             FieldComparison(
                 field=field,
-                status=status,
+                status=_field_status(
+                    missing=len(observations) != len(catalog),
+                    supported=supported,
+                    unsupported=unsupported,
+                    distinct=distinct,
+                ),
                 observations=tuple(observations),
                 distinct_supported_values=distinct,
             )
@@ -148,4 +163,4 @@ def compare_candidates(
 
 
 def comparison_hash(report: ComparisonReport) -> str:
-    return sha256_bytes(canonical_dumps(report.to_dict()).encode("utf-8"))
+    return sha256_canonical(report.to_dict())

@@ -3,18 +3,24 @@ from __future__ import annotations
 import hashlib
 import os
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 
-def sha256_file(path: str | Path, chunk_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as fh:
+def _read_chunks(path: Path, chunk_size: int) -> Iterator[bytes]:
+    with path.open("rb") as handle:
         while True:
-            chunk = fh.read(chunk_size)
+            chunk = handle.read(chunk_size)
             if not chunk:
                 break
-            digest.update(chunk)
+            yield chunk
+
+
+def sha256_file(path: str | Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    for chunk in _read_chunks(Path(path), chunk_size):
+        digest.update(chunk)
     return digest.hexdigest()
 
 
@@ -51,26 +57,22 @@ def copy_file_to_vault(
     tmp_path = tmp_dir / f"{os.getpid()}-{uuid.uuid4().hex}.part"
     digest = hashlib.sha256()
     byte_size = 0
+    promoted = False
     try:
-        with source.open("rb") as src, tmp_path.open("wb") as dst:
-            while True:
-                chunk = src.read(chunk_size)
-                if not chunk:
-                    break
+        with tmp_path.open("wb") as dst:
+            for chunk in _read_chunks(source, chunk_size):
                 digest.update(chunk)
                 dst.write(chunk)
                 byte_size += len(chunk)
         hexdigest = digest.hexdigest()
         destination = vault_path(root, hexdigest)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.exists():
-            tmp_path.unlink(missing_ok=True)
-        else:
+        if not destination.exists():
             os.replace(tmp_path, destination)
-    except Exception:
-        if tmp_path.exists():
+            promoted = True
+    finally:
+        if not promoted:
             tmp_path.unlink(missing_ok=True)
-        raise
     return StoredAsset(
         sha256=hexdigest,
         byte_size=byte_size,

@@ -4,9 +4,9 @@ import json
 import uuid
 from pathlib import Path
 
+from .batching import hash_files_parallel
 from .config import DataBossConfig
 from .database import DataBossDatabase
-from .batching import hash_files_parallel
 from .hashing import copy_file_to_vault, sha256_bytes
 from .models import InventoryItem, InventoryResult, ProjectRecord, SourceConnectionRecord
 from .orchestrator import seed_project_intake_run

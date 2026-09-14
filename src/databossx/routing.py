@@ -10,8 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable, Sequence
 
-from .hashing import sha256_bytes
-from .receipts import canonical_dumps
+from .receipts import canonical_dumps, sha256_canonical
 
 
 DETERMINISTIC_CAPABILITIES = frozenset(
@@ -211,6 +210,25 @@ def _rank(workers: Sequence[WorkerSpec]) -> list[WorkerSpec]:
     )
 
 
+def _rejected_dicts(rejected: Sequence[Rejection]) -> list[dict[str, str]]:
+    return [{"reason": item.reason, "worker_id": item.worker_id} for item in rejected]
+
+
+def _blocked_reason(
+    request: RouteRequest,
+    workers: Sequence[WorkerSpec],
+    eligible: Sequence[WorkerSpec],
+) -> str | None:
+    if eligible:
+        return None
+    capable = [worker for worker in workers if request.capability in worker.capabilities]
+    if not capable:
+        return "no_worker_for_capability"
+    if request.policy.local_only and all(worker.requires_network for worker in capable):
+        return "local_only_no_eligible_worker"
+    return "no_eligible_worker"
+
+
 def _decision_hash(
     capability: str,
     policy_profile: str,
@@ -218,14 +236,15 @@ def _decision_hash(
     selected_worker_id: str | None,
     rejected: Sequence[Rejection],
 ) -> str:
-    payload = {
-        "capability": capability,
-        "input_hash": input_hash,
-        "policy_profile": policy_profile,
-        "rejected": [{"reason": item.reason, "worker_id": item.worker_id} for item in rejected],
-        "selected_worker_id": selected_worker_id,
-    }
-    return sha256_bytes(canonical_dumps(payload).encode("utf-8"))
+    return sha256_canonical(
+        {
+            "capability": capability,
+            "input_hash": input_hash,
+            "policy_profile": policy_profile,
+            "rejected": _rejected_dicts(rejected),
+            "selected_worker_id": selected_worker_id,
+        }
+    )
 
 
 def route(
@@ -233,7 +252,6 @@ def route(
     catalog: Iterable[WorkerSpec] | None = None,
 ) -> RouteDecision:
     workers = tuple(catalog) if catalog is not None else DEFAULT_CATALOG
-    considered = [worker.worker_id for worker in workers]
     rejected: list[Rejection] = []
     eligible: list[WorkerSpec] = []
     for worker in workers:
@@ -244,29 +262,16 @@ def route(
             eligible.append(worker)
 
     selected = _rank(eligible)[0] if eligible else None
-    blocked_reason = None
-    if selected is None:
-        if not any(request.capability in worker.capabilities for worker in workers):
-            blocked_reason = "no_worker_for_capability"
-        elif request.policy.local_only and all(
-            worker.requires_network
-            for worker in workers
-            if request.capability in worker.capabilities
-        ):
-            blocked_reason = "local_only_no_eligible_worker"
-        else:
-            blocked_reason = "no_eligible_worker"
-
     selected_id = selected.worker_id if selected else None
-    decision = RouteDecision(
+    return RouteDecision(
         capability=request.capability,
         policy_profile=request.policy.profile,
         input_hash=request.input_hash,
         selected_worker_id=selected_id,
         selected_provider=selected.provider if selected else None,
-        considered=tuple(considered),
+        considered=tuple(worker.worker_id for worker in workers),
         rejected=tuple(rejected),
-        blocked_reason=blocked_reason,
+        blocked_reason=_blocked_reason(request, workers, eligible),
         decision_hash=_decision_hash(
             request.capability,
             request.policy.profile,
@@ -275,7 +280,6 @@ def route(
             rejected,
         ),
     )
-    return decision
 
 
 def decision_to_dict(decision: RouteDecision) -> dict[str, object]:
@@ -287,9 +291,7 @@ def decision_to_dict(decision: RouteDecision) -> dict[str, object]:
         "decision_hash": decision.decision_hash,
         "input_hash": decision.input_hash,
         "policy_profile": decision.policy_profile,
-        "rejected": [
-            {"reason": item.reason, "worker_id": item.worker_id} for item in decision.rejected
-        ],
+        "rejected": _rejected_dicts(decision.rejected),
         "selected_provider": decision.selected_provider,
         "selected_worker_id": decision.selected_worker_id,
     }
@@ -309,7 +311,7 @@ def persist_route_decision(conn, project_id: str, decision: RouteDecision) -> in
             decision.policy_profile,
             decision.selected_worker_id,
             decision.selected_provider,
-            canonical_dumps(decision_to_dict(decision)["rejected"]),
+            canonical_dumps(_rejected_dicts(decision.rejected)),
             canonical_dumps(list(decision.considered)),
             decision.input_hash,
             decision.decision_hash,

@@ -15,13 +15,16 @@ def canonical_dumps(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _unsigned_body(body: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: body[key] for key in body if key != "receipt_sha256"}
+
+
 def receipt_digest(body: Mapping[str, Any]) -> str:
-    payload = {key: body[key] for key in body if key != "receipt_sha256"}
-    return hashlib.sha256(canonical_dumps(payload).encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical_dumps(_unsigned_body(body)).encode("utf-8")).hexdigest()
 
 
 def seal_receipt(body: Mapping[str, Any]) -> dict[str, Any]:
-    sealed = {key: body[key] for key in body if key != "receipt_sha256"}
+    sealed = _unsigned_body(body)
     sealed["receipt_sha256"] = receipt_digest(sealed)
     return sealed
 

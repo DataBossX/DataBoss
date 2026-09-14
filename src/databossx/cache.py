@@ -11,8 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
-from .hashing import sha256_bytes
-from .receipts import canonical_dumps
+from .receipts import sha256_canonical
 
 
 def make_cache_key(
@@ -20,12 +19,13 @@ def make_cache_key(
     input_hashes: list[str] | tuple[str, ...],
     params: Mapping[str, Any] | None = None,
 ) -> str:
-    payload = {
-        "inputs": sorted(input_hashes),
-        "params": params or {},
-        "recipe": recipe_version,
-    }
-    return sha256_bytes(canonical_dumps(payload).encode("utf-8"))
+    return sha256_canonical(
+        {
+            "inputs": sorted(input_hashes),
+            "params": params or {},
+            "recipe": recipe_version,
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -72,12 +72,8 @@ class DerivedWorkCache:
         output_hash: str | None = None,
     ) -> CachedWork:
         cache_key = make_cache_key(recipe_version, input_hashes, params)
-        input_manifest_hash = sha256_bytes(
-            canonical_dumps(sorted(input_hashes)).encode("utf-8")
-        )
-        stored_hash = output_hash or sha256_bytes(
-            canonical_dumps(payload).encode("utf-8")
-        )
+        input_manifest_hash = sha256_canonical(sorted(input_hashes))
+        stored_hash = output_hash or sha256_canonical(payload)
         record = {
             "cache_key": cache_key,
             "input_manifest_hash": input_manifest_hash,

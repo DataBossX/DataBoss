@@ -66,7 +66,9 @@ is inventoried on `--execute` when present, as are authorized snapshot
 `source_document` PDFs after Phase 2. `expected_pages` is the counted
 page total, not a federal row count. Native print and owner-review bind
 the current isolated workbook (`sectionN-delta.xlsx` after a source-proved
-apply). The draft itself is not Phase 2.
+apply). When a `drive=` root is mounted, `--execute` publishes that isolated
+file into `Section N/Isolated/` and binds SHA-256 readback. The draft itself
+is not Phase 2.
 `python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.

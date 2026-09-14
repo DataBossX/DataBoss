@@ -581,6 +581,39 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     assert drive_gate["technical_pass"] is True
 
 
+def test_execute_does_not_use_other_section_letter_as_drive_readback(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    section13 = root / "Section 13"
+    _write_penterra(section13 / "Master Abstract.xlsx")
+    _write_penterra(section13 / "County Index.xlsx")
+    _write_penterra(section13 / "Handwritten Index.xlsx")
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    letter15 = receipts / "section15-letter.xlsx"
+    letter13 = receipts / "section13-letter.xlsx"
+    assert letter15.is_file() and letter13.is_file()
+    assert letter15.read_bytes() == letter13.read_bytes()
+    for section in (15, 13):
+        finish = json.loads(
+            (receipts / f"section{section}-finish.json").read_text(encoding="utf-8")
+        )
+        drive_gate = next(
+            (gate for gate in finish["gates"] if gate["name"] == "drive_readback"),
+            None,
+        )
+        assert drive_gate is None or drive_gate["technical_pass"] is not True
+
+
 def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:
     pc = tmp_path / "pc-root"
     drive = tmp_path / "drive-root"

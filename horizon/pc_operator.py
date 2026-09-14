@@ -260,6 +260,10 @@ _ISOLATED_OUTPUT_NAME = re.compile(
     r"^section\d+-(letter|delta|workbook-export|workbook-occurrence)\.",
     re.IGNORECASE,
 )
+_ISOLATED_WORKBOOK_SECTION = re.compile(
+    r"^section(\d+)-(letter|delta(?:-\d+)?)\.xlsx$",
+    re.IGNORECASE,
+)
 
 
 def _is_isolated_output(item: SourceFile) -> bool:
@@ -2313,22 +2317,36 @@ def _bind_picks_to_snapshot(
     return bound
 
 
+def _isolated_workbook_section(path: Path) -> Optional[int]:
+    match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
 def _same_hash_readback(
     inventory: Optional[AcquisitionReceipt],
     workbook: Path,
     receipt_dir: Path,
+    section: int,
 ) -> Optional[Path]:
     digest = sha256_file(workbook)
     exclude = workbook.resolve()
     candidates: List[Path] = []
     if inventory is not None:
         for item in inventory.files:
+            if item.section != section:
+                continue
             if item.sha256 != digest or not _is_isolated_output(item):
                 continue
             candidates.append(
                 Path(inventory.roots[item.root_label]) / item.relative_path
             )
-    candidates.extend(path for path in receipt_dir.glob("*.xlsx"))
+    for path in receipt_dir.glob("*.xlsx"):
+        other = _isolated_workbook_section(path)
+        if other is not None and other != section:
+            continue
+        candidates.append(path)
     for path in candidates:
         try:
             resolved = path.resolve()
@@ -2686,6 +2704,7 @@ def _execute_section(
                 inventory,
                 current_book,
                 receipt_dir,
+                order.section,
             )
         finish_native = None if applying_delta else bound.native_print_receipt
         finish_release = None if applying_delta else bound.human_release_token
@@ -2855,7 +2874,7 @@ def _execute_section(
             order.holds.extend(stale_holds)
             if bound.drive_readback is None:
                 bound.drive_readback = _same_hash_readback(
-                    inventory, isolated, receipt_dir
+                    inventory, isolated, receipt_dir, order.section
                 )
             try:
                 draft_path = receipt_dir / f"section{order.section}-native-print-draft.json"

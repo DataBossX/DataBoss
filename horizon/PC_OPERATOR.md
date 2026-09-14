@@ -105,8 +105,9 @@ python3 -m horizon.pc_operator \
    at that current isolated file and do not reprint over an existing Letter.
    Later `--execute` rebuilds `sectionN-index-packet.json` from that isolated
    file, not from leftover live working-abstract blanks.
-   Drive readback only binds Isolated/ or receipt-dir copies of that file,
-   not the live working abstract.
+   Drive readback only binds Isolated/ or receipt-dir copies of that
+   section's file, not another section's Letter and not the live working
+   abstract.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,

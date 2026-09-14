@@ -63,7 +63,8 @@ See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md),
 [`NATIVE_PRINT.md`](NATIVE_PRINT.md),
 [`REEXTRACTION.md`](REEXTRACTION.md), and
-[`CONNECT.md`](CONNECT.md). `packages_complete` stays false until
+[`CONNECT.md`](CONNECT.md), and
+[`HUMAN_RELEASE.md`](HUMAN_RELEASE.md). `packages_complete` stays false until
 a verified snapshot, source-backed rows, native Excel, and human release exist.
 
 ### Build a report from the reference workbook (Intelligence Layer)

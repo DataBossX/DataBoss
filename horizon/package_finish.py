@@ -39,6 +39,11 @@ from .index_reconciliation import (
 )
 from .connect_status import ConnectStatusError, probe_connections
 from .drive_readback import DriveReadbackError, assess_drive_readback
+from .human_release import (
+    HumanReleaseError,
+    assess_human_release,
+    evaluate_package_completion,
+)
 from .isolated_delta import IsolatedDeltaError, apply_deltas
 from .native_print import NativePrintError, assess_native_print
 from .occurrence_build import OccurrenceBuildError, build_occurrence_packet
@@ -333,6 +338,11 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Pass --print-layout-output to write Letter/landscape/print-title "
             "settings onto an isolated copy"
         )
+    if "human_release" not in ran:
+        actions.append(
+            "Pass --human-release-token with the owner-review declaration "
+            "bound to the isolated workbook hash; external_release must be false"
+        )
     if "drive_readback" not in ran:
         actions.append(
             "Pass --drive-readback with a distinct Drive/PC copy of the "
@@ -387,6 +397,7 @@ def run_finish(
     pdf_bind_dir: Optional[Path] = None,
     connect_status: bool = False,
     drive_readback: Optional[Path] = None,
+    human_release_token: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -761,14 +772,63 @@ def run_finish(
                 )
     if public_plats:
         gates.append(_cadastral_gate(public_plats))
+    if human_release_token is not None:
+        if qa_workbook is None:
+            gates.append(
+                GateResult(
+                    name="human_release",
+                    ran=True,
+                    technical_pass=False,
+                    error="Human release token requires a workbook to bind",
+                )
+            )
+        else:
+            try:
+                release = assess_human_release(
+                    _load_json(human_release_token),
+                    workbook=qa_workbook,
+                    requested_sections=sections,
+                )
+                gates.append(
+                    GateResult(
+                        name="human_release",
+                        ran=True,
+                        technical_pass=release.technical_pass,
+                        detail={
+                            "operator": release.operator,
+                            "issue_count": len(release.issues),
+                            "sections": release.sections,
+                        },
+                    )
+                )
+            except (OSError, HumanReleaseError, PackageFinishError) as exc:
+                gates.append(
+                    GateResult(
+                        name="human_release",
+                        ran=True,
+                        technical_pass=False,
+                        error=str(exc),
+                    )
+                )
     ran = [gate for gate in gates if gate.ran]
     technical_pass = bool(ran) and all(gate.technical_pass for gate in ran)
+    packages_complete, completion_gaps = evaluate_package_completion(
+        gates,
+        requested_sections=sections,
+    )
+    next_actions = _next_actions(gates, sections)
+    if packages_complete:
+        next_actions.append(
+            "Owner review only; this is not an external client delivery"
+        )
+    else:
+        next_actions.extend(completion_gaps[:12])
     return FinishReceipt(
         generated_utc=datetime.now(timezone.utc).isoformat(),
         requested_sections=list(sections),
         gates=gates,
-        next_actions=_next_actions(gates, sections),
-        packages_complete=False,
+        next_actions=next_actions,
+        packages_complete=packages_complete,
         technical_pass=technical_pass,
     )
 
@@ -811,6 +871,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pdf-bind-dir", type=Path)
     parser.add_argument("--connect-status", action="store_true")
     parser.add_argument("--drive-readback", type=Path)
+    parser.add_argument("--human-release-token", type=Path)
     return parser
 
 
@@ -842,6 +903,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             pdf_bind_dir=args.pdf_bind_dir,
             connect_status=args.connect_status,
             drive_readback=args.drive_readback,
+            human_release_token=args.human_release_token,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

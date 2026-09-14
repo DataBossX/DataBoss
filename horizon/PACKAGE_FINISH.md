@@ -19,6 +19,7 @@ python3 -m horizon.package_finish \
   --print-layout-output /path/to/isolated-letter.xlsx \
   --native-print-receipt /path/to/native-excel-print-receipt.json \
   --drive-readback /path/to/drive-copy.xlsx \
+  --human-release-token /path/to/owner-review-token.json \
   --public-plat campbell,45n,76w \
   --public-plat johnson,47n,77w \
   --output /path/to/package-finish-receipt.json
@@ -55,10 +56,12 @@ Preview receipt to the current workbook hash. Page count must match the
 writer-held `expected_page_count`. LibreOffice, A4, or a missing print-title
 claim fails. This still is not Drive readback.
 
-`packages_complete` stays `false` until a verified acquisition snapshot,
-source-backed rows, native Excel Print Preview, Drive readback, and a human
-release token all exist. This runner cannot create those from an empty cloud
-VM.
+`packages_complete` is true only when every required gate passed and a
+writer-held `--human-release-token` matches the isolated workbook hash.
+The token statement must be the owner-review declaration;
+`external_release` must be false. `READY_TO_SUBMIT` and external-delivery
+claims are rejected. This runner cannot satisfy that predicate from an
+empty cloud VM.
 
 Public township plats are fetched only from the wy.blm.gov allowlist. Their
 hashes are cadastral evidence, not an abstract package.

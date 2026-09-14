@@ -282,6 +282,17 @@ def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:
     assert str(letter) in finish_cmd
     assert "Working Abstract.xlsx" not in finish_cmd
     assert "--print-layout-output" not in finish_cmd
+    payload = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    names = [gate["name"] for gate in payload["gates"]]
+    assert "repair_loop" not in names
+    recon = next(
+        gate for gate in payload["gates"] if gate["name"] == "index_reconciliation"
+    )
+    assert recon["technical_pass"] is True
+    assert recon["detail"]["blank_required_count"] == 0
+    assert recon["detail"]["candidate_from"] == "workbook"
 
 
 def test_existing_a4_letter_is_repaired_in_place(tmp_path: Path) -> None:

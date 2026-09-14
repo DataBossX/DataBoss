@@ -108,7 +108,9 @@ python3 -m horizon.pc_operator \
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,
-   even when follow-up repair finds nothing left to apply.
+   even when follow-up repair finds nothing left to apply. The first
+   execute also rewrites finish against the new Letter so reconciliation
+   scores that file, not the live repair loop.
 5. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /

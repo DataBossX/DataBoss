@@ -1170,6 +1170,40 @@ def _apply_print_layout_in_place(workbook: Path) -> None:
             return
 
 
+def _rerun_finish_isolated(
+    *,
+    section: int,
+    root_args: Sequence[str],
+    index_packet: Optional[Path],
+    workbook: Path,
+    bound: "FinishBindings",
+    snapshot: Optional[Path],
+    acquisition_receipt: Path,
+    native_print_receipt: Optional[Path] = None,
+    human_release_token: Optional[Path] = None,
+    drive_readback: Optional[Path] = None,
+):
+    return run_finish(
+        sections=[section],
+        roots=list(root_args),
+        connect_status=True,
+        index_packet=index_packet,
+        workbook=workbook,
+        page_render_packet=bound.page_render_packet,
+        native_print_receipt=native_print_receipt,
+        human_release_token=human_release_token,
+        pdf_census_packet=bound.pdf_census_packet,
+        pdf_bind_dir=bound.pdf_bind_dir,
+        drive_readback=drive_readback,
+        authority_manifest=bound.authority_manifest,
+        project_manifest=bound.project_manifest,
+        snapshot_directory=snapshot,
+        acquisition_receipt=acquisition_receipt
+        if bound.authority_manifest is not None
+        else None,
+    )
+
+
 def _promote_repair_isolated(
     finish: object,
     source_workbook: Path,
@@ -2555,24 +2589,14 @@ def _execute_section(
                 if followed is not None:
                     order.executed_outputs.append(str(followed))
                     latest = followed
-            finish = run_finish(
-                sections=[order.section],
-                roots=list(root_args),
-                connect_status=True,
+            finish = _rerun_finish_isolated(
+                section=order.section,
+                root_args=root_args,
                 index_packet=index_packet_path,
                 workbook=latest,
-                page_render_packet=bound.page_render_packet,
-                native_print_receipt=None,
-                human_release_token=None,
-                pdf_census_packet=bound.pdf_census_packet,
-                pdf_bind_dir=bound.pdf_bind_dir,
-                drive_readback=None,
-                authority_manifest=bound.authority_manifest,
-                project_manifest=bound.project_manifest,
-                snapshot_directory=snapshot,
-                acquisition_receipt=acquisition_receipt
-                if bound.authority_manifest is not None
-                else None,
+                bound=bound,
+                snapshot=snapshot,
+                acquisition_receipt=acquisition_receipt,
             )
             finish_path.write_text(
                 json.dumps(finish.to_dict(), indent=2, sort_keys=True),
@@ -2580,6 +2604,28 @@ def _execute_section(
             )
             order.finish_technical_pass = finish.technical_pass
             order.finish_packages_complete = finish.packages_complete
+        elif not applying_delta:
+            rewrite_book = latest
+            if rewrite_book is None and letter_path.exists():
+                rewrite_book = letter_path
+            if rewrite_book is not None:
+                finish = _rerun_finish_isolated(
+                    section=order.section,
+                    root_args=root_args,
+                    index_packet=index_packet_path,
+                    workbook=rewrite_book,
+                    bound=bound,
+                    snapshot=snapshot,
+                    acquisition_receipt=acquisition_receipt,
+                )
+                finish_path.write_text(
+                    json.dumps(finish.to_dict(), indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
+                order.finish_technical_pass = finish.technical_pass
+                order.finish_packages_complete = finish.packages_complete
+                if latest is None:
+                    latest = rewrite_book
         if latest is not None:
             order.executed_outputs.append(str(latest))
         if acquisition_receipt.is_file():
@@ -2663,24 +2709,17 @@ def _execute_section(
                 order.executed_outputs.append(str(published))
                 if bound.drive_readback is None:
                     bound.drive_readback = published
-                    finish = run_finish(
-                        sections=[order.section],
-                        roots=list(root_args),
-                        connect_status=True,
+                    finish = _rerun_finish_isolated(
+                        section=order.section,
+                        root_args=root_args,
                         index_packet=index_packet_path,
                         workbook=isolated,
-                        page_render_packet=bound.page_render_packet,
+                        bound=bound,
+                        snapshot=snapshot,
+                        acquisition_receipt=acquisition_receipt,
                         native_print_receipt=bound.native_print_receipt,
                         human_release_token=bound.human_release_token,
-                        pdf_census_packet=bound.pdf_census_packet,
-                        pdf_bind_dir=bound.pdf_bind_dir,
                         drive_readback=published,
-                        authority_manifest=bound.authority_manifest,
-                        project_manifest=bound.project_manifest,
-                        snapshot_directory=snapshot,
-                        acquisition_receipt=acquisition_receipt
-                        if bound.authority_manifest is not None
-                        else None,
                     )
                     finish_path.write_text(
                         json.dumps(finish.to_dict(), indent=2, sort_keys=True),

@@ -23,14 +23,37 @@ _ISOLATED_WORKBOOK_SECTION = re.compile(
     r"^section(\d+)-(letter|delta(?:-\d+)?)\.xlsx$",
     re.IGNORECASE,
 )
+_FOLDER_SECTION = re.compile(
+    r"(?i)(?:^|[^a-z0-9])sec(?:tion)?[\s_-]*0?(11|13|15)(?![a-z0-9])"
+)
+_FOLDER_TOWNSHIP = re.compile(
+    r"(?i)^0?(11|13|15)-\d{1,2}[ns]-\d{1,3}[ew]$"
+)
+
+
+def path_folder_sections(path: Path) -> List[int]:
+    """Priority sections named by parent folders, not the filename."""
+    found: List[int] = []
+    for part in path.parts[:-1]:
+        if part.casefold() == "isolated":
+            continue
+        match = _FOLDER_SECTION.search(part) or _FOLDER_TOWNSHIP.fullmatch(part)
+        if match is None:
+            continue
+        number = int(match.group(1))
+        if number not in found:
+            found.append(number)
+    return found
 
 
 def is_drive_isolated_copy(path: Path, section: int) -> bool:
-    """True when the copy lives under Isolated/ and names this section."""
-    if any(part.casefold() == "isolated" for part in path.parts):
-        match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
-        return match is not None and int(match.group(1)) == section
-    return False
+    """True when Isolated/ names this section and no folder names another."""
+    if not any(part.casefold() == "isolated" for part in path.parts):
+        return False
+    match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
+    if match is None or int(match.group(1)) != section:
+        return False
+    return not any(number != section for number in path_folder_sections(path))
 
 
 def isolated_workbook_filename(path: Optional[Path], section: int) -> str:

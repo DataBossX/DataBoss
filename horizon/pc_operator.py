@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Sequence
 from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
-from .drive_readback import is_drive_isolated_copy
+from .drive_readback import is_drive_isolated_copy, path_folder_sections
 from .index_export import (
     IndexExportError,
     export_faces,
@@ -2377,6 +2377,8 @@ def _same_hash_readback(
             other = _isolated_workbook_section(path)
             if other is not None and other != section:
                 continue
+            if any(number != section for number in path_folder_sections(path)):
+                continue
             candidates.append(path)
     for path in receipt_dir.glob("*.xlsx"):
         other = _isolated_workbook_section(path)
@@ -2404,6 +2406,30 @@ def _same_hash_readback(
     return None
 
 
+def _section_folder_dest(root: Path, relative: Path, section: int) -> Optional[Path]:
+    acc: List[str] = []
+    named: Optional[Path] = None
+    for part in relative.parts[:-1]:
+        acc.append(part)
+        folders = path_folder_sections(Path(*acc, "file.xlsx"))
+        if section in folders and all(number == section for number in folders):
+            named = root.joinpath(*acc)
+            break
+    if named is None and relative.parts:
+        folders = path_folder_sections(Path(relative.parts[0], "file.xlsx"))
+        if folders and any(number != section for number in folders):
+            return None
+        named = root / relative.parts[0]
+    if named is None:
+        return None
+    try:
+        if named.is_dir():
+            return named.resolve()
+    except OSError:
+        return None
+    return None
+
+
 def _drive_section_dir(
     inventory: Optional[AcquisitionReceipt],
     section: int,
@@ -2418,18 +2444,23 @@ def _drive_section_dir(
             return None
     except OSError:
         return None
+    preferred: List[Path] = []
+    other: List[Path] = []
     for item in inventory.files:
         if item.root_label != "drive" or item.section != section:
             continue
-        parts = Path(item.relative_path).parts
-        if not parts:
+        relative = Path(item.relative_path)
+        if any(number != section for number in path_folder_sections(relative)):
             continue
-        candidate = root / parts[0]
-        try:
-            if candidate.is_dir():
-                return candidate.resolve()
-        except OSError:
+        dest = _section_folder_dest(root, relative, section)
+        if dest is None:
             continue
+        if section in path_folder_sections(dest / "placeholder.xlsx"):
+            preferred.append(dest)
+        else:
+            other.append(dest)
+    for candidate in preferred + other:
+        return candidate
     fallback = root / f"Section {section}"
     try:
         if fallback.is_dir():

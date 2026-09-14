@@ -11,6 +11,7 @@ import pytest
 from horizon.isolated_delta import sha256_file
 from types import SimpleNamespace
 
+from horizon.drive_readback import is_drive_isolated_copy
 from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
@@ -769,6 +770,64 @@ def test_execute_does_not_use_other_section_letter_as_drive_readback(
         assert drive13["technical_pass"] is True
     bound13 = _same_hash_readback(None, letter13, receipts, 13)
     assert bound13 is None or bound13.resolve() != letter15.resolve()
+
+
+def test_execute_publishes_section13_into_its_own_isolated_tree(
+    tmp_path: Path,
+) -> None:
+    pc = tmp_path / "pc-root"
+    drive = tmp_path / "drive-root"
+    pc.mkdir()
+    _section15_tree(pc)
+    _section15_tree(drive)
+    section13_pc = pc / "Section 13"
+    _write_penterra(section13_pc / "Master Abstract.xlsx")
+    _write_penterra(section13_pc / "County Index.xlsx")
+    _write_penterra(section13_pc / "Handwritten Index.xlsx")
+    section13_drive = drive / "Section 13"
+    _write_penterra(section13_drive / "Master Abstract.xlsx")
+    _write_penterra(section13_drive / "County Index.xlsx")
+    _write_penterra(section13_drive / "Handwritten Index.xlsx")
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter13 = receipts / "section13-letter.xlsx"
+    assert letter13.is_file()
+    planted = drive / "Section 15" / "Isolated" / "section13-letter.xlsx"
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_bytes(letter13.read_bytes())
+    assert is_drive_isolated_copy(planted, 13) is False
+    second = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    published = drive / "Section 13" / "Isolated" / "section13-letter.xlsx"
+    assert published.is_file()
+    assert published.read_bytes() == letter13.read_bytes()
+    assert is_drive_isolated_copy(published, 13) is True
+    finish13 = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    drive13 = next(
+        gate for gate in finish13["gates"] if gate["name"] == "drive_readback"
+    )
+    assert drive13["technical_pass"] is True
+    assert drive13["detail"].get("isolated_copy") is True
+    plan = json.loads(
+        (receipts / "section13-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert (
+        "Copy section13-letter.xlsx into Drive Section 13/Isolated/"
+        not in plan["missing"]
+    )
 
 
 def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:

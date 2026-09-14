@@ -95,6 +95,12 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     assert not is_drive_isolated_copy(
         Path("Section 15/Isolated/section15-letter.xlsx"), 13
     )
+    assert not is_drive_isolated_copy(
+        Path("Section 15/Isolated/section13-letter.xlsx"), 13
+    )
+    assert is_drive_isolated_copy(
+        Path("Abstract/Isolated/section15-letter.xlsx"), 15
+    )
     assert (
         isolated_workbook_filename(Path("section15-delta-2.xlsx"), 15)
         == "section15-delta-2.xlsx"

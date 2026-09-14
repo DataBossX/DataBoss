@@ -225,12 +225,32 @@ def _queue_bound_to_isolated(
     payload: Dict[str, object],
     isolated_sha256: str,
 ) -> bool:
+    """True when the queue can be scored against this isolated file.
+
+    A leftover queue without workbook_sha256 is not bound once an
+    isolated hash is known. Missing isolated hash still accepts the
+    queue so field-gap counts remain available before a Letter exists.
+    """
     if not isolated_sha256:
         return True
     bound = payload.get("workbook_sha256")
     if not isinstance(bound, str) or not bound:
-        return True
+        return False
     return bound.casefold() == isolated_sha256.casefold()
+
+
+def _examiner_queue_hash_gap(
+    payload: Dict[str, object],
+    isolated_sha256: str,
+) -> str:
+    if not isolated_sha256 or not payload:
+        return ""
+    if _queue_bound_to_isolated(payload, isolated_sha256):
+        return ""
+    bound = payload.get("workbook_sha256")
+    if not isinstance(bound, str) or not bound:
+        return "examiner queue is missing a workbook hash"
+    return "examiner queue is bound to a different workbook"
 
 
 def _fill_queue_lines(
@@ -484,10 +504,9 @@ def remaining_plan(
         by_field=by_field,
     )
     queue_payload = _load_examiner_queue(receipt_dir, section)
-    if isolated_sha and queue_payload and not _queue_bound_to_isolated(
-        queue_payload, isolated_sha
-    ):
-        extra.append("examiner queue is bound to a different workbook")
+    queue_gap = _examiner_queue_hash_gap(queue_payload, isolated_sha)
+    if queue_gap:
+        extra.append(queue_gap)
     extra.extend(
         line
         for line in _fill_queue_lines(receipt_dir, section, isolated_sha)

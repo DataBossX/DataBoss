@@ -253,6 +253,7 @@ def test_remaining_plan_queue_blanks_block_completion_when_finish_gates_pass(
             {
                 "schema_id": "dbx.examiner_fill_queue",
                 "schema_version": "1.0",
+                "workbook_sha256": sha256_file(letter),
                 "blank_count": 2,
                 "conflict_count": 0,
             }
@@ -273,6 +274,35 @@ def test_remaining_plan_queue_blanks_block_completion_when_finish_gates_pass(
         not in plan["missing"]
     )
     assert "Attest owner-review of section15-letter.xlsx" not in plan["missing"]
+
+
+def test_remaining_plan_leftover_unhashed_examiner_queue_does_not_apply_counts(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    queue = tmp_path / "section15-examiner-queue.json"
+    queue.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "blank_count": 99,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "index has 99 blank required field(s)" not in plan["missing"]
+    assert "examiner queue is missing a workbook hash" in plan["missing"]
+    assert "examiner queue is bound to a different workbook" not in plan["missing"]
 
 
 def test_remaining_plan_prefers_examiner_queue_over_stale_finish(

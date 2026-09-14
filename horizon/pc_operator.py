@@ -843,7 +843,7 @@ def _section_work_order(
     bound = _bind_section_workbook_packets(bound, receipt_dir, section)
     isolated = Path(_current_isolated_workbook(receipt_dir, section))
     bound, stale_holds = _unbind_stale_workbook_packets(
-        bound, isolated if isolated.is_file() else None
+        bound, isolated if isolated.is_file() else None, section
     )
     holds.extend(stale_holds)
     bound = _bind_section_crops(
@@ -1454,8 +1454,9 @@ def _archive_applied_delta_packet(
 def _unbind_stale_workbook_packets(
     bindings: FinishBindings,
     workbook: Optional[Path],
+    section: int,
 ) -> tuple[FinishBindings, List[str]]:
-    """Drop native-print and owner-review packets that do not match isolated bytes."""
+    """Drop packets that do not match this section's isolated bytes."""
     if workbook is None or not workbook.is_file():
         return bindings, []
     actual = sha256_file(workbook)
@@ -1476,19 +1477,29 @@ def _unbind_stale_workbook_packets(
         )
         release = None
     if readback is not None:
-        try:
-            if not readback.is_file() or sha256_file(readback) != actual:
+        other = _isolated_workbook_section(readback)
+        folders = path_folder_sections(readback)
+        if (other is not None and other != section) or any(
+            number != section for number in folders
+        ):
+            holds.append(
+                "Drive readback is bound to a different section Isolated/ file"
+            )
+            readback = None
+        else:
+            try:
+                if not readback.is_file() or sha256_file(readback) != actual:
+                    holds.append(
+                        "Drive readback is bound to a different workbook hash; "
+                        "copy the current isolated workbook into Drive Isolated/"
+                    )
+                    readback = None
+            except OSError:
                 holds.append(
                     "Drive readback is bound to a different workbook hash; "
                     "copy the current isolated workbook into Drive Isolated/"
                 )
                 readback = None
-        except OSError:
-            holds.append(
-                "Drive readback is bound to a different workbook hash; "
-                "copy the current isolated workbook into Drive Isolated/"
-            )
-            readback = None
     if (
         native is bindings.native_print_receipt
         and release is bindings.human_release_token
@@ -2847,7 +2858,9 @@ def _execute_section(
             else None
         )
         if current_book is not None:
-            bound, stale_holds = _unbind_stale_workbook_packets(bound, current_book)
+            bound, stale_holds = _unbind_stale_workbook_packets(
+                bound, current_book, order.section
+            )
             order.holds.extend(stale_holds)
         if bound.drive_readback is None and current_book is not None:
             bound.drive_readback = _same_hash_readback(
@@ -3020,7 +3033,9 @@ def _execute_section(
                 order.holds.append(
                     f"One-source fill template failed: {template_error}"
                 )
-            bound, stale_holds = _unbind_stale_workbook_packets(bound, isolated)
+            bound, stale_holds = _unbind_stale_workbook_packets(
+                bound, isolated, order.section
+            )
             order.holds.extend(stale_holds)
             if bound.drive_readback is None:
                 bound.drive_readback = _same_hash_readback(

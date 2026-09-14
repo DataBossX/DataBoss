@@ -778,6 +778,56 @@ def test_execute_does_not_use_other_section_letter_as_drive_readback(
     assert bound13 is None or bound13.resolve() != letter15.resolve()
 
 
+def test_execute_does_not_reuse_other_section_drive_readback(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    section13 = root / "Section 13"
+    _write_penterra(section13 / "Master Abstract.xlsx")
+    _write_penterra(section13 / "County Index.xlsx")
+    _write_penterra(section13 / "Handwritten Index.xlsx")
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter15 = receipts / "section15-letter.xlsx"
+    letter13 = receipts / "section13-letter.xlsx"
+    assert letter15.is_file() and letter13.is_file()
+    letter13.write_bytes(letter15.read_bytes())
+    planted = root / "Section 15" / "Isolated" / "section15-letter.xlsx"
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_bytes(letter15.read_bytes())
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 13],
+        receipt_dir=receipts,
+        execute=True,
+        bindings=FinishBindings(drive_readback=planted),
+    )
+    assert second.packages_complete is False
+    finish13 = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    drive13 = next(
+        (gate for gate in finish13["gates"] if gate["name"] == "drive_readback"),
+        None,
+    )
+    assert drive13 is None or drive13.get("detail", {}).get("isolated_copy") is not True
+    if drive13 is not None:
+        dumped = json.dumps(drive13)
+        assert "section15-letter.xlsx" not in dumped
+    by_section = {order.section: order for order in second.sections}
+    assert any(
+        "different section Isolated" in hold for hold in by_section[13].holds
+    )
+
+
 def test_execute_publishes_section13_into_its_own_isolated_tree(
     tmp_path: Path,
 ) -> None:

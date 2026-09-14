@@ -121,7 +121,8 @@ python3 -m horizon.pc_operator \
    `sectionN-delta.xlsx` by that filename even when the file sits under
    another section folder. Drive publish dest is the section-named
    folder, never Isolated itself, so later execute does not write
-   Isolated/Isolated.
+   Isolated/Isolated. A shared `--drive-readback` of another section's
+   Isolated file is unbound even when the hashes match.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,

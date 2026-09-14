@@ -10,6 +10,47 @@ from horizon.remaining_plan import remaining_plan, write_remaining_plan_bundle
 from horizon.pc_operator import build_work_order
 
 
+def _green_finish(letter: Path) -> dict[str, object]:
+    digest = sha256_file(letter)
+    return {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": name,
+                "ran": True,
+                "technical_pass": True,
+                "detail": (
+                    {"isolated_copy": True, "workbook_sha256": digest}
+                    if name == "drive_readback"
+                    else (
+                        {
+                            "blank_required_count": 0,
+                            "conflict_count": 0,
+                            "candidate_from": "workbook",
+                        }
+                        if name == "index_reconciliation"
+                        else (
+                            {"workbook_sha256": digest}
+                            if name in {"native_print", "human_release"}
+                            else {}
+                        )
+                    )
+                ),
+            }
+            for name in (
+                "source_acquisition",
+                "reextraction",
+                "occurrence_ledger",
+                "index_reconciliation",
+                "workbook_qa",
+                "native_print",
+                "drive_readback",
+                "human_release",
+            )
+        ],
+    }
+
+
 def test_remaining_plan_lists_missing_required_gates(tmp_path: Path) -> None:
     finish = {
         "schema_id": "dbx.package_finish_receipt",
@@ -216,49 +257,9 @@ def test_remaining_plan_queue_blanks_block_completion_when_finish_gates_pass(
         ),
         encoding="utf-8",
     )
-    finish = {
-        "schema_id": "dbx.package_finish_receipt",
-        "gates": [
-            {
-                "name": name,
-                "ran": True,
-                "technical_pass": True,
-                "detail": (
-                    {
-                        "isolated_copy": True,
-                        "workbook_sha256": sha256_file(letter),
-                    }
-                    if name == "drive_readback"
-                    else (
-                        {
-                            "blank_required_count": 0,
-                            "conflict_count": 0,
-                            "candidate_from": "workbook",
-                        }
-                        if name == "index_reconciliation"
-                        else (
-                            {"workbook_sha256": sha256_file(letter)}
-                            if name in {"native_print", "human_release"}
-                            else {}
-                        )
-                    )
-                ),
-            }
-            for name in (
-                "source_acquisition",
-                "reextraction",
-                "occurrence_ledger",
-                "index_reconciliation",
-                "workbook_qa",
-                "native_print",
-                "drive_readback",
-                "human_release",
-            )
-        ],
-    }
     plan = remaining_plan(
         section=15,
-        finish=finish,
+        finish=_green_finish(letter),
         receipt_dir=tmp_path,
         isolated_workbook=letter,
     )
@@ -569,6 +570,92 @@ def test_remaining_plan_keeps_isolated_hop_when_drive_hash_is_stale(
         in plan["missing"]
     )
     assert plan["packages_complete"] is False
+
+
+def test_remaining_plan_fill_queues_block_completion(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "items": [
+                    {"page": 1, "action": "source_proved_fill"},
+                    {"page": 2, "action": "source_proved_fill"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-handwritten-scan-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.handwritten_scan_queue",
+                "items": [{"page": 1, "action": "transcribe_to_penterra"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "items": [{"action": "face_review"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-supporting-record-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.supporting_record_queue",
+                "items": [{"action": "review_only"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+        holds=["2 chat/OCR file(s) are review-only"],
+    )
+    assert plan["packages_complete"] is False
+    assert "2 page-render crop(s) still need face text" in plan["missing"]
+    assert "1 handwritten scan(s) still need a Penterra xlsx" in plan["missing"]
+    assert "1 image-only PDF(s) still have empty extracted text" in plan["missing"]
+    assert "review-only" not in "".join(plan["missing"])
+    dumped = json.dumps(plan)
+    assert "DO NOT COPY" not in dumped
+
+
+def test_remaining_plan_supporting_queue_does_not_block_completion(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-supporting-record-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.supporting_record_queue",
+                "items": [{"action": "review_only"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+        holds=["1 chat/OCR file(s) are review-only"],
+    )
+    assert plan["packages_complete"] is True
+    assert "review-only" not in "".join(plan["missing"])
+    assert "crop" not in "".join(plan["missing"])
 
 
 def test_remaining_plan_keeps_print_hop_when_finish_hash_is_stale(

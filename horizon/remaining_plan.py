@@ -3,8 +3,9 @@
 The plan does not invent legal, party, or date values. It names
 unfinished gates, missing source files, classified roles that still
 need Phase-2 authority, blank/conflict counts from finish receipts or
-examiner queues that already exist, and Print Preview / Drive Isolated
-/ owner-review hops bound to the current isolated Letter or delta.
+examiner queues that already exist, open crop / handwritten-scan /
+empty-text fill queues, and Print Preview / Drive Isolated /
+owner-review hops bound to the current isolated Letter or delta.
 Drive Isolated/ stays until the bound copy is under Isolated/.
 """
 
@@ -53,6 +54,23 @@ OPEN_QUEUE_FILES = {
     "native_print_draft": "section{section}-native-print-draft.json",
     "owner_review_draft": "section{section}-owner-review-draft.json",
 }
+FILL_QUEUE_GAPS = (
+    (
+        "crop_fill_queue",
+        "dbx.crop_fill_queue",
+        "{n} page-render crop(s) still need face text",
+    ),
+    (
+        "handwritten_scan_queue",
+        "dbx.handwritten_scan_queue",
+        "{n} handwritten scan(s) still need a Penterra xlsx",
+    ),
+    (
+        "empty_text_queue",
+        "dbx.empty_text_pdf_queue",
+        "{n} image-only PDF(s) still have empty extracted text",
+    ),
+)
 
 
 class RemainingPlanError(ValueError):
@@ -160,8 +178,12 @@ def _field_gaps_from_finish(gates: Sequence[_GateView]) -> Dict[str, int]:
     return gaps
 
 
-def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
-    path = receipt_dir / f"section{section}-examiner-queue.json"
+def _load_queue(
+    receipt_dir: Path,
+    filename: str,
+    schema_id: str,
+) -> Dict[str, object]:
+    path = receipt_dir / filename
     try:
         if not path.is_file():
             return {}
@@ -170,9 +192,32 @@ def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
         return {}
     if not isinstance(payload, dict):
         return {}
-    if payload.get("schema_id") != EXAMINER_QUEUE_SCHEMA_ID:
+    if payload.get("schema_id") != schema_id:
         return {}
     return payload
+
+
+def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
+    return _load_queue(
+        receipt_dir,
+        f"section{section}-examiner-queue.json",
+        EXAMINER_QUEUE_SCHEMA_ID,
+    )
+
+
+def _fill_queue_lines(receipt_dir: Path, section: int) -> List[str]:
+    lines: List[str] = []
+    for slot, schema_id, template in FILL_QUEUE_GAPS:
+        payload = _load_queue(
+            receipt_dir, OPEN_QUEUE_FILES[slot].format(section=section), schema_id
+        )
+        items = payload.get("items")
+        if not isinstance(items, list):
+            continue
+        count = sum(1 for item in items if isinstance(item, dict))
+        if count:
+            lines.append(template.format(n=count))
+    return lines
 
 
 def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
@@ -367,6 +412,11 @@ def remaining_plan(
         field_gaps=field_gaps,
         by_field=by_field,
     )
+    extra.extend(
+        line
+        for line in _fill_queue_lines(receipt_dir, section)
+        if line not in extra
+    )
     missing = extra + [item for item in missing if item not in extra]
     if extra:
         complete = False
@@ -446,6 +496,8 @@ def remaining_plan(
             "After an isolated Letter or delta exists, fills and Print Preview come before re-export",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
+            "Open crop, handwritten-scan, and empty-text queues keep the plan incomplete",
+            "Chat/OCR supporting queues are review-only and do not complete or fill",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
             "Print Preview and owner-review stay until finish hashes that isolated file",

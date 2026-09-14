@@ -649,6 +649,37 @@ def test_operator_chains_a_second_delta_onto_current_isolated(
     assert "section15-delta.xlsx" not in native
 
 
+def test_operator_writes_section11_crops_draft_from_renders(tmp_path: Path) -> None:
+    from horizon.isolated_delta import sha256_file
+
+    root = tmp_path / "pc-root"
+    (root / "Section 11").mkdir(parents=True)
+    receipts = tmp_path / "private-receipts"
+    renders = receipts / "section11-renders"
+    renders.mkdir(parents=True)
+    page = renders / "page-01.png"
+    page.write_bytes(b"SYNTH-RENDER")
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    draft_path = receipts / "section11-crops-draft.json"
+    assert draft_path.is_file()
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
+    assert draft["schema_id"] == "dbx.page_render_crop_draft"
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["expected_page_count"] == 1
+    assert draft["crops"] == []
+    assert draft["pages"][0]["source_sha256"] == sha256_file(page)
+    joined = "\n".join(receipt.sections[0].next_commands)
+    assert "horizon.page_render_export" in joined
+    assert str(renders.resolve()) in joined
+    assert "14" not in draft["notes"][0]
+
+
 def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     section = root / "Section 11"

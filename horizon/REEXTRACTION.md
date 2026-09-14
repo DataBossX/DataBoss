@@ -47,6 +47,12 @@ numbers still fail until they are re-extracted from page renders.
 Hash examiner-held crop text against page-render files. Bare document
 numbers stay bare.
 
+`pc_operator --execute` writes `section11-crops-draft.json`
+(`dbx.page_render_crop_draft`, `UNAPPROVED_DRAFT`) from
+`section11-renders/` when that directory exists. Pages are hashed. Crops
+stay empty. Horizon does not invent document numbers or a historical
+page count. Fill Book/Page, dates, and parties from the renders, then:
+
 ```bash
 python3 -m horizon.page_render_export \
   --write \

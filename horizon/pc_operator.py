@@ -27,6 +27,7 @@ from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import IsolatedDeltaError, sha256_file, write_delta_draft
 from .human_release import HumanReleaseError, write_human_release_draft
 from .native_print import NativePrintError, write_native_print_draft
+from .page_render_export import PageRenderExportError, write_crops_draft
 from .package_finish import PackageFinishError, run_finish
 from .pdf_census import PdfCensusError, write_inventory_packet
 from .workbook_ledger import (
@@ -606,6 +607,7 @@ def _section_commands(
             "do not invent legal, party, or date values from the fill queue"
         )
     if section == 11 and bindings.page_render_packet is None:
+        render_dir = _section_render_bind_dir(Path(receipt_dir), section)
         commands.append(
             _quote_command(
                 [
@@ -616,7 +618,7 @@ def _section_commands(
                     "--draft",
                     f"{receipt_dir}/section{section}-crops-draft.json",
                     "--bind-dir",
-                    "RENDER_DIR",
+                    str(render_dir) if render_dir is not None else "RENDER_DIR",
                     "--output",
                     f"{receipt_dir}/section{section}-crops.json",
                     "--packet-id",
@@ -625,8 +627,8 @@ def _section_commands(
             )
         )
         commands.append(
-            "Crop Book/Page, dates, and parties from the page renders; "
-            "leave bare document numbers bare"
+            "Fill crops in section11-crops-draft.json from the page renders; "
+            "leave bare document numbers bare. Horizon does not invent docnos"
         )
     return commands
 
@@ -1075,6 +1077,35 @@ def _source_document_pdfs(
     return bind, paths
 
 
+def _write_section_crops_draft(
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str]]:
+    if section != 11:
+        return None, None
+    dest = receipt_dir / f"section{section}-crops-draft.json"
+    try:
+        write_crops_draft(
+            output=dest,
+            packet_id=f"SECTION{section}-CROPS",
+            bind_dir=_section_render_bind_dir(receipt_dir, section),
+        )
+    except (OSError, PageRenderExportError) as exc:
+        return None, str(exc)
+    return str(dest), None
+
+
+def _section_render_bind_dir(receipt_dir: Path, section: int) -> Optional[Path]:
+    for name in (f"section{section}-renders", f"section{section}-crops"):
+        candidate = receipt_dir / name
+        try:
+            if candidate.is_dir():
+                return candidate.resolve()
+        except OSError:
+            continue
+    return None
+
+
 def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
     candidate = Path(receipt_dir) / f"section{section}-pdfs"
     try:
@@ -1469,6 +1500,11 @@ def _execute_section(
     )
     if inventory_error:
         order.holds.append(f"PDF census inventory failed: {inventory_error}")
+    crops_draft, crops_error = _write_section_crops_draft(receipt_dir, order.section)
+    if crops_draft:
+        order.executed_outputs.append(crops_draft)
+    if crops_error:
+        order.holds.append(f"Page-render crops draft failed: {crops_error}")
     if not any((master, pdf_index, handwritten, bound.page_render_packet)):
         order.execute_error = "no exportable source workbooks or page-render packet"
         order.next_commands = _section_commands(
@@ -1590,6 +1626,8 @@ def _execute_section(
         order.finish_technical_pass = finish.technical_pass
         order.finish_packages_complete = finish.packages_complete
         order.executed_outputs = [str(finish_path)]
+        if crops_draft:
+            order.executed_outputs.append(crops_draft)
         if index_packet_path is not None:
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():

@@ -28,8 +28,21 @@ from .stable_key import StableKeyError, normalize_bookpage, normalize_docno
 
 PACKET_SCHEMA_ID = "dbx.page_render_crop_packet"
 PACKET_SCHEMA_VERSION = "1.0"
+DRAFT_SCHEMA_ID = "dbx.page_render_crop_draft"
+DRAFT_SCHEMA_VERSION = "1.0"
+DRAFT_STATUS = "UNAPPROVED_DRAFT"
 RECEIPT_SCHEMA_ID = "dbx.page_render_export_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
+RENDER_SUFFIXES = {
+    ".bmp",
+    ".jpeg",
+    ".jpg",
+    ".pdf",
+    ".png",
+    ".tif",
+    ".tiff",
+    ".webp",
+}
 REQUIRED_PACKET_KEYS = {
     "schema_id",
     "schema_version",
@@ -104,6 +117,73 @@ def _require_sha256(value: object, label: str) -> str:
     if not _is_sha256(digest):
         raise PageRenderExportError(f"{label} has an invalid source_sha256")
     return digest
+
+
+def _render_files(bind_dir: Path) -> List[Path]:
+    try:
+        children = list(bind_dir.iterdir())
+    except OSError as exc:
+        raise PageRenderExportError(f"Cannot read bind-dir: {exc}") from exc
+    files = [
+        path
+        for path in children
+        if path.is_file() and path.suffix.casefold() in RENDER_SUFFIXES
+    ]
+    return sorted(files, key=lambda path: path.name.casefold())
+
+
+def write_crops_draft(
+    *,
+    output: Path,
+    packet_id: str,
+    bind_dir: Optional[Path] = None,
+) -> Dict[str, object]:
+    """Hash page renders. Does not invent crop text, docnos, or page counts."""
+    token = packet_id.strip()
+    if not token or "\n" in token:
+        raise PageRenderExportError("packet_id must be a single-line string")
+    pages: List[Dict[str, object]] = []
+    bind_text = ""
+    if bind_dir is not None:
+        resolved = bind_dir.expanduser().resolve()
+        if not resolved.is_dir():
+            raise PageRenderExportError(f"bind-dir is not a directory: {resolved}")
+        bind_text = str(resolved)
+        for index, path in enumerate(_render_files(resolved), start=1):
+            pages.append(
+                {
+                    "page": index,
+                    "path": path.name,
+                    "source_sha256": sha256_file(path),
+                }
+            )
+    dest = output.expanduser()
+    if dest.is_file():
+        try:
+            existing = json.loads(dest.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise PageRenderExportError(f"Cannot read {dest}: {exc}") from exc
+        crops = existing.get("crops") if isinstance(existing, dict) else None
+        if isinstance(crops, list) and crops:
+            return existing
+    draft = {
+        "schema_id": DRAFT_SCHEMA_ID,
+        "schema_version": DRAFT_SCHEMA_VERSION,
+        "status": DRAFT_STATUS,
+        "packet_id": token,
+        "expected_page_count": len(pages),
+        "pages": pages,
+        "crops": [],
+        "bind_dir": bind_text,
+        "notes": [
+            "UNAPPROVED_DRAFT cannot bind page_render",
+            "Add crops with docno and/or bookpage from the page renders",
+            "Bare document numbers stay bare; neighbouring numbers are not guessed",
+        ],
+    }
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(draft, indent=2, sort_keys=True), encoding="utf-8")
+    return draft
 
 
 def write_crop_packet(
@@ -349,6 +429,7 @@ def build_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--init-draft", action="store_true")
     parser.add_argument("--draft", type=Path)
     parser.add_argument("--packet", type=Path)
     parser.add_argument("--output", type=Path, required=True)
@@ -361,6 +442,27 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.init_draft:
+            if args.packet_id is None:
+                raise PageRenderExportError("--init-draft requires --packet-id")
+            draft = write_crops_draft(
+                output=args.output,
+                packet_id=args.packet_id,
+                bind_dir=args.bind_dir,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "status": draft.get("status"),
+                        "page_count": len(draft.get("pages") or []),
+                        "crop_count": len(draft.get("crops") or []),
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
         if args.write:
             if args.draft is None or args.bind_dir is None:
                 raise PageRenderExportError(

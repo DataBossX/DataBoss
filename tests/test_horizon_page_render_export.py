@@ -9,10 +9,12 @@ from pathlib import Path
 import pytest
 
 from horizon.package_finish import run_finish
+from horizon.isolated_delta import sha256_file
 from horizon.page_render_export import (
     PageRenderExportError,
     compile_page_renders,
     write_crop_packet,
+    write_crops_draft,
 )
 from horizon.pdf_census import PdfCensusError, census_packet, main as census_main, write_inventory_packet
 from horizon.reextraction_gate import assess_ledger, parse_ledger_export
@@ -83,6 +85,57 @@ def test_bare_docno_is_preserved_not_guessed() -> None:
     assert receipt.reextraction_technical_pass is False
     assert receipt.next_action == "reextract_bare_docno_from_page_renders"
     assert receipt.tract_export["rows"][0]["docno"] == "900001"
+
+
+def test_crops_draft_hashes_renders_and_leaves_crops_blank(tmp_path: Path) -> None:
+    bind = tmp_path / "renders"
+    bind.mkdir()
+    first = bind / "page-01.png"
+    second = bind / "page-02.png"
+    first.write_bytes(b"PNG-ONE")
+    second.write_bytes(b"PNG-TWO")
+    dest = tmp_path / "draft.json"
+    draft = write_crops_draft(
+        output=dest,
+        packet_id="SECTION11-CROPS",
+        bind_dir=bind,
+    )
+    assert draft["schema_id"] == "dbx.page_render_crop_draft"
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["expected_page_count"] == 2
+    assert draft["crops"] == []
+    assert draft["pages"][0]["path"] == "page-01.png"
+    assert draft["pages"][0]["source_sha256"] == sha256_file(first)
+    with pytest.raises(PageRenderExportError, match="invalid top-level"):
+        compile_page_renders(draft)
+    draft["crops"] = [
+        {
+            "row_id": "p01r01",
+            "page": 1,
+            "crop_id": "p01r01",
+            "docno": "2026-09901",
+            "bookpage": "",
+            "rec_date": "1/2/2026",
+            "doc_date": "",
+            "grantor": "SYNTH SURVEYOR",
+            "grantee": "The Public",
+        }
+    ]
+    dest.write_text(json.dumps(draft), encoding="utf-8")
+    preserved = write_crops_draft(
+        output=dest,
+        packet_id="SECTION11-CROPS",
+        bind_dir=bind,
+    )
+    assert preserved["crops"][0]["docno"] == "2026-09901"
+    packet = write_crop_packet(
+        draft=preserved,
+        bind_dir=bind,
+        output=tmp_path / "crops.json",
+        packet_id="SECTION11-CROPS",
+    )
+    assert packet["schema_id"] == "dbx.page_render_crop_packet"
+    assert packet["crops"][0]["docno"] == "2026-09901"
 
 
 def test_hash_mismatch_and_missing_identity_fail() -> None:

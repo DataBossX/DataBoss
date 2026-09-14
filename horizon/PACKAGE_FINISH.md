@@ -63,8 +63,11 @@ Preview receipt to the current workbook hash. Page count must match the
 writer-held `expected_page_count`. LibreOffice, A4, or a missing print-title
 claim fails. This still is not Drive readback.
 
-`packages_complete` is true only when every required gate passed and a
-writer-held `--human-release-token` matches the isolated workbook hash.
+Phase 2 source authority is opt-in: pass `--authority-manifest`,
+`--project-manifest`, and a new `--snapshot-directory` outside every source
+root. Without those, acquisition stays Phase 1 inventory and cannot authorize
+extraction. `packages_complete` is true only when every required gate passed
+and a writer-held `--human-release-token` matches the isolated workbook hash.
 The token statement must be the owner-review declaration;
 `external_release` must be false. `READY_TO_SUBMIT` and external-delivery
 claims are rejected. This runner cannot satisfy that predicate from an

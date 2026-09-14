@@ -56,8 +56,10 @@ from .project_manifest import ControlFileError
 from .source_acquisition import (
     PRIORITY_SECTIONS,
     SourceAcquisitionError,
+    bind_phase_two_controls,
     build_receipt as build_acquisition_receipt,
     parse_root,
+    verify_snapshot,
 )
 from .workbook_qa import inspect_workbook, load_workbook_profile
 
@@ -118,13 +120,33 @@ def _load_json(path: Path) -> Dict[str, object]:
 def _acquisition_gate(
     roots: Sequence[str],
     sections: Sequence[int],
+    *,
+    authority_manifest: Optional[Path] = None,
+    project_manifest: Optional[Path] = None,
+    snapshot_directory: Optional[Path] = None,
 ) -> GateResult:
     try:
+        assertions, context, snapshot = bind_phase_two_controls(
+            authority_manifest=authority_manifest,
+            project_manifest=project_manifest,
+            snapshot_directory=snapshot_directory,
+        )
         receipt = build_acquisition_receipt(
             [parse_root(root) for root in roots],
             requested_sections=list(sections),
+            authority_assertions=assertions,
+            authority_context=context,
+            snapshot_directory=snapshot,
         )
-    except (OSError, SourceAcquisitionError) as exc:
+        if receipt.snapshot_root and not verify_snapshot(receipt):
+            return GateResult(
+                name="source_acquisition",
+                ran=True,
+                technical_pass=False,
+                error="Authority snapshot failed verification",
+                detail={"snapshot_root": receipt.snapshot_root},
+            )
+    except (OSError, SourceAcquisitionError, ControlFileError) as exc:
         return GateResult(
             name="source_acquisition",
             ran=True,
@@ -137,6 +159,7 @@ def _acquisition_gate(
         technical_pass=receipt.technical_pass,
         detail={
             "snapshot_root": receipt.snapshot_root,
+            "phase": "phase2_snapshot" if receipt.snapshot_root else "phase1_inventory",
             "issue_count": len(receipt.issues),
             "sections": [
                 {
@@ -399,6 +422,9 @@ def run_finish(
     connect_status: bool = False,
     drive_readback: Optional[Path] = None,
     human_release_token: Optional[Path] = None,
+    authority_manifest: Optional[Path] = None,
+    project_manifest: Optional[Path] = None,
+    snapshot_directory: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -429,7 +455,15 @@ def run_finish(
                 )
             )
     if roots:
-        gates.append(_acquisition_gate(roots, sections))
+        gates.append(
+            _acquisition_gate(
+                roots,
+                sections,
+                authority_manifest=authority_manifest,
+                project_manifest=project_manifest,
+                snapshot_directory=snapshot_directory,
+            )
+        )
     if page_render_packet is not None:
         if tract_export is not None:
             raise PackageFinishError(
@@ -921,6 +955,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--connect-status", action="store_true")
     parser.add_argument("--drive-readback", type=Path)
     parser.add_argument("--human-release-token", type=Path)
+    parser.add_argument("--authority-manifest", type=Path)
+    parser.add_argument("--project-manifest", type=Path)
+    parser.add_argument("--snapshot-directory", type=Path)
     return parser
 
 
@@ -953,6 +990,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             connect_status=args.connect_status,
             drive_readback=args.drive_readback,
             human_release_token=args.human_release_token,
+            authority_manifest=args.authority_manifest,
+            project_manifest=args.project_manifest,
+            snapshot_directory=args.snapshot_directory,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

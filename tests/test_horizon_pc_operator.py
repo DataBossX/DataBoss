@@ -172,6 +172,60 @@ def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:
         build_work_order(execute=True)
 
 
+def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 11"
+    section.mkdir(parents=True)
+    packet = {
+        "schema_id": "dbx.page_render_crop_packet",
+        "schema_version": "1.0",
+        "packet_id": "SYNTH-P11-CROPS",
+        "expected_page_count": 1,
+        "pages": [
+            {
+                "page": 1,
+                "source_sha256": "a" * 64,
+            }
+        ],
+        "crops": [
+            {
+                "row_id": "p01r01",
+                "page": 1,
+                "crop_id": "p01r01",
+                "source_sha256": "a" * 64,
+                "docno": "2026-09901",
+                "bookpage": "",
+                "rec_date": "1/2/2026",
+                "doc_date": "",
+                "grantor": "SYNTH SURVEYOR",
+                "grantee": "The Public",
+            }
+        ],
+    }
+    (section / "page-render-crops.json").write_text(
+        json.dumps(packet),
+        encoding="utf-8",
+    )
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    order = receipt.sections[0]
+    assert order.executed is True
+    assert order.execute_error == ""
+    finish = json.loads(
+        (receipts / "section11-finish.json").read_text(encoding="utf-8")
+    )
+    names = {gate["name"] for gate in finish["gates"]}
+    assert "page_render_export" in names
+    assert "reextraction" in names
+    assert "occurrence_ledger" in names
+
+
 def test_cli_writes_receipt_and_stays_incomplete(tmp_path: Path) -> None:
     output = tmp_path / "operator.json"
     result = main(["--output", str(output), "--section", "15"])

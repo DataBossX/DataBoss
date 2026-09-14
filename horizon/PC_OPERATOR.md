@@ -27,8 +27,12 @@ python3 -m horizon.pc_operator \
    directory. Filename classification is not legal authority.
 4. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
-   modified. `packages_complete` is true only if every requested section's
-   finish receipt already satisfies the owner-review completion predicate.
+   modified. Writer-held `--authority-manifest` / `--project-manifest` /
+   `--snapshot-directory` are passed through so Phase 2 can authorize
+   acquisition. Page-render, native-print, and owner-review JSON packets
+   are discovered by `schema_id` when present, or passed explicitly.
+   `packages_complete` is true only if every requested section's finish
+   receipt already satisfies the owner-review completion predicate.
 
 ## What it never does
 

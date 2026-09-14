@@ -68,10 +68,29 @@ ROLE_EXPORT_SLOT = {
     "index": "pdf_index",
     "workbook": "candidate",
 }
+DISCOVERABLE_SCHEMAS = {
+    "dbx.page_render_crop_packet": "page_render_packet",
+    "dbx.native_print_receipt": "native_print_receipt",
+    "dbx.human_release_token": "human_release_token",
+    "dbx.pdf_page_census_packet": "pdf_census_packet",
+}
 
 
 class PcOperatorError(ValueError):
     """Raised when the PC operator cannot build a safe work order."""
+
+
+@dataclass
+class FinishBindings:
+    page_render_packet: Optional[Path] = None
+    native_print_receipt: Optional[Path] = None
+    human_release_token: Optional[Path] = None
+    pdf_census_packet: Optional[Path] = None
+    pdf_bind_dir: Optional[Path] = None
+    drive_readback: Optional[Path] = None
+    authority_manifest: Optional[Path] = None
+    project_manifest: Optional[Path] = None
+    snapshot_directory: Optional[Path] = None
 
 
 @dataclass
@@ -427,43 +446,123 @@ def _issue_lines(issues: Sequence[SourceIssue], limit: int = 20) -> List[str]:
     return lines[:limit]
 
 
+def _discover_packets(
+    files: Sequence[SourceFile],
+    roots: Dict[str, str],
+    section: int,
+) -> Dict[str, Path]:
+    found: Dict[str, Path] = {}
+    for item in files:
+        if item.section != section or item.extension != ".json":
+            continue
+        path = Path(roots[item.root_label]) / item.relative_path
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        slot = DISCOVERABLE_SCHEMAS.get(str(payload.get("schema_id") or ""))
+        if slot and slot not in found:
+            found[slot] = path
+    return found
+
+
+def _merge_bindings(
+    explicit: FinishBindings,
+    discovered: Dict[str, Path],
+) -> FinishBindings:
+    merged = FinishBindings(
+        page_render_packet=explicit.page_render_packet,
+        native_print_receipt=explicit.native_print_receipt,
+        human_release_token=explicit.human_release_token,
+        pdf_census_packet=explicit.pdf_census_packet,
+        pdf_bind_dir=explicit.pdf_bind_dir,
+        drive_readback=explicit.drive_readback,
+        authority_manifest=explicit.authority_manifest,
+        project_manifest=explicit.project_manifest,
+        snapshot_directory=explicit.snapshot_directory,
+    )
+    if merged.page_render_packet is None:
+        merged.page_render_packet = discovered.get("page_render_packet")
+    if merged.native_print_receipt is None:
+        merged.native_print_receipt = discovered.get("native_print_receipt")
+    if merged.human_release_token is None:
+        merged.human_release_token = discovered.get("human_release_token")
+    if merged.pdf_census_packet is None:
+        merged.pdf_census_packet = discovered.get("pdf_census_packet")
+    return merged
+
+
 def _execute_section(
     order: SectionWorkOrder,
     *,
     root_args: Sequence[str],
     receipt_dir: Path,
+    bindings: FinishBindings,
+    inventory: Optional[AcquisitionReceipt],
 ) -> None:
     master = _slot_path(order.candidate_picks, "master")
     pdf_index = _slot_path(order.candidate_picks, "pdf_index")
     handwritten = _slot_path(order.candidate_picks, "handwritten")
     candidate = _slot_path(order.candidate_picks, "candidate")
-    if not any((master, pdf_index, handwritten)):
-        order.execute_error = "no exportable source workbooks"
+    discovered = {}
+    if inventory is not None:
+        discovered = _discover_packets(inventory.files, inventory.roots, order.section)
+    bound = _merge_bindings(bindings, discovered)
+    if not any((master, pdf_index, handwritten, bound.page_render_packet)):
+        order.execute_error = "no exportable source workbooks or page-render packet"
         return
     packet_path = receipt_dir / f"section{order.section}-index-packet.json"
     finish_path = receipt_dir / f"section{order.section}-finish.json"
     repair_dir = receipt_dir / f"section{order.section}-repair"
     letter_path = receipt_dir / f"section{order.section}-letter.xlsx"
+    reuse_isolated = letter_path.exists()
     try:
-        packet = export_index_packet(
-            f"SECTION{order.section}-INDEX",
-            master=Path(master) if master else None,
-            pdf_index=Path(pdf_index) if pdf_index else None,
-            handwritten=Path(handwritten) if handwritten else None,
-            candidate=Path(candidate) if candidate else None,
-        )
-        packet_path.write_text(
-            json.dumps(packet, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+        index_packet_path = None
+        if any((master, pdf_index, handwritten)):
+            packet = export_index_packet(
+                f"SECTION{order.section}-INDEX",
+                master=Path(master) if master else None,
+                pdf_index=Path(pdf_index) if pdf_index else None,
+                handwritten=Path(handwritten) if handwritten else None,
+                candidate=Path(candidate) if candidate else None,
+            )
+            packet_path.write_text(
+                json.dumps(packet, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            index_packet_path = packet_path
+        workbook = None
+        repair = None
+        letter = None
+        if reuse_isolated:
+            workbook = letter_path
+        elif candidate:
+            workbook = Path(candidate)
+            if not repair_dir.exists() or not any(repair_dir.iterdir()):
+                repair = repair_dir
+            letter = letter_path
+        snapshot = bound.snapshot_directory
+        if snapshot is not None:
+            snapshot = snapshot / f"section{order.section}"
         finish = run_finish(
             sections=[order.section],
             roots=list(root_args),
             connect_status=True,
-            index_packet=packet_path,
-            workbook=Path(candidate) if candidate else None,
-            repair_dir=repair_dir if candidate else None,
-            print_layout_output=letter_path if candidate else None,
+            index_packet=index_packet_path,
+            workbook=workbook,
+            repair_dir=repair,
+            print_layout_output=letter,
+            page_render_packet=bound.page_render_packet,
+            native_print_receipt=bound.native_print_receipt,
+            human_release_token=bound.human_release_token,
+            pdf_census_packet=bound.pdf_census_packet,
+            pdf_bind_dir=bound.pdf_bind_dir,
+            drive_readback=bound.drive_readback,
+            authority_manifest=bound.authority_manifest,
+            project_manifest=bound.project_manifest,
+            snapshot_directory=snapshot,
         )
         finish_path.write_text(
             json.dumps(finish.to_dict(), indent=2, sort_keys=True),
@@ -472,8 +571,10 @@ def _execute_section(
         order.executed = True
         order.finish_technical_pass = finish.technical_pass
         order.finish_packages_complete = finish.packages_complete
-        order.executed_outputs = [str(packet_path), str(finish_path)]
-        if candidate:
+        order.executed_outputs = [str(finish_path)]
+        if index_packet_path is not None:
+            order.executed_outputs.append(str(index_packet_path))
+        if letter_path.exists():
             order.executed_outputs.append(str(letter_path))
         if finish.packages_complete:
             order.holds.append(
@@ -497,6 +598,7 @@ def build_work_order(
     receipt_dir: Optional[Path] = None,
     required_roles: Sequence[str] = DEFAULT_REQUIRED_ROLES,
     execute: bool = False,
+    bindings: Optional[FinishBindings] = None,
 ) -> OperatorReceipt:
     if not sections or any(section not in PRIORITY_SECTIONS for section in sections):
         raise PcOperatorError(f"Requested sections must come from {PRIORITY_SECTIONS}")
@@ -539,12 +641,23 @@ def build_work_order(
         )
         for section in sections
     ]
+    explicit = bindings or FinishBindings()
+    if (
+        execute
+        and explicit.snapshot_directory is not None
+    ):
+        explicit.snapshot_directory = assert_private_receipt_dir(
+            explicit.snapshot_directory
+        )
+        explicit.snapshot_directory.mkdir(parents=True, exist_ok=True)
     if execute and dest_path is not None and phase == "phase1_inventory":
         for order in work_orders:
             _execute_section(
                 order,
                 root_args=readable,
                 receipt_dir=dest_path,
+                bindings=explicit,
+                inventory=inventory,
             )
     next_actions = list(connections.next_actions)
     if phase != "phase1_inventory":
@@ -656,6 +769,15 @@ def build_parser() -> argparse.ArgumentParser:
         dest="required_roles",
         help="Repeat to override required source roles",
     )
+    parser.add_argument("--page-render-packet", type=Path)
+    parser.add_argument("--native-print-receipt", type=Path)
+    parser.add_argument("--human-release-token", type=Path)
+    parser.add_argument("--pdf-census-packet", type=Path)
+    parser.add_argument("--pdf-bind-dir", type=Path)
+    parser.add_argument("--drive-readback", type=Path)
+    parser.add_argument("--authority-manifest", type=Path)
+    parser.add_argument("--project-manifest", type=Path)
+    parser.add_argument("--snapshot-directory", type=Path)
     return parser
 
 
@@ -668,6 +790,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             receipt_dir=args.receipt_dir,
             required_roles=args.required_roles or DEFAULT_REQUIRED_ROLES,
             execute=args.execute,
+            bindings=FinishBindings(
+                page_render_packet=args.page_render_packet,
+                native_print_receipt=args.native_print_receipt,
+                human_release_token=args.human_release_token,
+                pdf_census_packet=args.pdf_census_packet,
+                pdf_bind_dir=args.pdf_bind_dir,
+                drive_readback=args.drive_readback,
+                authority_manifest=args.authority_manifest,
+                project_manifest=args.project_manifest,
+                snapshot_directory=args.snapshot_directory,
+            ),
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

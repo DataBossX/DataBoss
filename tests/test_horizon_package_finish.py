@@ -7,6 +7,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
+from horizon.human_release import OWNER_REVIEW_STATEMENT
 from horizon.isolated_delta import sha256_file
 from horizon.package_finish import PackageFinishError, main, run_finish
 from horizon.workbook_qa import inspect_workbook, load_workbook_profile
@@ -32,6 +33,7 @@ PENTERRA_PROFILE = (
 
 
 def _penterra_workbook(path: Path, *, blank_legal: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = "Index"
@@ -341,6 +343,194 @@ def test_delta_fill_then_qa_runs_on_copy_not_source(tmp_path: Path) -> None:
     assert isolated_wb["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
     source_wb.close()
     isolated_wb.close()
+
+
+def _write_authority_pair(
+    tmp_path: Path,
+    root: Path,
+    *,
+    section: int = 15,
+) -> tuple[Path, Path]:
+    files = {
+        "master_workbook": f"Section {section}/Master Abstract.xlsx",
+        "index": f"Section {section}/County Index.xlsx",
+        "source_document": f"Section {section}/Recorded Faces/Instrument 1.pdf",
+    }
+    authorities = [
+        {
+            "root_label": "pc",
+            "relative_path": relative,
+            "section": section,
+            "role": role,
+            "expected_sha256": sha256_file(root / relative),
+        }
+        for role, relative in files.items()
+    ]
+    authority = tmp_path / "authority.json"
+    authority.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_authority_manifest",
+                "schema_version": "1.0",
+                "project_id": "DBX-TEST",
+                "decision_id": "SOURCE-AUTH-001",
+                "approved_by": "Synthetic Test Examiner",
+                "authorities": authorities,
+            }
+        ),
+        encoding="utf-8",
+    )
+    project = tmp_path / "project_manifest.json"
+    project.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.project_manifest",
+                "schema_version": "1.1",
+                "project_id": "DBX-TEST",
+                "source_policy": "IMMUTABLE_READ_ONLY",
+                "authority_hashes": {"source_authority": sha256_file(authority)},
+                "candidate_deliverables": [
+                    {
+                        "path": "candidate.xlsx",
+                        "reported_sha256": "0" * 64,
+                        "status": "CANDIDATE",
+                    }
+                ],
+                "required_checks": ["source_acquisition"],
+                "release_policy": {
+                    "technical_verification_is_not_release": True,
+                    "approved_hash_required": True,
+                    "human_gate": "G7",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return authority, project
+
+
+def _crop_packet() -> dict[str, object]:
+    page_hash = _sha("render-1")
+    return {
+        "schema_id": "dbx.page_render_crop_packet",
+        "schema_version": "1.0",
+        "packet_id": "SYNTH-FINISH-CROPS",
+        "expected_page_count": 1,
+        "pages": [{"page": 1, "source_sha256": page_hash}],
+        "crops": [
+            {
+                "row_id": "p01r01",
+                "page": 1,
+                "crop_id": "p01r01",
+                "source_sha256": page_hash,
+                "docno": "2026-09901",
+                "bookpage": "",
+                "rec_date": "1/2/2026",
+                "doc_date": "",
+                "grantor": "SYNTH SURVEYOR",
+                "grantee": "The Public",
+            }
+        ],
+    }
+
+
+def test_phase_two_authority_can_pass_acquisition(tmp_path: Path) -> None:
+    root = tmp_path / "pc"
+    section = root / "Section 15"
+    _penterra_workbook(section / "Master Abstract.xlsx")
+    _penterra_workbook(section / "County Index.xlsx")
+    (section / "Recorded Faces").mkdir(parents=True)
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth")
+    authority, project = _write_authority_pair(tmp_path, root)
+    receipt = run_finish(
+        sections=[15],
+        roots=[f"pc={root}"],
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=tmp_path / "snapshot",
+    )
+    assert receipt.packages_complete is False
+    gate = next(item for item in receipt.gates if item.name == "source_acquisition")
+    assert gate.technical_pass is True
+    assert gate.detail["phase"] == "phase2_snapshot"
+
+
+def test_writer_held_evidence_can_complete_one_synthetic_section(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc"
+    section = root / "Section 15"
+    master = section / "Master Abstract.xlsx"
+    pdf = section / "County Index.xlsx"
+    hand = section / "Handwritten Index.xlsx"
+    candidate = section / "Working Abstract.xlsx"
+    _penterra_workbook(master)
+    _penterra_workbook(pdf)
+    _penterra_workbook(hand)
+    _penterra_workbook(candidate)
+    (section / "Recorded Faces").mkdir(parents=True)
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth")
+    authority, project = _write_authority_pair(tmp_path, root)
+    crops = tmp_path / "crops.json"
+    crops.write_text(json.dumps(_crop_packet()), encoding="utf-8")
+    digest = sha256_file(candidate)
+    native = tmp_path / "native.json"
+    native.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "schema_version": "1.0",
+                "packet_id": "SYNTH-P15-PRINT",
+                "workbook_sha256": digest,
+                "application": "Microsoft Excel",
+                "host": "Windows",
+                "paper_size": 1,
+                "orientation": "landscape",
+                "page_count": 2,
+                "expected_page_count": 2,
+                "print_titles": True,
+                "print_area_set": True,
+                "operator": "SYNTH OPERATOR",
+            }
+        ),
+        encoding="utf-8",
+    )
+    drive = tmp_path / "drive-copy.xlsx"
+    drive.write_bytes(candidate.read_bytes())
+    release = tmp_path / "release.json"
+    release.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.human_release_token",
+                "schema_version": "1.0",
+                "packet_id": "SYNTH-RELEASE",
+                "sections": [15],
+                "operator": "SYNTH OPERATOR",
+                "workbook_sha256": digest,
+                "statement": OWNER_REVIEW_STATEMENT,
+                "external_release": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = run_finish(
+        sections=[15],
+        roots=[f"pc={root}"],
+        connect_status=True,
+        authority_manifest=authority,
+        project_manifest=project,
+        snapshot_directory=tmp_path / "snapshot",
+        page_render_packet=crops,
+        workbook=candidate,
+        master_workbook=master,
+        pdf_workbook=pdf,
+        handwritten_workbook=hand,
+        native_print_receipt=native,
+        drive_readback=drive,
+        human_release_token=release,
+    )
+    assert receipt.packages_complete is True
+    assert receipt.technical_pass is True
 
 
 def test_cli_empty_run_writes_blocked_receipt(tmp_path: Path) -> None:

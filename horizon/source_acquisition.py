@@ -1552,6 +1552,53 @@ def write_receipt(
         os.close(directory_descriptor)
 
 
+def bind_phase_two_controls(
+    *,
+    authority_manifest: Optional[Path] = None,
+    project_manifest: Optional[Path] = None,
+    snapshot_directory: Optional[Path] = None,
+) -> Tuple[Tuple[AuthorityAssertion, ...], Optional[AuthorityContext], Optional[Path]]:
+    """Load writer-held Phase 2 controls or return an empty Phase 1 binding."""
+    controls = (authority_manifest, project_manifest, snapshot_directory)
+    if any(controls) and not all(controls):
+        raise SourceAcquisitionError(
+            "Phase 2 requires --authority-manifest, --project-manifest, "
+            "and --snapshot-directory"
+        )
+    if authority_manifest is None:
+        return (), None, None
+    authority_path = authority_manifest.expanduser().absolute()
+    project_path = project_manifest.expanduser().absolute()
+    if _has_symlink_component(authority_path) or _has_symlink_component(project_path):
+        raise SourceAcquisitionError(
+            "Control authority paths must not contain symlink components"
+        )
+    project, project_manifest_sha256 = _load_project_manifest_snapshot(project_path)
+    if project.source_authority_sha256 is None:
+        raise SourceAcquisitionError(
+            "Project manifest does not bind a source authority hash"
+        )
+    authority = load_authority_manifest(
+        authority_path,
+        expected_sha256=project.source_authority_sha256,
+    )
+    if authority.project_id != project.project_id:
+        raise SourceAcquisitionError(
+            "Source authority project_id differs from the project manifest"
+        )
+    return (
+        authority.assertions,
+        AuthorityContext(
+            project_id=authority.project_id,
+            decision_id=authority.decision_id,
+            approved_by=authority.approved_by,
+            project_manifest_sha256=project_manifest_sha256,
+            source_authority_sha256=project.source_authority_sha256,
+        ),
+        snapshot_directory.expanduser(),
+    )
+
+
 def parse_root(value: str) -> SourceRoot:
     label, separator, path = value.partition("=")
     label = label.strip()
@@ -1614,52 +1661,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     receipt = None
     try:
         args = build_parser().parse_args(argv)
-        phase_two_controls = (
-            args.authority_manifest,
-            args.project_manifest,
-            args.snapshot_directory,
+        authority_assertions, authority_context, snapshot_directory = (
+            bind_phase_two_controls(
+                authority_manifest=args.authority_manifest,
+                project_manifest=args.project_manifest,
+                snapshot_directory=args.snapshot_directory,
+            )
         )
-        if any(phase_two_controls) and not all(phase_two_controls):
-            raise SourceAcquisitionError(
-                "Phase 2 requires --authority-manifest, --project-manifest, "
-                "and --snapshot-directory"
-            )
         protected_paths = []
-        authority_assertions: Sequence[AuthorityAssertion] = ()
-        authority_context = None
-        if args.authority_manifest:
-            authority_path = args.authority_manifest.expanduser().absolute()
-            project_path = args.project_manifest.expanduser().absolute()
-            if _has_symlink_component(authority_path) or _has_symlink_component(
-                project_path
-            ):
-                raise SourceAcquisitionError(
-                    "Control authority paths must not contain symlink components"
-                )
-            project, project_manifest_sha256 = (
-                _load_project_manifest_snapshot(project_path)
-            )
-            if project.source_authority_sha256 is None:
-                raise SourceAcquisitionError(
-                    "Project manifest does not bind a source authority hash"
-                )
-            authority = load_authority_manifest(
-                authority_path,
-                expected_sha256=project.source_authority_sha256,
-            )
-            if authority.project_id != project.project_id:
-                raise SourceAcquisitionError(
-                    "Source authority project_id differs from the project manifest"
-                )
-            authority_assertions = authority.assertions
-            authority_context = AuthorityContext(
-                project_id=authority.project_id,
-                decision_id=authority.decision_id,
-                approved_by=authority.approved_by,
-                project_manifest_sha256=project_manifest_sha256,
-                source_authority_sha256=project.source_authority_sha256,
-            )
-            protected_paths = [authority_path, project_path]
+        if args.authority_manifest is not None and args.project_manifest is not None:
+            protected_paths = [
+                args.authority_manifest.expanduser().absolute(),
+                args.project_manifest.expanduser().absolute(),
+            ]
         validated_roots = validate_roots(args.root)
         _validate_receipt_destination(
             args.output,
@@ -1672,7 +1686,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             required_roles=args.required_roles or DEFAULT_REQUIRED_ROLES,
             authority_assertions=authority_assertions,
             authority_context=authority_context,
-            snapshot_directory=args.snapshot_directory,
+            snapshot_directory=snapshot_directory,
         )
         write_receipt(
             receipt,

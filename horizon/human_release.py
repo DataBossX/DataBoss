@@ -1,10 +1,11 @@
 """Fail-closed human release token and package-completion predicate.
 
 ``packages_complete`` is true only when every required finish gate ran and
-passed, Drive readback is an Isolated/ copy, and a writer-held
-owner-review token matches the isolated workbook hash. After execute,
-finish receipts stay incomplete while the examiner queue has blanks or
-conflicts. The token cannot claim external delivery or READY_TO_SUBMIT.
+passed, Drive readback is an Isolated/ copy, index/QA/print gates hash
+the current isolated workbook, and a writer-held owner-review token
+matches that hash. After execute, finish receipts stay incomplete while
+the examiner queue has blanks or conflicts. The token cannot claim
+external delivery or READY_TO_SUBMIT.
 """
 
 from __future__ import annotations
@@ -384,20 +385,55 @@ def _gate_map(gates: Iterable[object]) -> Dict[str, object]:
     return {gate.name: gate for gate in gates if getattr(gate, "ran", False)}
 
 
-def _index_fields_complete(gates: Dict[str, object]) -> bool:
+def _normalize_workbook_sha256(value: object) -> str:
+    digest = value.casefold() if isinstance(value, str) else ""
+    if len(digest) == 64 and all(character in "0123456789abcdef" for character in digest):
+        return digest
+    return ""
+
+
+def _gate_workbook_sha256(gate: object) -> str:
+    detail = getattr(gate, "detail", {}) or {}
+    if not isinstance(detail, dict):
+        return ""
+    for key in (
+        "workbook_sha256",
+        "final_workbook_sha256",
+        "source_workbook_sha256",
+        "readback_sha256",
+    ):
+        digest = _normalize_workbook_sha256(detail.get(key))
+        if digest:
+            return digest
+    return ""
+
+
+def _index_fields_complete(
+    gates: Dict[str, object],
+    *,
+    workbook_sha256: str = "",
+) -> bool:
+    expected = _normalize_workbook_sha256(workbook_sha256)
     recon = gates.get("index_reconciliation")
     if recon is not None and recon.technical_pass:
         blanks = recon.detail.get("blank_required_count")
         conflicts = recon.detail.get("conflict_count")
         if blanks == 0 and conflicts == 0:
-            return True
+            source = recon.detail.get("candidate_from")
+            if isinstance(source, str) and source and source != "workbook":
+                pass
+            elif expected and _gate_workbook_sha256(recon) != expected:
+                pass
+            else:
+                return True
     repair = gates.get("repair_loop")
     if repair is not None and repair.technical_pass:
         if (
             repair.detail.get("remaining_blanks") == 0
             and repair.detail.get("remaining_conflicts") == 0
         ):
-            return True
+            if not expected or _gate_workbook_sha256(repair) == expected:
+                return True
     return False
 
 
@@ -405,8 +441,10 @@ def evaluate_package_completion(
     gates: Sequence[object],
     *,
     requested_sections: Sequence[int],
+    workbook_sha256: Optional[str] = None,
 ) -> tuple[bool, List[str]]:
     by_name = _gate_map(gates)
+    expected = _normalize_workbook_sha256(workbook_sha256)
     missing: List[str] = []
     for name in REQUIRED_COMPLETION_GATES:
         gate = by_name.get(name)
@@ -427,19 +465,29 @@ def evaluate_package_completion(
         gate = by_name.get(name)
         if gate is None or not gate.technical_pass:
             continue
-        detail = getattr(gate, "detail", {}) or {}
-        if not isinstance(detail, dict):
-            continue
-        digest = detail.get("workbook_sha256") or detail.get("readback_sha256")
-        if not isinstance(digest, str) or not digest:
+        digest = _gate_workbook_sha256(gate)
+        if not digest:
             missing.append(f"required gate {name} workbook hash is missing")
             continue
-        bound[name] = digest.casefold()
+        bound[name] = digest
+        if expected and digest != expected:
+            missing.append(
+                f"required gate {name} workbook hash does not match isolated file"
+            )
     if bound and len(set(bound.values())) > 1:
         missing.append(
             "Print Preview, Isolated/, and owner-review hashes do not match"
         )
-    if not _index_fields_complete(by_name):
+    qa = by_name.get("workbook_qa")
+    if qa is not None and qa.technical_pass and expected:
+        digest = _gate_workbook_sha256(qa)
+        if not digest:
+            missing.append("required gate workbook_qa workbook hash is missing")
+        elif digest != expected:
+            missing.append(
+                "required gate workbook_qa workbook hash does not match isolated file"
+            )
+    if not _index_fields_complete(by_name, workbook_sha256=expected):
         missing.append(
             "index fields are not complete (reconciliation or repair loop)"
         )

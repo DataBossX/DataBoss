@@ -295,6 +295,8 @@ def test_three_workbooks_reconcile_without_a_packet_file(tmp_path: Path) -> None
     recon = receipt.gates[0]
     assert recon.technical_pass is True
     assert recon.detail["built_from"] == "source_workbooks"
+    assert recon.detail["candidate_from"] == "workbook"
+    assert recon.detail["workbook_sha256"] == sha256_file(candidate)
     assert recon.detail["proposed_delta_count"] == 0
 
 
@@ -325,6 +327,7 @@ def test_index_packet_recon_uses_workbook_candidate(tmp_path: Path) -> None:
     assert recon.detail["blank_required_count"] == 0
     assert recon.detail["conflict_count"] == 0
     assert recon.detail["candidate_from"] == "workbook"
+    assert recon.detail["workbook_sha256"] == sha256_file(workbook)
 
 
 def test_index_packet_and_source_workbooks_conflict_without_repair(

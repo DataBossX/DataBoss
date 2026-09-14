@@ -714,27 +714,35 @@ def run_finish(
         try:
             packet = _load_json(index_packet)
             candidate_from = "index_packet"
+            workbook_digest = ""
             if workbook is not None:
                 packet = refresh_candidate(
                     packet,
                     export_faces(workbook, profile_path=workbook_profile),
                 )
                 candidate_from = "workbook"
+                try:
+                    workbook_digest = sha256_file(workbook)
+                except OSError:
+                    workbook_digest = ""
             recon = reconcile_indexes(packet)
+            detail = {
+                "source_counts": recon.source_counts,
+                "proposed_delta_count": len(recon.proposed_deltas),
+                "conflict_count": recon.conflict_count,
+                "blank_required_count": recon.blank_required_count,
+                "low_confidence_blank_count": recon.low_confidence_blank_count,
+                "issue_count": len(recon.issues),
+                "candidate_from": candidate_from,
+            }
+            if workbook_digest:
+                detail["workbook_sha256"] = workbook_digest
             gates.append(
                 GateResult(
                     name="index_reconciliation",
                     ran=True,
                     technical_pass=recon.technical_pass,
-                    detail={
-                        "source_counts": recon.source_counts,
-                        "proposed_delta_count": len(recon.proposed_deltas),
-                        "conflict_count": recon.conflict_count,
-                        "blank_required_count": recon.blank_required_count,
-                        "low_confidence_blank_count": recon.low_confidence_blank_count,
-                        "issue_count": len(recon.issues),
-                        "candidate_from": candidate_from,
-                    },
+                    detail=detail,
                 )
             )
         except (
@@ -762,20 +770,27 @@ def run_finish(
                 profile_path=workbook_profile,
             )
             recon = reconcile_indexes(built)
+            detail = {
+                "source_counts": recon.source_counts,
+                "proposed_delta_count": len(recon.proposed_deltas),
+                "conflict_count": recon.conflict_count,
+                "blank_required_count": recon.blank_required_count,
+                "low_confidence_blank_count": recon.low_confidence_blank_count,
+                "issue_count": len(recon.issues),
+                "built_from": "source_workbooks",
+                "candidate_from": "workbook" if workbook is not None else "source_workbooks",
+            }
+            if workbook is not None:
+                try:
+                    detail["workbook_sha256"] = sha256_file(workbook)
+                except OSError:
+                    pass
             gates.append(
                 GateResult(
                     name="index_reconciliation",
                     ran=True,
                     technical_pass=recon.technical_pass,
-                    detail={
-                        "source_counts": recon.source_counts,
-                        "proposed_delta_count": len(recon.proposed_deltas),
-                        "conflict_count": recon.conflict_count,
-                        "blank_required_count": recon.blank_required_count,
-                        "low_confidence_blank_count": recon.low_confidence_blank_count,
-                        "issue_count": len(recon.issues),
-                        "built_from": "source_workbooks",
-                    },
+                    detail=detail,
                 )
             )
         except (
@@ -823,6 +838,7 @@ def run_finish(
                     detail={
                         "passes": len(repair.passes),
                         "final_workbook": repair.final_workbook,
+                        "final_workbook_sha256": repair.final_workbook_sha256,
                         "remaining_blanks": repair.remaining_blanks,
                         "remaining_conflicts": repair.remaining_conflicts,
                         "packages_complete": repair.packages_complete,
@@ -1104,9 +1120,16 @@ def run_finish(
                 )
     ran = [gate for gate in gates if gate.ran]
     technical_pass = bool(ran) and all(gate.technical_pass for gate in ran)
+    expected_hash = None
+    if qa_workbook is not None:
+        try:
+            expected_hash = sha256_file(qa_workbook)
+        except OSError:
+            expected_hash = None
     packages_complete, completion_gaps = evaluate_package_completion(
         gates,
         requested_sections=sections,
+        workbook_sha256=expected_hash,
     )
     next_actions = _next_actions(gates, sections, workbook=qa_workbook)
     if packages_complete:

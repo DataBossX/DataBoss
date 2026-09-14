@@ -22,7 +22,7 @@ from .isolated_delta import sha256_file
 from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
 
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
-PLAN_SCHEMA_VERSION = "1.4"
+PLAN_SCHEMA_VERSION = "1.5"
 BUNDLE_SCHEMA_ID = "dbx.remaining_plan_bundle"
 BUNDLE_SCHEMA_VERSION = "1.2"
 EXAMINER_QUEUE_SCHEMA_ID = "dbx.examiner_fill_queue"
@@ -221,6 +221,18 @@ def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
     )
 
 
+def _queue_bound_to_isolated(
+    payload: Dict[str, object],
+    isolated_sha256: str,
+) -> bool:
+    if not isolated_sha256:
+        return True
+    bound = payload.get("workbook_sha256")
+    if not isinstance(bound, str) or not bound:
+        return True
+    return bound.casefold() == isolated_sha256.casefold()
+
+
 def _fill_queue_lines(
     receipt_dir: Path,
     section: int,
@@ -251,8 +263,14 @@ def _fill_queue_lines(
     return lines
 
 
-def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
+def _field_gaps_from_queue(
+    receipt_dir: Path,
+    section: int,
+    isolated_sha256: str = "",
+) -> Dict[str, int]:
     payload = _load_examiner_queue(receipt_dir, section)
+    if not _queue_bound_to_isolated(payload, isolated_sha256):
+        return {}
     gaps: Dict[str, int] = {}
     mapping = {
         "blank_count": "blank_required_count",
@@ -265,8 +283,14 @@ def _field_gaps_from_queue(receipt_dir: Path, section: int) -> Dict[str, int]:
     return gaps
 
 
-def _by_field_from_queue(receipt_dir: Path, section: int) -> Dict[str, Dict[str, int]]:
+def _by_field_from_queue(
+    receipt_dir: Path,
+    section: int,
+    isolated_sha256: str = "",
+) -> Dict[str, Dict[str, int]]:
     payload = _load_examiner_queue(receipt_dir, section)
+    if not _queue_bound_to_isolated(payload, isolated_sha256):
+        return {}
     items = payload.get("items")
     if not isinstance(items, list):
         return {}
@@ -402,9 +426,25 @@ def remaining_plan(
     if section not in PRIORITY_SECTIONS:
         raise RemainingPlanError(f"section must be one of {PRIORITY_SECTIONS}")
     gates = _gates_from_finish(finish)
+    isolated: Dict[str, object] = {}
+    if isolated_workbook is not None:
+        try:
+            book = isolated_workbook.expanduser()
+            if book.is_file():
+                isolated = {
+                    "name": book.name,
+                    "sha256": sha256_file(book),
+                }
+        except OSError:
+            isolated = {}
+    name = isolated.get("name")
+    digest = isolated.get("sha256")
+    isolated_sha = digest if isinstance(digest, str) and digest else ""
     if gates:
         complete, missing = evaluate_package_completion(
-            gates, requested_sections=[section]
+            gates,
+            requested_sections=[section],
+            workbook_sha256=isolated_sha or None,
         )
     else:
         complete = False
@@ -432,10 +472,10 @@ def remaining_plan(
         if role in required_roles
     ]
     field_gaps = _merge_field_gaps(
-        _field_gaps_from_queue(receipt_dir, section),
+        _field_gaps_from_queue(receipt_dir, section, isolated_sha),
         _field_gaps_from_finish(gates),
     )
-    by_field = _by_field_from_queue(receipt_dir, section)
+    by_field = _by_field_from_queue(receipt_dir, section, isolated_sha)
     extra = _gap_lines(
         missing_required_roles=required_roles,
         missing_candidate_roles=candidate_roles,
@@ -443,20 +483,11 @@ def remaining_plan(
         field_gaps=field_gaps,
         by_field=by_field,
     )
-    isolated: Dict[str, object] = {}
-    if isolated_workbook is not None:
-        try:
-            book = isolated_workbook.expanduser()
-            if book.is_file():
-                isolated = {
-                    "name": book.name,
-                    "sha256": sha256_file(book),
-                }
-        except OSError:
-            isolated = {}
-    name = isolated.get("name")
-    digest = isolated.get("sha256")
-    isolated_sha = digest if isinstance(digest, str) and digest else ""
+    queue_payload = _load_examiner_queue(receipt_dir, section)
+    if isolated_sha and queue_payload and not _queue_bound_to_isolated(
+        queue_payload, isolated_sha
+    ):
+        extra.append("examiner queue is bound to a different workbook")
     extra.extend(
         line
         for line in _fill_queue_lines(receipt_dir, section, isolated_sha)
@@ -487,14 +518,56 @@ def remaining_plan(
                 missing.append(line)
                 complete = False
         for gate in gates:
-            if gate.name != "index_reconciliation" or not gate.ran:
+            if not gate.ran:
                 continue
-            source = gate.detail.get("candidate_from")
-            if isinstance(source, str) and source and source != "workbook":
-                line = f"index reconciliation scored {source}, not {name}"
-                if line not in missing:
-                    missing.append(line)
-                complete = False
+            if gate.name == "index_reconciliation":
+                source = gate.detail.get("candidate_from")
+                if isinstance(source, str) and source and source != "workbook":
+                    line = f"index reconciliation scored {source}, not {name}"
+                    if line not in missing:
+                        missing.append(line)
+                    complete = False
+                    continue
+                bound = gate.detail.get("workbook_sha256")
+                if isolated_sha and (
+                    not isinstance(bound, str)
+                    or not bound
+                    or bound.casefold() != isolated_sha.casefold()
+                ):
+                    line = f"index reconciliation did not hash {name}"
+                    if isinstance(bound, str) and bound:
+                        line = f"index reconciliation scored a different workbook, not {name}"
+                    if line not in missing:
+                        missing.append(line)
+                    complete = False
+            elif gate.name == "repair_loop":
+                bound = gate.detail.get("final_workbook_sha256") or gate.detail.get(
+                    "workbook_sha256"
+                )
+                if isolated_sha and (
+                    not isinstance(bound, str)
+                    or not bound
+                    or bound.casefold() != isolated_sha.casefold()
+                ):
+                    line = f"repair loop did not hash {name}"
+                    if isinstance(bound, str) and bound:
+                        line = f"repair loop scored a different workbook, not {name}"
+                    if line not in missing:
+                        missing.append(line)
+                    complete = False
+            elif gate.name == "workbook_qa":
+                bound = gate.detail.get("workbook_sha256")
+                if isolated_sha and (
+                    not isinstance(bound, str)
+                    or not bound
+                    or bound.casefold() != isolated_sha.casefold()
+                ):
+                    line = f"workbook QA did not hash {name}"
+                    if isinstance(bound, str) and bound:
+                        line = f"workbook QA scored a different workbook, not {name}"
+                    if line not in missing:
+                        missing.append(line)
+                    complete = False
     return {
         "schema_id": PLAN_SCHEMA_ID,
         "schema_version": PLAN_SCHEMA_VERSION,
@@ -533,6 +606,8 @@ def remaining_plan(
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
             "Print Preview and owner-review stay until finish hashes that isolated file",
             "index reconciliation must score the isolated workbook, not a leftover packet",
+            "index reconciliation, repair loop, and workbook QA must hash that isolated file",
+            "examiner-queue counts bound to a different workbook hash are ignored",
             "Drive Isolated/ stays until the bound copy is under Isolated/",
             "Drive Isolated/ stays until that copy hashes the current isolated file",
             "technical_pass is not package release",

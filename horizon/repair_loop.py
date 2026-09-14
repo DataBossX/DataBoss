@@ -70,6 +70,7 @@ class RepairLoopReceipt:
     packet_id: str
     original_workbook: str
     final_workbook: str
+    final_workbook_sha256: str
     passes: List[LoopPass]
     remaining_proposals: int
     remaining_conflicts: int
@@ -231,11 +232,16 @@ def run_repair_loop(
     )
     if any(item.stop_reason == "reconciliation_blocked" for item in passes):
         technical_pass = False
+    try:
+        final_digest = sha256_file(current)
+    except OSError:
+        final_digest = ""
     return RepairLoopReceipt(
         generated_utc=datetime.now(timezone.utc).isoformat(),
         packet_id=packet_id,
         original_workbook=str(workbook),
         final_workbook=str(current),
+        final_workbook_sha256=final_digest,
         passes=passes,
         remaining_proposals=remaining_proposals,
         remaining_conflicts=remaining_conflicts,

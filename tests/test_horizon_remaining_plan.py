@@ -27,11 +27,13 @@ def _green_finish(letter: Path) -> dict[str, object]:
                             "blank_required_count": 0,
                             "conflict_count": 0,
                             "candidate_from": "workbook",
+                            "workbook_sha256": digest,
                         }
                         if name == "index_reconciliation"
                         else (
                             {"workbook_sha256": digest}
-                            if name in {"native_print", "human_release"}
+                            if name
+                            in {"workbook_qa", "native_print", "human_release"}
                             else {}
                         )
                     )
@@ -112,7 +114,7 @@ def test_remaining_plan_names_missing_index_roles_from_finish(tmp_path: Path) ->
         ],
     }
     plan = remaining_plan(section=15, finish=finish, receipt_dir=tmp_path)
-    assert plan["schema_version"] == "1.4"
+    assert plan["schema_version"] == "1.5"
     assert plan["missing_required_roles"] == ["index", "handwritten_index"]
     assert plan["unauthorized_classified_roles"] == []
     assert "missing required role index" in plan["missing"]
@@ -132,7 +134,7 @@ def test_remaining_plan_names_classified_roles_awaiting_phase2(
         missing_candidate_roles=[],
         unauthorized_classified_roles=["index", "handwritten_index"],
     )
-    assert plan["schema_version"] == "1.4"
+    assert plan["schema_version"] == "1.5"
     assert plan["unauthorized_classified_roles"] == [
         "index",
         "handwritten_index",
@@ -200,7 +202,7 @@ def test_remaining_plan_separates_missing_files_from_unauthorized_roles(
         missing_candidate_roles=["handwritten_index"],
         unauthorized_classified_roles=["index"],
     )
-    assert plan["schema_version"] == "1.4"
+    assert plan["schema_version"] == "1.5"
     assert plan["unauthorized_classified_roles"] == ["index"]
     assert (
         "required role index is classified but not Phase-2 authorized"
@@ -401,7 +403,7 @@ def test_remaining_plan_names_isolated_workbook_without_cell_text(
         receipt_dir=tmp_path,
         isolated_workbook=letter,
     )
-    assert plan["schema_version"] == "1.4"
+    assert plan["schema_version"] == "1.5"
     assert plan["isolated_workbook"]["name"] == "section15-letter.xlsx"
     assert plan["isolated_workbook"]["sha256"] == sha256_file(letter)
     assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]
@@ -787,6 +789,123 @@ def test_remaining_plan_keeps_print_hop_when_finish_omits_hash(
         isolated_workbook=letter,
     )
     assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]
+    assert plan["packages_complete"] is False
+
+
+def test_remaining_plan_holds_stale_repair_and_queue_hashes(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    digest = sha256_file(letter)
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": name,
+                "ran": True,
+                "technical_pass": True,
+                "detail": (
+                    {
+                        "remaining_blanks": 0,
+                        "remaining_conflicts": 0,
+                        "final_workbook_sha256": "e" * 64,
+                    }
+                    if name == "repair_loop"
+                    else (
+                        {"isolated_copy": True, "workbook_sha256": digest}
+                        if name == "drive_readback"
+                        else (
+                            {"workbook_sha256": digest}
+                            if name
+                            in {"workbook_qa", "native_print", "human_release"}
+                            else {}
+                        )
+                    )
+                ),
+            }
+            for name in (
+                "source_acquisition",
+                "reextraction",
+                "occurrence_ledger",
+                "repair_loop",
+                "workbook_qa",
+                "native_print",
+                "drive_readback",
+                "human_release",
+            )
+        ],
+    }
+    (tmp_path / "section15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "workbook_sha256": "e" * 64,
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["schema_version"] == "1.5"
+    assert plan["packages_complete"] is False
+    assert (
+        "repair loop scored a different workbook, not section15-letter.xlsx"
+        in plan["missing"]
+    )
+    assert "examiner queue is bound to a different workbook" in plan["missing"]
+
+
+def test_remaining_plan_uses_finish_gaps_when_examiner_queue_hash_is_stale(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "index_reconciliation",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {
+                    "blank_required_count": 3,
+                    "conflict_count": 1,
+                    "candidate_from": "workbook",
+                    "workbook_sha256": sha256_file(letter),
+                },
+            }
+        ],
+    }
+    (tmp_path / "section15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "schema_version": "1.0",
+                "workbook_sha256": "f" * 64,
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["field_gaps"]["blank_required_count"] == 3
+    assert plan["field_gaps"]["conflict_count"] == 1
+    assert "index has 3 blank required field(s)" in plan["missing"]
+    assert "examiner queue is bound to a different workbook" in plan["missing"]
     assert plan["packages_complete"] is False
 
 

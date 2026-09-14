@@ -195,7 +195,7 @@ def test_operator_remaining_plan_names_classified_roles_as_phase2(
     plan = json.loads(
         (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
     )
-    assert plan["schema_version"] == "1.4"
+    assert plan["schema_version"] == "1.5"
     assert plan["unauthorized_classified_roles"] == [
         "source_document",
         "master_workbook",

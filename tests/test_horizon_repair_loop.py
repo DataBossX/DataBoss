@@ -212,6 +212,7 @@ def test_repair_loop_fills_blank_on_copy_across_passes(tmp_path: Path) -> None:
     assert sha256_file(source) == source_sha
     assert receipt.remaining_conflicts == 0
     isolated = Path(receipt.final_workbook)
+    assert receipt.final_workbook_sha256 == sha256_file(isolated)
     assert isolated != source.resolve()
     source_wb = openpyxl.load_workbook(source, data_only=True)
     final_wb = openpyxl.load_workbook(isolated, data_only=True)

@@ -129,6 +129,64 @@ def proposed_deltas_from_queue(queue: Dict[str, object]) -> List[Dict[str, objec
     return deltas
 
 
+def onesource_rows_from_queue(queue: Dict[str, object]) -> List[Dict[str, object]]:
+    """Build empty-value rows for one-source blanks and conflicts.
+
+    Horizon does not copy a single source's text into ``value``.
+    """
+    if not isinstance(queue, dict) or queue.get("schema_id") != QUEUE_SCHEMA_ID:
+        raise ExaminerQueueError("examiner fill queue schema is invalid")
+    items = queue.get("items")
+    if not isinstance(items, list):
+        raise ExaminerQueueError("examiner fill queue items must be a list")
+    rows: List[Dict[str, object]] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ExaminerQueueError(f"items[{index}] must be an object")
+        if item.get("action") not in {"source_proved_fill", "resolve_conflict"}:
+            continue
+        field_name = item.get("field")
+        if field_name not in ALLOWED_FIELDS:
+            raise ExaminerQueueError(f"items[{index}] field is not allowed")
+        provenance = item.get("provenance")
+        if not isinstance(provenance, list) or not provenance:
+            continue
+        first = provenance[0]
+        if not isinstance(first, dict):
+            raise ExaminerQueueError(f"items[{index}] provenance[0] is invalid")
+        page = first.get("page")
+        if type(page) is not int or page < 1:
+            raise ExaminerQueueError(f"items[{index}] provenance page is invalid")
+        source_values = []
+        for entry in provenance:
+            if not isinstance(entry, dict):
+                continue
+            value = entry.get("value")
+            if isinstance(value, str) and value.strip():
+                source_values.append(
+                    {
+                        "source": entry.get("source"),
+                        "value": value,
+                        "source_sha256": entry.get("source_sha256"),
+                    }
+                )
+        rows.append(
+            {
+                "row_key": item.get("row_key"),
+                "field": field_name,
+                "value": "",
+                "source_sha256": first.get("source_sha256"),
+                "page": page,
+                "crop_id": first.get("crop_id"),
+                "replace": False,
+                "action": item.get("action"),
+                "source_values": source_values,
+                "conflict_values": dict(item.get("conflict_values") or {}),
+            }
+        )
+    return rows
+
+
 def build_examiner_queue(
     index_packet: Dict[str, object],
     workbook: Path,

@@ -55,6 +55,21 @@ After a packet is applied, the operator archives it and keeps the newest
 workbook. A later hash-matched packet applies onto the next generation
 instead of freezing the first copy.
 
+One-source blanks and conflicts are written to
+`sectionN-onesource-template.json` (`dbx.source_proved_delta_template`)
+with empty `value` fields and `source_values` for examiner review.
+Horizon does not copy a single source's text into `value`. Fill only
+source-proved text, then attest:
+
+```bash
+python3 -m horizon.isolated_delta \
+  --attest \
+  --from-template /path/to/section15-onesource-template.json \
+  --workbook /path/to/isolated-letter.xlsx \
+  --output /path/to/source-proved-delta.json \
+  --operator "Pat Examiner"
+```
+
 The older path still wraps examiner-authored `sectionN-deltas.json` for
 one-source source-proved fills:
 

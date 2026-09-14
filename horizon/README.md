@@ -74,7 +74,8 @@ after a source-proved apply) and are dropped when their hash no longer
 matches. When a `drive=` root is
 mounted, `--execute` publishes that isolated file into
 `Section N/Isolated/` and binds SHA-256 readback. Remaining
-one-source blanks and conflicts are written to `sectionN-examiner-queue.json`;
+one-source blanks and conflicts are written to `sectionN-examiner-queue.json`
+and `sectionN-onesource-template.json` (empty `value`, provenance only);
 the queue does not invent fills. Remaining 2+ source blanks are written
 to `sectionN-delta-draft.json` for a named examiner to attest. Applied
 packets chain onto `sectionN-delta-2.xlsx` and later copies instead of

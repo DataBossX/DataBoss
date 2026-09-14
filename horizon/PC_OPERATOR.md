@@ -56,7 +56,10 @@ python3 -m horizon.pc_operator \
    `--execute` also writes `sectionN-owner-review-draft.json`; attest it
    with a named examiner after owner review only. Remaining 2+ source
    blanks are written to `sectionN-delta-draft.json`; attest that draft
-   to apply them. One-source blanks stay out of the draft. A matching
+   to apply them. One-source blanks stay out of the draft. Remaining
+   one-source blanks and conflicts are written to
+   `sectionN-onesource-template.json` with empty values; attest only after
+   a writer holds source-proved text. A matching
    packet applies onto the next isolated generation (`sectionN-delta-2.xlsx`
    after the first apply) and the spent packet is archived so the next
    attest can reuse `sectionN-delta-packet.json`. For section 11,

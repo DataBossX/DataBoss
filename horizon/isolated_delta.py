@@ -28,6 +28,8 @@ PACKET_SCHEMA_VERSION = "1.0"
 DRAFT_SCHEMA_ID = "dbx.source_proved_delta_draft"
 DRAFT_SCHEMA_VERSION = "1.0"
 DRAFT_STATUS = "UNAPPROVED_DRAFT"
+TEMPLATE_SCHEMA_ID = "dbx.source_proved_delta_template"
+TEMPLATE_SCHEMA_VERSION = "1.0"
 RECEIPT_SCHEMA_ID = "dbx.isolated_delta_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
 REQUIRED_PACKET_KEYS = {
@@ -352,6 +354,104 @@ def attest_delta_draft(
     )
 
 
+def write_onesource_template(
+    *,
+    workbook: Path,
+    rows: Sequence[Dict[str, object]],
+    output: Path,
+    packet_id: str,
+) -> Dict[str, object]:
+    """Write empty-value one-source/conflict rows. Does not invent fills."""
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise IsolatedDeltaError(f"workbook does not exist: {resolved}")
+    token = packet_id.strip()
+    if not token or "\n" in token:
+        raise IsolatedDeltaError("packet_id must be a single-line string")
+    if not rows:
+        raise IsolatedDeltaError("one-source template requires remaining blanks")
+    rows = list(rows)
+    for index, raw in enumerate(rows):
+        if not isinstance(raw, dict):
+            raise IsolatedDeltaError(f"rows[{index}] must be an object")
+        if raw.get("value"):
+            raise IsolatedDeltaError(
+                f"rows[{index}] value must stay empty until a writer holds "
+                "source-proved text"
+            )
+    template = {
+        "schema_id": TEMPLATE_SCHEMA_ID,
+        "schema_version": TEMPLATE_SCHEMA_VERSION,
+        "status": DRAFT_STATUS,
+        "packet_id": token,
+        "source_workbook_sha256": sha256_file(resolved),
+        "operator": "",
+        "deltas": list(rows),
+        "notes": [
+            "UNAPPROVED_DRAFT cannot bind isolated_delta",
+            "value must stay empty until a writer holds source-proved text",
+            "Do not copy source_values into value without a face",
+        ],
+    }
+    output = output.expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(template, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    return template
+
+
+def attest_onesource_template(
+    template: Dict[str, object],
+    *,
+    workbook: Path,
+    output: Path,
+    operator: str,
+) -> Dict[str, object]:
+    """Promote filled one-source rows. Horizon does not invent values."""
+    try:
+        require_named_examiner(operator)
+    except ValueError as exc:
+        raise IsolatedDeltaError(str(exc)) from exc
+    if (
+        template.get("schema_id") != TEMPLATE_SCHEMA_ID
+        or template.get("schema_version") != TEMPLATE_SCHEMA_VERSION
+        or template.get("status") != DRAFT_STATUS
+    ):
+        raise IsolatedDeltaError("one-source template schema is invalid")
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise IsolatedDeltaError(f"workbook does not exist: {resolved}")
+    actual = sha256_file(resolved)
+    expected = str(template.get("source_workbook_sha256") or "").casefold()
+    if actual != expected:
+        raise IsolatedDeltaError(
+            "Workbook hash does not match the one-source template; rebuild "
+            "it against the current isolated workbook"
+        )
+    raw_rows = template.get("deltas")
+    if not isinstance(raw_rows, list):
+        raise IsolatedDeltaError("one-source template deltas must be a list")
+    filled: List[Dict[str, object]] = []
+    for index, raw in enumerate(raw_rows):
+        if not isinstance(raw, dict):
+            raise IsolatedDeltaError(f"deltas[{index}] must be an object")
+        value = raw.get("value")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        filled.append({key: raw.get(key) for key in REQUIRED_DELTA_KEYS})
+    if not filled:
+        raise IsolatedDeltaError(
+            "Fill at least one source-proved value; Horizon does not invent them"
+        )
+    return write_delta_packet(
+        workbook=resolved,
+        deltas=filled,
+        output=output,
+        packet_id=str(template.get("packet_id") or ""),
+    )
+
+
 def apply_deltas(
     source_workbook: Path,
     output_workbook: Path,
@@ -499,6 +599,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--attest", action="store_true")
     parser.add_argument("--from-draft", type=Path)
+    parser.add_argument("--from-template", type=Path)
     parser.add_argument("--workbook", type=Path, required=True)
     parser.add_argument("--packet", type=Path)
     parser.add_argument("--deltas", type=Path)
@@ -514,17 +615,31 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
         if args.attest:
-            if args.from_draft is None or args.operator is None:
+            if args.from_draft is not None and args.from_template is not None:
                 raise IsolatedDeltaError(
-                    "--attest requires --from-draft and --operator; "
-                    "Horizon does not invent field values"
+                    "--attest accepts only one of --from-draft or --from-template"
                 )
-            packet = attest_delta_draft(
-                _load_json(args.from_draft),
-                workbook=args.workbook,
-                output=args.output,
-                operator=args.operator,
-            )
+            if args.operator is None or (
+                args.from_draft is None and args.from_template is None
+            ):
+                raise IsolatedDeltaError(
+                    "--attest requires --operator and --from-draft or "
+                    "--from-template; Horizon does not invent field values"
+                )
+            if args.from_template is not None:
+                packet = attest_onesource_template(
+                    _load_json(args.from_template),
+                    workbook=args.workbook,
+                    output=args.output,
+                    operator=args.operator,
+                )
+            else:
+                packet = attest_delta_draft(
+                    _load_json(args.from_draft),
+                    workbook=args.workbook,
+                    output=args.output,
+                    operator=args.operator,
+                )
             print(
                 json.dumps(
                     {

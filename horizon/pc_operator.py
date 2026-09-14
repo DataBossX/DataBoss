@@ -24,7 +24,12 @@ from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
-from .isolated_delta import IsolatedDeltaError, sha256_file, write_delta_draft
+from .isolated_delta import (
+    IsolatedDeltaError,
+    sha256_file,
+    write_delta_draft,
+    write_onesource_template,
+)
 from .human_release import HumanReleaseError, write_human_release_draft
 from .native_print import NativePrintError, write_native_print_draft
 from .page_render_export import PageRenderExportError, write_crops_draft
@@ -38,6 +43,7 @@ from .workbook_ledger import (
 from .examiner_queue import (
     ExaminerQueueError,
     build_examiner_queue,
+    onesource_rows_from_queue,
     proposed_deltas_from_queue,
 )
 from .source_acquisition import (
@@ -584,6 +590,30 @@ def _section_commands(
             "Attest the 2+ source delta draft with EXAMINER_NAME; "
             "one-source blanks stay out of that draft"
         )
+    template_path = Path(receipt_dir) / f"section{section}-onesource-template.json"
+    if bindings.delta_packet is None and template_path.is_file():
+        commands.append(
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.isolated_delta",
+                    "--attest",
+                    "--from-template",
+                    str(template_path),
+                    "--workbook",
+                    workbook,
+                    "--output",
+                    f"{receipt_dir}/section{section}-delta-packet.json",
+                    "--operator",
+                    "EXAMINER_NAME",
+                ]
+            )
+        )
+        commands.append(
+            "Fill only source-proved values in the one-source template, "
+            "then attest; do not copy source_values without a face"
+        )
     if bindings.delta_packet is None and (section == 13 or queue_needs_fill):
         commands.append(
             _quote_command(
@@ -825,6 +855,45 @@ def _write_proposed_delta_draft(
             deltas=deltas,
             output=dest,
             packet_id=f"SECTION{section}-DELTA",
+        )
+    except (OSError, IsolatedDeltaError) as exc:
+        return None, str(exc)
+    return str(dest), None
+
+
+def _write_onesource_template(
+    queue_path: Optional[str],
+    workbook: Path,
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str]]:
+    dest = receipt_dir / f"section{section}-onesource-template.json"
+    if not queue_path:
+        if dest.is_file():
+            dest.unlink()
+        return None, None
+    try:
+        queue = json.loads(Path(queue_path).read_text(encoding="utf-8"))
+        if not isinstance(queue, dict):
+            return None, "examiner queue is not a JSON object"
+        rows = onesource_rows_from_queue(queue)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        ExaminerQueueError,
+    ) as exc:
+        return None, str(exc)
+    if not rows:
+        if dest.is_file():
+            dest.unlink()
+        return None, None
+    try:
+        write_onesource_template(
+            workbook=workbook,
+            rows=rows,
+            output=dest,
+            packet_id=f"SECTION{section}-ONESOURCE",
         )
     except (OSError, IsolatedDeltaError) as exc:
         return None, str(exc)
@@ -1742,6 +1811,15 @@ def _execute_section(
                 order.executed_outputs.append(draft_path)
             if draft_error:
                 order.holds.append(f"Source-proved delta draft failed: {draft_error}")
+            template_path, template_error = _write_onesource_template(
+                queue_path, isolated, receipt_dir, order.section
+            )
+            if template_path:
+                order.executed_outputs.append(template_path)
+            if template_error:
+                order.holds.append(
+                    f"One-source fill template failed: {template_error}"
+                )
             bound, stale_holds = _unbind_stale_workbook_packets(bound, isolated)
             order.holds.extend(stale_holds)
             try:

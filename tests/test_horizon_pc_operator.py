@@ -8,9 +8,11 @@ from pathlib import Path
 import openpyxl
 import pytest
 
+from horizon.isolated_delta import sha256_file
 from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
+    _crop_packet_matches_renders,
     _section_commands,
     build_work_order,
     main,
@@ -1279,6 +1281,145 @@ def test_operator_unbinds_stale_crop_packet_hashes(tmp_path: Path) -> None:
         for hold in receipt.sections[0].holds
     )
     assert not (receipts / "section11-finish.json").is_file()
+
+
+def test_crop_packet_without_paths_does_not_match_renders(tmp_path: Path) -> None:
+    bind = tmp_path / "section11-renders"
+    bind.mkdir()
+    (bind / "page-01.png").write_bytes(b"LIVE-RENDER")
+    packet = tmp_path / "section11-crops.json"
+    packet.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION11-CROPS",
+                "pages": [
+                    {
+                        "page": 1,
+                        "source_sha256": "a" * 64,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _crop_packet_matches_renders(packet, bind) is False
+
+
+def test_execute_does_not_bind_other_section_crop_packet(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    (root / "Section 11").mkdir(parents=True)
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    (receipts / "section11-crops.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION11-CROPS",
+                "expected_page_count": 1,
+                "pages": [
+                    {
+                        "page": 1,
+                        "source_sha256": "a" * 64,
+                    }
+                ],
+                "crops": [
+                    {
+                        "row_id": "p01r01",
+                        "page": 1,
+                        "crop_id": "p01r01",
+                        "source_sha256": "a" * 64,
+                        "docno": "2026-09901",
+                        "bookpage": "",
+                        "rec_date": "1/2/2026",
+                        "doc_date": "",
+                        "grantor": "SYNTH SURVEYOR",
+                        "grantee": "The Public",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15, 11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    finish15 = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    names15 = {gate["name"] for gate in finish15["gates"]}
+    assert "page_render_export" not in names15
+    finish11 = json.loads(
+        (receipts / "section11-finish.json").read_text(encoding="utf-8")
+    )
+    names11 = {gate["name"] for gate in finish11["gates"]}
+    assert "page_render_export" in names11
+
+
+def test_execute_passes_crop_bind_dir_for_attested_renders(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    (root / "Section 11").mkdir(parents=True)
+    receipts = tmp_path / "private-receipts"
+    renders = receipts / "section11-renders"
+    renders.mkdir(parents=True)
+    render = renders / "page-01.png"
+    render.write_bytes(b"LIVE-RENDER")
+    digest = sha256_file(render)
+    (receipts / "section11-crops.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION11-CROPS",
+                "expected_page_count": 1,
+                "pages": [
+                    {
+                        "page": 1,
+                        "path": "page-01.png",
+                        "source_sha256": digest,
+                    }
+                ],
+                "crops": [
+                    {
+                        "row_id": "p01r01",
+                        "page": 1,
+                        "crop_id": "p01r01",
+                        "source_sha256": digest,
+                        "docno": "2026-09901",
+                        "bookpage": "",
+                        "rec_date": "1/2/2026",
+                        "doc_date": "",
+                        "grantor": "SYNTH SURVEYOR",
+                        "grantee": "The Public",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    finish = json.loads(
+        (receipts / "section11-finish.json").read_text(encoding="utf-8")
+    )
+    export = next(
+        gate for gate in finish["gates"] if gate["name"] == "page_render_export"
+    )
+    assert export["technical_pass"] is True
+    assert export.get("error") in (None, "")
 
 
 def test_execute_inventories_section_pdfs_and_binds_census(tmp_path: Path) -> None:

@@ -600,7 +600,10 @@ def run_finish(
         for gate in gates
     ):
         try:
-            built = build_occurrence_packet(_load_json(page_render_packet))
+            built = build_occurrence_packet(
+                _load_json(page_render_packet),
+                bind_dir=page_render_bind_dir,
+            )
             occ_receipt = compare_packet(parse_occurrence_packet(built))
             gates.append(
                 GateResult(

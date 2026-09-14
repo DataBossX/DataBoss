@@ -142,6 +142,7 @@ class PcOperatorError(ValueError):
 @dataclass
 class FinishBindings:
     page_render_packet: Optional[Path] = None
+    page_render_bind_dir: Optional[Path] = None
     native_print_receipt: Optional[Path] = None
     human_release_token: Optional[Path] = None
     pdf_census_packet: Optional[Path] = None
@@ -378,6 +379,8 @@ def _append_binding_flags(
 ) -> None:
     if bindings.page_render_packet is not None:
         parts.extend(["--page-render-packet", bindings.page_render_packet])
+    if bindings.page_render_bind_dir is not None:
+        parts.extend(["--page-render-bind-dir", bindings.page_render_bind_dir])
     if bindings.native_print_receipt is not None:
         parts.extend(["--native-print-receipt", bindings.native_print_receipt])
     if bindings.human_release_token is not None:
@@ -783,13 +786,16 @@ def _section_work_order(
         bound, isolated if isolated.is_file() else None
     )
     holds.extend(stale_holds)
-    crops_bind = _crops_bind_dir(
-        Path(receipt_dir),
+    bound = _bind_section_crops(
+        bound,
+        receipt_dir,
         section,
-        inventory,
-        str(Path(receipt_dir) / f"section{section}-crops-draft.json"),
+        inventory=inventory,
+        crops_draft=str(Path(receipt_dir) / f"section{section}-crops-draft.json"),
     )
-    bound, crop_holds = _unbind_stale_crop_packet(bound, crops_bind)
+    bound, crop_holds = _unbind_stale_crop_packet(
+        bound, bound.page_render_bind_dir
+    )
     holds.extend(crop_holds)
     try:
         receipt_json = sorted(Path(receipt_dir).glob("*.json"))
@@ -1190,6 +1196,7 @@ def _rerun_finish_isolated(
         index_packet=index_packet,
         workbook=workbook,
         page_render_packet=bound.page_render_packet,
+        page_render_bind_dir=bound.page_render_bind_dir,
         native_print_receipt=native_print_receipt,
         human_release_token=human_release_token,
         pdf_census_packet=bound.pdf_census_packet,
@@ -1424,7 +1431,25 @@ def _crop_packet_matches_renders(path: Path, bind_dir: Path) -> bool:
             return False
         if sha256_file(render) != str(digest or "").casefold():
             return False
-    return True if checked else True
+    return checked
+
+
+def _crop_packet_has_render_paths(path: Path) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    pages = payload.get("pages")
+    if not isinstance(pages, list):
+        return False
+    return any(
+        isinstance(item, dict)
+        and isinstance(item.get("path"), str)
+        and item["path"].strip()
+        for item in pages
+    )
 
 
 def _unbind_stale_crop_packet(
@@ -1433,20 +1458,32 @@ def _unbind_stale_crop_packet(
 ) -> tuple[FinishBindings, List[str]]:
     """Drop a crop packet whose page hashes no longer match live renders."""
     packet = bindings.page_render_packet
-    if packet is None or bind_dir is None:
+    if packet is None:
+        return bindings, []
+    hold = (
+        "Page-render crop packet hashes do not match the current renders; "
+        "re-attest section11-crops-draft.json"
+    )
+    if bind_dir is None:
+        if _crop_packet_has_render_paths(packet):
+            return (
+                replace(bindings, page_render_packet=None),
+                [
+                    "Page-render crop packet has render paths but no bind "
+                    "directory; copy hashed renders into sectionN-renders "
+                    "or re-attest"
+                ],
+            )
         return bindings, []
     try:
         resolved = bind_dir.expanduser().resolve()
-        if not resolved.is_dir() or _crop_packet_matches_renders(packet, resolved):
+        if resolved.is_dir() and _crop_packet_matches_renders(packet, resolved):
             return bindings, []
     except OSError:
-        return bindings, []
+        return replace(bindings, page_render_packet=None), [hold]
     return (
         replace(bindings, page_render_packet=None),
-        [
-            "Page-render crop packet hashes do not match the current renders; "
-            "re-attest section11-crops-draft.json"
-        ],
+        [hold],
     )
 
 
@@ -1913,14 +1950,16 @@ def _section_pdf_bind_dir(receipt_dir: str, section: int) -> Optional[Path]:
 _SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
 
 
-def _census_packet_matches_section(path: Path, section: int) -> bool:
+def _schema_packet_matches_section(
+    path: Path, section: int, schema_id: str
+) -> bool:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return False
     if not isinstance(payload, dict):
         return False
-    if payload.get("schema_id") != "dbx.pdf_page_census_packet":
+    if payload.get("schema_id") != schema_id:
         return False
     token = str(payload.get("packet_id") or "")
     name = path.name
@@ -1929,6 +1968,58 @@ def _census_packet_matches_section(path: Path, section: int) -> bool:
             if int(match.group(1)) == section:
                 return True
     return False
+
+
+def _census_packet_matches_section(path: Path, section: int) -> bool:
+    return _schema_packet_matches_section(
+        path, section, "dbx.pdf_page_census_packet"
+    )
+
+
+def _crop_packet_matches_section(path: Path, section: int) -> bool:
+    return _schema_packet_matches_section(
+        path, section, "dbx.page_render_crop_packet"
+    )
+
+
+def _section_crop_packet(
+    candidate: Optional[Path],
+    receipt_dir: str,
+    section: int,
+) -> Optional[Path]:
+    if candidate is not None and _crop_packet_matches_section(candidate, section):
+        return candidate
+    conventional = Path(receipt_dir) / f"section{section}-crops.json"
+    try:
+        if conventional.is_file() and _crop_packet_matches_section(
+            conventional, section
+        ):
+            return conventional
+    except OSError:
+        return None
+    return None
+
+
+def _bind_section_crops(
+    bindings: FinishBindings,
+    receipt_dir: str,
+    section: int,
+    inventory: Optional[AcquisitionReceipt] = None,
+    crops_draft: Optional[str] = None,
+) -> FinishBindings:
+    packet = _section_crop_packet(
+        bindings.page_render_packet, receipt_dir, section
+    )
+    bind_dir = bindings.page_render_bind_dir
+    if bind_dir is None:
+        bind_dir = _crops_bind_dir(
+            Path(receipt_dir), section, inventory, crops_draft
+        )
+    return replace(
+        bindings,
+        page_render_packet=packet,
+        page_render_bind_dir=bind_dir,
+    )
 
 
 def _section_census_packet(
@@ -2050,6 +2141,7 @@ def _merge_bindings(
 ) -> FinishBindings:
     merged = FinishBindings(
         page_render_packet=explicit.page_render_packet,
+        page_render_bind_dir=explicit.page_render_bind_dir,
         native_print_receipt=explicit.native_print_receipt,
         human_release_token=explicit.human_release_token,
         pdf_census_packet=explicit.pdf_census_packet,
@@ -2412,10 +2504,16 @@ def _execute_section(
             f"{crop_blanks} page-render crop(s) still need face text; "
             f"see section{order.section}-crop-fill-queue.json"
         )
-    crops_bind = _crops_bind_dir(
-        receipt_dir, order.section, phase2, crops_draft
+    bound = _bind_section_crops(
+        bound,
+        str(receipt_dir),
+        order.section,
+        inventory=phase2,
+        crops_draft=crops_draft,
     )
-    bound, crop_holds = _unbind_stale_crop_packet(bound, crops_bind)
+    bound, crop_holds = _unbind_stale_crop_packet(
+        bound, bound.page_render_bind_dir
+    )
     order.holds.extend(crop_holds)
     if not any((master, pdf_index, handwritten, bound.page_render_packet)):
         order.execute_error = "no exportable source workbooks or page-render packet"
@@ -2529,6 +2627,7 @@ def _execute_section(
             repair_dir=repair,
             print_layout_output=letter,
             page_render_packet=bound.page_render_packet,
+            page_render_bind_dir=bound.page_render_bind_dir,
             native_print_receipt=finish_native,
             human_release_token=finish_release,
             pdf_census_packet=bound.pdf_census_packet,
@@ -3024,6 +3123,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Repeat to override required source roles",
     )
     parser.add_argument("--page-render-packet", type=Path)
+    parser.add_argument("--page-render-bind-dir", type=Path)
     parser.add_argument("--native-print-receipt", type=Path)
     parser.add_argument("--human-release-token", type=Path)
     parser.add_argument("--pdf-census-packet", type=Path)
@@ -3047,6 +3147,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             execute=args.execute,
             bindings=FinishBindings(
                 page_render_packet=args.page_render_packet,
+                page_render_bind_dir=args.page_render_bind_dir,
                 native_print_receipt=args.native_print_receipt,
                 human_release_token=args.human_release_token,
                 pdf_census_packet=args.pdf_census_packet,

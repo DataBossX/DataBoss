@@ -118,6 +118,8 @@ python3 -m horizon.pc_operator \
    acquisition.    Page-render, native-print, owner-review, and PDF census JSON packets
    are discovered by `schema_id` when present, or passed explicitly.
    Census packets are kept on the matching `SECTION{N}` / `sectionN` id.
+   Page-render crop packets are kept on the matching section the same way
+   and rebound with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority
    order 15, then 13, then 11. The plan names the current isolated

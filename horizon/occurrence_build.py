@@ -50,8 +50,15 @@ def _checkable(crop: Dict[str, object]) -> bool:
     return bool(bookpage) or bool(rec_date and party)
 
 
-def build_occurrence_packet(page_render_payload: Dict[str, object]) -> Dict[str, object]:
-    compiled = compile_page_renders(page_render_payload)
+def build_occurrence_packet(
+    page_render_payload: Dict[str, object],
+    *,
+    bind_dir: Optional[Path] = None,
+) -> Dict[str, object]:
+    try:
+        compiled = compile_page_renders(page_render_payload, bind_dir=bind_dir)
+    except PageRenderExportError as exc:
+        raise OccurrenceBuildError(str(exc)) from exc
     crops = page_render_payload["crops"]
     if not isinstance(crops, list):
         raise OccurrenceBuildError("crops must be a list")
@@ -121,6 +128,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Build an occurrence packet from page-render crops."
     )
     parser.add_argument("--page-render-packet", type=Path, required=True)
+    parser.add_argument("--bind-dir", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     return parser
 
@@ -128,7 +136,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
-        packet = build_occurrence_packet(_load_json(args.page_render_packet))
+        packet = build_occurrence_packet(
+            _load_json(args.page_render_packet),
+            bind_dir=args.bind_dir,
+        )
         args.output.write_text(
             json.dumps(packet, indent=2, sort_keys=True),
             encoding="utf-8",

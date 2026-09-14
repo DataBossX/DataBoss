@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -10,7 +13,9 @@ from horizon.human_release import (
     OWNER_REVIEW_STATEMENT,
     HumanReleaseError,
     assess_human_release,
+    attest_human_release_draft,
     evaluate_package_completion,
+    write_human_release_draft,
     write_human_release_token,
 )
 from horizon.isolated_delta import sha256_file
@@ -136,6 +141,99 @@ def test_write_human_release_token_is_owner_review_only(tmp_path) -> None:
             sections=[15],
             packet_id="SECTION15-OWNER-REVIEW",
         )
+
+
+def test_human_release_draft_cannot_bind_until_attested(tmp_path) -> None:
+    workbook = tmp_path / "isolated.xlsx"
+    workbook.write_bytes(b"SYNTH")
+    draft = write_human_release_draft(
+        workbook=workbook,
+        output=tmp_path / "draft.json",
+        sections=[15],
+        packet_id="SECTION15-OWNER-REVIEW",
+    )
+    assert draft["status"] == "UNAPPROVED_DRAFT"
+    assert draft["operator"] == ""
+    with pytest.raises(HumanReleaseError, match="invalid top-level"):
+        assess_human_release(draft, workbook=workbook, requested_sections=[15])
+    with pytest.raises(HumanReleaseError, match="named examiner"):
+        attest_human_release_draft(
+            draft,
+            workbook=workbook,
+            output=tmp_path / "nope.json",
+            operator="EXAMINER_NAME",
+        )
+    workbook.write_bytes(b"CHANGED")
+    with pytest.raises(HumanReleaseError, match="does not match"):
+        attest_human_release_draft(
+            draft,
+            workbook=workbook,
+            output=tmp_path / "stale.json",
+            operator="Pat Examiner",
+        )
+    workbook.write_bytes(b"SYNTH")
+    token = attest_human_release_draft(
+        draft,
+        workbook=workbook,
+        output=tmp_path / "owner-review.json",
+        operator="Pat Examiner",
+    )
+    assert token["external_release"] is False
+    assert assess_human_release(
+        token, workbook=workbook, requested_sections=[15]
+    ).technical_pass
+
+
+def test_cli_draft_and_attest(tmp_path) -> None:
+    workbook = tmp_path / "isolated.xlsx"
+    workbook.write_bytes(b"SYNTH")
+    draft = tmp_path / "draft.json"
+    token = tmp_path / "owner-review.json"
+    drafted = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "horizon.human_release",
+            "--draft",
+            "--workbook",
+            str(workbook),
+            "--output",
+            str(draft),
+            "--section",
+            "15",
+            "--packet-id",
+            "SECTION15-OWNER-REVIEW",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert drafted.returncode == 0
+    payload = json.loads(draft.read_text(encoding="utf-8"))
+    assert payload["schema_id"] == "dbx.human_release_draft"
+    attested = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "horizon.human_release",
+            "--attest",
+            "--from-draft",
+            str(draft),
+            "--workbook",
+            str(workbook),
+            "--output",
+            str(token),
+            "--operator",
+            "Pat Examiner",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert attested.returncode == 0
+    receipt = json.loads(token.read_text(encoding="utf-8"))
+    assert receipt["schema_id"] == "dbx.human_release_token"
+    assert receipt["external_release"] is False
 
 
 def test_finish_runner_stays_incomplete_without_full_evidence() -> None:

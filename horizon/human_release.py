@@ -21,6 +21,9 @@ from .source_acquisition import PRIORITY_SECTIONS
 
 PACKET_SCHEMA_ID = "dbx.human_release_token"
 PACKET_SCHEMA_VERSION = "1.0"
+DRAFT_SCHEMA_ID = "dbx.human_release_draft"
+DRAFT_SCHEMA_VERSION = "1.0"
+DRAFT_STATUS = "UNAPPROVED_DRAFT"
 RECEIPT_SCHEMA_ID = "dbx.human_release_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
 REQUIRED_KEYS = {
@@ -199,35 +202,164 @@ def write_human_release_token(
     return token
 
 
+def write_human_release_draft(
+    *,
+    workbook: Path,
+    output: Path,
+    sections: Sequence[int],
+    packet_id: str,
+) -> Dict[str, object]:
+    """Hash-bind a draft. Does not name an examiner or release a package."""
+    if not sections or any(section not in PRIORITY_SECTIONS for section in sections):
+        raise HumanReleaseError(f"sections must come from {PRIORITY_SECTIONS}")
+    if len(sections) != len(set(sections)):
+        raise HumanReleaseError("sections must be unique")
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise HumanReleaseError(f"workbook does not exist: {resolved}")
+    token_id = packet_id.strip()
+    if not token_id or "\n" in token_id:
+        raise HumanReleaseError("packet_id must be a single-line string")
+    draft = {
+        "schema_id": DRAFT_SCHEMA_ID,
+        "schema_version": DRAFT_SCHEMA_VERSION,
+        "status": DRAFT_STATUS,
+        "packet_id": token_id,
+        "sections": list(sections),
+        "operator": "",
+        "workbook_sha256": sha256_file(resolved),
+        "statement": OWNER_REVIEW_STATEMENT,
+        "external_release": False,
+        "notes": [
+            "UNAPPROVED_DRAFT cannot bind human_release",
+            "Attest with a named examiner against the current isolated workbook",
+        ],
+    }
+    output = output.expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(draft, indent=2, sort_keys=True), encoding="utf-8")
+    return draft
+
+
+def attest_human_release_draft(
+    draft: Dict[str, object],
+    *,
+    workbook: Path,
+    output: Path,
+    operator: str,
+) -> Dict[str, object]:
+    """Promote a draft after owner review. Horizon does not invent the examiner."""
+    if (
+        draft.get("schema_id") != DRAFT_SCHEMA_ID
+        or draft.get("schema_version") != DRAFT_SCHEMA_VERSION
+        or draft.get("status") != DRAFT_STATUS
+    ):
+        raise HumanReleaseError("human release draft schema is invalid")
+    resolved = workbook.expanduser().resolve()
+    if not resolved.is_file():
+        raise HumanReleaseError(f"workbook does not exist: {resolved}")
+    actual = sha256_file(resolved)
+    expected = str(draft.get("workbook_sha256") or "").casefold()
+    if actual != expected:
+        raise HumanReleaseError(
+            "Workbook hash does not match the owner-review draft; reissue "
+            "against the current isolated workbook"
+        )
+    raw_sections = draft.get("sections")
+    if not isinstance(raw_sections, list):
+        raise HumanReleaseError("sections must be a non-empty list")
+    return write_human_release_token(
+        workbook=resolved,
+        output=output,
+        operator=operator,
+        sections=raw_sections,
+        packet_id=str(draft.get("packet_id") or ""),
+    )
+
+
+def _load_json(path: Path) -> Dict[str, object]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HumanReleaseError(f"Cannot read {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise HumanReleaseError(f"{path} must contain a JSON object")
+    return payload
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Write an owner-review token. Not external client delivery."
     )
+    parser.add_argument("--draft", action="store_true")
+    parser.add_argument("--attest", action="store_true")
+    parser.add_argument("--from-draft", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--workbook", type=Path, required=True)
-    parser.add_argument("--operator", required=True)
+    parser.add_argument("--workbook", type=Path)
+    parser.add_argument("--operator")
     parser.add_argument(
         "--section",
         dest="sections",
         type=int,
         action="append",
         choices=PRIORITY_SECTIONS,
-        required=True,
     )
-    parser.add_argument("--packet-id", required=True)
+    parser.add_argument("--packet-id")
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
-        token = write_human_release_token(
-            workbook=args.workbook,
-            output=args.output,
-            operator=args.operator,
-            sections=args.sections,
-            packet_id=args.packet_id,
-        )
+        if args.draft:
+            if args.workbook is None or args.packet_id is None or not args.sections:
+                raise HumanReleaseError(
+                    "--draft requires --workbook, --packet-id, and --section"
+                )
+            draft = write_human_release_draft(
+                workbook=args.workbook,
+                output=args.output,
+                sections=args.sections,
+                packet_id=args.packet_id,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "status": draft["status"],
+                        "workbook_sha256": draft["workbook_sha256"],
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.attest:
+            if args.from_draft is None or args.workbook is None or args.operator is None:
+                raise HumanReleaseError(
+                    "--attest requires --from-draft, --workbook, and --operator"
+                )
+            token = attest_human_release_draft(
+                _load_json(args.from_draft),
+                workbook=args.workbook,
+                output=args.output,
+                operator=args.operator,
+            )
+        else:
+            if args.workbook is None or args.operator is None or args.packet_id is None:
+                raise HumanReleaseError(
+                    "Pass --workbook, --operator, --section, and --packet-id, "
+                    "or --draft / --attest"
+                )
+            if not args.sections:
+                raise HumanReleaseError("--section is required")
+            token = write_human_release_token(
+                workbook=args.workbook,
+                output=args.output,
+                operator=args.operator,
+                sections=args.sections,
+                packet_id=args.packet_id,
+            )
     except (OSError, HumanReleaseError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

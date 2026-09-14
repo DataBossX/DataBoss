@@ -30,6 +30,25 @@ I release this isolated copy for owner review only. It is not an external client
 `READY_TO_SUBMIT`, `EXTERNAL_RELEASE`, `FINAL_TURNIN`, and `100%` are
 rejected.
 
+`pc_operator --execute` writes `sectionN-owner-review-draft.json`
+(`dbx.human_release_draft`, `UNAPPROVED_DRAFT`) bound to the current
+isolated workbook hash. That draft cannot bind the human-release gate.
+Attest it after owner review. Horizon does not invent the examiner name.
+A token whose `workbook_sha256` does not match the current isolated file
+is dropped so the next command is a reissue, not a stale bind.
+
+```bash
+python3 -m horizon.human_release \
+  --attest \
+  --from-draft /path/to/section15-owner-review-draft.json \
+  --workbook /path/to/isolated-letter.xlsx \
+  --output /path/to/owner-review-token.json \
+  --operator "Pat Examiner"
+```
+
+The older write path still works when the examiner supplies the name in
+one step.
+
 ```bash
 python3 -m horizon.human_release \
   --workbook /path/to/isolated-letter.xlsx \

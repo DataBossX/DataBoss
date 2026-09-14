@@ -25,6 +25,7 @@ from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import sha256_file
+from .human_release import HumanReleaseError, write_human_release_draft
 from .native_print import NativePrintError, write_native_print_draft
 from .package_finish import PackageFinishError, run_finish
 from .pdf_census import PdfCensusError, write_inventory_packet
@@ -528,24 +529,28 @@ def _section_commands(
             f"section{section}-delta.xlsx so the next execute can bind readback"
         )
     if bindings.human_release_token is None:
+        draft = f"{receipt_dir}/section{section}-owner-review-draft.json"
         commands.append(
             _quote_command(
                 [
                     "python3",
                     "-m",
                     "horizon.human_release",
+                    "--attest",
+                    "--from-draft",
+                    draft,
                     "--workbook",
                     workbook,
                     "--output",
                     f"{receipt_dir}/section{section}-owner-review.json",
                     "--operator",
                     "EXAMINER_NAME",
-                    "--section",
-                    section,
-                    "--packet-id",
-                    f"SECTION{section}-OWNER-REVIEW",
                 ]
             )
+        )
+        commands.append(
+            "Attest the owner-review draft with EXAMINER_NAME after the "
+            "current isolated workbook is ready for owner review only"
         )
     queue_path = Path(receipt_dir) / f"section{section}-examiner-queue.json"
     queue_needs_fill = _queue_has_items(queue_path)
@@ -1415,6 +1420,19 @@ def _execute_section(
                 order.executed_outputs.append(str(draft_path))
             except (OSError, NativePrintError) as exc:
                 order.holds.append(f"Native print draft failed: {exc}")
+            try:
+                release_draft = (
+                    receipt_dir / f"section{order.section}-owner-review-draft.json"
+                )
+                write_human_release_draft(
+                    workbook=isolated,
+                    output=release_draft,
+                    sections=[order.section],
+                    packet_id=f"SECTION{order.section}-OWNER-REVIEW",
+                )
+                order.executed_outputs.append(str(release_draft))
+            except (OSError, HumanReleaseError) as exc:
+                order.holds.append(f"Owner-review draft failed: {exc}")
             published, publish_hold = _publish_isolated_to_drive(
                 inventory, order.section, isolated
             )

@@ -128,6 +128,7 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert "--attest" in joined
     assert "--from-draft" in joined
     assert "horizon.human_release" in joined
+    assert "owner-review-draft.json" in joined
     assert any("Phase 2" in action for action in receipt.next_actions)
     draft_path = receipts / "authority-draft.json"
     assert draft_path.is_file()
@@ -209,9 +210,16 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     )
     assert draft["schema_id"] == "dbx.native_print_draft"
     assert draft["status"] == "UNAPPROVED_DRAFT"
-    assert draft["workbook_sha256"] == __import__(
+    letter_sha = __import__(
         "horizon.isolated_delta", fromlist=["sha256_file"]
     ).sha256_file(letter)
+    assert draft["workbook_sha256"] == letter_sha
+    release_draft = json.loads(
+        (receipts / "section15-owner-review-draft.json").read_text(encoding="utf-8")
+    )
+    assert release_draft["schema_id"] == "dbx.human_release_draft"
+    assert release_draft["status"] == "UNAPPROVED_DRAFT"
+    assert release_draft["workbook_sha256"] == letter_sha
     payload = json.loads(finish.read_text(encoding="utf-8"))
     assert payload["packages_complete"] is False
     assert source.read_bytes() == before

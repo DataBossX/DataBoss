@@ -240,7 +240,7 @@ def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
 
 def test_receipt_packages_complete_requires_remaining_plan() -> None:
     order = SimpleNamespace(section=15, finish_packages_complete=True)
-    assert _receipt_packages_complete([order], []) is True
+    assert _receipt_packages_complete([order], []) is False
     assert (
         _receipt_packages_complete(
             [order], [{"section": 15, "packages_complete": True}]

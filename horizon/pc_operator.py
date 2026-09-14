@@ -1945,7 +1945,7 @@ def _receipt_packages_complete(
     if not all(order.finish_packages_complete is True for order in work_orders):
         return False
     if not plans:
-        return True
+        return False
     planned = {plan.get("section") for plan in plans if isinstance(plan, dict)}
     if any(order.section not in planned for order in work_orders):
         return False

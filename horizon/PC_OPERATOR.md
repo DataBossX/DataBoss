@@ -148,8 +148,9 @@ python3 -m horizon.pc_operator \
       `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate,
    including a Drive Isolated/ copy of that section's file, and that
-   section's remaining-plan is also complete. Examiner-queue blanks or
-   conflicts keep the operator receipt incomplete.
+   section's remaining-plan is also complete. A missing remaining-plan
+   (write failure or empty plan list) is fail-closed. Examiner-queue
+   blanks or conflicts keep the operator receipt incomplete.
 
 ## What it never does
 

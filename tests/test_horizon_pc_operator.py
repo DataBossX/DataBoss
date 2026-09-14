@@ -622,6 +622,14 @@ def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> Non
     )
     assert acquisition["technical_pass"] is True
     assert acquisition["detail"]["phase"] == "phase2_snapshot"
+    assert second.sections[0].missing_required_roles == []
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert plan["unauthorized_classified_roles"] == []
+    assert plan["missing_required_roles"] == []
+    assert not any("authority_promote" in item for item in plan["missing"])
+    assert "Phase-2 authorized" not in "".join(plan["missing"])
     assert (receipts / "intake-snapshot" / "section15").is_dir()
     assert (receipts / "section15-acquisition.json").is_file()
     live_master = root / "Section 15" / "Master Abstract.xlsx"

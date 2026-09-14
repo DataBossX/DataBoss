@@ -1899,6 +1899,20 @@ def _write_supporting_record_queue(
     return str(dest), None, count
 
 
+def _refresh_order_authority(
+    order: SectionWorkOrder,
+    receipt: AcquisitionReceipt,
+) -> None:
+    summary = next(
+        (item for item in receipt.sections if item.section == order.section),
+        None,
+    )
+    if summary is None:
+        return
+    order.missing_required_roles = list(summary.missing_required_roles)
+    order.ready_for_extraction = bool(summary.ready_for_extraction)
+
+
 def _write_section_remaining_plan(
     order: SectionWorkOrder,
     receipt_dir: Path,
@@ -2411,6 +2425,7 @@ def _execute_section(
         order.candidate_picks = _bind_picks_to_snapshot(
             order.candidate_picks, phase2
         )
+        _refresh_order_authority(order, phase2)
         master = _slot_path(order.candidate_picks, "master")
         pdf_index = _slot_path(order.candidate_picks, "pdf_index")
         handwritten = _slot_path(order.candidate_picks, "handwritten")

@@ -104,6 +104,44 @@ def test_remaining_plan_names_classified_roles_awaiting_phase2(
     assert plan["packages_complete"] is False
 
 
+def test_remaining_plan_prefers_phase2_finish_over_stale_unauthorized(
+    tmp_path: Path,
+) -> None:
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "source_acquisition",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {
+                    "phase": "phase2_snapshot",
+                    "sections": [
+                        {
+                            "section": 15,
+                            "ready_for_extraction": True,
+                            "missing_required_roles": [],
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        missing_required_roles=["index", "handwritten_index"],
+        missing_candidate_roles=[],
+        unauthorized_classified_roles=["index", "handwritten_index"],
+    )
+    assert plan["missing_required_roles"] == []
+    assert plan["unauthorized_classified_roles"] == []
+    assert "missing required role index" not in plan["missing"]
+    assert "Phase-2 authorized" not in "".join(plan["missing"])
+    assert not any("authority_promote" in item for item in plan["missing"])
+
+
 def test_remaining_plan_separates_missing_files_from_unauthorized_roles(
     tmp_path: Path,
 ) -> None:

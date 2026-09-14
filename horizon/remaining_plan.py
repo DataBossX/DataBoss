@@ -119,7 +119,9 @@ def _ordered_roles(*groups: Sequence[str]) -> List[str]:
     return ordered
 
 
-def _roles_from_finish(gates: Sequence[_GateView], section: int) -> List[str]:
+def _roles_from_finish(
+    gates: Sequence[_GateView], section: int
+) -> Optional[List[str]]:
     for gate in gates:
         if gate.name != "source_acquisition":
             continue
@@ -130,7 +132,7 @@ def _roles_from_finish(gates: Sequence[_GateView], section: int) -> List[str]:
             if not isinstance(item, dict) or item.get("section") != section:
                 continue
             return _string_list(item.get("missing_required_roles"))
-    return []
+    return None
 
 
 def _nonneg_int(raw: object) -> Optional[int]:
@@ -300,14 +302,18 @@ def remaining_plan(
             "required gate human_release did not pass",
             "index fields are not complete (reconciliation or repair loop)",
         ]
+    finish_roles = _roles_from_finish(gates, section)
     required_roles = _ordered_roles(
-        _string_list(list(missing_required_roles)),
-        _roles_from_finish(gates, section),
+        finish_roles
+        if finish_roles is not None
+        else _string_list(list(missing_required_roles))
     )
     candidate_roles = _ordered_roles(_string_list(list(missing_candidate_roles)))
-    unauthorized_roles = _ordered_roles(
-        _string_list(list(unauthorized_classified_roles))
-    )
+    unauthorized_roles = [
+        role
+        for role in _ordered_roles(_string_list(list(unauthorized_classified_roles)))
+        if role in required_roles
+    ]
     field_gaps = _merge_field_gaps(
         _field_gaps_from_queue(receipt_dir, section),
         _field_gaps_from_finish(gates),
@@ -369,6 +375,7 @@ def remaining_plan(
             "Typed index and handwritten_index are separate required roles",
             "Classified-but-unauthorized roles are Phase-2 holds, not missing files",
             "Classified files still need Phase-2 authority before extraction",
+            "Finish source_acquisition role gaps win over Phase-1 work-order gaps",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",

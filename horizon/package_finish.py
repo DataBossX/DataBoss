@@ -37,8 +37,11 @@ from .index_reconciliation import (
     IndexReconciliationError,
     reconcile_indexes,
 )
+from .connect_status import ConnectStatusError, probe_connections
+from .drive_readback import DriveReadbackError, assess_drive_readback
 from .isolated_delta import IsolatedDeltaError, apply_deltas
 from .native_print import NativePrintError, assess_native_print
+from .occurrence_build import OccurrenceBuildError, build_occurrence_packet
 from .page_render_export import PageRenderExportError, compile_page_renders
 from .pdf_census import PdfCensusError, census_packet
 from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
@@ -283,6 +286,11 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Mount PC/Drive/chat roots and rerun with --root "
             f"for sections {list(sections)}"
         )
+    if "connect_status" not in ran:
+        actions.append(
+            "Pass --connect-status with --root pc=<abs> --root drive=<abs> "
+            "on the host that can see section files"
+        )
     if "page_render_export" not in ran and "reextraction" not in ran:
         actions.append(
             "Compile page-render crops with --page-render-packet or pass "
@@ -324,6 +332,11 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
         actions.append(
             "Pass --print-layout-output to write Letter/landscape/print-title "
             "settings onto an isolated copy"
+        )
+    if "drive_readback" not in ran:
+        actions.append(
+            "Pass --drive-readback with a distinct Drive/PC copy of the "
+            "isolated workbook to bind SHA-256 readback"
         )
     if "native_print" not in ran:
         actions.append(
@@ -372,10 +385,37 @@ def run_finish(
     page_render_bind_dir: Optional[Path] = None,
     pdf_census_packet: Optional[Path] = None,
     pdf_bind_dir: Optional[Path] = None,
+    connect_status: bool = False,
+    drive_readback: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
     gates: List[GateResult] = []
+    if connect_status:
+        try:
+            connection = probe_connections(roots)
+            gates.append(
+                GateResult(
+                    name="connect_status",
+                    ran=True,
+                    technical_pass=connection.technical_pass,
+                    detail={
+                        "connected_root_count": connection.connected_root_count,
+                        "tools": connection.tools,
+                        "desktop_sessions": connection.desktop_sessions,
+                        "next_actions": connection.next_actions,
+                    },
+                )
+            )
+        except (OSError, ConnectStatusError, SourceAcquisitionError) as exc:
+            gates.append(
+                GateResult(
+                    name="connect_status",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
     if roots:
         gates.append(_acquisition_gate(roots, sections))
     if page_render_packet is not None:
@@ -462,6 +502,41 @@ def run_finish(
             )
     if occurrence_packet is not None:
         gates.append(_occurrence_gate(occurrence_packet))
+    elif page_render_packet is not None and any(
+        gate.name == "page_render_export" and gate.technical_pass
+        for gate in gates
+    ):
+        try:
+            built = build_occurrence_packet(_load_json(page_render_packet))
+            occ_receipt = compare_packet(parse_occurrence_packet(built))
+            gates.append(
+                GateResult(
+                    name="occurrence_ledger",
+                    ran=True,
+                    technical_pass=occ_receipt.technical_pass,
+                    detail={
+                        "occurrence_count": occ_receipt.occurrence_count,
+                        "unique_keys_from_occurrences": occ_receipt.unique_keys_from_occurrences,
+                        "candidate_row_count": occ_receipt.candidate_row_count,
+                        "issue_count": len(occ_receipt.issues),
+                        "built_from": "page_render_packet",
+                    },
+                )
+            )
+        except (
+            OSError,
+            OccurrenceBuildError,
+            OccurrenceLedgerError,
+            PackageFinishError,
+        ) as exc:
+            gates.append(
+                GateResult(
+                    name="occurrence_ledger",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
     if index_packet is not None and repair_dir is None:
         try:
             recon = reconcile_indexes(_load_json(index_packet))
@@ -650,6 +725,40 @@ def run_finish(
                         error=str(exc),
                     )
                 )
+    if drive_readback is not None:
+        if qa_workbook is None:
+            gates.append(
+                GateResult(
+                    name="drive_readback",
+                    ran=True,
+                    technical_pass=False,
+                    error="Drive readback requires a workbook to bind",
+                )
+            )
+        else:
+            try:
+                readback = assess_drive_readback(qa_workbook, drive_readback)
+                gates.append(
+                    GateResult(
+                        name="drive_readback",
+                        ran=True,
+                        technical_pass=readback.technical_pass,
+                        detail={
+                            "workbook_sha256": readback.workbook_sha256,
+                            "readback_sha256": readback.readback_sha256,
+                            "issue_count": len(readback.issues),
+                        },
+                    )
+                )
+            except (OSError, DriveReadbackError) as exc:
+                gates.append(
+                    GateResult(
+                        name="drive_readback",
+                        ran=True,
+                        technical_pass=False,
+                        error=str(exc),
+                    )
+                )
     if public_plats:
         gates.append(_cadastral_gate(public_plats))
     ran = [gate for gate in gates if gate.ran]
@@ -700,6 +809,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--page-render-bind-dir", type=Path)
     parser.add_argument("--pdf-census-packet", type=Path)
     parser.add_argument("--pdf-bind-dir", type=Path)
+    parser.add_argument("--connect-status", action="store_true")
+    parser.add_argument("--drive-readback", type=Path)
     return parser
 
 
@@ -729,6 +840,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             page_render_bind_dir=args.page_render_bind_dir,
             pdf_census_packet=args.pdf_census_packet,
             pdf_bind_dir=args.pdf_bind_dir,
+            connect_status=args.connect_status,
+            drive_readback=args.drive_readback,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

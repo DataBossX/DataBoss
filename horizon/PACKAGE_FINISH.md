@@ -8,6 +8,7 @@ python3 -m horizon.package_finish \
   --section 15 --section 13 --section 11 \
   --root "pc=/mnt/d/DataBossX/Projects" \
   --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
+  --connect-status \
   --page-render-packet /path/to/page-render-crop-packet.json \
   --pdf-census-packet /path/to/pdf-page-census-packet.json \
   --pdf-bind-dir /path/to/federal-pdfs \
@@ -17,6 +18,7 @@ python3 -m horizon.package_finish \
   --repair-dir /path/to/isolated-repair \
   --print-layout-output /path/to/isolated-letter.xlsx \
   --native-print-receipt /path/to/native-excel-print-receipt.json \
+  --drive-readback /path/to/drive-copy.xlsx \
   --public-plat campbell,45n,76w \
   --public-plat johnson,47n,77w \
   --output /path/to/package-finish-receipt.json

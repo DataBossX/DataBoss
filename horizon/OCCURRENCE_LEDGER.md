@@ -4,11 +4,12 @@ Use this gate to compare an isolated packet of index occurrences, a unique-key
 ledger, and candidate rows (for example an R6 sheet). It does not open Drive,
 PC, or chat roots and does not mutate a canonical workbook.
 
-The packet must be assembled by a reviewer from source-bound identities. This
-repository only ships synthetic fixtures. Prefer house stable keys from
+The packet must be assembled from source-bound identities. This repository
+only ships synthetic fixtures. Prefer house stable keys from
 `horizon.stable_key` (`<docno>|<book>-<page>`). If most rows are document
 numbers only, run `horizon.reextraction_gate` first — that ledger cannot
-correct itself.
+correct itself. Page-render crops can be compiled into a packet with
+`python3 -m horizon.occurrence_build` (see [`CONNECT.md`](CONNECT.md)).
 
 ## What it checks
 

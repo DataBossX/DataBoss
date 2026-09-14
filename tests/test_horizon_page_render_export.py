@@ -186,4 +186,5 @@ def test_finish_runner_compiles_page_renders_without_completing(
     assert {gate.name for gate in receipt.gates} == {
         "page_render_export",
         "reextraction",
+        "occurrence_ledger",
     }

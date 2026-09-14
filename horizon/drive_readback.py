@@ -1,0 +1,114 @@
+"""Bind a Drive (or other) readback copy to the isolated workbook hash.
+
+The gate does not upload, download, or mutate files. It only compares
+SHA-256 of two existing paths. Matching hashes are not package release.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence
+
+from .isolated_delta import sha256_file
+
+RECEIPT_SCHEMA_ID = "dbx.drive_readback_receipt"
+RECEIPT_SCHEMA_VERSION = "1.0"
+
+
+class DriveReadbackError(ValueError):
+    """Raised when Drive readback cannot be bound safely."""
+
+
+@dataclass
+class DriveReadbackReceipt:
+    generated_utc: str
+    workbook: str
+    workbook_sha256: str
+    readback: str
+    readback_sha256: str
+    issues: List[str]
+    technical_pass: bool
+    schema_id: str = RECEIPT_SCHEMA_ID
+    schema_version: str = RECEIPT_SCHEMA_VERSION
+    notes: List[str] = field(
+        default_factory=lambda: [
+            "technical_pass means the two files are byte-identical",
+            "This is not package release",
+        ]
+    )
+
+    def to_dict(self) -> Dict[str, object]:
+        return asdict(self)
+
+
+def assess_drive_readback(
+    workbook: Path,
+    readback: Path,
+) -> DriveReadbackReceipt:
+    workbook = workbook.expanduser().resolve()
+    readback = readback.expanduser().resolve()
+    if not workbook.is_file():
+        raise DriveReadbackError(f"Workbook does not exist: {workbook}")
+    if not readback.is_file():
+        raise DriveReadbackError(f"Readback copy does not exist: {readback}")
+    if workbook == readback:
+        raise DriveReadbackError(
+            "Readback path must be a distinct Drive/PC copy, not the same file"
+        )
+    workbook_sha = sha256_file(workbook)
+    readback_sha = sha256_file(readback)
+    issues: List[str] = []
+    if workbook_sha != readback_sha:
+        issues.append("Drive/PC readback hash does not match the isolated workbook")
+    return DriveReadbackReceipt(
+        generated_utc=datetime.now(timezone.utc).isoformat(),
+        workbook=str(workbook),
+        workbook_sha256=workbook_sha,
+        readback=str(readback),
+        readback_sha256=readback_sha,
+        issues=issues,
+        technical_pass=not issues,
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Compare an isolated workbook to a Drive/PC readback copy."
+    )
+    parser.add_argument("--workbook", type=Path, required=True)
+    parser.add_argument("--readback", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    return parser
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    try:
+        args = build_parser().parse_args(argv)
+        receipt = assess_drive_readback(args.workbook, args.readback)
+        args.output.write_text(
+            json.dumps(receipt.to_dict(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+    except (OSError, DriveReadbackError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "technical_pass": receipt.technical_pass,
+                "issues": receipt.issues,
+            },
+            indent=2,
+        )
+    )
+    return 0 if receipt.technical_pass else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

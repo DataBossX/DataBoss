@@ -2377,7 +2377,10 @@ def _same_hash_readback(
             other = _isolated_workbook_section(path)
             if other is not None and other != section:
                 continue
-            if any(number != section for number in path_folder_sections(path)):
+            if any(
+                number != section
+                for number in path_folder_sections(Path(item.relative_path))
+            ):
                 continue
             candidates.append(path)
     for path in receipt_dir.glob("*.xlsx"):

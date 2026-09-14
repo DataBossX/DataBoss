@@ -31,17 +31,38 @@ _FOLDER_TOWNSHIP = re.compile(
 )
 
 
+def _part_section(part: str) -> Optional[int]:
+    if part.casefold() == "isolated":
+        return None
+    match = _FOLDER_SECTION.search(part) or _FOLDER_TOWNSHIP.fullmatch(part)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
 def path_folder_sections(path: Path) -> List[int]:
-    """Priority sections named by parent folders, not the filename."""
+    """Priority sections named by project folders, not host ancestors.
+
+    When Isolated/ is present, walk from that folder up to the nearest
+    section-named ancestor and stop. A host path such as
+    ``Section 15 Work/Section 13/Isolated/`` does not conflict section 13.
+    """
+    parts = [part for part in path.parts[:-1] if part not in {"/", ""}]
+    isolated_idx = next(
+        (index for index, part in enumerate(parts) if part.casefold() == "isolated"),
+        None,
+    )
+    if isolated_idx is not None:
+        start = 0
+        for index in range(isolated_idx - 1, -1, -1):
+            if _part_section(parts[index]) is not None:
+                start = index
+                break
+        parts = parts[start:]
     found: List[int] = []
-    for part in path.parts[:-1]:
-        if part.casefold() == "isolated":
-            continue
-        match = _FOLDER_SECTION.search(part) or _FOLDER_TOWNSHIP.fullmatch(part)
-        if match is None:
-            continue
-        number = int(match.group(1))
-        if number not in found:
+    for part in parts:
+        number = _part_section(part)
+        if number is not None and number not in found:
             found.append(number)
     return found
 

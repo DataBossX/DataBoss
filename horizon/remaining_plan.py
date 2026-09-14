@@ -13,10 +13,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 from .human_release import evaluate_package_completion
+from .isolated_delta import sha256_file
 from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
 
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
-PLAN_SCHEMA_VERSION = "1.2"
+PLAN_SCHEMA_VERSION = "1.3"
 BUNDLE_SCHEMA_ID = "dbx.remaining_plan_bundle"
 BUNDLE_SCHEMA_VERSION = "1.1"
 EXAMINER_QUEUE_SCHEMA_ID = "dbx.examiner_fill_queue"
@@ -263,6 +264,7 @@ def remaining_plan(
     next_commands: Sequence[str] = (),
     missing_required_roles: Sequence[str] = (),
     missing_candidate_roles: Sequence[str] = (),
+    isolated_workbook: Optional[Path] = None,
 ) -> Dict[str, object]:
     if section not in PRIORITY_SECTIONS:
         raise RemainingPlanError(f"section must be one of {PRIORITY_SECTIONS}")
@@ -303,11 +305,31 @@ def remaining_plan(
     missing = extra + [item for item in missing if item not in extra]
     if extra:
         complete = False
+    isolated: Dict[str, object] = {}
+    if isolated_workbook is not None:
+        try:
+            book = isolated_workbook.expanduser()
+            if book.is_file():
+                isolated = {
+                    "name": book.name,
+                    "sha256": sha256_file(book),
+                }
+        except OSError:
+            isolated = {}
+    name = isolated.get("name")
+    if isinstance(name, str) and name:
+        preview = f"Print Preview {name} on Windows Excel"
+        native_ok = any(
+            gate.name == "native_print" and gate.technical_pass for gate in gates
+        )
+        if not native_ok and preview not in missing:
+            missing.append(preview)
     return {
         "schema_id": PLAN_SCHEMA_ID,
         "schema_version": PLAN_SCHEMA_VERSION,
         "section": section,
         "packages_complete": bool(complete),
+        "isolated_workbook": isolated,
         "missing": missing,
         "missing_required_roles": required_roles,
         "missing_candidate_roles": candidate_roles,
@@ -328,6 +350,7 @@ def remaining_plan(
             "Typed index and handwritten_index are separate required roles",
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
+            "isolated_workbook names the current Letter or delta; it does not copy cell text",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",
         ],

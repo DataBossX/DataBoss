@@ -70,7 +70,7 @@ def test_remaining_plan_names_missing_index_roles_from_finish(tmp_path: Path) ->
         ],
     }
     plan = remaining_plan(section=15, finish=finish, receipt_dir=tmp_path)
-    assert plan["schema_version"] == "1.2"
+    assert plan["schema_version"] == "1.3"
     assert plan["missing_required_roles"] == ["index", "handwritten_index"]
     assert "missing required role index" in plan["missing"]
     assert "missing required role handwritten_index" in plan["missing"]
@@ -218,6 +218,27 @@ def test_remaining_plan_names_required_fields_without_copying_values(
     assert "ALSO DO NOT COPY" not in dumped
     assert "CLIENT PARTY NAME" not in dumped
     assert "1/1/2020" not in dumped
+
+
+def test_remaining_plan_names_isolated_workbook_without_cell_text(
+    tmp_path: Path,
+) -> None:
+    from horizon.isolated_delta import sha256_file
+
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    plan = remaining_plan(
+        section=15,
+        finish=None,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["schema_version"] == "1.3"
+    assert plan["isolated_workbook"]["name"] == "section15-letter.xlsx"
+    assert plan["isolated_workbook"]["sha256"] == sha256_file(letter)
+    assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]
+    assert "path" not in plan["isolated_workbook"]
+    assert str(tmp_path) not in json.dumps(plan["isolated_workbook"])
 
 
 def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:

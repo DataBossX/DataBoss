@@ -120,7 +120,8 @@ python3 -m horizon.pc_operator \
    Census packets are kept on the matching `SECTION{N}` / `sectionN` id.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority
-   order 15, then 13, then 11. The plan names unfinished gates,
+   order 15, then 13, then 11. The plan names the current isolated
+   Letter or delta (name and SHA-256 only), unfinished gates,
    missing typed/handwritten index roles, per-field blank/conflict
    counts from the examiner queue (field names only), existing queues,
    and a connection snapshot (roots readable, Excel, Slack/Notion,

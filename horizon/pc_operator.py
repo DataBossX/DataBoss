@@ -1876,6 +1876,7 @@ def _write_section_remaining_plan(
         if isinstance(payload, dict):
             finish = payload
     try:
+        isolated = Path(_current_isolated_workbook(str(receipt_dir), order.section))
         plan = remaining_plan(
             section=order.section,
             finish=finish,
@@ -1884,6 +1885,7 @@ def _write_section_remaining_plan(
             next_commands=order.next_commands,
             missing_required_roles=order.missing_required_roles,
             missing_candidate_roles=order.missing_candidate_roles,
+            isolated_workbook=isolated if isolated.is_file() else None,
         )
         dest = receipt_dir / f"section{order.section}-remaining-plan.json"
         write_remaining_plan(plan, dest)

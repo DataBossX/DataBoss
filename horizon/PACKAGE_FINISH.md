@@ -3,6 +3,10 @@
 One command for the PC or WSL host that can see section roots. It chains the
 Horizon gates already in this branch and **never promotes a package**.
 
+To learn which files and commands that host still needs, run
+`python3 -m horizon.pc_operator` first ([`PC_OPERATOR.md`](PC_OPERATOR.md)).
+That is Phase 1 inventory plus a work order, not package finish.
+
 ```bash
 python3 -m horizon.package_finish \
   --section 15 --section 13 --section 11 \

@@ -119,6 +119,10 @@ def probe_connections(roots: Sequence[str] = ()) -> ConnectStatusReceipt:
             "Pass --root pc=<abs> and --root drive=<abs> on the machine "
             "that can see section 15/13/11 files"
         )
+        actions.append(
+            "On that host run python3 -m horizon.pc_operator for a "
+            "Phase 1 per-section work order"
+        )
     for item in probes:
         if not item.exists or not item.readable:
             actions.append(f"Mount or grant read access to {item.label}={item.path}")

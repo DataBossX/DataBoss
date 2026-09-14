@@ -207,6 +207,61 @@ def refresh_candidate(
     return refreshed
 
 
+def _faces_or_empty(
+    workbook: Optional[Path],
+    *,
+    profile_path: Optional[Path],
+) -> List[Dict[str, object]]:
+    if workbook is None:
+        return []
+    return export_faces(workbook, profile_path=profile_path)
+
+
+def export_index_packet(
+    packet_id: str,
+    *,
+    master: Optional[Path] = None,
+    pdf_index: Optional[Path] = None,
+    handwritten: Optional[Path] = None,
+    candidate: Optional[Path] = None,
+    profile_path: Optional[Path] = None,
+    orphan_allowlist: Optional[Sequence[Dict[str, object]]] = None,
+) -> Dict[str, object]:
+    if not any((master, pdf_index, handwritten)):
+        raise IndexExportError(
+            "Index packet needs --master, --pdf-index, and/or --handwritten"
+        )
+    return build_index_packet(
+        packet_id,
+        master=_faces_or_empty(master, profile_path=profile_path),
+        pdf_index=_faces_or_empty(pdf_index, profile_path=profile_path),
+        handwritten_index=_faces_or_empty(handwritten, profile_path=profile_path),
+        candidate_rows=_faces_or_empty(candidate, profile_path=profile_path),
+        orphan_allowlist=orphan_allowlist,
+    )
+
+
+def load_orphan_allowlist(path: Path) -> List[Dict[str, object]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise IndexExportError(f"Cannot read {path}: {exc}") from exc
+    if isinstance(payload, dict):
+        if "orphan_allowlist" not in payload:
+            raise IndexExportError(
+                f"{path} must be a JSON list or an object with orphan_allowlist"
+            )
+        payload = payload["orphan_allowlist"]
+    if not isinstance(payload, list):
+        raise IndexExportError("orphan allowlist must be a JSON list")
+    allowlist: List[Dict[str, object]] = []
+    for index, item in enumerate(payload):
+        if not isinstance(item, dict):
+            raise IndexExportError(f"orphan_allowlist[{index}] must be an object")
+        allowlist.append(item)
+    return allowlist
+
+
 def _load_json(path: Path) -> Dict[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -217,21 +272,75 @@ def _load_json(path: Path) -> Dict[str, object]:
     return payload
 
 
+def _packet_mode(args: argparse.Namespace) -> bool:
+    return any(
+        (
+            args.master,
+            args.pdf_index,
+            args.handwritten,
+            args.candidate,
+            args.orphan_allowlist,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Export a Penterra index workbook as reconciliation faces."
+        description=(
+            "Export a Penterra index workbook as faces, or build a "
+            "master/PDF/handwritten reconciliation packet."
+        )
     )
-    parser.add_argument("--workbook", type=Path, required=True)
+    parser.add_argument("--workbook", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--packet-id", required=True)
     parser.add_argument("--profile", type=Path)
     parser.add_argument("--as", dest="source_name", default="candidate_rows")
+    parser.add_argument("--master", type=Path)
+    parser.add_argument("--pdf-index", dest="pdf_index", type=Path)
+    parser.add_argument("--handwritten", type=Path)
+    parser.add_argument("--candidate", type=Path)
+    parser.add_argument("--orphan-allowlist", type=Path)
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if _packet_mode(args):
+            candidate = args.candidate or args.workbook
+            packet = export_index_packet(
+                args.packet_id,
+                master=args.master,
+                pdf_index=args.pdf_index,
+                handwritten=args.handwritten,
+                candidate=candidate,
+                profile_path=args.profile,
+                orphan_allowlist=(
+                    load_orphan_allowlist(args.orphan_allowlist)
+                    if args.orphan_allowlist
+                    else None
+                ),
+            )
+            args.output.write_text(
+                json.dumps(packet, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "packet_id": packet["packet_id"],
+                        "expected_counts": packet["expected_counts"],
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.workbook is None:
+            raise IndexExportError(
+                "--workbook is required unless building a three-index packet"
+            )
         faces = export_faces(
             args.workbook,
             profile_path=args.profile,

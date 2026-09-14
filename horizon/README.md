@@ -55,15 +55,18 @@ hard human release gate, use `python -m horizon.controlled_loop`. See
 contracts. Checks that have no deterministic validator remain blocking; technical
 verification never means client release.
 
-On the PC that can see section roots, `python -m horizon.package_finish` chains
+On the PC that can see section roots, `python -m horizon.pc_operator` probes
+connections, runs Phase 1 inventory, and emits per-section next commands.
+`python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.
 See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md),
 [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md),
 [`NATIVE_PRINT.md`](NATIVE_PRINT.md),
-[`REEXTRACTION.md`](REEXTRACTION.md), and
-[`CONNECT.md`](CONNECT.md), and
+[`REEXTRACTION.md`](REEXTRACTION.md),
+[`CONNECT.md`](CONNECT.md),
+[`PC_OPERATOR.md`](PC_OPERATOR.md), and
 [`HUMAN_RELEASE.md`](HUMAN_RELEASE.md). `packages_complete` stays false until
 a verified snapshot, source-backed rows, native Excel, and human release exist.
 

@@ -50,6 +50,7 @@ def test_connect_status_without_roots_is_blocked_not_complete() -> None:
     assert receipt.technical_pass is False
     assert receipt.connected_root_count == 0
     assert any("cursor worker" in action for action in receipt.next_actions)
+    assert any("pc_operator" in action for action in receipt.next_actions)
 
 
 def test_connect_status_sees_a_readable_root(tmp_path: Path) -> None:

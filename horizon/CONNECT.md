@@ -17,6 +17,24 @@ python3 -m horizon.connect_status \
 `packages_complete` stays false. Slack/Notion still need Cursor Desktop
 auth. Do not start a second Landman Helper controller.
 
+## PC work order
+
+On the host that can see Drive/PC roots:
+
+```bash
+python3 -m horizon.pc_operator \
+  --root "pc=/mnt/d/DataBossX/Projects" \
+  --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
+  --section 15 --section 13 --section 11 \
+  --receipt-dir /mnt/d/DataBossX/AcquisitionReceipts \
+  --output /mnt/d/DataBossX/AcquisitionReceipts/pc-operator.json
+```
+
+The operator probes connections, runs Phase 1 inventory only, and emits
+per-section next commands (three-workbook `index_export`, then
+`package_finish`). It does not copy client files, does not start Phase 2,
+and `packages_complete` stays false. See [`PC_OPERATOR.md`](PC_OPERATOR.md).
+
 ## Occurrence packet from page-render crops
 
 ```bash

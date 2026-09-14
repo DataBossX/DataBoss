@@ -56,6 +56,14 @@ python3 -m horizon.index_export \
   --packet-id SYNTH-OR-LIVE-PACKET \
   --output /path/to/candidate-faces.json
 
+python3 -m horizon.index_export \
+  --packet-id SYNTH-OR-LIVE-PACKET \
+  --master /path/to/master.xlsx \
+  --pdf-index /path/to/pdf-index.xlsx \
+  --handwritten /path/to/handwritten.xlsx \
+  --candidate /path/to/working-index.xlsx \
+  --output /path/to/index-reconciliation-packet.json
+
 python3 -m horizon.repair_loop \
   --workbook /path/to/source-index.xlsx \
   --index-packet /path/to/index-reconciliation-packet.json \

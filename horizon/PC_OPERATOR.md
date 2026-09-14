@@ -95,6 +95,8 @@ python3 -m horizon.pc_operator \
    fills onto the next isolated generation instead of freezing that copy.
    Copy-paste finish/export commands also point `--workbook` / `--candidate`
    at that current isolated file and do not reprint over an existing Letter.
+   Drive readback only binds Isolated/ or receipt-dir copies of that file,
+   not the live working abstract.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
    and rewrites `sectionN-finish.json` against that current isolated file,

@@ -1268,6 +1268,7 @@ def _unbind_stale_workbook_packets(
     holds: List[str] = []
     native = bindings.native_print_receipt
     release = bindings.human_release_token
+    readback = bindings.drive_readback
     if native is not None and _packet_workbook_sha256(native) != actual:
         holds.append(
             "Native print receipt is bound to a different workbook hash; "
@@ -1280,9 +1281,24 @@ def _unbind_stale_workbook_packets(
             "reissue it against the current isolated workbook"
         )
         release = None
+    if readback is not None:
+        try:
+            if not readback.is_file() or sha256_file(readback) != actual:
+                holds.append(
+                    "Drive readback is bound to a different workbook hash; "
+                    "copy the current isolated workbook onto drive="
+                )
+                readback = None
+        except OSError:
+            holds.append(
+                "Drive readback is bound to a different workbook hash; "
+                "copy the current isolated workbook onto drive="
+            )
+            readback = None
     if (
         native is bindings.native_print_receipt
         and release is bindings.human_release_token
+        and readback is bindings.drive_readback
     ):
         return bindings, holds
     return (
@@ -1290,6 +1306,7 @@ def _unbind_stale_workbook_packets(
             bindings,
             native_print_receipt=native,
             human_release_token=release,
+            drive_readback=readback,
         ),
         holds,
     )
@@ -2054,7 +2071,7 @@ def _same_hash_readback(
     candidates: List[Path] = []
     if inventory is not None:
         for item in inventory.files:
-            if item.sha256 != digest:
+            if item.sha256 != digest or not _is_isolated_output(item):
                 continue
             candidates.append(
                 Path(inventory.roots[item.root_label]) / item.relative_path
@@ -2547,6 +2564,10 @@ def _execute_section(
                 )
             bound, stale_holds = _unbind_stale_workbook_packets(bound, isolated)
             order.holds.extend(stale_holds)
+            if bound.drive_readback is None:
+                bound.drive_readback = _same_hash_readback(
+                    inventory, isolated, receipt_dir
+                )
             try:
                 draft_path = receipt_dir / f"section{order.section}-native-print-draft.json"
                 write_native_print_draft(

@@ -33,7 +33,12 @@ from .reextraction_gate import (
     parse_ledger_export,
     parse_oracle,
 )
-from .index_export import IndexExportError, export_index_packet
+from .index_export import (
+    IndexExportError,
+    export_faces,
+    export_index_packet,
+    refresh_candidate,
+)
 from .index_reconciliation import (
     IndexReconciliationError,
     reconcile_indexes,
@@ -634,7 +639,15 @@ def run_finish(
         )
     if index_packet is not None and repair_dir is None:
         try:
-            recon = reconcile_indexes(_load_json(index_packet))
+            packet = _load_json(index_packet)
+            candidate_from = "index_packet"
+            if workbook is not None:
+                packet = refresh_candidate(
+                    packet,
+                    export_faces(workbook, profile_path=workbook_profile),
+                )
+                candidate_from = "workbook"
+            recon = reconcile_indexes(packet)
             gates.append(
                 GateResult(
                     name="index_reconciliation",
@@ -647,10 +660,16 @@ def run_finish(
                         "blank_required_count": recon.blank_required_count,
                         "low_confidence_blank_count": recon.low_confidence_blank_count,
                         "issue_count": len(recon.issues),
+                        "candidate_from": candidate_from,
                     },
                 )
             )
-        except (OSError, IndexReconciliationError, PackageFinishError) as exc:
+        except (
+            OSError,
+            IndexExportError,
+            IndexReconciliationError,
+            PackageFinishError,
+        ) as exc:
             gates.append(
                 GateResult(
                     name="index_reconciliation",

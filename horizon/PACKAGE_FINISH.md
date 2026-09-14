@@ -41,8 +41,11 @@ required fields with provenance and confidence, and emits isolated-delta
 proposals only when at least two sources agree. If the packet is omitted,
 `--master-workbook` / `--pdf-workbook` / `--handwritten-workbook` (and the
 candidate `--workbook`) build that packet in memory. Do not pass both a
-packet and the three workbooks unless `--repair-dir` owns the hop. See
-[`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md).
+packet and the three workbooks unless `--repair-dir` owns the hop. When
+`--workbook` is set without `--repair-dir`, finish refreshes the packet's
+candidate faces from that isolated file before scoring, so leftover blanks
+on the live working abstract do not keep the gate open after isolated 2+
+fills. See [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md).
 
 `--repair-dir` runs up to `--max-loops` (default 10) isolated
 detect-and-repair passes: export the current candidate, reconcile, apply

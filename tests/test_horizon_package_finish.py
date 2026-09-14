@@ -258,6 +258,35 @@ def test_three_workbooks_reconcile_without_a_packet_file(tmp_path: Path) -> None
     assert recon.detail["proposed_delta_count"] == 0
 
 
+def test_index_packet_recon_uses_workbook_candidate(tmp_path: Path) -> None:
+    packet = _index_packet()
+    packet["candidate_rows"][0]["fields"]["legal_description"] = ""
+    packet_path = tmp_path / "indexes.json"
+    packet_path.write_text(json.dumps(packet), encoding="utf-8")
+    workbook = tmp_path / "isolated.xlsx"
+    _penterra_workbook(workbook)
+    stale = run_finish(sections=[15], index_packet=packet_path)
+    assert stale.packages_complete is False
+    recon = next(
+        gate for gate in stale.gates if gate.name == "index_reconciliation"
+    )
+    assert recon.detail["blank_required_count"] >= 1
+    assert recon.detail["candidate_from"] == "index_packet"
+    refreshed = run_finish(
+        sections=[15],
+        workbook=workbook,
+        index_packet=packet_path,
+    )
+    assert refreshed.packages_complete is False
+    recon = next(
+        gate for gate in refreshed.gates if gate.name == "index_reconciliation"
+    )
+    assert recon.technical_pass is True
+    assert recon.detail["blank_required_count"] == 0
+    assert recon.detail["conflict_count"] == 0
+    assert recon.detail["candidate_from"] == "workbook"
+
+
 def test_index_packet_and_source_workbooks_conflict_without_repair(
     tmp_path: Path,
 ) -> None:

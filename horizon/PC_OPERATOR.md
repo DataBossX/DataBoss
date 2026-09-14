@@ -95,7 +95,8 @@ python3 -m horizon.pc_operator \
    fills onto the next isolated generation instead of freezing that copy.
    Writer-held attested deltas still apply first; the same execute then
    runs auto-repair on the new isolated copy for any remaining 2+ fills
-   and rewrites `sectionN-finish.json` against that current isolated file.
+   and rewrites `sectionN-finish.json` against that current isolated file,
+   even when follow-up repair finds nothing left to apply.
 5. With `--execute`, those isolated hops actually run into `--receipt-dir`.
    The directory must be outside this repository. Source workbooks are not
    modified. Writer-held `--authority-manifest` / `--project-manifest` /

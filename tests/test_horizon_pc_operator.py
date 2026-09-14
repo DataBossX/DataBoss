@@ -656,8 +656,15 @@ def test_operator_discovers_and_applies_delta_packet(tmp_path: Path) -> None:
     finish = json.loads(
         (receipts / "section13-finish.json").read_text(encoding="utf-8")
     )
-    delta = next(gate for gate in finish["gates"] if gate["name"] == "isolated_delta")
-    assert delta["technical_pass"] is True
+    names = [gate["name"] for gate in finish["gates"]]
+    assert "workbook_qa" in names
+    assert "isolated_delta" not in names
+    recon = next(
+        gate for gate in finish["gates"] if gate["name"] == "index_reconciliation"
+    )
+    assert recon["technical_pass"] is True
+    assert recon["detail"]["blank_required_count"] == 0
+    assert recon["detail"]["candidate_from"] == "workbook"
     native = next(
         command
         for command in second.sections[0].next_commands
@@ -672,6 +679,64 @@ def test_operator_discovers_and_applies_delta_packet(tmp_path: Path) -> None:
     assert "section13-letter.xlsx" not in native
     assert str(receipts / "section13-delta.xlsx") in release
     assert "section13-letter.xlsx" not in release
+
+
+def test_delta_fill_rewrites_finish_when_follow_up_is_noop(
+    tmp_path: Path,
+) -> None:
+    from horizon.isolated_delta import write_delta_packet
+
+    root = tmp_path / "pc-root"
+    section = root / "Section 15"
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    _write_penterra(section / "Working Abstract.xlsx", legal="")
+    (section / "Recorded Faces").mkdir(parents=True)
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    letter = receipts / "section15-letter.xlsx"
+    _write_penterra(letter, legal="")
+    write_delta_packet(
+        workbook=letter,
+        deltas=[
+            {
+                "row_key": "2026-09901|",
+                "field": "legal_description",
+                "value": "SYNTH TRACT 15-45N-76W",
+                "source_sha256": "a" * 64,
+                "page": 1,
+                "crop_id": "legal",
+                "replace": False,
+            }
+        ],
+        output=receipts / "section15-delta-packet.json",
+        packet_id="SYNTH-P15-DELTA-NOOP-FOLLOW",
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    isolated = receipts / "section15-delta.xlsx"
+    assert isolated.is_file()
+    assert not (receipts / "section15-delta-2.xlsx").is_file()
+    filled = openpyxl.load_workbook(isolated, data_only=True)
+    assert filled["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    filled.close()
+    payload = json.loads((receipts / "section15-finish.json").read_text())
+    names = [gate["name"] for gate in payload["gates"]]
+    assert "workbook_qa" in names
+    assert "isolated_delta" not in names
+    recon = next(
+        gate for gate in payload["gates"] if gate["name"] == "index_reconciliation"
+    )
+    assert recon["technical_pass"] is True
+    assert recon["detail"]["blank_required_count"] == 0
+    assert recon["detail"]["candidate_from"] == "workbook"
 
 
 def test_apply_delta_then_repairs_remaining_agreed_fills(

@@ -274,6 +274,37 @@ def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:
         if "horizon.native_print" in item
     )
     assert crops < native
+    assert any(
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/" in item
+        for item in commands
+    )
+
+
+def test_next_commands_name_current_isolated_drive_copy(tmp_path: Path) -> None:
+    receipts = tmp_path / "receipts"
+    receipts.mkdir()
+    (receipts / "section13-delta-2.xlsx").write_bytes(b"SYNTH-DELTA-2")
+    commands = _section_commands(
+        13,
+        root_args=["pc=/tmp"],
+        picks=[],
+        receipt_dir=str(receipts),
+        missing_roles=[],
+        bindings=FinishBindings(),
+    )
+    assert any(
+        "Copy section13-delta-2.xlsx into Drive Section 13/Isolated/" in item
+        for item in commands
+    )
+    bound = _section_commands(
+        13,
+        root_args=["pc=/tmp"],
+        picks=[],
+        receipt_dir=str(receipts),
+        missing_roles=[],
+        bindings=FinishBindings(drive_readback=tmp_path / "drive-copy.xlsx"),
+    )
+    assert not any("Isolated/" in item for item in bound)
 
 
 def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
@@ -317,14 +348,6 @@ def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
         in plan["missing"]
     )
     assert "Attest owner-review of section15-letter.xlsx" in plan["missing"]
-    assert (
-        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
-        in commands
-    )
-    assert (
-        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
-        in plan_cmds
-    )
 
 
 def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:

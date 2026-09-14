@@ -113,3 +113,77 @@ the workbook itself, **no matched-coverage rate is certifiable** — the numerat
 
 Nothing here was written to a production target, and no value was invented. The 437 figure
 is adopted as authority only because it is a direct measurement of a named, hashed source.
+
+---
+
+# ADDENDUM — WORKBOOK ROW COUNT MEASURED (14:50Z)
+
+I raised "61 vs 56 vs 62" as unreconciled. I then read the county workbook itself. The
+answer is **none of the three**.
+
+## Measured from the workbook
+
+`45N-76W-11_Campbell_Co_Penterra_Abstract_Index__QA_HOLD_R5.xlsx`
+(Drive `1Bn2CIOiJUfrMYMlnx60ef4sMQUBjA3yM`, 16,619 B, modified **13:21:04Z**)
+
+| Measure | Value |
+|---|---:|
+| **County data rows** | **68** |
+| Unique stable keys | **68** |
+| Duplicate identities | **0** |
+
+All 68 rows parse cleanly into stable keys via `tools.stable_key` — zero unparseable, zero
+duplicates. Structurally the workbook is sound.
+
+## Four totals now in play
+
+| Source | Rows | Δ vs measured |
+|---|---:|---:|
+| t194 SCRUBBED `.json` | 56 | −12 |
+| t194 census `.md` (preimage `383689f9…`) | 61 | −7 |
+| 13:27Z reconciliation audit ("R5") | 62 | −6 |
+| **QA_HOLD_R5.xlsx, measured** | **68** | — |
+
+## Root cause: "R5" names at least two different artifacts
+
+- `P11_45N-76W-11_OWNER_REVIEW_EXACT7_QA_HOLD_R5__20260914.zip` — **12:58:13Z**
+- `…__QA_HOLD_R5.xlsx` — **13:21:04Z**, twenty-three minutes newer
+
+They are different objects carrying the same "R5" label. Every count quoted as "R5" must
+name the artifact and timestamp it was measured from, or this recurs.
+
+## The three staged insertions are already applied — and do not explain the gap
+
+`1063795|3269-0038`, `2021-08094|3381-0412` and `2023-06492` are all **PRESENT** in the
+13:21Z workbook. So it is post-insertion. But:
+
+```
+62 (audit) + 3 (staged insertions) = 65     measured = 68     unexplained = +3
+```
+
+**Three rows exist in the workbook that no receipt accounts for.** They must be identified
+and their source proved, or backed out. I did not guess which three — that requires the
+62-row baseline, which I do not hold.
+
+## Blank-identity adjudication (via `tools.blanks`)
+
+| Case | Count | Class |
+|---|---:|---|
+| Rows with no Doc No (`0291-0331`, `0307-0331`) | 2 | book/page-only ORRI assignments — plausible, verify from face |
+| Modern doc-number-only, no Book-Page | 10 | **INAPPLICABLE** — no book/page exists on the face |
+| Legacy Doc No with no Book-Page: **`739893`** (Dependent Resurvey Plat, 2 pages) | 1 | **TRUE_HOLD** — needs face adjudication |
+
+`739893` is a BLM dependent resurvey plat; such plats are often filed to a plat cabinet
+rather than a photo book, so its blank Book-Page may be legitimately `INAPPLICABLE` rather
+than a hold. **Do not fill it either way without the face.**
+
+## Revised release blockers
+
+1. **Restate the denominator: 437 measured, not 461** (Tyler's 27 held separately).
+2. **Publish one authoritative county row count** — currently 68 measured — and stamp every
+   quoted count with the artifact ID and timestamp it came from.
+3. **Account for the +3 unexplained rows** (65 accounted vs 68 present).
+4. **Adjudicate `739893` Book-Page** as INAPPLICABLE or TRUE_HOLD from the face.
+5. Name the 3 implied overlaps and test the hypothesis that they are the 3 unpartitioned entries.
+
+No workbook, ledger or package was modified. `WRITER_COUNT = 0`.

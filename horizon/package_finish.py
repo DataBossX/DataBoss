@@ -50,6 +50,7 @@ from .drive_readback import (
     is_drive_isolated_copy,
     isolated_workbook_filename,
 )
+from .remaining_plan import named_isolated_hops
 from .human_release import (
     HumanReleaseError,
     assess_human_release,
@@ -366,6 +367,14 @@ def _drive_isolated_bound(gates: Sequence[GateResult]) -> bool:
     return False
 
 
+def _gate_passed(gates: Sequence[GateResult], name: str) -> bool:
+    for gate in gates:
+        if gate.name != name or not gate.ran:
+            continue
+        return bool(gate.technical_pass)
+    return False
+
+
 def _next_actions(
     gates: Sequence[GateResult],
     sections: Sequence[int],
@@ -426,23 +435,16 @@ def _next_actions(
             "Pass --print-layout-output to write Letter/landscape/print-title "
             "settings onto an isolated copy"
         )
-    if "human_release" not in ran:
-        actions.append(
-            "Pass --human-release-token with the owner-review declaration "
-            "bound to the isolated workbook hash; external_release must be false"
+    for section in sections:
+        hops = named_isolated_hops(
+            isolated_workbook_filename(workbook, section), section
         )
-    if not _drive_isolated_bound(gates):
-        for section in sections:
-            name = isolated_workbook_filename(workbook, section)
-            line = f"Copy {name} into Drive Section {section}/Isolated/"
-            if line not in actions:
-                actions.append(line)
-    if "native_print" not in ran:
-        actions.append(
-            "On Windows Excel, Print Preview the isolated copy and pass "
-            "--native-print-receipt with the workbook hash, Letter, "
-            "landscape, print titles, and expected page count"
-        )
+        if not _gate_passed(gates, "native_print") and hops["native_print"] not in actions:
+            actions.append(hops["native_print"])
+        if not _drive_isolated_bound(gates) and hops["drive_readback"] not in actions:
+            actions.append(hops["drive_readback"])
+        if not _gate_passed(gates, "human_release") and hops["human_release"] not in actions:
+            actions.append(hops["human_release"])
     for gate in gates:
         if gate.ran and gate.name == "pdf_census":
             empty = gate.detail.get("empty_text_files")

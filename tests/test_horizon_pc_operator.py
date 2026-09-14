@@ -278,6 +278,14 @@ def test_next_commands_fill_before_print_and_release(tmp_path: Path) -> None:
         "Copy section15-letter.xlsx into Drive Section 15/Isolated/" in item
         for item in commands
     )
+    assert any(
+        "Print Preview section15-letter.xlsx on Windows Excel" in item
+        for item in commands
+    )
+    assert any(
+        "Attest owner-review of section15-letter.xlsx" in item
+        for item in commands
+    )
 
 
 def test_next_commands_name_current_isolated_drive_copy(tmp_path: Path) -> None:
@@ -366,6 +374,14 @@ def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
         in plan["missing"]
     )
     assert "Attest owner-review of section15-letter.xlsx" in plan["missing"]
+    assert any(
+        "Print Preview section15-letter.xlsx on Windows Excel" in item
+        for item in commands
+    )
+    assert any(
+        "Attest owner-review of section15-letter.xlsx" in item
+        for item in commands
+    )
 
 
 def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:

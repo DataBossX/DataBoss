@@ -224,6 +224,15 @@ def _merge_field_gaps(*groups: Dict[str, int]) -> Dict[str, int]:
     return merged
 
 
+def named_isolated_hops(name: str, section: int) -> Dict[str, str]:
+    """Name Print Preview, Drive Isolated/, and owner-review of one file."""
+    return {
+        "native_print": f"Print Preview {name} on Windows Excel",
+        "drive_readback": f"Copy {name} into Drive Section {section}/Isolated/",
+        "human_release": f"Attest owner-review of {name}",
+    }
+
+
 def _named_hop_done(gate_name: str, gates: Sequence[_GateView]) -> bool:
     for gate in gates:
         if gate.name != gate_name:
@@ -368,13 +377,7 @@ def remaining_plan(
             isolated = {}
     name = isolated.get("name")
     if isinstance(name, str) and name:
-        named = {
-            "native_print": f"Print Preview {name} on Windows Excel",
-            "drive_readback": (
-                f"Copy {name} into Drive Section {section}/Isolated/"
-            ),
-            "human_release": f"Attest owner-review of {name}",
-        }
+        named = named_isolated_hops(name, section)
         for gate_name, line in named.items():
             if not _named_hop_done(gate_name, gates) and line not in missing:
                 missing.append(line)

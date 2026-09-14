@@ -81,8 +81,9 @@ controls, acquisition stays Phase 1 inventory and cannot authorize
 extraction. `packages_complete` is true only when every required gate passed,
 Drive readback is an Isolated/ copy, and a writer-held
 `--human-release-token` matches the isolated workbook hash.
-Finish next-actions name `Copy {name} into Drive Section N/Isolated/`
-until that copy is bound.
+Finish next-actions name `Print Preview {name} on Windows Excel`,
+`Copy {name} into Drive Section N/Isolated/`, and
+`Attest owner-review of {name}` until those hops are bound.
 The token statement must be the owner-review declaration;
 `external_release` must be false. `READY_TO_SUBMIT` and external-delivery
 claims are rejected. This runner cannot satisfy that predicate from an

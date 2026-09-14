@@ -140,6 +140,14 @@ def test_empty_run_is_blocked_and_never_complete() -> None:
         for action in receipt.next_actions
     )
     assert any(
+        "Print Preview section15-letter.xlsx on Windows Excel" in action
+        for action in receipt.next_actions
+    )
+    assert any(
+        "Attest owner-review of section15-letter.xlsx" in action
+        for action in receipt.next_actions
+    )
+    assert any(
         "Copy section13-letter.xlsx into Drive Section 13/Isolated/" in action
         for action in receipt.next_actions
     )
@@ -653,6 +661,14 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
     assert occurrence.detail.get("built_from") == "workbook"
     assert not any(
         "Copy " in action and "Isolated/" in action
+        for action in receipt.next_actions
+    )
+    assert not any(
+        "Print Preview section15-letter.xlsx" in action
+        for action in receipt.next_actions
+    )
+    assert not any(
+        "Attest owner-review of section15-letter.xlsx" in action
         for action in receipt.next_actions
     )
 

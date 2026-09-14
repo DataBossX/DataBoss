@@ -71,6 +71,7 @@ from .handwritten_scan import (
 )
 from .remaining_plan import (
     RemainingPlanError,
+    named_isolated_hops,
     remaining_plan,
     write_remaining_plan,
     write_remaining_plan_bundle,
@@ -704,18 +705,18 @@ def _section_commands(
                 ]
             )
         )
+        hops = named_isolated_hops(Path(workbook).name, section)
         commands.append(
-            "On Windows Excel, Print Preview the current isolated workbook, "
-            "then attest the draft with PAGE_COUNT and EXAMINER_NAME"
+            hops["native_print"]
+            + ", then attest the draft with PAGE_COUNT and EXAMINER_NAME"
         )
     if not (
         bindings.drive_readback is not None
         and is_drive_isolated_copy(Path(bindings.drive_readback), section)
     ):
-        name = Path(workbook).name
+        hops = named_isolated_hops(Path(workbook).name, section)
         commands.append(
-            f"Copy {name} into Drive Section {section}/Isolated/ "
-            "so the next execute can bind readback"
+            hops["drive_readback"] + " so the next execute can bind readback"
         )
     if bindings.human_release_token is None:
         draft = f"{receipt_dir}/section{section}-owner-review-draft.json"
@@ -737,9 +738,9 @@ def _section_commands(
                 ]
             )
         )
+        hops = named_isolated_hops(Path(workbook).name, section)
         commands.append(
-            "Attest the owner-review draft with EXAMINER_NAME after the "
-            "current isolated workbook is ready for owner review only"
+            hops["human_release"] + " with EXAMINER_NAME after owner review only"
         )
     if remaining_first and isolated_path is not None:
         prelude = commands[:prelude_count]

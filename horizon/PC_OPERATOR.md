@@ -141,6 +141,7 @@ python3 -m horizon.pc_operator \
    includes `Print Preview {name} on Windows Excel`,
    `Copy {name} into Drive Section N/Isolated/`, and
    `Attest owner-review of {name}` so they stay bound to that file.
+   Finish next-actions and next-commands use the same named hops.
    After an isolated Letter or delta exists, next-commands list fills
    and Print Preview of that file before a copy-paste re-export. It
    does not invent field values or copy cell text.

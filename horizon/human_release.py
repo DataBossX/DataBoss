@@ -420,12 +420,9 @@ def _index_fields_complete(
         conflicts = recon.detail.get("conflict_count")
         if blanks == 0 and conflicts == 0:
             source = recon.detail.get("candidate_from")
-            if isinstance(source, str) and source and source != "workbook":
-                pass
-            elif expected and _gate_workbook_sha256(recon) != expected:
-                pass
-            else:
-                return True
+            if source == "workbook":
+                if not expected or _gate_workbook_sha256(recon) == expected:
+                    return True
     repair = gates.get("repair_loop")
     if repair is not None and repair.technical_pass:
         if (

@@ -85,6 +85,7 @@ def test_completion_requires_every_required_gate() -> None:
             "index_reconciliation",
             blank_required_count=0,
             conflict_count=0,
+            candidate_from="workbook",
             workbook_sha256="a" * 64,
         ),
         _gate("workbook_qa", workbook_sha256="a" * 64),
@@ -127,6 +128,7 @@ def test_completion_requires_matching_isolated_hashes() -> None:
             "index_reconciliation",
             blank_required_count=0,
             conflict_count=0,
+            candidate_from="workbook",
             workbook_sha256=digest,
         ),
         _gate("workbook_qa", workbook_sha256=digest),
@@ -184,6 +186,30 @@ def test_completion_requires_gates_hash_current_isolated_file() -> None:
         candidate_from="index_packet",
         workbook_sha256=digest,
     )
+    complete, missing = evaluate_package_completion(
+        gates, requested_sections=[15], workbook_sha256=digest
+    )
+    assert complete is False
+    assert any("index fields" in item for item in missing)
+
+
+def test_completion_rejects_recon_without_candidate_from() -> None:
+    digest = "c" * 64
+    gates = [
+        _gate("source_acquisition"),
+        _gate("reextraction"),
+        _gate("occurrence_ledger"),
+        _gate(
+            "index_reconciliation",
+            blank_required_count=0,
+            conflict_count=0,
+            workbook_sha256=digest,
+        ),
+        _gate("workbook_qa", workbook_sha256=digest),
+        _gate("native_print", workbook_sha256=digest),
+        _gate("drive_readback", isolated_copy=True, workbook_sha256=digest),
+        _gate("human_release", workbook_sha256=digest),
+    ]
     complete, missing = evaluate_package_completion(
         gates, requested_sections=[15], workbook_sha256=digest
     )

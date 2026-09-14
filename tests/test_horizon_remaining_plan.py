@@ -996,6 +996,39 @@ def test_remaining_plan_uses_finish_gaps_when_examiner_queue_hash_is_stale(
     assert plan["packages_complete"] is False
 
 
+def test_remaining_plan_holds_recon_without_candidate_from(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "index_reconciliation",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {
+                    "blank_required_count": 0,
+                    "conflict_count": 0,
+                    "workbook_sha256": sha256_file(letter),
+                },
+            }
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert (
+        "index reconciliation did not score section15-letter.xlsx"
+        in plan["missing"]
+    )
+    assert plan["packages_complete"] is False
+
+
 def test_remaining_plan_requires_recon_on_isolated_workbook(
     tmp_path: Path,
 ) -> None:

@@ -571,8 +571,12 @@ def remaining_plan(
                 continue
             if gate.name == "index_reconciliation":
                 source = gate.detail.get("candidate_from")
-                if isinstance(source, str) and source and source != "workbook":
-                    line = f"index reconciliation scored {source}, not {name}"
+                if isolated_sha and source != "workbook":
+                    line = (
+                        f"index reconciliation scored {source}, not {name}"
+                        if isinstance(source, str) and source
+                        else f"index reconciliation did not score {name}"
+                    )
                     if line not in missing:
                         missing.append(line)
                     complete = False
@@ -655,6 +659,7 @@ def remaining_plan(
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
             "Print Preview and owner-review stay until finish hashes that isolated file",
             "index reconciliation must score the isolated workbook, not a leftover packet",
+            "index reconciliation without candidate_from=workbook does not complete",
             "index reconciliation, repair loop, and workbook QA must hash that isolated file",
             "examiner-queue counts bound to a different workbook hash are ignored",
             "examiner-queue counts without a workbook hash are ignored once an isolated file exists",

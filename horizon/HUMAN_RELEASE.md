@@ -8,8 +8,9 @@ current isolated workbook hash is present and:
    workbook projection)
 3. `occurrence_ledger` passed (same sources)
 4. Index fields are complete (`index_reconciliation` with zero blanks and
-   conflicts, or a `repair_loop` that ended the same way), scored against
-   the current isolated workbook hash — leftover packet or old-file scores
+   conflicts and `candidate_from=workbook`, or a `repair_loop` that ended
+   the same way), scored against the current isolated workbook hash —
+   leftover packet scores, omitted `candidate_from`, or old-file scores
    do not complete
 5. `workbook_qa` passed against that same isolated hash
 6. `native_print` passed with a workbook hash

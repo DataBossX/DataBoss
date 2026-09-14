@@ -44,7 +44,11 @@ from .index_reconciliation import (
     reconcile_indexes,
 )
 from .connect_status import ConnectStatusError, probe_connections
-from .drive_readback import DriveReadbackError, assess_drive_readback
+from .drive_readback import (
+    DriveReadbackError,
+    assess_drive_readback,
+    is_drive_isolated_copy,
+)
 from .human_release import (
     HumanReleaseError,
     assess_human_release,
@@ -974,6 +978,10 @@ def run_finish(
                             "workbook_sha256": readback.workbook_sha256,
                             "readback_sha256": readback.readback_sha256,
                             "issue_count": len(readback.issues),
+                            "isolated_copy": any(
+                                is_drive_isolated_copy(drive_readback, section)
+                                for section in sections
+                            ),
                         },
                     )
                 )

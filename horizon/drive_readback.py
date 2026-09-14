@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -18,6 +19,18 @@ from .isolated_delta import sha256_file
 
 RECEIPT_SCHEMA_ID = "dbx.drive_readback_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
+_ISOLATED_WORKBOOK_SECTION = re.compile(
+    r"^section(\d+)-(letter|delta(?:-\d+)?)\.xlsx$",
+    re.IGNORECASE,
+)
+
+
+def is_drive_isolated_copy(path: Path, section: int) -> bool:
+    """True when the copy lives under Isolated/ and names this section."""
+    if any(part.casefold() == "isolated" for part in path.parts):
+        match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
+        return match is not None and int(match.group(1)) == section
+    return False
 
 
 class DriveReadbackError(ValueError):

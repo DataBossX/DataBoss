@@ -5,6 +5,7 @@ unfinished gates, missing source files, classified roles that still
 need Phase-2 authority, blank/conflict counts from finish receipts or
 examiner queues that already exist, and Print Preview / Drive Isolated
 / owner-review hops bound to the current isolated Letter or delta.
+Drive Isolated/ stays until the bound copy is under Isolated/.
 """
 
 from __future__ import annotations
@@ -223,6 +224,18 @@ def _merge_field_gaps(*groups: Dict[str, int]) -> Dict[str, int]:
     return merged
 
 
+def _named_hop_done(gate_name: str, gates: Sequence[_GateView]) -> bool:
+    for gate in gates:
+        if gate.name != gate_name:
+            continue
+        if not gate.technical_pass:
+            return False
+        if gate_name == "drive_readback":
+            return gate.detail.get("isolated_copy") is True
+        return True
+    return False
+
+
 def _gap_lines(
     *,
     missing_required_roles: Sequence[str],
@@ -362,14 +375,10 @@ def remaining_plan(
             ),
             "human_release": f"Attest owner-review of {name}",
         }
-        passed = {
-            gate.name
-            for gate in gates
-            if gate.technical_pass
-        }
         for gate_name, line in named.items():
-            if gate_name not in passed and line not in missing:
+            if not _named_hop_done(gate_name, gates) and line not in missing:
                 missing.append(line)
+                complete = False
     return {
         "schema_id": PLAN_SCHEMA_ID,
         "schema_version": PLAN_SCHEMA_VERSION,
@@ -404,6 +413,7 @@ def remaining_plan(
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",
             "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
+            "Drive Isolated/ stays until the bound copy is under Isolated/",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",
         ],

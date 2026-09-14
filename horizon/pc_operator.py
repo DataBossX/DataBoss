@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Sequence
 from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
+from .drive_readback import is_drive_isolated_copy
 from .index_export import (
     IndexExportError,
     export_faces,
@@ -707,7 +708,10 @@ def _section_commands(
             "On Windows Excel, Print Preview the current isolated workbook, "
             "then attest the draft with PAGE_COUNT and EXAMINER_NAME"
         )
-    if bindings.drive_readback is None:
+    if not (
+        bindings.drive_readback is not None
+        and is_drive_isolated_copy(Path(bindings.drive_readback), section)
+    ):
         name = Path(workbook).name
         commands.append(
             f"Copy {name} into Drive Section {section}/Isolated/ "
@@ -2347,13 +2351,19 @@ def _same_hash_readback(
         if other is not None and other != section:
             continue
         candidates.append(path)
+    ranked: List[Path] = []
+    seen = set()
     for path in candidates:
         try:
             resolved = path.resolve()
         except OSError:
             continue
-        if resolved == exclude:
+        if resolved == exclude or resolved in seen:
             continue
+        seen.add(resolved)
+        ranked.append(resolved)
+    ranked.sort(key=lambda item: (0 if is_drive_isolated_copy(item, section) else 1))
+    for resolved in ranked:
         try:
             if sha256_file(resolved) == digest:
                 return resolved

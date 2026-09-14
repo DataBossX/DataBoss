@@ -393,7 +393,7 @@ def test_remaining_plan_drops_named_drive_and_review_hops_when_those_gates_pass(
                 "name": "drive_readback",
                 "ran": True,
                 "technical_pass": True,
-                "detail": {},
+                "detail": {"isolated_copy": True},
             },
             {
                 "name": "human_release",
@@ -417,6 +417,50 @@ def test_remaining_plan_drops_named_drive_and_review_hops_when_those_gates_pass(
     assert "Attest owner-review of section15-letter.xlsx" not in plan["missing"]
     assert plan["isolated_workbook"]["name"] == "section15-letter.xlsx"
     assert plan["packages_complete"] is False
+
+
+def test_remaining_plan_keeps_isolated_hop_until_drive_isolated_copy(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = {
+        "schema_id": "dbx.package_finish_receipt",
+        "gates": [
+            {
+                "name": "native_print",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {},
+            },
+            {
+                "name": "drive_readback",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {"isolated_copy": False},
+            },
+            {
+                "name": "human_release",
+                "ran": True,
+                "technical_pass": True,
+                "detail": {},
+            },
+        ],
+    }
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        in plan["missing"]
+    )
+    assert "Print Preview section15-letter.xlsx on Windows Excel" not in plan["missing"]
+    assert "Attest owner-review of section15-letter.xlsx" not in plan["missing"]
+    assert plan["packages_complete"] is False
+    assert str(tmp_path) not in "".join(plan["missing"])
 
 
 def test_operator_writes_priority_remaining_plan_bundle(tmp_path: Path) -> None:

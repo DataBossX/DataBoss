@@ -296,7 +296,7 @@ def test_next_commands_name_current_isolated_drive_copy(tmp_path: Path) -> None:
         "Copy section13-delta-2.xlsx into Drive Section 13/Isolated/" in item
         for item in commands
     )
-    bound = _section_commands(
+    receipt_bound = _section_commands(
         13,
         root_args=["pc=/tmp"],
         picks=[],
@@ -304,7 +304,25 @@ def test_next_commands_name_current_isolated_drive_copy(tmp_path: Path) -> None:
         missing_roles=[],
         bindings=FinishBindings(drive_readback=tmp_path / "drive-copy.xlsx"),
     )
-    assert not any("Isolated/" in item for item in bound)
+    assert any(
+        "Copy section13-delta-2.xlsx into Drive Section 13/Isolated/" in item
+        for item in receipt_bound
+    )
+    isolated = tmp_path / "Section 13" / "Isolated" / "section13-delta-2.xlsx"
+    isolated.parent.mkdir(parents=True)
+    isolated.write_bytes(b"SYNTH-DELTA-2")
+    drive_bound = _section_commands(
+        13,
+        root_args=["pc=/tmp"],
+        picks=[],
+        receipt_dir=str(receipts),
+        missing_roles=[],
+        bindings=FinishBindings(drive_readback=isolated),
+    )
+    assert not any(
+        "Copy section13-delta-2.xlsx into Drive Section 13/Isolated/" in item
+        for item in drive_bound
+    )
 
 
 def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
@@ -617,6 +635,18 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
         gate for gate in finish["gates"] if gate["name"] == "drive_readback"
     )
     assert drive_gate["technical_pass"] is True
+    assert drive_gate["detail"].get("isolated_copy") is not True
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        in plan["missing"]
+    )
+    assert any(
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/" in item
+        for item in second.sections[0].next_commands
+    )
 
 
 def test_execute_does_not_use_other_section_letter_as_drive_readback(
@@ -678,6 +708,14 @@ def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:
         gate for gate in finish["gates"] if gate["name"] == "drive_readback"
     )
     assert drive_gate["technical_pass"] is True
+    assert drive_gate["detail"].get("isolated_copy") is True
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        not in plan["missing"]
+    )
     published.write_bytes(b"different-drive-bytes")
     second = build_work_order(
         roots=[f"pc={pc}", f"drive={drive}"],

@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from horizon.connect_status import probe_connections
-from horizon.drive_readback import DriveReadbackError, assess_drive_readback
+from horizon.drive_readback import (
+    DriveReadbackError,
+    assess_drive_readback,
+    is_drive_isolated_copy,
+)
 from horizon.occurrence_build import build_occurrence_packet
 from horizon.occurrence_ledger import compare_packet, parse_occurrence_packet
 from horizon.package_finish import run_finish
@@ -71,6 +75,25 @@ def test_occurrence_build_from_checkable_crops_compares() -> None:
     assert receipt.technical_pass is True
     assert receipt.occurrence_count == 1
     assert packet["occurrences"][0]["risk"] == "novel"
+
+
+def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None:
+    assert is_drive_isolated_copy(
+        Path("Section 15/Isolated/section15-letter.xlsx"), 15
+    )
+    assert is_drive_isolated_copy(
+        Path("Section 13/Isolated/section13-delta-2.xlsx"), 13
+    )
+    assert not is_drive_isolated_copy(
+        Path("Section 15/section15-letter.xlsx"), 15
+    )
+    assert not is_drive_isolated_copy(Path("receipts/drive-copy.xlsx"), 15)
+    assert not is_drive_isolated_copy(
+        Path("Section 13/Isolated/section15-letter.xlsx"), 13
+    )
+    assert not is_drive_isolated_copy(
+        Path("Section 15/Isolated/section15-letter.xlsx"), 13
+    )
 
 
 def test_drive_readback_requires_distinct_identical_copy(tmp_path: Path) -> None:

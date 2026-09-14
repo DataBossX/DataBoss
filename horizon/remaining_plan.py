@@ -2,8 +2,9 @@
 
 The plan does not invent legal, party, or date values. It names
 unfinished gates, missing source files, classified roles that still
-need Phase-2 authority, and blank/conflict counts from finish
-receipts or examiner queues that already exist.
+need Phase-2 authority, blank/conflict counts from finish receipts or
+examiner queues that already exist, and Print Preview / Drive Isolated
+/ owner-review hops bound to the current isolated Letter or delta.
 """
 
 from __future__ import annotations
@@ -354,12 +355,21 @@ def remaining_plan(
             isolated = {}
     name = isolated.get("name")
     if isinstance(name, str) and name:
-        preview = f"Print Preview {name} on Windows Excel"
-        native_ok = any(
-            gate.name == "native_print" and gate.technical_pass for gate in gates
-        )
-        if not native_ok and preview not in missing:
-            missing.append(preview)
+        named = {
+            "native_print": f"Print Preview {name} on Windows Excel",
+            "drive_readback": (
+                f"Copy {name} into Drive Section {section}/Isolated/"
+            ),
+            "human_release": f"Attest owner-review of {name}",
+        }
+        passed = {
+            gate.name
+            for gate in gates
+            if gate.technical_pass
+        }
+        for gate_name, line in named.items():
+            if gate_name not in passed and line not in missing:
+                missing.append(line)
     return {
         "schema_id": PLAN_SCHEMA_ID,
         "schema_version": PLAN_SCHEMA_VERSION,
@@ -393,6 +403,7 @@ def remaining_plan(
             "by_field counts names only; it does not copy cell text",
             "Examiner-queue blank/conflict counts win over packet-scored finish recon",
             "isolated_workbook names the current Letter or delta; it does not copy cell text",
+            "missing names Print Preview, Drive Isolated/, and owner-review of that file only",
             "technical_pass is not package release",
             "Owner review is not an external client delivery",
         ],

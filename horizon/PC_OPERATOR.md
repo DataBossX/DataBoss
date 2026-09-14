@@ -132,10 +132,13 @@ python3 -m horizon.pc_operator \
    roles that still need Phase-2 `authority_promote`, per-field
    blank/conflict counts from the examiner queue (field names only),
    existing queues, and a connection snapshot (roots readable, Excel,
-   Slack/Notion, cursor worker). After an isolated Letter or delta
-   exists, next-commands list fills and Print Preview of that file
-   before a copy-paste re-export. It does not invent field values or
-   copy cell text.
+   Slack/Notion, cursor worker). Until those hops pass, `missing`
+   includes `Print Preview {name} on Windows Excel`,
+   `Copy {name} into Drive Section N/Isolated/`, and
+   `Attest owner-review of {name}` so they stay bound to that file.
+   After an isolated Letter or delta exists, next-commands list fills
+   and Print Preview of that file before a copy-paste re-export. It
+   does not invent field values or copy cell text.
       `packages_complete` is true only if every requested section's finish
    receipt already satisfies the owner-review completion predicate.
 

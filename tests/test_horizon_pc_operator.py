@@ -310,6 +310,13 @@ def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
     assert first(plan_cmds, "horizon.native_print") < first(
         plan_cmds, "horizon.index_export"
     )
+    assert plan["isolated_workbook"]["name"] == "section15-letter.xlsx"
+    assert "Print Preview section15-letter.xlsx on Windows Excel" in plan["missing"]
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        in plan["missing"]
+    )
+    assert "Attest owner-review of section15-letter.xlsx" in plan["missing"]
 
 
 def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:

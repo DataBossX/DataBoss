@@ -38,9 +38,11 @@ fill index cells. After `--execute`, review `remaining-plan.json` in
 order 15, then 13, then 11. The plan names files that are still
 missing, classified typed/handwritten index roles that still need
 Phase-2 `authority_promote` (until snapshot), per-field blank/conflict
-counts, and connection gaps (worker, Slack/Notion, Excel, readable
-roots). After promote, do not treat the leftover UNAPPROVED_DRAFT as
-a new authority hop. Do not start a second controller.
+counts, connection gaps (worker, Slack/Notion, Excel, readable
+roots), and Print Preview / Drive Isolated / owner-review hops bound
+to the current isolated Letter or delta (filename only). After
+promote, do not treat the leftover UNAPPROVED_DRAFT as a new
+authority hop. Do not start a second controller.
 
 ## PC work order
 

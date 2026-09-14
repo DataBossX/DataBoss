@@ -75,7 +75,9 @@ fill legal, party, or date cells.
 `remaining-plan.json` in priority order 15, 13, 11. The plan names
 files that are still missing, classified typed and handwritten index
 roles that still need Phase-2 authority, per-field blank/conflict
-counts, and connection gaps without inventing field values.
+counts, connection gaps, and Print Preview / Drive Isolated /
+owner-review hops bound to the current isolated Letter or delta
+(filename and SHA-256 only) without inventing field values.
 `--execute` writes
 `sectionN-native-print-draft.json` and `sectionN-owner-review-draft.json`
 bound to the current isolated hash; attest the print draft after Windows

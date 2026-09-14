@@ -150,6 +150,8 @@ def test_finish_runner_repairs_layout_then_binds_native_receipt(
     assert {gate.name for gate in first.gates} == {
         "print_layout_repair",
         "workbook_qa",
+        "reextraction",
+        "occurrence_ledger",
     }
     packet = tmp_path / "native.json"
     packet.write_text(

@@ -335,6 +335,8 @@ def test_delta_fill_then_qa_runs_on_copy_not_source(tmp_path: Path) -> None:
     assert {gate.name for gate in receipt.gates} == {
         "isolated_delta",
         "workbook_qa",
+        "reextraction",
+        "occurrence_ledger",
     }
     assert all(gate.technical_pass for gate in receipt.gates)
     source_wb = openpyxl.load_workbook(source, data_only=True)
@@ -407,31 +409,6 @@ def _write_authority_pair(
         encoding="utf-8",
     )
     return authority, project
-
-
-def _crop_packet() -> dict[str, object]:
-    page_hash = _sha("render-1")
-    return {
-        "schema_id": "dbx.page_render_crop_packet",
-        "schema_version": "1.0",
-        "packet_id": "SYNTH-FINISH-CROPS",
-        "expected_page_count": 1,
-        "pages": [{"page": 1, "source_sha256": page_hash}],
-        "crops": [
-            {
-                "row_id": "p01r01",
-                "page": 1,
-                "crop_id": "p01r01",
-                "source_sha256": page_hash,
-                "docno": "2026-09901",
-                "bookpage": "",
-                "rec_date": "1/2/2026",
-                "doc_date": "",
-                "grantor": "SYNTH SURVEYOR",
-                "grantee": "The Public",
-            }
-        ],
-    }
 
 
 def test_combined_authority_is_filtered_to_requested_section(
@@ -559,8 +536,6 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
     (section / "Recorded Faces").mkdir(parents=True)
     (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth")
     authority, project = _write_authority_pair(tmp_path, root)
-    crops = tmp_path / "crops.json"
-    crops.write_text(json.dumps(_crop_packet()), encoding="utf-8")
     digest = sha256_file(candidate)
     native = tmp_path / "native.json"
     native.write_text(
@@ -608,7 +583,6 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
         authority_manifest=authority,
         project_manifest=project,
         snapshot_directory=tmp_path / "snapshot",
-        page_render_packet=crops,
         workbook=candidate,
         master_workbook=master,
         pdf_workbook=pdf,
@@ -619,6 +593,14 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
     )
     assert receipt.packages_complete is True
     assert receipt.technical_pass is True
+    reextraction = next(
+        gate for gate in receipt.gates if gate.name == "reextraction"
+    )
+    assert reextraction.detail.get("built_from") == "workbook"
+    occurrence = next(
+        gate for gate in receipt.gates if gate.name == "occurrence_ledger"
+    )
+    assert occurrence.detail.get("built_from") == "workbook"
 
 
 def test_cli_empty_run_writes_blocked_receipt(tmp_path: Path) -> None:

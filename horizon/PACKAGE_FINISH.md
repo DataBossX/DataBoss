@@ -58,6 +58,12 @@ source workbook is not modified. See [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md).
 `--print-layout-output` writes US Letter, landscape, and print titles from
 the Penterra profile onto an isolated copy. It does not replace native Excel.
 
+If `--page-render-packet` and `--tract-export` are omitted, the isolated
+`--workbook` is projected into `reextraction` and `occurrence_ledger`.
+Blank book/page and bare document numbers stay bare. Sections 15 and 13
+can satisfy those gates from the Penterra index; section 11 still needs
+page-render crops for bare document numbers.
+
 `--native-print-receipt` binds a writer-held Microsoft Excel / Windows Print
 Preview receipt to the current workbook hash. Page count must match the
 writer-held `expected_page_count`. LibreOffice, A4, or a missing print-title

@@ -3,8 +3,9 @@
 `packages_complete` is not a vibe check. It is true only when:
 
 1. `source_acquisition` passed
-2. `reextraction` passed
-3. `occurrence_ledger` passed
+2. `reextraction` passed (page-render crops, tract export, or isolated
+   workbook projection)
+3. `occurrence_ledger` passed (same sources)
 4. Index fields are complete (`index_reconciliation` with zero blanks and
    conflicts, or a `repair_loop` that ended the same way)
 5. `workbook_qa` passed

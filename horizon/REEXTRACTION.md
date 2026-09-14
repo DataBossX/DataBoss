@@ -39,6 +39,11 @@ python3 -m horizon.reextraction_gate \
 House stable keys are `<docno>|<book>-<page>`. Feed those keys into
 `horizon.occurrence_ledger` after this gate passes.
 
+`horizon.package_finish` can also project an isolated Penterra workbook
+(`python3 -m horizon.workbook_ledger --workbook ... --export ...`) when no
+crop packet is supplied. That path does not invent cells. Bare document
+numbers still fail until they are re-extracted from page renders.
+
 Hash examiner-held crop text against page-render files. Bare document
 numbers stay bare.
 

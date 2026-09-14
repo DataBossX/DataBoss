@@ -70,6 +70,9 @@ apply). The draft itself is not Phase 2.
 `python -m horizon.package_finish` then chains
 acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.
+When crop packets are absent, the isolated index is projected into the
+re-extraction and occurrence gates so sections 15 and 13 are not blocked
+on a fake page-render packet.
 See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md),
 [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md),

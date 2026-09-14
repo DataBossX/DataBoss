@@ -48,6 +48,11 @@ from .human_release import (
 from .isolated_delta import IsolatedDeltaError, apply_deltas
 from .native_print import NativePrintError, assess_native_print
 from .occurrence_build import OccurrenceBuildError, build_occurrence_packet
+from .workbook_ledger import (
+    WorkbookLedgerError,
+    workbook_to_occurrence_packet,
+    workbook_to_tract_export,
+)
 from .page_render_export import PageRenderExportError, compile_page_renders
 from .pdf_census import PdfCensusError, census_packet
 from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
@@ -356,8 +361,9 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
         )
     if "page_render_export" not in ran and "reextraction" not in ran:
         actions.append(
-            "Compile page-render crops with --page-render-packet or pass "
-            "a tract-ledger JSON via --tract-export"
+            "Compile page-render crops with --page-render-packet, pass "
+            "a tract-ledger JSON via --tract-export, or pass --workbook "
+            "so the isolated index can be projected"
         )
     if "pdf_census" not in ran:
         actions.append(
@@ -818,6 +824,75 @@ def run_finish(
         gates.append(
             _workbook_gate(qa_workbook, workbook_profile, DEFAULT_WORKBOOK_CHECKS)
         )
+        ran_names = {gate.name for gate in gates if gate.ran}
+        packet_id = f"SECTION{sections[0]}-WORKBOOK"
+        if "reextraction" not in ran_names:
+            try:
+                export = workbook_to_tract_export(
+                    qa_workbook,
+                    packet_id=packet_id,
+                    profile_path=workbook_profile,
+                )
+                export_id, rows = parse_ledger_export(export)
+                recon = assess_ledger(export_id, rows)
+                gates.append(
+                    GateResult(
+                        name="reextraction",
+                        ran=True,
+                        technical_pass=recon.technical_pass,
+                        detail={
+                            "row_count": recon.row_count,
+                            "bare_docno_count": recon.bare_docno_count,
+                            "next_action": recon.next_action,
+                            "built_from": "workbook",
+                        },
+                    )
+                )
+            except (OSError, WorkbookLedgerError, ReextractionError) as exc:
+                gates.append(
+                    GateResult(
+                        name="reextraction",
+                        ran=True,
+                        technical_pass=False,
+                        error=str(exc),
+                    )
+                )
+        ran_names = {gate.name for gate in gates if gate.ran}
+        if "occurrence_ledger" not in ran_names:
+            try:
+                built = workbook_to_occurrence_packet(
+                    qa_workbook,
+                    packet_id=packet_id,
+                    profile_path=workbook_profile,
+                )
+                occ_receipt = compare_packet(parse_occurrence_packet(built))
+                gates.append(
+                    GateResult(
+                        name="occurrence_ledger",
+                        ran=True,
+                        technical_pass=occ_receipt.technical_pass,
+                        detail={
+                            "occurrence_count": occ_receipt.occurrence_count,
+                            "unique_keys_from_occurrences": (
+                                occ_receipt.unique_keys_from_occurrences
+                            ),
+                            "built_from": "workbook",
+                        },
+                    )
+                )
+            except (
+                OSError,
+                WorkbookLedgerError,
+                OccurrenceLedgerError,
+            ) as exc:
+                gates.append(
+                    GateResult(
+                        name="occurrence_ledger",
+                        ran=True,
+                        technical_pass=False,
+                        error=str(exc),
+                    )
+                )
     if native_print_receipt is not None:
         if qa_workbook is None:
             gates.append(

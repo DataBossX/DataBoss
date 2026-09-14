@@ -33,6 +33,7 @@ from .reextraction_gate import (
     parse_ledger_export,
     parse_oracle,
 )
+from .isolated_delta import IsolatedDeltaError, apply_deltas
 from .project_manifest import ControlFileError
 from .source_acquisition import (
     PRIORITY_SECTIONS,
@@ -280,6 +281,11 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Build an isolated occurrence packet from the checkable export "
             "and pass --occurrence-packet"
         )
+    if "isolated_delta" not in ran:
+        actions.append(
+            "Pass --delta-packet and --delta-output to apply source-proved "
+            "field fills to an isolated workbook copy"
+        )
     if "workbook_qa" not in ran:
         actions.append(
             "Pass --workbook pointing at the isolated candidate index "
@@ -312,6 +318,8 @@ def run_finish(
     public_plats: Sequence[str] = (),
     workbook: Optional[Path] = None,
     workbook_profile: Optional[Path] = None,
+    delta_packet: Optional[Path] = None,
+    delta_output: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
@@ -322,9 +330,45 @@ def run_finish(
         gates.append(_reextraction_gate(tract_export, oracle))
     if occurrence_packet is not None:
         gates.append(_occurrence_gate(occurrence_packet))
-    if workbook is not None:
+    qa_workbook = workbook
+    if delta_packet is not None:
+        if workbook is None or delta_output is None:
+            raise PackageFinishError(
+                "Source-proved deltas require --workbook and --delta-output"
+            )
+        try:
+            delta_receipt = apply_deltas(
+                workbook,
+                delta_output,
+                _load_json(delta_packet),
+                profile_path=workbook_profile,
+            )
+            gates.append(
+                GateResult(
+                    name="isolated_delta",
+                    ran=True,
+                    technical_pass=delta_receipt.technical_pass,
+                    detail={
+                        "applied": delta_receipt.applied,
+                        "rejected": delta_receipt.rejected,
+                        "isolated_workbook": delta_receipt.isolated_workbook,
+                    },
+                )
+            )
+            qa_workbook = delta_output
+        except (OSError, IsolatedDeltaError) as exc:
+            gates.append(
+                GateResult(
+                    name="isolated_delta",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
+            qa_workbook = None
+    if qa_workbook is not None:
         gates.append(
-            _workbook_gate(workbook, workbook_profile, DEFAULT_WORKBOOK_CHECKS)
+            _workbook_gate(qa_workbook, workbook_profile, DEFAULT_WORKBOOK_CHECKS)
         )
     if public_plats:
         gates.append(_cadastral_gate(public_plats))
@@ -362,6 +406,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--public-plat", action="append", default=[])
     parser.add_argument("--workbook", type=Path)
     parser.add_argument("--workbook-profile", type=Path)
+    parser.add_argument("--delta-packet", type=Path)
+    parser.add_argument("--delta-output", type=Path)
     return parser
 
 
@@ -377,6 +423,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             public_plats=args.public_plat,
             workbook=args.workbook,
             workbook_profile=args.workbook_profile,
+            delta_packet=args.delta_packet,
+            delta_output=args.delta_output,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

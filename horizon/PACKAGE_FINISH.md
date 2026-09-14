@@ -10,7 +10,9 @@ python3 -m horizon.package_finish \
   --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
   --tract-export /path/to/tract-ledger-export.json \
   --occurrence-packet /path/to/occurrence-packet.json \
-  --workbook /path/to/isolated-index.xlsx \
+  --workbook /path/to/source-index.xlsx \
+  --delta-packet /path/to/source-proved-delta.json \
+  --delta-output /path/to/isolated-index.xlsx \
   --public-plat campbell,45n,76w \
   --public-plat johnson,47n,77w \
   --output /path/to/package-finish-receipt.json
@@ -20,6 +22,10 @@ python3 -m horizon.package_finish \
 header block, then the nine-column Penterra table. Required cells are document
 type, grantor, grantee, Doc No, Rec Date, and legal description. Book-Page may
 be blank on modern e-recorded rows. Pass `--workbook-profile` to override.
+
+`--delta-packet` plus `--delta-output` apply a writer-held source-proved
+packet to a **new** isolated copy, then run workbook QA on that copy. The
+source workbook is not modified. See [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md).
 
 `packages_complete` stays `false` until a verified acquisition snapshot,
 source-backed rows, native Excel Print Preview, Drive readback, and a human

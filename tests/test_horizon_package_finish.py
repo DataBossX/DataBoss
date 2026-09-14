@@ -6,6 +6,7 @@ from pathlib import Path
 
 import openpyxl
 
+from horizon.isolated_delta import sha256_file
 from horizon.package_finish import main, run_finish
 from horizon.workbook_qa import inspect_workbook, load_workbook_profile
 
@@ -180,6 +181,54 @@ def test_workbook_gate_runs_on_isolated_penterra_index(tmp_path: Path) -> None:
     assert receipt.technical_pass is True
     assert receipt.gates[0].name == "workbook_qa"
     assert receipt.gates[0].technical_pass is True
+
+
+def test_delta_fill_then_qa_runs_on_copy_not_source(tmp_path: Path) -> None:
+    source = tmp_path / "index.xlsx"
+    isolated = tmp_path / "index-filled.xlsx"
+    packet = tmp_path / "delta.json"
+    _penterra_workbook(source, blank_legal=True)
+    packet.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "schema_version": "1.0",
+                "packet_id": "SYNTH-FINISH-DELTA",
+                "source_workbook_sha256": sha256_file(source),
+                "deltas": [
+                    {
+                        "row_key": "2026-09901|",
+                        "field": "legal_description",
+                        "value": "SYNTH TRACT 15-45N-76W",
+                        "source_sha256": _sha("face-legal"),
+                        "page": 1,
+                        "crop_id": "legal",
+                        "replace": False,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = run_finish(
+        sections=[15],
+        workbook=source,
+        delta_packet=packet,
+        delta_output=isolated,
+    )
+    assert receipt.packages_complete is False
+    assert receipt.technical_pass is True
+    assert {gate.name for gate in receipt.gates} == {
+        "isolated_delta",
+        "workbook_qa",
+    }
+    assert all(gate.technical_pass for gate in receipt.gates)
+    source_wb = openpyxl.load_workbook(source, data_only=True)
+    isolated_wb = openpyxl.load_workbook(isolated, data_only=True)
+    assert source_wb["Index"]["H9"].value in (None, "")
+    assert isolated_wb["Index"]["H9"].value == "SYNTH TRACT 15-45N-76W"
+    source_wb.close()
+    isolated_wb.close()
 
 
 def test_cli_empty_run_writes_blocked_receipt(tmp_path: Path) -> None:

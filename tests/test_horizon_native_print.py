@@ -9,7 +9,11 @@ import openpyxl
 import pytest
 
 from horizon.isolated_delta import sha256_file
-from horizon.native_print import NativePrintError, assess_native_print
+from horizon.native_print import (
+    NativePrintError,
+    assess_native_print,
+    write_native_print_packet,
+)
 from horizon.package_finish import run_finish
 from horizon.print_layout_repair import PrintLayoutRepairError, repair_print_layout
 
@@ -161,3 +165,37 @@ def test_finish_runner_repairs_layout_then_binds_native_receipt(
     assert second.technical_pass is True
     native = next(gate for gate in second.gates if gate.name == "native_print")
     assert native.detail["page_count"] == 2
+
+
+def test_write_native_print_packet_binds_workbook_hash(tmp_path: Path) -> None:
+    workbook = tmp_path / "letter.xlsx"
+    workbook.write_bytes(b"SYNTH-LETTER")
+    output = tmp_path / "native-print.json"
+    packet = write_native_print_packet(
+        workbook=workbook,
+        output=output,
+        operator="Pat Examiner",
+        page_count=2,
+        expected_page_count=2,
+        packet_id="SECTION15-PRINT",
+    )
+    assert packet["workbook_sha256"] == sha256_file(workbook)
+    assert assess_native_print(packet, workbook=workbook).technical_pass is True
+    with pytest.raises(NativePrintError, match="named examiner"):
+        write_native_print_packet(
+            workbook=workbook,
+            output=tmp_path / "other.json",
+            operator="EXAMINER_NAME",
+            page_count=2,
+            expected_page_count=2,
+            packet_id="SECTION15-PRINT",
+        )
+    with pytest.raises(NativePrintError, match="must match"):
+        write_native_print_packet(
+            workbook=workbook,
+            output=tmp_path / "mismatch.json",
+            operator="Pat Examiner",
+            page_count=2,
+            expected_page_count=4,
+            packet_id="SECTION15-PRINT",
+        )

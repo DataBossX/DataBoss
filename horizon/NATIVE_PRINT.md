@@ -33,6 +33,19 @@ Do not put a live page count in this repository. The writer holds
 `expected_page_count` for that section (historically Section 15 repaired to
 two Letter pages; this module does not hard-code that).
 
+Write the packet after Print Preview. Horizon does not invent `PAGE_COUNT`.
+
+```bash
+python3 -m horizon.native_print \
+  --write \
+  --workbook /path/to/isolated-letter.xlsx \
+  --output /path/to/native-excel-print-receipt.json \
+  --operator "Pat Examiner" \
+  --page-count PAGE_COUNT \
+  --expected-page-count PAGE_COUNT \
+  --packet-id SECTION15-PRINT
+```
+
 ```bash
 python3 -m horizon.native_print \
   --packet /path/to/native-excel-print-receipt.json \

@@ -11,6 +11,7 @@ from horizon.human_release import (
     HumanReleaseError,
     assess_human_release,
     evaluate_package_completion,
+    write_human_release_token,
 )
 from horizon.isolated_delta import sha256_file
 from horizon.package_finish import run_finish
@@ -108,6 +109,33 @@ def test_repair_loop_can_satisfy_index_fields() -> None:
     gates[3] = _gate("repair_loop", remaining_blanks=2, remaining_conflicts=0)
     complete, _ = evaluate_package_completion(gates, requested_sections=[15])
     assert complete is False
+
+
+def test_write_human_release_token_is_owner_review_only(tmp_path) -> None:
+    workbook = tmp_path / "isolated.xlsx"
+    workbook.write_bytes(b"SYNTH")
+    output = tmp_path / "owner-review.json"
+    token = write_human_release_token(
+        workbook=workbook,
+        output=output,
+        operator="Pat Examiner",
+        sections=[15],
+        packet_id="SECTION15-OWNER-REVIEW",
+    )
+    assert token["external_release"] is False
+    assert token["statement"] == OWNER_REVIEW_STATEMENT
+    assert token["workbook_sha256"] == sha256_file(workbook)
+    assert assess_human_release(
+        token, workbook=workbook, requested_sections=[15]
+    ).technical_pass
+    with pytest.raises(HumanReleaseError, match="named examiner"):
+        write_human_release_token(
+            workbook=workbook,
+            output=tmp_path / "bad.json",
+            operator="EXAMINER_NAME",
+            sections=[15],
+            packet_id="SECTION15-OWNER-REVIEW",
+        )
 
 
 def test_finish_runner_stays_incomplete_without_full_evidence() -> None:

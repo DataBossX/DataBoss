@@ -7,12 +7,17 @@ hash. The token cannot claim external delivery or READY_TO_SUBMIT.
 
 from __future__ import annotations
 
+import argparse
+import json
+import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
+from .examiner import require_named_examiner, write_new_json
 from .isolated_delta import sha256_file
+from .source_acquisition import PRIORITY_SECTIONS
 
 PACKET_SCHEMA_ID = "dbx.human_release_token"
 PACKET_SCHEMA_VERSION = "1.0"
@@ -149,6 +154,98 @@ def assess_human_release(
     )
 
 
+def write_human_release_token(
+    *,
+    workbook: Path,
+    output: Path,
+    operator: str,
+    sections: Sequence[int],
+    packet_id: str,
+) -> Dict[str, object]:
+    """Write an owner-review token bound to the isolated workbook hash."""
+    try:
+        named = require_named_examiner(operator)
+    except ValueError as exc:
+        raise HumanReleaseError(str(exc)) from exc
+    if not sections or any(section not in PRIORITY_SECTIONS for section in sections):
+        raise HumanReleaseError(f"sections must come from {PRIORITY_SECTIONS}")
+    if len(sections) != len(set(sections)):
+        raise HumanReleaseError("sections must be unique")
+    resolved = workbook.expanduser()
+    if not resolved.is_file():
+        raise HumanReleaseError(f"workbook does not exist: {resolved}")
+    token_id = packet_id.strip()
+    if not token_id or "\n" in token_id:
+        raise HumanReleaseError("packet_id must be a single-line string")
+    token = {
+        "schema_id": PACKET_SCHEMA_ID,
+        "schema_version": PACKET_SCHEMA_VERSION,
+        "packet_id": token_id,
+        "sections": list(sections),
+        "operator": named,
+        "workbook_sha256": sha256_file(resolved),
+        "statement": OWNER_REVIEW_STATEMENT,
+        "external_release": False,
+    }
+    try:
+        write_new_json(token, output, "human release token")
+    except ValueError as exc:
+        raise HumanReleaseError(str(exc)) from exc
+    assessed = assess_human_release(
+        token, workbook=resolved, requested_sections=sections
+    )
+    if not assessed.technical_pass:
+        raise HumanReleaseError("; ".join(assessed.issues) or "human release token failed")
+    return token
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Write an owner-review token. Not external client delivery."
+    )
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--workbook", type=Path, required=True)
+    parser.add_argument("--operator", required=True)
+    parser.add_argument(
+        "--section",
+        dest="sections",
+        type=int,
+        action="append",
+        choices=PRIORITY_SECTIONS,
+        required=True,
+    )
+    parser.add_argument("--packet-id", required=True)
+    return parser
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    try:
+        args = build_parser().parse_args(argv)
+        token = write_human_release_token(
+            workbook=args.workbook,
+            output=args.output,
+            operator=args.operator,
+            sections=args.sections,
+            packet_id=args.packet_id,
+        )
+    except (OSError, HumanReleaseError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "workbook_sha256": token["workbook_sha256"],
+                "sections": token["sections"],
+                "external_release": False,
+                "packages_complete": False,
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
 def _gate_map(gates: Iterable[object]) -> Dict[str, object]:
     return {gate.name: gate for gate in gates if getattr(gate, "ran", False)}
 
@@ -194,3 +291,7 @@ def evaluate_package_completion(
         missing.append("no sections were requested")
     complete = not missing
     return complete, missing
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -433,10 +433,53 @@ def _section_commands(
             "Export master, PDF, and handwritten indexes to Penterra xlsx "
             "on the PC, then rerun python3 -m horizon.pc_operator"
         )
-    if section == 15:
+    letter = f"{receipt_dir}/section{section}-letter.xlsx"
+    if bindings.native_print_receipt is None:
         commands.append(
-            "On Windows Excel, Print Preview the isolated Letter copy and "
-            "pass --native-print-receipt plus --drive-readback of the same bytes"
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.native_print",
+                    "--write",
+                    "--workbook",
+                    letter,
+                    "--output",
+                    f"{receipt_dir}/section{section}-native-print.json",
+                    "--operator",
+                    "EXAMINER_NAME",
+                    "--page-count",
+                    "PAGE_COUNT",
+                    "--expected-page-count",
+                    "PAGE_COUNT",
+                    "--packet-id",
+                    f"SECTION{section}-PRINT",
+                ]
+            )
+        )
+        commands.append(
+            "On Windows Excel, Print Preview the isolated Letter copy, "
+            "replace PAGE_COUNT and EXAMINER_NAME, then copy the Letter to Drive"
+        )
+    if bindings.human_release_token is None:
+        commands.append(
+            _quote_command(
+                [
+                    "python3",
+                    "-m",
+                    "horizon.human_release",
+                    "--workbook",
+                    letter,
+                    "--output",
+                    f"{receipt_dir}/section{section}-owner-review.json",
+                    "--operator",
+                    "EXAMINER_NAME",
+                    "--section",
+                    section,
+                    "--packet-id",
+                    f"SECTION{section}-OWNER-REVIEW",
+                ]
+            )
         )
     if section == 13:
         commands.append(
@@ -522,16 +565,9 @@ def _issue_lines(issues: Sequence[SourceIssue], limit: int = 20) -> List[str]:
     return lines[:limit]
 
 
-def _discover_packets(
-    files: Sequence[SourceFile],
-    roots: Dict[str, str],
-    section: int,
-) -> Dict[str, Path]:
+def _discover_json_packets(paths: Sequence[Path]) -> Dict[str, Path]:
     found: Dict[str, Path] = {}
-    for item in files:
-        if item.section != section or item.extension != ".json":
-            continue
-        path = Path(roots[item.root_label]) / item.relative_path
+    for path in paths:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -542,6 +578,24 @@ def _discover_packets(
         if slot and slot not in found:
             found[slot] = path
     return found
+
+
+def _discover_packets(
+    files: Sequence[SourceFile],
+    roots: Dict[str, str],
+    section: int,
+) -> Dict[str, Path]:
+    return _discover_json_packets(
+        [
+            Path(roots[item.root_label]) / item.relative_path
+            for item in files
+            if item.section == section and item.extension == ".json"
+        ]
+    )
+
+
+def _discover_receipt_dir_packets(receipt_dir: Path) -> Dict[str, Path]:
+    return _discover_json_packets(sorted(receipt_dir.glob("*.json")))
 
 
 def _merge_bindings(
@@ -692,9 +746,11 @@ def _execute_section(
     pdf_index = _slot_path(order.candidate_picks, "pdf_index")
     handwritten = _slot_path(order.candidate_picks, "handwritten")
     candidate = _slot_path(order.candidate_picks, "candidate")
-    discovered = {}
+    discovered = _discover_receipt_dir_packets(receipt_dir)
     if inventory is not None:
-        discovered = _discover_packets(inventory.files, inventory.roots, order.section)
+        from_roots = _discover_packets(inventory.files, inventory.roots, order.section)
+        for slot, path in from_roots.items():
+            discovered.setdefault(slot, path)
     bound = _merge_bindings(bindings, discovered)
     snapshot = bound.snapshot_directory
     if snapshot is not None:
@@ -861,6 +917,10 @@ def build_work_order(
             explicit.project_manifest = found_project
             if explicit.snapshot_directory is None:
                 explicit.snapshot_directory = dest_path / "intake-snapshot"
+    if dest_path is not None:
+        explicit = _merge_bindings(
+            explicit, _discover_receipt_dir_packets(dest_path)
+        )
     work_orders = [
         _section_work_order(
             section,

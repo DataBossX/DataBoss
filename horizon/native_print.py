@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .examiner import require_named_examiner, write_new_json
 from .isolated_delta import sha256_file
 
 PACKET_SCHEMA_ID = "dbx.native_print_receipt"
@@ -151,6 +152,56 @@ def assess_native_print(
     )
 
 
+def write_native_print_packet(
+    *,
+    workbook: Path,
+    output: Path,
+    operator: str,
+    page_count: int,
+    expected_page_count: int,
+    packet_id: str,
+) -> Dict[str, object]:
+    """Write a writer-held Excel Print Preview packet. Does not invent page counts."""
+    try:
+        named = require_named_examiner(operator)
+    except ValueError as exc:
+        raise NativePrintError(str(exc)) from exc
+    if type(page_count) is not int or page_count < 1:
+        raise NativePrintError("page_count must be an integer >= 1")
+    if type(expected_page_count) is not int or expected_page_count < 1:
+        raise NativePrintError("expected_page_count must be an integer >= 1")
+    if page_count != expected_page_count:
+        raise NativePrintError("page_count must match expected_page_count")
+    resolved = workbook.expanduser()
+    if not resolved.is_file():
+        raise NativePrintError(f"workbook does not exist: {resolved}")
+    packet = {
+        "schema_id": PACKET_SCHEMA_ID,
+        "schema_version": PACKET_SCHEMA_VERSION,
+        "packet_id": packet_id.strip(),
+        "workbook_sha256": sha256_file(resolved),
+        "application": NATIVE_APPLICATION,
+        "host": NATIVE_HOST,
+        "paper_size": 1,
+        "orientation": "landscape",
+        "page_count": page_count,
+        "expected_page_count": expected_page_count,
+        "print_titles": True,
+        "print_area_set": True,
+        "operator": named,
+    }
+    if not packet["packet_id"] or "\n" in packet["packet_id"]:
+        raise NativePrintError("packet_id must be a single-line string")
+    try:
+        write_new_json(packet, output, "native print packet")
+    except ValueError as exc:
+        raise NativePrintError(str(exc)) from exc
+    assessed = assess_native_print(packet, workbook=resolved)
+    if not assessed.technical_pass:
+        raise NativePrintError("; ".join(assessed.issues) or "native print packet failed")
+    return packet
+
+
 def _load_json(path: Path) -> Dict[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -165,15 +216,52 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Bind a writer-held native Excel Print Preview receipt."
     )
-    parser.add_argument("--packet", type=Path, required=True)
+    parser.add_argument("--write", action="store_true")
+    parser.add_argument("--packet", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--workbook", type=Path)
+    parser.add_argument("--operator")
+    parser.add_argument("--page-count", type=int)
+    parser.add_argument("--expected-page-count", type=int)
+    parser.add_argument("--packet-id")
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        if args.write:
+            if args.workbook is None or args.operator is None or args.packet_id is None:
+                raise NativePrintError(
+                    "--write requires --workbook, --operator, --packet-id, "
+                    "--page-count, and --expected-page-count"
+                )
+            if args.page_count is None or args.expected_page_count is None:
+                raise NativePrintError(
+                    "Pass the Print Preview page count; Horizon does not invent it"
+                )
+            packet = write_native_print_packet(
+                workbook=args.workbook,
+                output=args.output,
+                operator=args.operator,
+                page_count=args.page_count,
+                expected_page_count=args.expected_page_count,
+                packet_id=args.packet_id,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "workbook_sha256": packet["workbook_sha256"],
+                        "page_count": packet["page_count"],
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.packet is None:
+            raise NativePrintError("Pass --packet to assess, or --write to create")
         receipt = assess_native_print(
             _load_json(args.packet),
             workbook=args.workbook,

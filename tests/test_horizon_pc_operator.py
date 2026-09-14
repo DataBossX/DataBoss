@@ -112,6 +112,9 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert "master_workbook" in by_section[13].missing_candidate_roles
     assert by_section[11].ready_for_extraction is False
     assert any("page-render" in command for command in by_section[11].next_commands)
+    assert "horizon.native_print" in joined
+    assert "--write" in joined
+    assert "horizon.human_release" in joined
     assert any("Phase 2" in action for action in receipt.next_actions)
     draft_path = receipts / "authority-draft.json"
     assert draft_path.is_file()
@@ -281,6 +284,47 @@ def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> Non
         / "Master Abstract.xlsx"
     )
     assert snap_master.read_bytes() != b"changed-after-phase2"
+
+
+def test_operator_discovers_receipt_dir_native_print(tmp_path: Path) -> None:
+    from horizon.native_print import write_native_print_packet
+
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    write_native_print_packet(
+        workbook=letter,
+        output=receipts / "section15-native-print.json",
+        operator="Pat Examiner",
+        page_count=1,
+        expected_page_count=1,
+        packet_id="SECTION15-PRINT",
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert all(
+        "horizon.native_print" not in command
+        for command in second.sections[0].next_commands
+    )
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    native = next(gate for gate in finish["gates"] if gate["name"] == "native_print")
+    assert native["technical_pass"] is True
 
 
 def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:

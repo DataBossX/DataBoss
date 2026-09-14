@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 from .authority_draft import DRAFT_SCHEMA_ID, UNAPPROVED_STATUS
+from .examiner import (
+    require_assigned_id,
+    require_named_examiner,
+    write_new_json,
+)
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     PRIORITY_SECTIONS,
@@ -30,30 +34,6 @@ MANIFEST_SCHEMA_ID = "dbx.source_authority_manifest"
 MANIFEST_SCHEMA_VERSION = "1.0"
 PROJECT_SCHEMA_ID = "dbx.project_manifest"
 PROJECT_SCHEMA_VERSION = "1.1"
-REPO_ROOT = Path(__file__).resolve().parents[1]
-_ID_RE = re.compile(r"^[A-Z][A-Z0-9._-]{2,63}$")
-_PLACEHOLDER_IDS = {
-    "decision_id",
-    "examiner_decision_id",
-    "examiner_project_id",
-    "project_id",
-    "source-auth-000",
-    "tbd",
-    "todo",
-}
-_PLACEHOLDER_NAMES = {
-    "approved_by",
-    "changeme",
-    "examiner",
-    "examiner_name",
-    "n/a",
-    "na",
-    "named human examiner",
-    "placeholder",
-    "tbd",
-    "todo",
-    "unknown",
-}
 _ASSERTION_FIELDS = {
     "root_label",
     "relative_path",
@@ -67,44 +47,21 @@ class AuthorityPromoteError(ValueError):
     """Raised when a draft cannot be promoted safely."""
 
 
-def _assert_outside_repo(path: Path, label: str) -> Path:
-    resolved = path.expanduser().resolve()
-    if resolved == REPO_ROOT or REPO_ROOT in resolved.parents:
-        raise AuthorityPromoteError(
-            f"{label} must be outside this repository"
-        )
-    return resolved
-
-
-def _is_placeholder(value: str, banned: set[str]) -> bool:
-    folded = value.strip().casefold()
-    if folded in banned:
-        return True
-    if folded.startswith("<") and folded.endswith(">"):
-        return True
-    if folded.startswith("examiner_") or folded.endswith("_here"):
-        return True
-    return False
-
-
 def _require_id(value: str, field_name: str) -> str:
-    stripped = value.strip()
-    if not _ID_RE.fullmatch(stripped) or _is_placeholder(stripped, _PLACEHOLDER_IDS):
-        raise AuthorityPromoteError(
-            f"{field_name} must be an examiner-assigned id, not a placeholder"
-        )
-    return stripped
+    try:
+        return require_assigned_id(value, field_name)
+    except ValueError as exc:
+        raise AuthorityPromoteError(str(exc)) from exc
 
 
 def _require_approved_by(value: str, project_id: str, decision_id: str) -> str:
-    stripped = " ".join(value.split())
-    if (
-        len(stripped) < 3
-        or len(stripped) > 80
-        or not any(character.isalpha() for character in stripped)
-        or stripped.casefold() in {project_id.casefold(), decision_id.casefold()}
-        or _is_placeholder(stripped, _PLACEHOLDER_NAMES)
-    ):
+    try:
+        stripped = require_named_examiner(value)
+    except ValueError as exc:
+        raise AuthorityPromoteError(
+            "approved_by must be a named examiner, not a placeholder"
+        ) from exc
+    if stripped.casefold() in {project_id.casefold(), decision_id.casefold()}:
         raise AuthorityPromoteError(
             "approved_by must be a named examiner, not a placeholder"
         )
@@ -268,12 +225,10 @@ def build_project_manifest(project_id: str, source_authority_sha256: str) -> Dic
 
 
 def _write_new_json(payload: Dict[str, object], path: Path, label: str) -> Path:
-    resolved = _assert_outside_repo(path, label)
-    if resolved.exists():
-        raise AuthorityPromoteError(f"{label} already exists: {resolved}")
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    return resolved
+    try:
+        return write_new_json(payload, path, label)
+    except ValueError as exc:
+        raise AuthorityPromoteError(str(exc)) from exc
 
 
 def promote(

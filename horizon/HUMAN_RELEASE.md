@@ -29,5 +29,18 @@ I release this isolated copy for owner review only. It is not an external client
 `READY_TO_SUBMIT`, `EXTERNAL_RELEASE`, `FINAL_TURNIN`, and `100%` are
 rejected.
 
+```bash
+python3 -m horizon.human_release \
+  --workbook /path/to/isolated-letter.xlsx \
+  --output /path/to/owner-review-token.json \
+  --operator "Pat Examiner" \
+  --section 15 \
+  --packet-id SECTION15-OWNER-REVIEW
+```
+
+The CLI hashes the isolated workbook, writes the owner-review statement, and
+sets `external_release` false. Placeholders such as `EXAMINER_NAME` are
+rejected. This is not an external client delivery.
+
 Owner review is not external client delivery. Do not start a second
 controller.

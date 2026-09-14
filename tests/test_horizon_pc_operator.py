@@ -1792,6 +1792,60 @@ def test_execute_does_not_bind_other_section_crop_packet(tmp_path: Path) -> None
     assert "page_render_export" in names11
 
 
+def test_execute_does_not_apply_other_section_delta_packet(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    assert letter.is_file()
+    digest = sha256_file(letter)
+    (receipts / "section11-deltas.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION11-DELTA",
+                "source_workbook_sha256": digest,
+                "deltas": [
+                    {
+                        "row_key": "2026-09901|",
+                        "field": "comments",
+                        "value": "DO NOT APPLY TO SECTION 15",
+                        "source_sha256": "a" * 64,
+                        "page": 1,
+                        "crop_id": "c1",
+                        "replace": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    before = set(receipts.glob("section15-delta*.xlsx"))
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert set(receipts.glob("section15-delta*.xlsx")) == before
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    assert "isolated_delta" not in {gate["name"] for gate in finish["gates"]}
+    dumped = json.dumps(finish)
+    assert "DO NOT APPLY TO SECTION 15" not in dumped
+
+
 def test_execute_passes_crop_bind_dir_for_attested_renders(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     (root / "Section 11").mkdir(parents=True)

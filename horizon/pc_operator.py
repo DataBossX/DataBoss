@@ -843,7 +843,10 @@ def _section_work_order(
         "dbx.source_proved_delta_packet",
     )
     bound, delta_holds = _select_delta_packet(
-        bound, delta_candidates, isolated if isolated.is_file() else None
+        bound,
+        delta_candidates,
+        isolated if isolated.is_file() else None,
+        section,
     )
     holds.extend(delta_holds)
     return SectionWorkOrder(
@@ -1333,13 +1336,24 @@ def _select_delta_packet(
     bindings: FinishBindings,
     candidates: Sequence[Path],
     workbook: Optional[Path],
+    section: int,
 ) -> tuple[FinishBindings, List[str]]:
-    """Bind a delta packet only when it matches the current isolated hash."""
+    """Bind a delta packet only when it matches this section and isolated hash."""
     ordered: List[Path] = []
-    if bindings.delta_packet is not None:
-        ordered.append(bindings.delta_packet)
+    bound_packet = bindings.delta_packet
+    if bound_packet is not None and not _schema_packet_matches_section(
+        bound_packet, section, "dbx.source_proved_delta_packet"
+    ):
+        bound_packet = None
+        bindings = replace(bindings, delta_packet=None)
+    if bound_packet is not None:
+        ordered.append(bound_packet)
     for path in candidates:
-        if path not in ordered:
+        if path in ordered:
+            continue
+        if _schema_packet_matches_section(
+            path, section, "dbx.source_proved_delta_packet"
+        ):
             ordered.append(path)
     if workbook is None or not workbook.is_file() or not ordered:
         return bindings, []
@@ -2743,7 +2757,9 @@ def _execute_section(
         delta_candidates = _discover_schema_paths(
             delta_paths, "dbx.source_proved_delta_packet"
         )
-        bound, delta_holds = _select_delta_packet(bound, delta_candidates, workbook)
+        bound, delta_holds = _select_delta_packet(
+            bound, delta_candidates, workbook, order.section
+        )
         order.holds.extend(delta_holds)
         delta_packet = None
         delta_output = None

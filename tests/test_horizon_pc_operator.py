@@ -201,6 +201,8 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
     assert packet.is_file()
     assert finish.is_file()
     assert letter.is_file()
+    assert (receipts / "section15-workbook-export.json").is_file()
+    assert (receipts / "section15-workbook-occurrence.json").is_file()
     payload = json.loads(finish.read_text(encoding="utf-8"))
     assert payload["packages_complete"] is False
     assert source.read_bytes() == before
@@ -224,6 +226,46 @@ def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
         gate for gate in finish["gates"] if gate["name"] == "drive_readback"
     )
     assert drive_gate["technical_pass"] is True
+
+
+def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:
+    pc = tmp_path / "pc-root"
+    drive = tmp_path / "drive-root"
+    pc.mkdir()
+    _section15_tree(pc)
+    _section15_tree(drive)
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    published = drive / "Section 15" / "Isolated" / "section15-letter.xlsx"
+    assert letter.is_file()
+    assert published.is_file()
+    assert published.read_bytes() == letter.read_bytes()
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    drive_gate = next(
+        gate for gate in finish["gates"] if gate["name"] == "drive_readback"
+    )
+    assert drive_gate["technical_pass"] is True
+    published.write_bytes(b"different-drive-bytes")
+    second = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    assert published.read_bytes() == b"different-drive-bytes"
+    assert any(
+        "different hash" in hold for hold in second.sections[0].holds
+    )
 
 
 def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> None:

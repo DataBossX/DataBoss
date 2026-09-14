@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import sys
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
@@ -26,6 +27,11 @@ from .index_export import IndexExportError, export_index_packet
 from .isolated_delta import sha256_file
 from .package_finish import PackageFinishError, run_finish
 from .pdf_census import PdfCensusError, write_inventory_packet
+from .workbook_ledger import (
+    WorkbookLedgerError,
+    workbook_to_occurrence_packet,
+    workbook_to_tract_export,
+)
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     PRIORITY_SECTIONS,
@@ -156,7 +162,8 @@ class OperatorReceipt:
         default_factory=lambda: [
             "packages_complete stays false",
             "Phase 1 inventory is not legal authority and is not Phase 2",
-            "Do not copy client files into the public repository",
+            "Do not copy client source files into the public repository",
+            "Isolated Letter/delta copies may be published onto a mounted drive= root",
             "Do not start a second Landman Helper controller",
             "technical_pass means readable roots were probed and Phase 1 ran",
             "--execute writes isolated packets under receipt-dir only",
@@ -204,6 +211,19 @@ def _readable_root_args(connections: ConnectStatusReceipt) -> List[str]:
     return args
 
 
+_ISOLATED_OUTPUT_NAME = re.compile(
+    r"^section\d+-(letter|delta|workbook-export|workbook-occurrence)\.",
+    re.IGNORECASE,
+)
+
+
+def _is_isolated_output(item: SourceFile) -> bool:
+    relative = Path(item.relative_path)
+    if _ISOLATED_OUTPUT_NAME.match(relative.name):
+        return True
+    return any(part.casefold() == "isolated" for part in relative.parts)
+
+
 def _pick_role_files(
     files: Sequence[SourceFile],
     section: int,
@@ -212,7 +232,9 @@ def _pick_role_files(
     return [
         item
         for item in files
-        if item.section == section and item.candidate_role == role
+        if item.section == section
+        and item.candidate_role == role
+        and not _is_isolated_output(item)
     ]
 
 
@@ -496,8 +518,13 @@ def _section_commands(
         )
         commands.append(
             "On Windows Excel, Print Preview the current isolated workbook, "
-            "replace PAGE_COUNT and EXAMINER_NAME, then copy those same bytes "
-            "to Drive"
+            "replace PAGE_COUNT and EXAMINER_NAME"
+        )
+    if bindings.drive_readback is None:
+        commands.append(
+            "Copy the current isolated workbook onto the mounted drive= "
+            f"section folder as section{section}-letter.xlsx or "
+            f"section{section}-delta.xlsx so the next execute can bind readback"
         )
     if bindings.human_release_token is None:
         commands.append(
@@ -983,6 +1010,99 @@ def _same_hash_readback(
     return None
 
 
+def _drive_section_dir(
+    inventory: Optional[AcquisitionReceipt],
+    section: int,
+) -> Optional[Path]:
+    if inventory is None or "drive" not in inventory.roots:
+        return None
+    root = Path(inventory.roots["drive"])
+    try:
+        if not root.is_dir():
+            return None
+        if root.resolve() == REPO_ROOT or REPO_ROOT in root.resolve().parents:
+            return None
+    except OSError:
+        return None
+    for item in inventory.files:
+        if item.root_label != "drive" or item.section != section:
+            continue
+        parts = Path(item.relative_path).parts
+        if not parts:
+            continue
+        candidate = root / parts[0]
+        try:
+            if candidate.is_dir():
+                return candidate.resolve()
+        except OSError:
+            continue
+    fallback = root / f"Section {section}"
+    try:
+        if fallback.is_dir():
+            return fallback.resolve()
+    except OSError:
+        return None
+    return None
+
+
+def _publish_isolated_to_drive(
+    inventory: Optional[AcquisitionReceipt],
+    section: int,
+    isolated: Path,
+) -> tuple[Optional[Path], Optional[str]]:
+    dest_dir = _drive_section_dir(inventory, section)
+    if dest_dir is None or not isolated.is_file():
+        return None, None
+    dest_dir = dest_dir / "Isolated"
+    dest = dest_dir / isolated.name
+    try:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest_resolved = dest.resolve()
+        isolated_resolved = isolated.resolve()
+        if dest_resolved == isolated_resolved:
+            return None, "Drive publish path is the isolated workbook"
+        if dest_resolved == REPO_ROOT or REPO_ROOT in dest_resolved.parents:
+            return None, "Refusing to publish isolated workbook into this repository"
+        if dest.exists():
+            if sha256_file(dest) == sha256_file(isolated):
+                return dest_resolved, None
+            return None, (
+                f"Drive already has {dest.name} with a different hash; "
+                "not overwritten"
+            )
+        shutil.copy2(isolated, dest)
+        return dest.resolve(), None
+    except OSError as exc:
+        return None, str(exc)
+
+
+def _write_workbook_ledger_packets(
+    workbook: Path,
+    receipt_dir: Path,
+    section: int,
+) -> tuple[List[str], Optional[str]]:
+    try:
+        export = workbook_to_tract_export(
+            workbook, packet_id=f"SECTION{section}-WORKBOOK"
+        )
+        occurrence = workbook_to_occurrence_packet(
+            workbook, packet_id=f"SECTION{section}-WORKBOOK"
+        )
+    except (OSError, WorkbookLedgerError) as exc:
+        return [], str(exc)
+    written: List[str] = []
+    export_path = receipt_dir / f"section{section}-workbook-export.json"
+    occurrence_path = receipt_dir / f"section{section}-workbook-occurrence.json"
+    export_path.write_text(
+        json.dumps(export, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    occurrence_path.write_text(
+        json.dumps(occurrence, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    written.extend([str(export_path), str(occurrence_path)])
+    return written, None
+
+
 def _execute_section(
     order: SectionWorkOrder,
     *,
@@ -1145,6 +1265,54 @@ def _execute_section(
             order.executed_outputs.append(str(acquisition_receipt))
         if inventoried:
             order.executed_outputs.append(inventoried)
+        isolated = (
+            delta_path
+            if delta_path.exists()
+            else letter_path
+            if letter_path.exists()
+            else None
+        )
+        if isolated is not None:
+            ledger_outputs, ledger_error = _write_workbook_ledger_packets(
+                isolated, receipt_dir, order.section
+            )
+            order.executed_outputs.extend(ledger_outputs)
+            if ledger_error:
+                order.holds.append(f"Workbook ledger projection failed: {ledger_error}")
+            published, publish_hold = _publish_isolated_to_drive(
+                inventory, order.section, isolated
+            )
+            if publish_hold:
+                order.holds.append(publish_hold)
+            if published is not None:
+                order.executed_outputs.append(str(published))
+                if bound.drive_readback is None:
+                    bound.drive_readback = published
+                    finish = run_finish(
+                        sections=[order.section],
+                        roots=list(root_args),
+                        connect_status=True,
+                        index_packet=index_packet_path,
+                        workbook=isolated,
+                        page_render_packet=bound.page_render_packet,
+                        native_print_receipt=bound.native_print_receipt,
+                        human_release_token=bound.human_release_token,
+                        pdf_census_packet=bound.pdf_census_packet,
+                        pdf_bind_dir=bound.pdf_bind_dir,
+                        drive_readback=published,
+                        authority_manifest=bound.authority_manifest,
+                        project_manifest=bound.project_manifest,
+                        snapshot_directory=snapshot,
+                        acquisition_receipt=acquisition_receipt
+                        if bound.authority_manifest is not None
+                        else None,
+                    )
+                    finish_path.write_text(
+                        json.dumps(finish.to_dict(), indent=2, sort_keys=True),
+                        encoding="utf-8",
+                    )
+                    order.finish_technical_pass = finish.technical_pass
+                    order.finish_packages_complete = finish.packages_complete
         if finish.packages_complete:
             order.holds.append(
                 "Finish runner reported packages_complete; owner review "

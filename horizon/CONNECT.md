@@ -59,4 +59,7 @@ python3 -m horizon.drive_readback \
   --output /path/to/drive-readback-receipt.json
 ```
 
-The two paths must be distinct files with the same SHA-256.
+The two paths must be distinct files with the same SHA-256. The PC
+operator may publish the isolated Letter/delta onto a mounted `drive=`
+section folder so this gate can bind; the gate itself still only compares
+hashes and does not upload.

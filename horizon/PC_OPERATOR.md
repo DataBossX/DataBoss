@@ -41,7 +41,11 @@ python3 -m horizon.pc_operator \
    authorized `source_document` PDFs in the snapshot are measured the same
    way when `sectionN-pdfs/` is absent. Deltas apply to an isolated
    `sectionN-delta.xlsx`. Native print, owner-review, and Drive readback
-   bind that current isolated workbook, not a stale Letter copy.
+   bind that current isolated workbook, not a stale Letter copy. When a
+   `drive=` root is mounted, `--execute` publishes that isolated file into
+   the Drive section folder (it will not overwrite a different hash) and
+   binds SHA-256 readback. Client source files are never copied into this
+   repository.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

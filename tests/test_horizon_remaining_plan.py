@@ -748,6 +748,50 @@ def test_remaining_plan_onesource_and_delta_drafts_block_completion(
     assert "k1" not in dumped
 
 
+def test_remaining_plan_leftover_unhashed_onesource_does_not_apply_counts(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-onesource-template.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_template",
+                "status": "UNAPPROVED_DRAFT",
+                "deltas": [
+                    {"row_key": "k1", "field": "legal_description", "value": ""},
+                    {"row_key": "k2", "field": "recorded_date", "value": ""},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-delta-draft.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_draft",
+                "status": "UNAPPROVED_DRAFT",
+                "deltas": [{"row_key": "k3", "field": "grantor", "value": "x"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "2 one-source row(s) still need writer-held text" not in plan["missing"]
+    assert "1 source-proved delta(s) still need attest" not in plan["missing"]
+    assert "onesource template is missing a workbook hash" in plan["missing"]
+    assert "delta draft is missing a workbook hash" in plan["missing"]
+    dumped = json.dumps(plan)
+    assert "k1" not in dumped
+    assert "k3" not in dumped
+
+
 def test_remaining_plan_ignores_stale_hash_onesource_draft(
     tmp_path: Path,
 ) -> None:

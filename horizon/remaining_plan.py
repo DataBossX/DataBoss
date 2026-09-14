@@ -268,11 +268,9 @@ def _fill_queue_lines(
                 continue
             if isolated_sha256:
                 bound = payload.get("source_workbook_sha256")
-                if (
-                    isinstance(bound, str)
-                    and bound
-                    and bound.casefold() != isolated_sha256.casefold()
-                ):
+                if not isinstance(bound, str) or not bound:
+                    continue
+                if bound.casefold() != isolated_sha256.casefold():
                     continue
         rows = payload.get(collection)
         if not isinstance(rows, list):
@@ -280,6 +278,33 @@ def _fill_queue_lines(
         count = sum(1 for item in rows if isinstance(item, dict))
         if count:
             lines.append(template.format(n=count))
+    return lines
+
+
+def _fill_draft_hash_gaps(
+    receipt_dir: Path,
+    section: int,
+    isolated_sha256: str,
+) -> List[str]:
+    if not isolated_sha256:
+        return []
+    lines: List[str] = []
+    for slot, schema_id, label in (
+        (
+            "onesource_template",
+            "dbx.source_proved_delta_template",
+            "onesource template",
+        ),
+        ("delta_draft", "dbx.source_proved_delta_draft", "delta draft"),
+    ):
+        payload = _load_queue(
+            receipt_dir, OPEN_QUEUE_FILES[slot].format(section=section), schema_id
+        )
+        if payload.get("status") != "UNAPPROVED_DRAFT":
+            continue
+        bound = payload.get("source_workbook_sha256")
+        if not isinstance(bound, str) or not bound:
+            lines.append(f"{label} is missing a workbook hash")
     return lines
 
 
@@ -512,6 +537,11 @@ def remaining_plan(
         for line in _fill_queue_lines(receipt_dir, section, isolated_sha)
         if line not in extra
     )
+    extra.extend(
+        line
+        for line in _fill_draft_hash_gaps(receipt_dir, section, isolated_sha)
+        if line not in extra
+    )
     missing = extra + [item for item in missing if item not in extra]
     if extra:
         complete = False
@@ -627,6 +657,8 @@ def remaining_plan(
             "index reconciliation must score the isolated workbook, not a leftover packet",
             "index reconciliation, repair loop, and workbook QA must hash that isolated file",
             "examiner-queue counts bound to a different workbook hash are ignored",
+            "examiner-queue counts without a workbook hash are ignored once an isolated file exists",
+            "onesource and delta drafts without a workbook hash are ignored once an isolated file exists",
             "Drive Isolated/ stays until the bound copy is under Isolated/",
             "Drive Isolated/ stays until that copy hashes the current isolated file",
             "technical_pass is not package release",

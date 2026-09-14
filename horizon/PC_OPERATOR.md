@@ -167,7 +167,9 @@ python3 -m horizon.pc_operator \
    (write failure or empty plan list) is fail-closed. Examiner-queue
    blanks or conflicts keep the operator receipt incomplete. A leftover
    examiner queue without a workbook hash is not scored against the
-   current isolated file and keeps remaining-plan incomplete. Open
+   current isolated file and keeps remaining-plan incomplete. Leftover
+   one-source and delta drafts without a workbook hash are ignored the
+   same way and also keep remaining-plan incomplete. Open
    crop-fill, handwritten-scan, empty-text, one-source, and
    delta-draft queues keep remaining-plan incomplete when they are
    hash-bound to the current isolated file. Chat/OCR supporting

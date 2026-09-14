@@ -1393,13 +1393,13 @@ def _unbind_stale_workbook_packets(
             if not readback.is_file() or sha256_file(readback) != actual:
                 holds.append(
                     "Drive readback is bound to a different workbook hash; "
-                    "copy the current isolated workbook onto drive="
+                    "copy the current isolated workbook into Drive Isolated/"
                 )
                 readback = None
         except OSError:
             holds.append(
                 "Drive readback is bound to a different workbook hash; "
-                "copy the current isolated workbook onto drive="
+                "copy the current isolated workbook into Drive Isolated/"
             )
             readback = None
     if (
@@ -2916,7 +2916,10 @@ def _execute_section(
                 order.holds.append(publish_hold)
             if published is not None:
                 order.executed_outputs.append(str(published))
-                if bound.drive_readback is None:
+                current = bound.drive_readback
+                if current is None or not is_drive_isolated_copy(
+                    current, order.section
+                ):
                     bound.drive_readback = published
                     finish = _rerun_finish_isolated(
                         section=order.section,

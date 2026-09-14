@@ -730,6 +730,56 @@ def test_execute_publishes_isolated_workbook_to_drive(tmp_path: Path) -> None:
     )
 
 
+def test_execute_upgrades_receipt_dir_readback_to_drive_isolated(
+    tmp_path: Path,
+) -> None:
+    pc = tmp_path / "pc-root"
+    drive = tmp_path / "drive-root"
+    pc.mkdir()
+    _section15_tree(pc)
+    _section15_tree(drive)
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={pc}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    letter = receipts / "section15-letter.xlsx"
+    copy = receipts / "drive-copy.xlsx"
+    copy.write_bytes(letter.read_bytes())
+    second = build_work_order(
+        roots=[f"pc={pc}", f"drive={drive}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    published = drive / "Section 15" / "Isolated" / "section15-letter.xlsx"
+    assert published.is_file()
+    assert published.read_bytes() == letter.read_bytes()
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    drive_gate = next(
+        gate for gate in finish["gates"] if gate["name"] == "drive_readback"
+    )
+    assert drive_gate["technical_pass"] is True
+    assert drive_gate["detail"].get("isolated_copy") is True
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        not in plan["missing"]
+    )
+    assert not any(
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/" in item
+        for item in second.sections[0].next_commands
+    )
+
+
 def test_operator_discovers_promoted_authority_for_phase2(tmp_path: Path) -> None:
     from horizon.authority_promote import promote
 

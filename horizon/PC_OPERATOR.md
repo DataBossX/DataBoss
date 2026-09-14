@@ -50,7 +50,9 @@ python3 -m horizon.pc_operator \
    `drive=` root is mounted, `--execute` publishes that isolated file into
    Drive `Section N/Isolated/` (it will not overwrite a different hash) and
    binds SHA-256 readback. A receipt-dir same-hash copy can satisfy the
-   hash gate. Remaining-plan and next-commands keep
+   hash gate. After `--execute` publishes Isolated/, a leftover
+   receipt-dir bind is upgraded so finish records `isolated_copy`.
+   Remaining-plan and next-commands keep
    `Copy {name} into Drive Section N/Isolated/` until the bound copy is
    under Isolated/.    Client source files are never copied into this
    repository.    After recon/repair, `--execute` writes

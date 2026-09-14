@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-from .examiner import write_new_json
+from .examiner import require_named_examiner, write_new_json
 from .isolated_delta import sha256_file
 from .reextraction_gate import (
     EXPORT_SCHEMA_ID,
@@ -31,6 +31,9 @@ PACKET_SCHEMA_VERSION = "1.0"
 DRAFT_SCHEMA_ID = "dbx.page_render_crop_draft"
 DRAFT_SCHEMA_VERSION = "1.0"
 DRAFT_STATUS = "UNAPPROVED_DRAFT"
+QUEUE_SCHEMA_ID = "dbx.crop_fill_queue"
+QUEUE_SCHEMA_VERSION = "1.0"
+FACE_FIELDS = ("rec_date", "grantor", "grantee")
 RECEIPT_SCHEMA_ID = "dbx.page_render_export_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
 RENDER_SUFFIXES = {
@@ -132,6 +135,54 @@ def _render_files(bind_dir: Path) -> List[Path]:
     return sorted(files, key=lambda path: path.name.casefold())
 
 
+def empty_crop_row(page: Dict[str, object]) -> Dict[str, object]:
+    """Empty face row for one hashed page. Does not invent a document number."""
+    number = page.get("page")
+    if type(number) is not int or number < 1:
+        raise PageRenderExportError("page must be an integer >= 1")
+    digest = page.get("source_sha256")
+    return {
+        "row_id": f"page-{number}",
+        "page": number,
+        "crop_id": f"page-{number}",
+        "source_sha256": digest if isinstance(digest, str) else "",
+        "docno": "",
+        "bookpage": "",
+        "rec_date": "",
+        "doc_date": "",
+        "grantor": "",
+        "grantee": "",
+    }
+
+
+def _preserved_crops(
+    existing: object,
+    pages: Sequence[Dict[str, object]],
+) -> List[Dict[str, object]]:
+    """Keep examiner crop text. Seed empty rows only when crops are still empty."""
+    hashes = {
+        item["page"]: item.get("source_sha256")
+        for item in pages
+        if isinstance(item, dict) and type(item.get("page")) is int
+    }
+    kept: List[Dict[str, object]] = []
+    if isinstance(existing, list):
+        for raw in existing:
+            if not isinstance(raw, dict):
+                continue
+            page = raw.get("page")
+            if type(page) is not int:
+                continue
+            crop = dict(raw)
+            digest = hashes.get(page)
+            if isinstance(digest, str) and digest:
+                crop["source_sha256"] = digest
+            kept.append(crop)
+    if kept:
+        return kept
+    return [empty_crop_row(page) for page in pages if type(page.get("page")) is int]
+
+
 def write_crops_draft(
     *,
     output: Path,
@@ -181,14 +232,15 @@ def write_crops_draft(
                 }
             )
     dest = output.expanduser()
+    existing_crops: object = []
     if dest.is_file():
         try:
             existing = json.loads(dest.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise PageRenderExportError(f"Cannot read {dest}: {exc}") from exc
-        crops = existing.get("crops") if isinstance(existing, dict) else None
-        if isinstance(crops, list) and crops:
-            return existing
+        if isinstance(existing, dict):
+            existing_crops = existing.get("crops")
+    crops = _preserved_crops(existing_crops, pages)
     draft = {
         "schema_id": DRAFT_SCHEMA_ID,
         "schema_version": DRAFT_SCHEMA_VERSION,
@@ -196,11 +248,11 @@ def write_crops_draft(
         "packet_id": token,
         "expected_page_count": len(pages),
         "pages": pages,
-        "crops": [],
+        "crops": crops,
         "bind_dir": bind_text,
         "notes": [
             "UNAPPROVED_DRAFT cannot bind page_render",
-            "Add crops with docno and/or bookpage from the page renders",
+            "Fill only text visible on the hashed page render",
             "Bare document numbers stay bare; neighbouring numbers are not guessed",
         ],
     }
@@ -293,6 +345,119 @@ def write_crop_packet(
     except ValueError as exc:
         raise PageRenderExportError(str(exc)) from exc
     return packet
+
+
+def crop_fill_queue_from_draft(draft: Dict[str, object]) -> Dict[str, object]:
+    """List hashed pages that still need face text. Does not invent values."""
+    if not isinstance(draft, dict) or draft.get("schema_id") != DRAFT_SCHEMA_ID:
+        raise PageRenderExportError("page-render crop draft schema is invalid")
+    pages = draft.get("pages")
+    crops = draft.get("crops")
+    if not isinstance(pages, list):
+        raise PageRenderExportError("pages must be a list")
+    if not isinstance(crops, list):
+        raise PageRenderExportError("crops must be a list")
+    paths: Dict[int, object] = {}
+    hashes: Dict[int, object] = {}
+    for raw in pages:
+        if not isinstance(raw, dict) or type(raw.get("page")) is not int:
+            continue
+        paths[raw["page"]] = raw.get("path") or ""
+        hashes[raw["page"]] = raw.get("source_sha256") or ""
+    items: List[Dict[str, object]] = []
+    for raw in crops:
+        if not isinstance(raw, dict) or type(raw.get("page")) is not int:
+            continue
+        page = raw["page"]
+        docno = raw.get("docno") if isinstance(raw.get("docno"), str) else ""
+        bookpage = raw.get("bookpage") if isinstance(raw.get("bookpage"), str) else ""
+        missing: List[str] = []
+        if not docno.strip() and not bookpage.strip():
+            missing.append("docno_or_bookpage")
+        for field_name in FACE_FIELDS:
+            value = raw.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                missing.append(field_name)
+        if not missing:
+            continue
+        items.append(
+            {
+                "row_id": raw.get("row_id") or f"page-{page}",
+                "page": page,
+                "path": paths.get(page, ""),
+                "source_sha256": raw.get("source_sha256") or hashes.get(page, ""),
+                "missing": missing,
+                "action": "source_proved_fill",
+            }
+        )
+    cropped_pages = {
+        raw["page"]
+        for raw in crops
+        if isinstance(raw, dict) and type(raw.get("page")) is int
+    }
+    for page, digest in hashes.items():
+        if page in cropped_pages:
+            continue
+        items.append(
+            {
+                "row_id": f"page-{page}",
+                "page": page,
+                "path": paths.get(page, ""),
+                "source_sha256": digest,
+                "missing": ["docno_or_bookpage", *FACE_FIELDS],
+                "action": "source_proved_fill",
+            }
+        )
+    token = draft.get("packet_id")
+    return {
+        "schema_id": QUEUE_SCHEMA_ID,
+        "schema_version": QUEUE_SCHEMA_VERSION,
+        "packet_id": token if isinstance(token, str) else "",
+        "items": items,
+        "notes": [
+            "This queue does not invent document numbers or parties",
+            "Fill only text visible on the hashed page render",
+            "Bare document numbers stay bare",
+        ],
+    }
+
+
+def write_crop_fill_queue(
+    draft: Dict[str, object],
+    output: Path,
+) -> Dict[str, object]:
+    queue = crop_fill_queue_from_draft(draft)
+    dest = output.expanduser()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(queue, indent=2, sort_keys=True), encoding="utf-8")
+    return queue
+
+
+def attest_crops_draft(
+    draft: Dict[str, object],
+    *,
+    bind_dir: Path,
+    output: Path,
+    operator: str,
+    packet_id: Optional[str] = None,
+) -> Dict[str, object]:
+    """Promote filled crops. Horizon does not invent document numbers."""
+    try:
+        require_named_examiner(operator)
+    except ValueError as exc:
+        raise PageRenderExportError(str(exc)) from exc
+    if (
+        draft.get("schema_id") != DRAFT_SCHEMA_ID
+        or draft.get("schema_version") != DRAFT_SCHEMA_VERSION
+        or draft.get("status") != DRAFT_STATUS
+    ):
+        raise PageRenderExportError("page-render crop draft schema is invalid")
+    return write_crop_packet(
+        draft=draft,
+        bind_dir=bind_dir,
+        output=output,
+        packet_id=packet_id,
+    )
 
 
 def compile_page_renders(
@@ -452,13 +617,16 @@ def build_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--attest", action="store_true")
     parser.add_argument("--init-draft", action="store_true")
     parser.add_argument("--draft", type=Path)
+    parser.add_argument("--from-draft", type=Path)
     parser.add_argument("--packet", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--export", type=Path)
     parser.add_argument("--bind-dir", type=Path)
     parser.add_argument("--packet-id")
+    parser.add_argument("--operator")
     return parser
 
 
@@ -480,6 +648,32 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         "status": draft.get("status"),
                         "page_count": len(draft.get("pages") or []),
                         "crop_count": len(draft.get("crops") or []),
+                        "packages_complete": False,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.attest:
+            draft_path = args.from_draft or args.draft
+            if draft_path is None or args.bind_dir is None or args.operator is None:
+                raise PageRenderExportError(
+                    "--attest requires --from-draft, --bind-dir, and "
+                    "--operator; Horizon does not invent crop text"
+                )
+            packet = attest_crops_draft(
+                _load_json(draft_path),
+                bind_dir=args.bind_dir,
+                output=args.output,
+                operator=args.operator,
+                packet_id=args.packet_id,
+            )
+            print(
+                json.dumps(
+                    {
+                        "output": str(args.output),
+                        "page_count": len(packet["pages"]),
+                        "crop_count": len(packet["crops"]),
                         "packages_complete": False,
                     },
                     indent=2,

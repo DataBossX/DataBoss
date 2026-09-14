@@ -699,7 +699,8 @@ def test_operator_hashes_phase2_snapshot_renders_for_section11(
     )
     assert draft["status"] == "UNAPPROVED_DRAFT"
     assert draft["expected_page_count"] == 1
-    assert draft["crops"] == []
+    assert draft["crops"][0]["docno"] == ""
+    assert draft["crops"][0]["bookpage"] == ""
     assert draft["pages"][0]["path"].endswith("Recorded Faces/page-01.png")
     snap_render = (
         receipts
@@ -738,12 +739,23 @@ def test_operator_writes_section11_crops_draft_from_renders(tmp_path: Path) -> N
     assert draft["schema_id"] == "dbx.page_render_crop_draft"
     assert draft["status"] == "UNAPPROVED_DRAFT"
     assert draft["expected_page_count"] == 1
-    assert draft["crops"] == []
+    assert draft["crops"][0]["docno"] == ""
+    assert draft["crops"][0]["bookpage"] == ""
     assert draft["pages"][0]["source_sha256"] == sha256_file(page)
+    queue_path = receipts / "section11-crop-fill-queue.json"
+    assert queue_path.is_file()
+    queue = json.loads(queue_path.read_text(encoding="utf-8"))
+    assert queue["schema_id"] == "dbx.crop_fill_queue"
+    assert queue["items"][0]["missing"][0] == "docno_or_bookpage"
     joined = "\n".join(receipt.sections[0].next_commands)
     assert "horizon.page_render_export" in joined
+    assert "--attest" in joined
+    assert "--from-draft" in joined
     assert str(renders.resolve()) in joined
     assert "14" not in draft["notes"][0]
+    assert any(
+        "face text" in hold for hold in receipt.sections[0].holds
+    )
 
 
 def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> None:
@@ -798,6 +810,57 @@ def test_execute_discovers_page_render_packet_for_section_11(tmp_path: Path) -> 
     assert "page_render_export" in names
     assert "reextraction" in names
     assert "occurrence_ledger" in names
+
+
+def test_operator_unbinds_stale_crop_packet_hashes(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    (root / "Section 11").mkdir(parents=True)
+    receipts = tmp_path / "private-receipts"
+    renders = receipts / "section11-renders"
+    renders.mkdir(parents=True)
+    (renders / "page-01.png").write_bytes(b"LIVE-RENDER")
+    packet = {
+        "schema_id": "dbx.page_render_crop_packet",
+        "schema_version": "1.0",
+        "packet_id": "SYNTH-P11-CROPS",
+        "expected_page_count": 1,
+        "pages": [
+            {
+                "page": 1,
+                "path": "page-01.png",
+                "source_sha256": "a" * 64,
+            }
+        ],
+        "crops": [
+            {
+                "row_id": "p01r01",
+                "page": 1,
+                "crop_id": "p01r01",
+                "source_sha256": "a" * 64,
+                "docno": "2026-09901",
+                "bookpage": "",
+                "rec_date": "1/2/2026",
+                "doc_date": "",
+                "grantor": "SYNTH SURVEYOR",
+                "grantee": "The Public",
+            }
+        ],
+    }
+    (receipts / "section11-crops.json").write_text(
+        json.dumps(packet), encoding="utf-8"
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    assert any(
+        "do not match the current renders" in hold
+        for hold in receipt.sections[0].holds
+    )
+    assert not (receipts / "section11-finish.json").is_file()
 
 
 def test_execute_inventories_section_pdfs_and_binds_census(tmp_path: Path) -> None:

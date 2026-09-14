@@ -12,7 +12,9 @@ from horizon.package_finish import run_finish
 from horizon.isolated_delta import sha256_file
 from horizon.page_render_export import (
     PageRenderExportError,
+    attest_crops_draft,
     compile_page_renders,
+    crop_fill_queue_from_draft,
     write_crop_packet,
     write_crops_draft,
 )
@@ -103,7 +105,10 @@ def test_crops_draft_hashes_renders_and_leaves_crops_blank(tmp_path: Path) -> No
     assert draft["schema_id"] == "dbx.page_render_crop_draft"
     assert draft["status"] == "UNAPPROVED_DRAFT"
     assert draft["expected_page_count"] == 2
-    assert draft["crops"] == []
+    assert len(draft["crops"]) == 2
+    assert draft["crops"][0]["docno"] == ""
+    assert draft["crops"][0]["bookpage"] == ""
+    assert draft["crops"][0]["page"] == 1
     assert draft["pages"][0]["path"] == "page-01.png"
     assert draft["pages"][0]["source_sha256"] == sha256_file(first)
     with pytest.raises(PageRenderExportError, match="invalid top-level"):
@@ -156,7 +161,79 @@ def test_crops_draft_hashes_authorized_subset_with_relative_paths(
     assert draft["expected_page_count"] == 1
     assert draft["pages"][0]["path"] == "pc/Section 11/Recorded Faces/page-01.png"
     assert draft["pages"][0]["source_sha256"] == sha256_file(render)
-    assert draft["crops"] == []
+    assert draft["crops"][0]["docno"] == ""
+    assert draft["crops"][0]["bookpage"] == ""
+
+
+def test_crop_fill_queue_and_attest_keep_values_writer_held(tmp_path: Path) -> None:
+    bind = tmp_path / "renders"
+    bind.mkdir()
+    render = bind / "page-01.png"
+    render.write_bytes(b"PNG-ONE")
+    draft = write_crops_draft(
+        output=tmp_path / "draft.json",
+        packet_id="SECTION11-CROPS",
+        bind_dir=bind,
+    )
+    queue = crop_fill_queue_from_draft(draft)
+    assert queue["schema_id"] == "dbx.crop_fill_queue"
+    assert queue["items"][0]["missing"][0] == "docno_or_bookpage"
+    assert queue["items"][0]["action"] == "source_proved_fill"
+    with pytest.raises(PageRenderExportError, match="named examiner"):
+        attest_crops_draft(
+            draft,
+            bind_dir=bind,
+            output=tmp_path / "nope.json",
+            operator="EXAMINER_NAME",
+        )
+    with pytest.raises(PageRenderExportError, match="neither docno nor bookpage"):
+        attest_crops_draft(
+            draft,
+            bind_dir=bind,
+            output=tmp_path / "empty.json",
+            operator="Pat Examiner",
+        )
+    draft["crops"][0]["docno"] = "2026-09901"
+    draft["crops"][0]["rec_date"] = "1/2/2026"
+    draft["crops"][0]["grantor"] = "SYNTH SURVEYOR"
+    draft["crops"][0]["grantee"] = "The Public"
+    packet = attest_crops_draft(
+        draft,
+        bind_dir=bind,
+        output=tmp_path / "crops.json",
+        operator="Pat Examiner",
+    )
+    assert packet["schema_id"] == "dbx.page_render_crop_packet"
+    assert packet["crops"][0]["docno"] == "2026-09901"
+    assert packet["crops"][0]["bookpage"] == ""
+    remaining = crop_fill_queue_from_draft(draft)
+    assert remaining["items"] == []
+
+
+def test_crops_draft_rehashes_pages_without_overwriting_crop_text(
+    tmp_path: Path,
+) -> None:
+    bind = tmp_path / "renders"
+    bind.mkdir()
+    render = bind / "page-01.png"
+    render.write_bytes(b"PNG-ONE")
+    dest = tmp_path / "draft.json"
+    draft = write_crops_draft(
+        output=dest,
+        packet_id="SECTION11-CROPS",
+        bind_dir=bind,
+    )
+    draft["crops"][0]["docno"] = "2026-09901"
+    dest.write_text(json.dumps(draft), encoding="utf-8")
+    render.write_bytes(b"PNG-TWO")
+    refreshed = write_crops_draft(
+        output=dest,
+        packet_id="SECTION11-CROPS",
+        bind_dir=bind,
+    )
+    assert refreshed["crops"][0]["docno"] == "2026-09901"
+    assert refreshed["pages"][0]["source_sha256"] == sha256_file(render)
+    assert refreshed["crops"][0]["source_sha256"] == sha256_file(render)
 
 
 def test_hash_mismatch_and_missing_identity_fail() -> None:

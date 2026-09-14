@@ -32,7 +32,11 @@ from .isolated_delta import (
 )
 from .human_release import HumanReleaseError, write_human_release_draft
 from .native_print import NativePrintError, write_native_print_draft
-from .page_render_export import PageRenderExportError, write_crops_draft
+from .page_render_export import (
+    PageRenderExportError,
+    crop_fill_queue_from_draft,
+    write_crops_draft,
+)
 from .package_finish import PackageFinishError, run_finish
 from .pdf_census import PdfCensusError, write_inventory_packet
 from .workbook_ledger import (
@@ -654,21 +658,22 @@ def _section_commands(
                     "python3",
                     "-m",
                     "horizon.page_render_export",
-                    "--write",
-                    "--draft",
+                    "--attest",
+                    "--from-draft",
                     f"{receipt_dir}/section{section}-crops-draft.json",
                     "--bind-dir",
                     str(render_dir) if render_dir is not None else "RENDER_DIR",
                     "--output",
                     f"{receipt_dir}/section{section}-crops.json",
-                    "--packet-id",
-                    f"SECTION{section}-CROPS",
+                    "--operator",
+                    "EXAMINER_NAME",
                 ]
             )
         )
         commands.append(
-            "Fill crops in section11-crops-draft.json from the page renders; "
-            "leave bare document numbers bare. Horizon does not invent docnos"
+            "Fill only face text in section11-crops-draft.json from the "
+            "hashed page renders, then attest; leave bare document numbers "
+            "bare. Horizon does not invent docnos"
         )
     return commands
 
@@ -726,6 +731,14 @@ def _section_work_order(
         bound, isolated if isolated.is_file() else None
     )
     holds.extend(stale_holds)
+    crops_bind = _crops_bind_dir(
+        Path(receipt_dir),
+        section,
+        inventory,
+        str(Path(receipt_dir) / f"section{section}-crops-draft.json"),
+    )
+    bound, crop_holds = _unbind_stale_crop_packet(bound, crops_bind)
+    holds.extend(crop_holds)
     try:
         receipt_json = sorted(Path(receipt_dir).glob("*.json"))
     except OSError:
@@ -1102,6 +1115,61 @@ def _unbind_stale_workbook_packets(
     )
 
 
+def _crop_packet_matches_renders(path: Path, bind_dir: Path) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("schema_id") != "dbx.page_render_crop_packet":
+        return False
+    pages = payload.get("pages")
+    if not isinstance(pages, list) or not pages:
+        return False
+    bind = bind_dir.expanduser().resolve()
+    checked = False
+    for raw in pages:
+        if not isinstance(raw, dict):
+            return False
+        relative = raw.get("path")
+        digest = raw.get("source_sha256")
+        if not isinstance(relative, str) or not relative.strip():
+            continue
+        checked = True
+        render = (bind / relative).resolve()
+        if bind not in render.parents and render != bind:
+            return False
+        if not render.is_file():
+            return False
+        if sha256_file(render) != str(digest or "").casefold():
+            return False
+    return True if checked else True
+
+
+def _unbind_stale_crop_packet(
+    bindings: FinishBindings,
+    bind_dir: Optional[Path],
+) -> tuple[FinishBindings, List[str]]:
+    """Drop a crop packet whose page hashes no longer match live renders."""
+    packet = bindings.page_render_packet
+    if packet is None or bind_dir is None:
+        return bindings, []
+    try:
+        resolved = bind_dir.expanduser().resolve()
+        if not resolved.is_dir() or _crop_packet_matches_renders(packet, resolved):
+            return bindings, []
+    except OSError:
+        return bindings, []
+    return (
+        replace(bindings, page_render_packet=None),
+        [
+            "Page-render crop packet hashes do not match the current renders; "
+            "re-attest section11-crops-draft.json"
+        ],
+    )
+
+
 def _current_isolated_workbook(receipt_dir: str, section: int) -> str:
     latest = _latest_isolated_path(Path(receipt_dir), section)
     if latest is not None:
@@ -1222,6 +1290,67 @@ def _write_section_crops_draft(
     except (OSError, PageRenderExportError) as exc:
         return None, str(exc)
     return str(dest), None
+
+
+def _write_crop_fill_queue(
+    crops_draft: Optional[str],
+    receipt_dir: Path,
+    section: int,
+) -> tuple[Optional[str], Optional[str], int]:
+    dest = receipt_dir / f"section{section}-crop-fill-queue.json"
+    if section != 11 or not crops_draft:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    try:
+        draft = json.loads(Path(crops_draft).read_text(encoding="utf-8"))
+        if not isinstance(draft, dict):
+            return None, "crops draft is not a JSON object", 0
+        queue = crop_fill_queue_from_draft(draft)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        PageRenderExportError,
+    ) as exc:
+        return None, str(exc), 0
+    items = queue.get("items")
+    count = len(items) if isinstance(items, list) else 0
+    if count == 0:
+        if dest.is_file():
+            dest.unlink()
+        return None, None, 0
+    dest.write_text(json.dumps(queue, indent=2, sort_keys=True), encoding="utf-8")
+    return str(dest), None, count
+
+
+def _crops_bind_dir(
+    receipt_dir: Path,
+    section: int,
+    inventory: Optional[AcquisitionReceipt],
+    crops_draft: Optional[str],
+) -> Optional[Path]:
+    examiner = _section_render_bind_dir(receipt_dir, section)
+    if examiner is not None:
+        return examiner
+    snap_bind, _ = _source_document_renders(inventory, section)
+    if snap_bind is not None:
+        return snap_bind
+    if not crops_draft:
+        return None
+    try:
+        payload = json.loads(Path(crops_draft).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    bind_text = payload.get("bind_dir") if isinstance(payload, dict) else ""
+    if isinstance(bind_text, str) and bind_text.strip():
+        candidate = Path(bind_text)
+        try:
+            if candidate.is_dir():
+                return candidate.resolve()
+        except OSError:
+            return None
+    return None
 
 
 def _section_render_bind_dir(receipt_dir: Path, section: int) -> Optional[Path]:
@@ -1636,6 +1765,23 @@ def _execute_section(
         order.executed_outputs.append(crops_draft)
     if crops_error:
         order.holds.append(f"Page-render crops draft failed: {crops_error}")
+    queue_path, queue_error, crop_blanks = _write_crop_fill_queue(
+        crops_draft, receipt_dir, order.section
+    )
+    if queue_path:
+        order.executed_outputs.append(queue_path)
+    if queue_error:
+        order.holds.append(f"Crop fill queue failed: {queue_error}")
+    elif crop_blanks:
+        order.holds.append(
+            f"{crop_blanks} page-render crop(s) still need face text; "
+            f"see section{order.section}-crop-fill-queue.json"
+        )
+    crops_bind = _crops_bind_dir(
+        receipt_dir, order.section, phase2, crops_draft
+    )
+    bound, crop_holds = _unbind_stale_crop_packet(bound, crops_bind)
+    order.holds.extend(crop_holds)
     if not any((master, pdf_index, handwritten, bound.page_render_packet)):
         order.execute_error = "no exportable source workbooks or page-render packet"
         order.next_commands = _section_commands(
@@ -1759,6 +1905,8 @@ def _execute_section(
         order.executed_outputs = [str(finish_path)]
         if crops_draft:
             order.executed_outputs.append(crops_draft)
+        if queue_path:
+            order.executed_outputs.append(queue_path)
         if index_packet_path is not None:
             order.executed_outputs.append(str(index_packet_path))
         if letter_path.exists():

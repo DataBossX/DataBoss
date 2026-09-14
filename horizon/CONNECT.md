@@ -30,8 +30,8 @@ run before treating a connection as available:
 
 The PC that can see Drive remains the only host that can run
 `pc_operator --execute`, attest Print Preview / owner-review / 2+ source
-delta drafts / one-source templates, and promote authority. Do not start
-a second controller.
+delta drafts / one-source templates / Section 11 crop drafts, and promote
+authority. Do not start a second controller.
 
 ## PC work order
 

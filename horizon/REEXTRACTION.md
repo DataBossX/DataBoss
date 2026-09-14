@@ -52,18 +52,24 @@ numbers stay bare.
 `section11-renders/` when that directory exists. After Phase 2, authorized
 snapshot `source_document` images/PDFs are hashed the same way when the
 examiner render directory is absent. Phase 1 live files are not used.
-Pages are hashed. Crops stay empty. Horizon does not invent document
-numbers or a historical page count. Fill Book/Page, dates, and parties
-from the renders, then:
+Pages are hashed. Each hashed page gets an empty crop skeleton.
+Horizon does not invent document numbers or a historical page count.
+`--execute` also writes `section11-crop-fill-queue.json` listing pages
+that still need face text. Fill Book/Page, dates, and parties from the
+renders, then attest with a named examiner:
 
 ```bash
 python3 -m horizon.page_render_export \
-  --write \
-  --draft /path/to/section11-crops-draft.json \
+  --attest \
+  --from-draft /path/to/section11-crops-draft.json \
   --bind-dir /path/to/page-renders \
   --output /path/to/page-render-crop-packet.json \
-  --packet-id SECTION11-CROPS
+  --operator "Pat Examiner"
 ```
+
+`--write` still wraps an already-filled draft without an operator name.
+A discovered crop packet whose page hashes no longer match the live
+renders is unbound.
 
 Compile crops from page renders without guessing a document number:
 

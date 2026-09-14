@@ -67,8 +67,11 @@ python3 -m horizon.pc_operator \
    `section11-renders/` (or `section11-crops/`). After Phase 2, authorized
    snapshot `source_document` renders are used when that examiner
    directory is absent. Phase 1 live files are not hashed into the draft.
-   Crops stay empty until the examiner fills Book/Page, dates, and
-   parties. Existing crop text is not overwritten.
+   Empty crop skeletons are seeded per hashed page. Existing crop text
+   is not overwritten. `--execute` also writes
+   `section11-crop-fill-queue.json` for remaining face fills. Attest the
+   draft after a writer holds source-proved text. Crop packets whose
+   page hashes no longer match the live renders are unbound.
 4. For each requested section, names classified-file gaps and still-unauthorized
    required roles, picks the first sorted master / PDF-index / handwritten /
    working workbook candidates, and writes copy-paste `horizon.index_export`

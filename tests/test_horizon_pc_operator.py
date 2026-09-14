@@ -264,7 +264,7 @@ def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:
     sheet = isolated["Index"]
     assert sheet["H9"].value == "SYNTH TRACT 15-45N-76W"
     assert sheet.page_setup.orientation == "landscape"
-    assert sheet.page_setup.paperSize == sheet.PAPERSIZE_LETTER
+    assert int(sheet.page_setup.paperSize) == 1
     assert sheet.print_title_rows == "1:8"
     isolated.close()
     draft = json.loads(

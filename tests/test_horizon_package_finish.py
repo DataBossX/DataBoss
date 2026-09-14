@@ -595,7 +595,8 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
         ),
         encoding="utf-8",
     )
-    drive = tmp_path / "drive-copy.xlsx"
+    drive = tmp_path / "Section 15" / "Isolated" / "section15-letter.xlsx"
+    drive.parent.mkdir(parents=True)
     drive.write_bytes(candidate.read_bytes())
     release = tmp_path / "release.json"
     release.write_text(
@@ -633,7 +634,7 @@ def test_writer_held_evidence_can_complete_one_synthetic_section(
     drive_gate = next(
         gate for gate in receipt.gates if gate.name == "drive_readback"
     )
-    assert drive_gate.detail.get("isolated_copy") is False
+    assert drive_gate.detail.get("isolated_copy") is True
     reextraction = next(
         gate for gate in receipt.gates if gate.name == "reextraction"
     )

@@ -1,8 +1,9 @@
 """Fail-closed human release token and package-completion predicate.
 
 ``packages_complete`` is true only when every required finish gate ran and
-passed and a writer-held owner-review token matches the isolated workbook
-hash. The token cannot claim external delivery or READY_TO_SUBMIT.
+passed, Drive readback is an Isolated/ copy, and a writer-held
+owner-review token matches the isolated workbook hash. The token cannot
+claim external delivery or READY_TO_SUBMIT.
 """
 
 from __future__ import annotations
@@ -410,6 +411,16 @@ def evaluate_package_completion(
         gate = by_name.get(name)
         if gate is None or not gate.technical_pass:
             missing.append(f"required gate {name} did not pass")
+            continue
+        if name == "drive_readback":
+            detail = getattr(gate, "detail", {}) or {}
+            if (
+                not isinstance(detail, dict)
+                or detail.get("isolated_copy") is not True
+            ):
+                missing.append(
+                    "required gate drive_readback Isolated/ copy is not bound"
+                )
     if not _index_fields_complete(by_name):
         missing.append(
             "index fields are not complete (reconciliation or repair loop)"

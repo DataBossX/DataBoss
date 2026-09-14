@@ -84,7 +84,7 @@ def test_completion_requires_every_required_gate() -> None:
         _gate("index_reconciliation", blank_required_count=0, conflict_count=0),
         _gate("workbook_qa"),
         _gate("native_print"),
-        _gate("drive_readback"),
+        _gate("drive_readback", isolated_copy=True),
         _gate("human_release"),
     ]
     complete, missing = evaluate_package_completion(gates, requested_sections=[15])
@@ -96,6 +96,16 @@ def test_completion_requires_every_required_gate() -> None:
     assert complete is False
     assert any("drive_readback" in item for item in missing)
 
+    gates[-2] = _gate("drive_readback", isolated_copy=False)
+    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    assert complete is False
+    assert any("Isolated/" in item for item in missing)
+
+    gates[-2] = _gate("drive_readback")
+    complete, missing = evaluate_package_completion(gates, requested_sections=[15])
+    assert complete is False
+    assert any("Isolated/" in item for item in missing)
+
 
 def test_repair_loop_can_satisfy_index_fields() -> None:
     gates = [
@@ -105,7 +115,7 @@ def test_repair_loop_can_satisfy_index_fields() -> None:
         _gate("repair_loop", remaining_blanks=0, remaining_conflicts=0),
         _gate("workbook_qa"),
         _gate("native_print"),
-        _gate("drive_readback"),
+        _gate("drive_readback", isolated_copy=True),
         _gate("human_release"),
     ]
     complete, missing = evaluate_package_completion(gates, requested_sections=[15])

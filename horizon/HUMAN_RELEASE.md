@@ -10,8 +10,12 @@
    conflicts, or a `repair_loop` that ended the same way)
 5. `workbook_qa` passed
 6. `native_print` passed
-7. `drive_readback` passed
+7. `drive_readback` passed with an Isolated/ copy of that section's file
 8. `human_release` passed
+
+A receipt-dir same-hash copy can satisfy the Drive readback hash gate.
+It does not complete a package. `packages_complete` stays false until
+finish records `isolated_copy`.
 
 ## Token
 

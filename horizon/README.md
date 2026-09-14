@@ -112,7 +112,8 @@ See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`CONNECT.md`](CONNECT.md),
 [`PC_OPERATOR.md`](PC_OPERATOR.md), and
 [`HUMAN_RELEASE.md`](HUMAN_RELEASE.md). `packages_complete` stays false until
-a verified snapshot, source-backed rows, native Excel, and human release exist.
+a verified snapshot, source-backed rows, native Excel, a Drive Isolated/
+copy, and human release exist.
 
 ### Build a report from the reference workbook (Intelligence Layer)
 

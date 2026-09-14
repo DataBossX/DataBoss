@@ -143,7 +143,8 @@ python3 -m horizon.pc_operator \
    and Print Preview of that file before a copy-paste re-export. It
    does not invent field values or copy cell text.
       `packages_complete` is true only if every requested section's finish
-   receipt already satisfies the owner-review completion predicate.
+   receipt already satisfies the owner-review completion predicate,
+   including a Drive Isolated/ copy of that section's file.
 
 ## What it never does
 

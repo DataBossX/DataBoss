@@ -78,8 +78,9 @@ root. Later runs verify the existing snapshot from `--acquisition-receipt`
 instead of creating a second copy. Downstream index export must read those
 verified snapshot bytes, not drifted live Drive/PC files. Without Phase 2
 controls, acquisition stays Phase 1 inventory and cannot authorize
-extraction. `packages_complete` is true only when every required gate passed
-and a writer-held `--human-release-token` matches the isolated workbook hash.
+extraction. `packages_complete` is true only when every required gate passed,
+Drive readback is an Isolated/ copy, and a writer-held
+`--human-release-token` matches the isolated workbook hash.
 The token statement must be the owner-review declaration;
 `external_release` must be false. `READY_TO_SUBMIT` and external-delivery
 claims are rejected. This runner cannot satisfy that predicate from an

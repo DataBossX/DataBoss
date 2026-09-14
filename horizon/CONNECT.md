@@ -32,8 +32,10 @@ python3 -m horizon.pc_operator \
 
 The operator probes connections, runs Phase 1 inventory only, and emits
 per-section next commands (three-workbook `index_export`, then
-`package_finish`). It does not copy client files, does not start Phase 2,
-and `packages_complete` stays false. See [`PC_OPERATOR.md`](PC_OPERATOR.md).
+`package_finish`). Pass `--execute` on the PC to run those isolated hops
+into a private `--receipt-dir` outside this repository. It does not copy
+client files into the repo and does not start Phase 2. See
+[`PC_OPERATOR.md`](PC_OPERATOR.md).
 
 ## Occurrence packet from page-render crops
 

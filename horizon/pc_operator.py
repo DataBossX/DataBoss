@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
+from .index_export import IndexExportError, export_index_packet
+from .package_finish import PackageFinishError, run_finish
 from .source_acquisition import (
     DEFAULT_REQUIRED_ROLES,
     PRIORITY_SECTIONS,
@@ -36,7 +38,8 @@ _CANDIDATE_ROLE_EQUIVALENTS = {
 }
 
 RECEIPT_SCHEMA_ID = "dbx.pc_operator_receipt"
-RECEIPT_SCHEMA_VERSION = "1.0"
+RECEIPT_SCHEMA_VERSION = "1.1"
+REPO_ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_RECEIPT_PLACEHOLDER = "<private-receipts>"
 SECTION_HOLDS = {
     15: (
@@ -98,6 +101,11 @@ class SectionWorkOrder:
     candidate_picks: List[CandidatePick]
     next_commands: List[str]
     holds: List[str]
+    executed: bool = False
+    finish_technical_pass: Optional[bool] = None
+    finish_packages_complete: Optional[bool] = None
+    executed_outputs: List[str] = field(default_factory=list)
+    execute_error: str = ""
 
 
 @dataclass
@@ -122,6 +130,7 @@ class OperatorReceipt:
             "Do not copy client files into the public repository",
             "Do not start a second Landman Helper controller",
             "technical_pass means readable roots were probed and Phase 1 ran",
+            "--execute writes isolated packets under receipt-dir only",
         ]
     )
 
@@ -137,6 +146,16 @@ def _receipt_dir(receipt_dir: Optional[Path]) -> str:
     if receipt_dir is None:
         return PRIVATE_RECEIPT_PLACEHOLDER
     return str(receipt_dir.expanduser().resolve())
+
+
+def assert_private_receipt_dir(path: Path) -> Path:
+    resolved = path.expanduser().resolve()
+    if resolved == REPO_ROOT or REPO_ROOT in resolved.parents:
+        raise PcOperatorError(
+            "receipt-dir must be outside this repository; do not write "
+            "client packets or isolated copies here"
+        )
+    return resolved
 
 
 def _absolute_file(roots: Dict[str, str], item: SourceFile) -> str:
@@ -408,12 +427,76 @@ def _issue_lines(issues: Sequence[SourceIssue], limit: int = 20) -> List[str]:
     return lines[:limit]
 
 
+def _execute_section(
+    order: SectionWorkOrder,
+    *,
+    root_args: Sequence[str],
+    receipt_dir: Path,
+) -> None:
+    master = _slot_path(order.candidate_picks, "master")
+    pdf_index = _slot_path(order.candidate_picks, "pdf_index")
+    handwritten = _slot_path(order.candidate_picks, "handwritten")
+    candidate = _slot_path(order.candidate_picks, "candidate")
+    if not any((master, pdf_index, handwritten)):
+        order.execute_error = "no exportable source workbooks"
+        return
+    packet_path = receipt_dir / f"section{order.section}-index-packet.json"
+    finish_path = receipt_dir / f"section{order.section}-finish.json"
+    repair_dir = receipt_dir / f"section{order.section}-repair"
+    letter_path = receipt_dir / f"section{order.section}-letter.xlsx"
+    try:
+        packet = export_index_packet(
+            f"SECTION{order.section}-INDEX",
+            master=Path(master) if master else None,
+            pdf_index=Path(pdf_index) if pdf_index else None,
+            handwritten=Path(handwritten) if handwritten else None,
+            candidate=Path(candidate) if candidate else None,
+        )
+        packet_path.write_text(
+            json.dumps(packet, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        finish = run_finish(
+            sections=[order.section],
+            roots=list(root_args),
+            connect_status=True,
+            index_packet=packet_path,
+            workbook=Path(candidate) if candidate else None,
+            repair_dir=repair_dir if candidate else None,
+            print_layout_output=letter_path if candidate else None,
+        )
+        finish_path.write_text(
+            json.dumps(finish.to_dict(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        order.executed = True
+        order.finish_technical_pass = finish.technical_pass
+        order.finish_packages_complete = finish.packages_complete
+        order.executed_outputs = [str(packet_path), str(finish_path)]
+        if candidate:
+            order.executed_outputs.append(str(letter_path))
+        if finish.packages_complete:
+            order.holds.append(
+                "Finish runner reported packages_complete; owner review "
+                "only, not an external client delivery"
+            )
+    except (
+        OSError,
+        IndexExportError,
+        PackageFinishError,
+        PcOperatorError,
+    ) as exc:
+        order.executed = True
+        order.execute_error = str(exc)
+
+
 def build_work_order(
     *,
     roots: Sequence[str] = (),
     sections: Sequence[int] = PRIORITY_SECTIONS,
     receipt_dir: Optional[Path] = None,
     required_roles: Sequence[str] = DEFAULT_REQUIRED_ROLES,
+    execute: bool = False,
 ) -> OperatorReceipt:
     if not sections or any(section not in PRIORITY_SECTIONS for section in sections):
         raise PcOperatorError(f"Requested sections must come from {PRIORITY_SECTIONS}")
@@ -421,9 +504,17 @@ def build_work_order(
         raise PcOperatorError("Requested sections must be unique")
     if any(role not in SOURCE_ROLES for role in required_roles):
         raise PcOperatorError(f"Required roles must come from {sorted(SOURCE_ROLES)}")
+    dest_path: Optional[Path] = None
+    if execute:
+        if receipt_dir is None:
+            raise PcOperatorError(
+                "--execute requires --receipt-dir outside this repository"
+            )
+        dest_path = assert_private_receipt_dir(receipt_dir)
+        dest_path.mkdir(parents=True, exist_ok=True)
     connections = probe_connections(roots)
     readable = _readable_root_args(connections)
-    dest = _receipt_dir(receipt_dir)
+    dest = str(dest_path) if dest_path is not None else _receipt_dir(receipt_dir)
     inventory: Optional[AcquisitionReceipt] = None
     inventory_error = ""
     phase = "blocked"
@@ -448,6 +539,13 @@ def build_work_order(
         )
         for section in sections
     ]
+    if execute and dest_path is not None and phase == "phase1_inventory":
+        for order in work_orders:
+            _execute_section(
+                order,
+                root_args=readable,
+                receipt_dir=dest_path,
+            )
     next_actions = list(connections.next_actions)
     if phase != "phase1_inventory":
         next_actions.append(
@@ -460,10 +558,18 @@ def build_work_order(
             "Review Phase 1 hashes, then create a human-approved authority "
             "manifest before any Phase 2 snapshot"
         )
-        next_actions.append(
-            "Run the per-section next_commands on the PC; write receipts "
-            f"under {dest} and never into the public repository"
-        )
+        if execute:
+            next_actions.append(
+                "Executed isolated recon/repair under "
+                f"{dest}; review finish receipts and do not copy them into "
+                "the public repository"
+            )
+        else:
+            next_actions.append(
+                "Run the per-section next_commands on the PC, or rerun with "
+                f"--execute --receipt-dir {dest}; never write into the "
+                "public repository"
+            )
     if inventory_error:
         next_actions.append(f"Resolve inventory error: {inventory_error}")
     ready = [order.section for order in work_orders if order.ready_for_extraction]
@@ -486,7 +592,14 @@ def build_work_order(
             f"Filename classification marked {ready} ready_for_extraction; "
             "that is not legal authority"
         )
+    if execute and phase != "phase1_inventory":
+        next_actions.append(
+            "Cannot execute recon/repair until readable pc=/drive= roots exist"
+        )
     next_actions.append("Do not treat this receipt as package release")
+    packages_complete = bool(work_orders) and all(
+        order.finish_packages_complete is True for order in work_orders
+    )
     return OperatorReceipt(
         generated_utc=datetime.now(timezone.utc).isoformat(),
         requested_sections=list(sections),
@@ -503,7 +616,7 @@ def build_work_order(
         ),
         sections=work_orders,
         next_actions=next_actions,
-        packages_complete=False,
+        packages_complete=packages_complete,
         technical_pass=phase == "phase1_inventory",
     )
 
@@ -527,7 +640,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--receipt-dir",
         type=Path,
-        help="Private directory named in generated commands; not created here",
+        help="Private directory named in generated commands; required with --execute",
+    )
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help=(
+            "Run isolated index export, recon, and repair into receipt-dir. "
+            "Does not copy sources into this repository."
+        ),
     )
     parser.add_argument(
         "--require-role",
@@ -546,6 +667,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             sections=args.sections or list(PRIORITY_SECTIONS),
             receipt_dir=args.receipt_dir,
             required_roles=args.required_roles or DEFAULT_REQUIRED_ROLES,
+            execute=args.execute,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),
@@ -568,6 +690,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         "missing_candidate_roles": order.missing_candidate_roles,
                         "missing_required_roles": order.missing_required_roles,
                         "command_count": len(order.next_commands),
+                        "executed": order.executed,
+                        "finish_technical_pass": order.finish_technical_pass,
+                        "finish_packages_complete": order.finish_packages_complete,
+                        "execute_error": order.execute_error,
                     }
                     for order in receipt.sections
                 ],

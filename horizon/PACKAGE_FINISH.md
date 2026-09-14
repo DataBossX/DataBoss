@@ -38,7 +38,10 @@ be blank on modern e-recorded rows. The Index sheet must be US Letter
 
 `--index-packet` reconciles master, PDF, and handwritten indexes, scores
 required fields with provenance and confidence, and emits isolated-delta
-proposals only when at least two sources agree. See
+proposals only when at least two sources agree. If the packet is omitted,
+`--master-workbook` / `--pdf-workbook` / `--handwritten-workbook` (and the
+candidate `--workbook`) build that packet in memory. Do not pass both a
+packet and the three workbooks unless `--repair-dir` owns the hop. See
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md).
 
 `--repair-dir` runs up to `--max-loops` (default 10) isolated

@@ -33,6 +33,7 @@ from .reextraction_gate import (
     parse_ledger_export,
     parse_oracle,
 )
+from .index_export import IndexExportError, export_index_packet
 from .index_reconciliation import (
     IndexReconciliationError,
     reconcile_indexes,
@@ -548,6 +549,13 @@ def run_finish(
                     error=str(exc),
                 )
             )
+    source_workbooks = any(
+        (master_workbook, pdf_workbook, handwritten_workbook)
+    )
+    if index_packet is not None and source_workbooks and repair_dir is None:
+        raise PackageFinishError(
+            "Use --index-packet or the three source workbooks, not both"
+        )
     if index_packet is not None and repair_dir is None:
         try:
             recon = reconcile_indexes(_load_json(index_packet))
@@ -567,6 +575,47 @@ def run_finish(
                 )
             )
         except (OSError, IndexReconciliationError, PackageFinishError) as exc:
+            gates.append(
+                GateResult(
+                    name="index_reconciliation",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
+    elif source_workbooks and repair_dir is None:
+        try:
+            built = export_index_packet(
+                "finish-index",
+                master=master_workbook,
+                pdf_index=pdf_workbook,
+                handwritten=handwritten_workbook,
+                candidate=workbook,
+                profile_path=workbook_profile,
+            )
+            recon = reconcile_indexes(built)
+            gates.append(
+                GateResult(
+                    name="index_reconciliation",
+                    ran=True,
+                    technical_pass=recon.technical_pass,
+                    detail={
+                        "source_counts": recon.source_counts,
+                        "proposed_delta_count": len(recon.proposed_deltas),
+                        "conflict_count": recon.conflict_count,
+                        "blank_required_count": recon.blank_required_count,
+                        "low_confidence_blank_count": recon.low_confidence_blank_count,
+                        "issue_count": len(recon.issues),
+                        "built_from": "source_workbooks",
+                    },
+                )
+            )
+        except (
+            OSError,
+            IndexExportError,
+            IndexReconciliationError,
+            PackageFinishError,
+        ) as exc:
             gates.append(
                 GateResult(
                     name="index_reconciliation",

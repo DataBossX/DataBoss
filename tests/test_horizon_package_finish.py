@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 
 import openpyxl
+import pytest
 
 from horizon.isolated_delta import sha256_file
-from horizon.package_finish import main, run_finish
+from horizon.package_finish import PackageFinishError, main, run_finish
 from horizon.workbook_qa import inspect_workbook, load_workbook_profile
 
 
@@ -227,6 +228,47 @@ def _index_packet() -> dict:
         },
         "orphan_allowlist": [],
     }
+
+
+def test_three_workbooks_reconcile_without_a_packet_file(tmp_path: Path) -> None:
+    master = tmp_path / "master.xlsx"
+    pdf = tmp_path / "pdf.xlsx"
+    hand = tmp_path / "hand.xlsx"
+    candidate = tmp_path / "candidate.xlsx"
+    _penterra_workbook(master)
+    _penterra_workbook(pdf)
+    _penterra_workbook(hand)
+    _penterra_workbook(candidate)
+    receipt = run_finish(
+        sections=[15],
+        workbook=candidate,
+        master_workbook=master,
+        pdf_workbook=pdf,
+        handwritten_workbook=hand,
+    )
+    assert receipt.packages_complete is False
+    names = [gate.name for gate in receipt.gates]
+    assert names[0] == "index_reconciliation"
+    assert "workbook_qa" in names
+    recon = receipt.gates[0]
+    assert recon.technical_pass is True
+    assert recon.detail["built_from"] == "source_workbooks"
+    assert recon.detail["proposed_delta_count"] == 0
+
+
+def test_index_packet_and_source_workbooks_conflict_without_repair(
+    tmp_path: Path,
+) -> None:
+    packet = tmp_path / "index.json"
+    master = tmp_path / "master.xlsx"
+    packet.write_text(json.dumps(_index_packet()), encoding="utf-8")
+    _penterra_workbook(master)
+    with pytest.raises(PackageFinishError, match="not both"):
+        run_finish(
+            sections=[15],
+            index_packet=packet,
+            master_workbook=master,
+        )
 
 
 def test_index_reconciliation_gate_scores_fields_without_completing_packages(

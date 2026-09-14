@@ -6,8 +6,9 @@ import json
 from pathlib import Path
 
 import openpyxl
+import pytest
 
-from horizon.pc_operator import build_work_order, main
+from horizon.pc_operator import PcOperatorError, build_work_order, main
 
 
 PENTERRA_HEADERS = [
@@ -130,6 +131,45 @@ def test_pdf_index_is_not_treated_as_exportable(tmp_path: Path) -> None:
     joined = "\n".join(order.next_commands)
     assert "--pdf-index" not in joined
     assert "--master" in joined
+
+
+def test_execute_runs_isolated_recon_without_completing(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    receipts = tmp_path / "private-receipts"
+    source = root / "Section 15" / "Working Abstract.xlsx"
+    before = source.read_bytes()
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    assert receipt.technical_pass is True
+    order = receipt.sections[0]
+    assert order.executed is True
+    assert order.execute_error == ""
+    assert order.finish_packages_complete is False
+    packet = receipts / "section15-index-packet.json"
+    finish = receipts / "section15-finish.json"
+    letter = receipts / "section15-letter.xlsx"
+    assert packet.is_file()
+    assert finish.is_file()
+    assert letter.is_file()
+    payload = json.loads(finish.read_text(encoding="utf-8"))
+    assert payload["packages_complete"] is False
+    assert source.read_bytes() == before
+    assert any("Executed isolated" in action for action in receipt.next_actions)
+
+
+def test_execute_refuses_repo_receipt_dir_and_requires_private_dir() -> None:
+    repo_horizon = Path(__file__).resolve().parents[1] / "horizon"
+    with pytest.raises(PcOperatorError, match="outside this repository"):
+        build_work_order(execute=True, receipt_dir=repo_horizon)
+    with pytest.raises(PcOperatorError, match="receipt-dir"):
+        build_work_order(execute=True)
 
 
 def test_cli_writes_receipt_and_stays_incomplete(tmp_path: Path) -> None:

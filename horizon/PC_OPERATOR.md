@@ -8,6 +8,7 @@ python3 -m horizon.pc_operator \
   --root "pc=/mnt/d/DataBossX/Projects" \
   --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
   --section 15 --section 13 --section 11 \
+  --execute \
   --receipt-dir /mnt/d/DataBossX/AcquisitionReceipts \
   --output /mnt/d/DataBossX/AcquisitionReceipts/pc-operator.json
 ```
@@ -24,6 +25,10 @@ python3 -m horizon.pc_operator \
    working workbook candidates, and writes copy-paste `horizon.index_export`
    plus `horizon.package_finish` commands that point at a private receipt
    directory. Filename classification is not legal authority.
+4. With `--execute`, those isolated hops actually run into `--receipt-dir`.
+   The directory must be outside this repository. Source workbooks are not
+   modified. `packages_complete` is true only if every requested section's
+   finish receipt already satisfies the owner-review completion predicate.
 
 ## What it never does
 
@@ -34,7 +39,8 @@ python3 -m horizon.pc_operator \
 - Treat filename classification as legal authority
 
 `technical_pass` means Phase 1 inventory ran against readable roots.
-`packages_complete` stays false. Phase 1 is expected to leave required-role
-gaps until a human-approved authority manifest exists.
+`--execute` does not start Phase 2 and does not invent field values.
+Phase 1 is expected to leave required-role gaps until a human-approved
+authority manifest exists.
 
 Do not commit the operator receipt. It can contain private paths and hashes.

@@ -85,9 +85,17 @@ def test_draft_from_classified_section_15_is_unapproved() -> None:
     assert draft["decision_id"] == ""
     assert draft["approved_by"] == ""
     roles = {item["role"]: item for item in draft["authorities"]}
-    assert set(roles) == {"source_document", "master_workbook", "index"}
+    assert set(roles) == {
+        "source_document",
+        "master_workbook",
+        "index",
+        "handwritten_index",
+    }
     assert roles["index"]["relative_path"] == "Section 15/County Index.xlsx"
     assert roles["index"]["expected_sha256"] == "c" * 64
+    assert roles["handwritten_index"]["relative_path"] == (
+        "Section 15/Handwritten Index.xlsx"
+    )
     assert any("not legal authority" in note for note in draft["notes"])
 
 
@@ -112,6 +120,7 @@ def test_draft_picks_first_sorted_path_and_notes_missing_roles() -> None:
     assert any("2 classified" in note for note in draft["notes"])
     assert any("missing classified source_document" in note for note in draft["notes"])
     assert any("missing classified master_workbook" in note for note in draft["notes"])
+    assert any("missing classified handwritten_index" in note for note in draft["notes"])
 
 
 def test_cli_writes_draft_and_exits_incomplete(tmp_path: Path) -> None:
@@ -138,6 +147,7 @@ def test_cli_writes_draft_and_exits_incomplete(tmp_path: Path) -> None:
     assert draft["status"] == UNAPPROVED_STATUS
     assert draft["approved_by"] == ""
     assert len(draft["authorities"]) == 3
+    assert any("missing classified handwritten_index" in note for note in draft["notes"])
 
 
 def test_cli_requires_a_root(tmp_path: Path) -> None:

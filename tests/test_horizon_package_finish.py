@@ -356,6 +356,7 @@ def _write_authority_pair(
     files = {
         "master_workbook": f"Section {section}/Master Abstract.xlsx",
         "index": f"Section {section}/County Index.xlsx",
+        "handwritten_index": f"Section {section}/Handwritten Index.xlsx",
         "source_document": f"Section {section}/Recorded Faces/Instrument 1.pdf",
     }
     authorities = [
@@ -418,6 +419,7 @@ def test_combined_authority_is_filtered_to_requested_section(
     for section in (15, 13):
         _penterra_workbook(root / f"Section {section}" / "Master Abstract.xlsx")
         _penterra_workbook(root / f"Section {section}" / "County Index.xlsx")
+        _penterra_workbook(root / f"Section {section}" / "Handwritten Index.xlsx")
         faces = root / f"Section {section}" / "Recorded Faces"
         faces.mkdir(parents=True, exist_ok=True)
         (faces / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth")
@@ -431,6 +433,11 @@ def test_combined_authority_is_filtered_to_requested_section(
                     section,
                 ),
                 ("index", f"Section {section}/County Index.xlsx", section),
+                (
+                    "handwritten_index",
+                    f"Section {section}/Handwritten Index.xlsx",
+                    section,
+                ),
                 (
                     "source_document",
                     f"Section {section}/Recorded Faces/Instrument 1.pdf",
@@ -504,6 +511,7 @@ def test_phase_two_authority_can_pass_acquisition(tmp_path: Path) -> None:
     section = root / "Section 15"
     _penterra_workbook(section / "Master Abstract.xlsx")
     _penterra_workbook(section / "County Index.xlsx")
+    _penterra_workbook(section / "Handwritten Index.xlsx")
     (section / "Recorded Faces").mkdir(parents=True)
     (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 synth")
     authority, project = _write_authority_pair(tmp_path, root)

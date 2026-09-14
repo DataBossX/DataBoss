@@ -156,9 +156,16 @@ The default required roles are:
 
 - `source_document`: a recorded face or other authoritative document/image;
 - `master_workbook`: an examiner-authorized current master;
-- `index`: an examiner-authorized typed or handwritten index.
+- `index`: an examiner-authorized typed PDF or workbook index;
+- `handwritten_index`: an examiner-authorized handwritten index scan or
+  transcription.
 
-Require an explicit handwritten index when the project calls for one:
+A handwritten scan cannot satisfy `index`. A typed PDF or workbook index
+cannot satisfy `handwritten_index`. Live jobs that have only one index
+face stay held until the other classified face exists.
+
+Override `--require-role` only when a named examiner is intentionally
+narrowing or widening those faces:
 
 ```bash
 python3 -m horizon.source_acquisition \

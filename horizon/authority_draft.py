@@ -27,9 +27,6 @@ from .source_acquisition import (
 DRAFT_SCHEMA_ID = "dbx.source_authority_draft"
 DRAFT_SCHEMA_VERSION = "1.0"
 UNAPPROVED_STATUS = "UNAPPROVED_DRAFT"
-_ROLE_EQUIVALENTS = {
-    "index": {"index", "handwritten_index"},
-}
 
 
 class AuthorityDraftError(ValueError):
@@ -61,11 +58,10 @@ def draft_from_files(
     ]
     for section in requested_sections:
         for role in required_roles:
-            equivalents = _ROLE_EQUIVALENTS.get(role, {role})
             matches = [
                 item
                 for item in files
-                if item.section == section and item.candidate_role in equivalents
+                if item.section == section and item.candidate_role == role
             ]
             if not matches:
                 notes.append(f"section {section} missing classified {role}")

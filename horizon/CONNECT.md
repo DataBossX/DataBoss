@@ -57,7 +57,9 @@ inventory, then `package_finish`). Pass `--execute` on the PC to run those isola
 into a private `--receipt-dir` outside this repository. It does not copy
 client files into the repo. A named examiner runs `horizon.authority_promote`
 with live roots; the next `--execute` discovers the promoted manifests and
-takes a Phase 2 snapshot. See [`PC_OPERATOR.md`](PC_OPERATOR.md).
+takes a Phase 2 snapshot. Phase 2 requires both a typed `index` and a
+`handwritten_index`; one cannot substitute for the other. See
+[`PC_OPERATOR.md`](PC_OPERATOR.md).
 
 ## Occurrence packet from page-render crops
 

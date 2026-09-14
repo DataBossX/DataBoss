@@ -24,6 +24,7 @@ def _section15_tree(root: Path) -> None:
     section.mkdir(parents=True)
     (section / "Master Abstract.xlsx").write_bytes(b"master-15")
     (section / "County Index.xlsx").write_bytes(b"index-15")
+    (section / "Handwritten Index.tif").write_bytes(b"hand-15")
     faces = section / "Recorded Faces"
     faces.mkdir()
     (faces / "Instrument 1.pdf").write_bytes(b"%PDF-1.1 face-15")
@@ -57,6 +58,7 @@ def test_promote_writes_hash_bound_manifests(tmp_path: Path) -> None:
         "source_document",
         "master_workbook",
         "index",
+        "handwritten_index",
     }
     project = json.loads(
         (receipts / "project_manifest.json").read_text(encoding="utf-8")

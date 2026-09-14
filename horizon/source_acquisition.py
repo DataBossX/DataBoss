@@ -26,7 +26,12 @@ from .project_manifest import ControlFileError, parse_project_manifest
 SCHEMA_ID = "dbx.source_acquisition_receipt"
 SCHEMA_VERSION = "1.1"
 PRIORITY_SECTIONS = (15, 13, 11)
-DEFAULT_REQUIRED_ROLES = ("source_document", "master_workbook", "index")
+DEFAULT_REQUIRED_ROLES = (
+    "source_document",
+    "master_workbook",
+    "index",
+    "handwritten_index",
+)
 SOURCE_ROLES = {
     "chat_export",
     "handwritten_index",
@@ -64,9 +69,6 @@ _TOWNSHIP_SECTION_PATTERN = re.compile(
     r"(?i)(?:^|[/\\])0?(11|13|15)-\d{1,2}[ns]-\d{1,3}[ew](?:[/\\]|$)"
 )
 _HIDDEN_PARTS = {".git", ".svn", "__pycache__", ".pytest_cache"}
-_ROLE_EQUIVALENTS = {
-    "index": {"index", "handwritten_index"},
-}
 
 
 class SourceAcquisitionError(ValueError):
@@ -818,12 +820,7 @@ def _summarize_section(
         if match.assertion.section == section and match.status == "matched"
     )
     missing_roles = [
-        role
-        for role in required_roles
-        if not any(
-            authorized_role_counts[candidate]
-            for candidate in _ROLE_EQUIVALENTS.get(role, {role})
-        )
+        role for role in required_roles if not authorized_role_counts[role]
     ]
     conflict_count = sum(
         comparison.status == "hash_conflict"

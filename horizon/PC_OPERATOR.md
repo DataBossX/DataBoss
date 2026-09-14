@@ -26,7 +26,8 @@ python3 -m horizon.pc_operator \
    That file cannot be passed as `--authority-manifest`. The receipt names a
    `horizon.authority_promote` command. A named examiner replaces
    `EXAMINER_PROJECT_ID` / `EXAMINER_DECISION_ID` / `EXAMINER_NAME`, confirms
-   sections whose required roles are classified, and the promoter re-hashes
+   sections whose required roles are classified (source document, master,
+   typed index, and handwritten index as separate faces), and the promoter re-hashes
    live roots before writing `source-authority.json` plus a hash-bound
    `project_manifest.json`. A later `--execute` on the same receipt-dir
    discovers those files and snapshots `intake-snapshot/sectionN`. Later

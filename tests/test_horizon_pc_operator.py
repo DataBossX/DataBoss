@@ -103,6 +103,7 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
         "source_document",
         "master_workbook",
         "index",
+        "handwritten_index",
     ]
     assert section15.missing_candidate_roles == []
     assert section15.file_count >= 4
@@ -143,7 +144,12 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert "EXAMINER_NAME" in receipt.authority_promote_command
     assert "--confirm-section 15" in receipt.authority_promote_command
     roles = {item["role"] for item in draft["authorities"] if item["section"] == 15}
-    assert roles == {"source_document", "master_workbook", "index"}
+    assert roles == {
+        "source_document",
+        "master_workbook",
+        "index",
+        "handwritten_index",
+    }
     assert any("UNAPPROVED_DRAFT" in action for action in receipt.next_actions)
     bound = build_work_order(
         roots=[f"pc={root}"],

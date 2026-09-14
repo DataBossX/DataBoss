@@ -37,6 +37,7 @@ def _complete_section(root: Path, section: int, prefix: str = "") -> None:
     section_root = f"{prefix}Section {section}"
     _write(root, f"{section_root}/Master Abstract.xlsx", b"master")
     _write(root, f"{section_root}/County Index.pdf", b"index")
+    _write(root, f"{section_root}/Handwritten Index.tif", b"handwritten")
     _write(root, f"{section_root}/Recorded Faces/Instrument 1.pdf", b"face")
 
 
@@ -46,11 +47,13 @@ def _authorities(
     section: int,
     *,
     index_name: str = "County Index.pdf",
+    handwritten_name: str = "Handwritten Index.tif",
     source_name: str = "Recorded Faces/Instrument 1.pdf",
 ) -> list[AuthorityAssertion]:
     paths = {
         "master_workbook": "Master Abstract.xlsx",
         "index": index_name,
+        "handwritten_index": handwritten_name,
         "source_document": source_name,
     }
     return [
@@ -156,7 +159,7 @@ def test_exact_pc_drive_sources_are_ready_for_extraction(tmp_path: Path) -> None
     assert {comparison.status for comparison in receipt.path_comparisons} == {
         "exact_match"
     }
-    assert len(receipt.duplicate_content) == 3
+    assert len(receipt.duplicate_content) == 4
     snapshot = Path(receipt.snapshot_root)
     assert receipt.snapshot_manifest_sha256
     assert (
@@ -335,10 +338,11 @@ def test_missing_priority_sections_fail_closed(tmp_path: Path) -> None:
         "source_document",
         "master_workbook",
         "index",
+        "handwritten_index",
     ]
 
 
-def test_handwritten_index_satisfies_index_role(tmp_path: Path) -> None:
+def test_handwritten_index_does_not_satisfy_index_role(tmp_path: Path) -> None:
     root = tmp_path / "sources"
     _write(root, "Section 13/Master Abstract.xlsx", b"master")
     _write(root, "Section 13/Handwritten Index.tif", b"scan")
@@ -367,8 +371,43 @@ def test_handwritten_index_satisfies_index_role(tmp_path: Path) -> None:
         snapshot_directory=tmp_path / "snapshot",
     )
 
-    assert receipt.technical_pass
+    assert not receipt.technical_pass
+    assert receipt.sections[0].missing_required_roles == ["index"]
     assert receipt.sections[0].candidate_role_counts["handwritten_index"] == 1
+
+
+def test_typed_index_does_not_satisfy_handwritten_index_role(tmp_path: Path) -> None:
+    root = tmp_path / "sources"
+    _write(root, "Section 13/Master Abstract.xlsx", b"master")
+    _write(root, "Section 13/County Index.pdf", b"index")
+    _write(root, "Section 13/Recorded Face.pdf", b"face")
+
+    receipt = build_receipt(
+        [SourceRoot("pc", root)],
+        requested_sections=[13],
+        authority_assertions=[
+            AuthorityAssertion(
+                root_label="pc",
+                relative_path=f"Section 13/{relative_path}",
+                section=13,
+                role=role,
+                expected_sha256=source_acquisition.sha256_file(
+                    root / "Section 13" / relative_path
+                ),
+            )
+            for role, relative_path in {
+                "master_workbook": "Master Abstract.xlsx",
+                "index": "County Index.pdf",
+                "source_document": "Recorded Face.pdf",
+            }.items()
+        ],
+        authority_context=_context(),
+        snapshot_directory=tmp_path / "snapshot",
+    )
+
+    assert not receipt.technical_pass
+    assert receipt.sections[0].missing_required_roles == ["handwritten_index"]
+    assert receipt.sections[0].candidate_role_counts["index"] == 1
 
 
 @pytest.mark.parametrize(
@@ -441,7 +480,7 @@ def test_hidden_and_temporary_files_are_not_inventoried(tmp_path: Path) -> None:
         requested_sections=[15],
     )
 
-    assert len(receipt.files) == 3
+    assert len(receipt.files) == 4
 
 
 def test_receipt_cannot_be_written_inside_source_root(tmp_path: Path) -> None:
@@ -481,6 +520,7 @@ def test_cli_writes_blocking_receipt_and_returns_two(tmp_path: Path) -> None:
         "source_document",
         "master_workbook",
         "index",
+        "handwritten_index",
     ]
 
 
@@ -579,6 +619,7 @@ def test_filename_heuristics_do_not_authorize_source_roles(tmp_path: Path) -> No
         "source_document",
         "master_workbook",
         "index",
+        "handwritten_index",
     ]
 
 

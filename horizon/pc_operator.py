@@ -87,10 +87,6 @@ from .source_acquisition import (
     snapshot_path_for,
 )
 
-_CANDIDATE_ROLE_EQUIVALENTS = {
-    "index": {"index", "handwritten_index"},
-}
-
 RECEIPT_SCHEMA_ID = "dbx.pc_operator_receipt"
 RECEIPT_SCHEMA_VERSION = "1.3"
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -321,12 +317,7 @@ def _missing_candidate_roles(
     required_roles: Sequence[str],
 ) -> List[str]:
     present = {item.candidate_role for item in files if item.section == section}
-    missing: List[str] = []
-    for role in required_roles:
-        equivalents = _CANDIDATE_ROLE_EQUIVALENTS.get(role, {role})
-        if present.isdisjoint(equivalents):
-            missing.append(role)
-    return missing
+    return [role for role in required_roles if role not in present]
 
 
 def _section_picks(

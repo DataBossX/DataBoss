@@ -39,6 +39,33 @@ python3 -m horizon.reextraction_gate \
 House stable keys are `<docno>|<book>-<page>`. Feed those keys into
 `horizon.occurrence_ledger` after this gate passes.
 
+Compile crops from page renders without guessing a document number:
+
+```bash
+python3 -m horizon.page_render_export \
+  --packet /path/to/page-render-crop-packet.json \
+  --export /path/to/tract-ledger-export.json \
+  --output /path/to/page-render-export-receipt.json \
+  --bind-dir /path/to/page-renders
+```
+
+`expected_page_count` is writer-held (Section 11 historically used 14 page
+renders; this module does not hard-code that). Each crop must hash-bind to
+its page. Bare document-number crops are preserved so the re-extraction
+gate can still fail them.
+
+Hash-bound federal PDF page census (Part 4 empty-text hold):
+
+```bash
+python3 -m horizon.pdf_census \
+  --packet /path/to/pdf-page-census-packet.json \
+  --bind-dir /path/to/federal-pdfs \
+  --output /path/to/pdf-census-receipt.json
+```
+
+Image-only PDFs can pass the hash/count bind while `empty_text_files` stays
+visible. Do not invent legal text from a page count.
+
 Exit codes:
 
 - `0`: every row is checkable

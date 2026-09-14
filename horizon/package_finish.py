@@ -39,6 +39,8 @@ from .index_reconciliation import (
 )
 from .isolated_delta import IsolatedDeltaError, apply_deltas
 from .native_print import NativePrintError, assess_native_print
+from .page_render_export import PageRenderExportError, compile_page_renders
+from .pdf_census import PdfCensusError, census_packet
 from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
 from .repair_loop import RepairLoopError, run_repair_loop
 from .project_manifest import ControlFileError
@@ -281,10 +283,15 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "Mount PC/Drive/chat roots and rerun with --root "
             f"for sections {list(sections)}"
         )
-    if "reextraction" not in ran:
+    if "page_render_export" not in ran and "reextraction" not in ran:
         actions.append(
-            "Export a tract-ledger JSON with book/page, recorded date, and "
-            "parties from page renders, then pass --tract-export"
+            "Compile page-render crops with --page-render-packet or pass "
+            "a tract-ledger JSON via --tract-export"
+        )
+    if "pdf_census" not in ran:
+        actions.append(
+            "Pass --pdf-census-packet and --pdf-bind-dir to bind federal "
+            "casefile page counts and flag image-only empty-text PDFs"
         )
     if "occurrence_ledger" not in ran:
         actions.append(
@@ -325,6 +332,13 @@ def _next_actions(gates: Sequence[GateResult], sections: Sequence[int]) -> List[
             "landscape, print titles, and expected page count"
         )
     for gate in gates:
+        if gate.ran and gate.name == "pdf_census":
+            empty = gate.detail.get("empty_text_files")
+            if empty:
+                actions.append(
+                    f"Hold {empty} image-only PDF(s) with empty extracted text; "
+                    "do not invent legal text from page count"
+                )
         if gate.ran and gate.technical_pass is False:
             actions.append(f"Resolve blocking {gate.name}: {gate.error or gate.detail}")
     actions.append(
@@ -354,14 +368,98 @@ def run_finish(
     handwritten_workbook: Optional[Path] = None,
     print_layout_output: Optional[Path] = None,
     native_print_receipt: Optional[Path] = None,
+    page_render_packet: Optional[Path] = None,
+    page_render_bind_dir: Optional[Path] = None,
+    pdf_census_packet: Optional[Path] = None,
+    pdf_bind_dir: Optional[Path] = None,
 ) -> FinishReceipt:
     if any(section not in PRIORITY_SECTIONS for section in sections):
         raise PackageFinishError(f"Sections must come from {PRIORITY_SECTIONS}")
     gates: List[GateResult] = []
     if roots:
         gates.append(_acquisition_gate(roots, sections))
-    if tract_export is not None:
+    if page_render_packet is not None:
+        if tract_export is not None:
+            raise PackageFinishError(
+                "Use --page-render-packet or --tract-export, not both"
+            )
+        try:
+            compiled = compile_page_renders(
+                _load_json(page_render_packet),
+                bind_dir=page_render_bind_dir,
+            )
+            gates.append(
+                GateResult(
+                    name="page_render_export",
+                    ran=True,
+                    technical_pass=compiled.technical_pass,
+                    detail={
+                        "page_count": compiled.page_count,
+                        "crop_count": compiled.crop_count,
+                        "reextraction_technical_pass": compiled.reextraction_technical_pass,
+                        "next_action": compiled.next_action,
+                    },
+                )
+            )
+            packet_id, rows = parse_ledger_export(compiled.tract_export)
+            oracle_rows = parse_oracle(_load_json(oracle)) if oracle else None
+            recon = assess_ledger(packet_id, rows, oracle=oracle_rows)
+            gates.append(
+                GateResult(
+                    name="reextraction",
+                    ran=True,
+                    technical_pass=recon.technical_pass,
+                    detail={
+                        "row_count": recon.row_count,
+                        "bare_docno_count": recon.bare_docno_count,
+                        "next_action": recon.next_action,
+                    },
+                )
+            )
+        except (
+            OSError,
+            PageRenderExportError,
+            ReextractionError,
+            PackageFinishError,
+        ) as exc:
+            gates.append(
+                GateResult(
+                    name="page_render_export",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
+    elif tract_export is not None:
         gates.append(_reextraction_gate(tract_export, oracle))
+    if pdf_census_packet is not None:
+        if pdf_bind_dir is None:
+            raise PackageFinishError("PDF census requires --pdf-bind-dir")
+        try:
+            census = census_packet(
+                _load_json(pdf_census_packet),
+                bind_dir=pdf_bind_dir,
+            )
+            gates.append(
+                GateResult(
+                    name="pdf_census",
+                    ran=True,
+                    technical_pass=census.technical_pass,
+                    detail={
+                        "file_count": len(census.files),
+                        "empty_text_files": census.empty_text_files,
+                    },
+                )
+            )
+        except (OSError, PdfCensusError, PackageFinishError) as exc:
+            gates.append(
+                GateResult(
+                    name="pdf_census",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
     if occurrence_packet is not None:
         gates.append(_occurrence_gate(occurrence_packet))
     if index_packet is not None and repair_dir is None:
@@ -598,6 +696,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--handwritten-workbook", type=Path)
     parser.add_argument("--print-layout-output", type=Path)
     parser.add_argument("--native-print-receipt", type=Path)
+    parser.add_argument("--page-render-packet", type=Path)
+    parser.add_argument("--page-render-bind-dir", type=Path)
+    parser.add_argument("--pdf-census-packet", type=Path)
+    parser.add_argument("--pdf-bind-dir", type=Path)
     return parser
 
 
@@ -623,6 +725,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             handwritten_workbook=args.handwritten_workbook,
             print_layout_output=args.print_layout_output,
             native_print_receipt=args.native_print_receipt,
+            page_render_packet=args.page_render_packet,
+            page_render_bind_dir=args.page_render_bind_dir,
+            pdf_census_packet=args.pdf_census_packet,
+            pdf_bind_dir=args.pdf_bind_dir,
         )
         args.output.write_text(
             json.dumps(receipt.to_dict(), indent=2, sort_keys=True),

@@ -8,7 +8,9 @@ python3 -m horizon.package_finish \
   --section 15 --section 13 --section 11 \
   --root "pc=/mnt/d/DataBossX/Projects" \
   --root "drive=/mnt/g/My Drive/DataBossX/Projects" \
-  --tract-export /path/to/tract-ledger-export.json \
+  --page-render-packet /path/to/page-render-crop-packet.json \
+  --pdf-census-packet /path/to/pdf-page-census-packet.json \
+  --pdf-bind-dir /path/to/federal-pdfs \
   --occurrence-packet /path/to/occurrence-packet.json \
   --index-packet /path/to/index-reconciliation-packet.json \
   --workbook /path/to/source-index.xlsx \

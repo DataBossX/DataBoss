@@ -60,8 +60,9 @@ acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
 reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.
 See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md),
-[`ISOLATED_DELTA.md`](ISOLATED_DELTA.md), and
-[`NATIVE_PRINT.md`](NATIVE_PRINT.md). `packages_complete` stays false until
+[`ISOLATED_DELTA.md`](ISOLATED_DELTA.md),
+[`NATIVE_PRINT.md`](NATIVE_PRINT.md), and
+[`REEXTRACTION.md`](REEXTRACTION.md). `packages_complete` stays false until
 a verified snapshot, source-backed rows, native Excel, and human release exist.
 
 ### Build a report from the reference workbook (Intelligence Layer)

@@ -13,39 +13,110 @@
     "leases_missing_a_serial_register_page": 0
   },
   "indexes": [
-    {"name": "45N-76W-15 county (GOLD STANDARD)", "rows": 151, "date_field": "9/9/2026",
-     "posted_thru": "7/21/2026", "blank_legal": 11, "blank_book_page": 22,
-     "blank_doc_date": 3, "blank_grantor": 0, "blank_grantee": 0, "blank_doc_no": 0,
-     "blank_rec_date": 0, "column_order_conforms": true},
-    {"name": "WYW-089855", "rows": 70, "date_field": "9/9/2026", "posted_thru": "8/12/2026",
-     "blank_legal": 27, "blank_doc_no": 70, "blank_rec_date": 19, "blank_doc_date": 5,
-     "column_order_conforms": false,
-     "schema_note": "10 columns; File No/Page replace Doc No/Book-Page; Comments and Legal Description swapped; extra Part column"},
-    {"name": "WYW-021220", "rows": 69, "date_field": "9/9/2026", "posted_thru": "8/12/2026",
-     "blank_legal": 23, "blank_doc_no": 69, "blank_rec_date": 23, "blank_doc_date": 1,
-     "column_order_conforms": false},
-    {"name": "45N-76W-11 county (CODEX_940722)", "rows": 62, "date_field": "9/4/2026",
-     "posted_thru": "", "blank_doc_no": 5, "blank_grantor": 1, "blank_grantee": 1,
-     "blank_book_page": 7, "column_order_conforms": true,
-     "defect": "stray </body> HTML fragment appended after the last data row; Date Posted Thru is empty"},
-    {"name": "13-45N-76W county", "rows": 332, "date_field": "9/9/2026",
-     "posted_thru": "7/21/2026", "blank_legal": 291, "blank_book_page": 18,
-     "blank_doc_date": 33, "blank_grantor": 0, "blank_grantee": 0, "blank_doc_no": 0,
-     "column_order_conforms": true,
-     "defect": "291 of 332 rows carry no Legal Description"},
-    {"name": "WYW-072484", "rows": 2, "date_field": "9/8/2026", "posted_thru": "8/3/2026",
-     "blank_doc_no": 2, "column_order_conforms": false},
-    {"name": "WYW-188048", "rows": 2, "date_field": "9/8/2026", "posted_thru": "8/12/2026",
-     "blank_doc_no": 2, "column_order_conforms": false},
-    {"name": "WYW-047318", "rows": 2, "date_field": "9/8/2026", "posted_thru": "8/4/2026",
-     "blank_doc_no": 2, "column_order_conforms": false},
-    {"name": "WYW-042622", "rows": 3, "date_field": "9/8/2026", "posted_thru": "8/4/2026",
-     "blank_doc_no": 3, "column_order_conforms": false}
+    {
+      "name": "45N-76W-15 county (GOLD STANDARD)",
+      "rows": 151,
+      "date_field": "9/9/2026",
+      "posted_thru": "7/21/2026",
+      "blank_legal": 11,
+      "blank_book_page": 22,
+      "blank_doc_date": 3,
+      "blank_grantor": 0,
+      "blank_grantee": 0,
+      "blank_doc_no": 0,
+      "blank_rec_date": 0,
+      "column_order_conforms": true
+    },
+    {
+      "name": "WYW-089855",
+      "rows": 70,
+      "date_field": "9/9/2026",
+      "posted_thru": "8/12/2026",
+      "blank_legal": 27,
+      "blank_doc_no": 70,
+      "blank_rec_date": 19,
+      "blank_doc_date": 5,
+      "column_order_conforms": false,
+      "schema_note": "10 columns; File No/Page replace Doc No/Book-Page; Comments and Legal Description swapped; extra Part column"
+    },
+    {
+      "name": "WYW-021220",
+      "rows": 69,
+      "date_field": "9/9/2026",
+      "posted_thru": "8/12/2026",
+      "blank_legal": 23,
+      "blank_doc_no": 69,
+      "blank_rec_date": 23,
+      "blank_doc_date": 1,
+      "column_order_conforms": false
+    },
+    {
+      "name": "45N-76W-11 county (CODEX_940722)",
+      "rows": 62,
+      "date_field": "9/4/2026",
+      "posted_thru": "",
+      "blank_doc_no": 5,
+      "blank_grantor": 1,
+      "blank_grantee": 1,
+      "blank_book_page": 7,
+      "column_order_conforms": true,
+      "defect": "stray </body> HTML fragment appended after the last data row; Date Posted Thru is empty"
+    },
+    {
+      "name": "13-45N-76W county",
+      "rows": 332,
+      "date_field": "9/9/2026",
+      "posted_thru": "7/21/2026",
+      "blank_legal": 291,
+      "blank_book_page": 18,
+      "blank_doc_date": 33,
+      "blank_grantor": 0,
+      "blank_grantee": 0,
+      "blank_doc_no": 0,
+      "column_order_conforms": true,
+      "defect": "291 of 332 rows carry no Legal Description"
+    },
+    {
+      "name": "WYW-072484",
+      "rows": 2,
+      "date_field": "9/8/2026",
+      "posted_thru": "8/3/2026",
+      "blank_doc_no": 2,
+      "column_order_conforms": false
+    },
+    {
+      "name": "WYW-188048",
+      "rows": 2,
+      "date_field": "9/8/2026",
+      "posted_thru": "8/12/2026",
+      "blank_doc_no": 2,
+      "column_order_conforms": false
+    },
+    {
+      "name": "WYW-047318",
+      "rows": 2,
+      "date_field": "9/8/2026",
+      "posted_thru": "8/4/2026",
+      "blank_doc_no": 2,
+      "column_order_conforms": false
+    },
+    {
+      "name": "WYW-042622",
+      "rows": 3,
+      "date_field": "9/8/2026",
+      "posted_thru": "8/4/2026",
+      "blank_doc_no": 3,
+      "column_order_conforms": false
+    }
   ],
   "date_field_audit": {
     "files_checked": 11,
     "files_dated_20260914": 0,
-    "dates_found": {"9/9/2026": 5, "9/8/2026": 5, "9/4/2026": 1}
+    "dates_found": {
+      "9/9/2026": 5,
+      "9/8/2026": 5,
+      "9/4/2026": 1
+    }
   },
   "section_15_referee_defects": {
     "source": "readiness_report",
@@ -58,7 +129,82 @@
   "release_status": {
     "source": "readiness_report",
     "packages_safe_to_release": 0,
-    "sections_on_hold": ["11", "13", "14", "3", "1", "12"],
+    "sections_on_hold": [
+      "11",
+      "13",
+      "14",
+      "3",
+      "1",
+      "12"
+    ],
     "pc_status": "RyansPC offline to Remote Desktop Commander; PC execution UNKNOWN"
+  },
+  "images": {
+    "source": "measured",
+    "caveat": "Drive's search index under-returns: a global image search plateaued at 1576 unique files while still issuing page tokens, and folder-direct queries prove it omits whole folders. Only parentId-scoped queries return complete results. The totals below are FLOORS.",
+    "unique_images_observed_floor": 1576,
+    "parent_folders_observed": 86,
+    "folders_verified_exact": [
+      {
+        "folder": "QA_RENDER_POST_SOURCE_FINAL_IMAGES",
+        "id": "1uhBie6cgKVRQMjTygJhV9slPi2mt8A_0",
+        "count": 19,
+        "gaps": []
+      },
+      {
+        "folder": "renders",
+        "id": "1v1wvHkDWSTpICMm3kSuUFbSmAihZnFal",
+        "count": 27,
+        "gaps": []
+      },
+      {
+        "folder": "workbook_pages_png",
+        "id": "1SJHSSEpXl7NqDrRx0XWOOldbLCi3xMAk",
+        "count": 16,
+        "gaps": []
+      },
+      {
+        "folder": "artifact_renders",
+        "id": "1rr4c_eR5HqKt8Q5z0w3miV2N0HwwoGsh",
+        "count": 6,
+        "gaps": []
+      },
+      {
+        "folder": "native_print",
+        "id": "1yFUJo_U6yn961GK8mZ6PvjW3b5IMX2QX",
+        "count": 7,
+        "gaps": []
+      },
+      {
+        "folder": "candidate_renders",
+        "id": "1VsPuYSoo8HMxYkT7ETPMDaP6IfzBkwPX",
+        "count": 4,
+        "gaps": []
+      },
+      {
+        "folder": "tract (p14_direct_review)",
+        "id": "1Nox9zfn2NJZRswY-0u8tf1qt86F6f67G",
+        "count": 2,
+        "gaps": [
+          "p14-index-01 through p14-index-11 absent (11 images)"
+        ]
+      },
+      {
+        "folder": "membership_referee",
+        "id": "1RagFvpFWLl0CrIgIDSWJmerAWRWzIggr",
+        "count": ">=100",
+        "exact": false,
+        "gaps": [
+          "guard_568935 pages 3-18 absent (16 images)",
+          "guard_1048014 pages 3-4 absent (2 images)",
+          "index_p4 and index_p5 absent from the plain series"
+        ]
+      }
+    ],
+    "confirmed_missing_images": 29,
+    "complete_runs_proving_numbering_is_reliable": [
+      "guard_793373 p1-p36",
+      "guard_864309 p1-p15"
+    ]
   }
 }

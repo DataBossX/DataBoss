@@ -317,6 +317,14 @@ def test_execute_lists_remaining_work_before_reexport(tmp_path: Path) -> None:
         in plan["missing"]
     )
     assert "Attest owner-review of section15-letter.xlsx" in plan["missing"]
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        in commands
+    )
+    assert (
+        "Copy section15-letter.xlsx into Drive Section 15/Isolated/"
+        in plan_cmds
+    )
 
 
 def test_first_execute_keeps_letter_after_print_layout(tmp_path: Path) -> None:

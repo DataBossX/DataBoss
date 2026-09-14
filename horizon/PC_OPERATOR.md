@@ -48,8 +48,9 @@ python3 -m horizon.pc_operator \
    `sectionN-delta.xlsx`. Native print, owner-review, and Drive readback
    bind that current isolated workbook, not a stale Letter copy. When a
    `drive=` root is mounted, `--execute` publishes that isolated file into
-   the Drive section folder (it will not overwrite a different hash) and
-   binds SHA-256 readback.    Client source files are never copied into this
+   Drive `Section N/Isolated/` (it will not overwrite a different hash) and
+   binds SHA-256 readback. If Drive is not mounted, next-commands name
+   `Copy {name} into Drive Section N/Isolated/` for that same file.    Client source files are never copied into this
    repository.    After recon/repair, `--execute` writes
    `sectionN-examiner-queue.json` listing remaining blanks and conflicts
    with provenance. One-source blanks stay blank until a writer-held

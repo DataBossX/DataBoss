@@ -708,10 +708,10 @@ def _section_commands(
             "then attest the draft with PAGE_COUNT and EXAMINER_NAME"
         )
     if bindings.drive_readback is None:
+        name = Path(workbook).name
         commands.append(
-            "Copy the current isolated workbook onto the mounted drive= "
-            f"section folder as section{section}-letter.xlsx or "
-            f"section{section}-delta.xlsx so the next execute can bind readback"
+            f"Copy {name} into Drive Section {section}/Isolated/ "
+            "so the next execute can bind readback"
         )
     if bindings.human_release_token is None:
         draft = f"{receipt_dir}/section{section}-owner-review-draft.json"

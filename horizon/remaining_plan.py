@@ -220,11 +220,70 @@ def _load_queue(
     return payload
 
 
-def _load_examiner_queue(receipt_dir: Path, section: int) -> Dict[str, object]:
-    return _load_queue(
+def _iter_schema_files(
+    receipt_dir: Path, schema_id: str
+) -> List[tuple[str, Dict[str, object]]]:
+    found: List[tuple[str, Dict[str, object]]] = []
+    try:
+        paths = sorted(receipt_dir.glob("*.json"))
+    except OSError:
+        return found
+    for path in paths:
+        payload = _load_queue(receipt_dir, path.name, schema_id)
+        if payload:
+            found.append((path.name, payload))
+    return found
+
+
+def _preferred_queue_payload(
+    receipt_dir: Path,
+    section: int,
+    schema_id: str,
+    conventional: str,
+    isolated_sha256: str = "",
+    digest_field: str = "",
+) -> Dict[str, object]:
+    """Prefer sectionN-* when it matches; leftover hash-matched files are fallback."""
+    exclusive = [
+        (name, payload)
+        for name, payload in _iter_schema_files(receipt_dir, schema_id)
+        if _queue_exclusive_section(payload, name, section)
+    ]
+    if digest_field and isolated_sha256:
+        matched: List[tuple[str, Dict[str, object]]] = []
+        for name, payload in exclusive:
+            bound = payload.get(digest_field)
+            if (
+                isinstance(bound, str)
+                and bound
+                and bound.casefold() == isolated_sha256.casefold()
+            ):
+                matched.append((name, payload))
+        if matched:
+            preferred = [item for item in matched if item[0] == conventional]
+            rest = [item for item in matched if item[0] != conventional]
+            return (preferred + rest)[0][1]
+        return _load_queue(receipt_dir, conventional, schema_id)
+    if not digest_field:
+        preferred = [item for item in exclusive if item[0] == conventional]
+        if preferred:
+            return preferred[0][1]
+        if exclusive:
+            return exclusive[0][1]
+        return {}
+    return _load_queue(receipt_dir, conventional, schema_id)
+
+
+def _load_examiner_queue(
+    receipt_dir: Path, section: int, isolated_sha256: str = ""
+) -> Dict[str, object]:
+    return _preferred_queue_payload(
         receipt_dir,
-        f"section{section}-examiner-queue.json",
+        section,
         EXAMINER_QUEUE_SCHEMA_ID,
+        OPEN_QUEUE_FILES["examiner_queue"].format(section=section),
+        isolated_sha256=isolated_sha256,
+        digest_field="workbook_sha256",
     )
 
 
@@ -310,8 +369,20 @@ def _fill_queue_lines(
         if not _score_fill_slot(slot, section):
             continue
         filename = OPEN_QUEUE_FILES[slot].format(section=section)
-        payload = _load_queue(receipt_dir, filename, schema_id)
-        if not _queue_exclusive_section(payload, filename, section):
+        digest_field = (
+            "source_workbook_sha256"
+            if slot in {"onesource_template", "delta_draft"}
+            else ""
+        )
+        payload = _preferred_queue_payload(
+            receipt_dir,
+            section,
+            schema_id,
+            filename,
+            isolated_sha256=isolated_sha256,
+            digest_field=digest_field,
+        )
+        if not payload:
             continue
         if slot in {"onesource_template", "delta_draft"}:
             if payload.get("status") != "UNAPPROVED_DRAFT":
@@ -392,10 +463,7 @@ def _field_gaps_from_queue(
     section: int,
     isolated_sha256: str = "",
 ) -> Dict[str, int]:
-    payload = _load_examiner_queue(receipt_dir, section)
-    filename = OPEN_QUEUE_FILES["examiner_queue"].format(section=section)
-    if not _queue_exclusive_section(payload, filename, section):
-        return {}
+    payload = _load_examiner_queue(receipt_dir, section, isolated_sha256)
     if not _queue_bound_to_isolated(payload, isolated_sha256):
         return {}
     gaps: Dict[str, int] = {}
@@ -415,10 +483,7 @@ def _by_field_from_queue(
     section: int,
     isolated_sha256: str = "",
 ) -> Dict[str, Dict[str, int]]:
-    payload = _load_examiner_queue(receipt_dir, section)
-    filename = OPEN_QUEUE_FILES["examiner_queue"].format(section=section)
-    if not _queue_exclusive_section(payload, filename, section):
-        return {}
+    payload = _load_examiner_queue(receipt_dir, section, isolated_sha256)
     if not _queue_bound_to_isolated(payload, isolated_sha256):
         return {}
     items = payload.get("items")
@@ -613,7 +678,11 @@ def remaining_plan(
         field_gaps=field_gaps,
         by_field=by_field,
     )
-    queue_payload = _load_examiner_queue(receipt_dir, section)
+    queue_payload = _load_queue(
+        receipt_dir,
+        OPEN_QUEUE_FILES["examiner_queue"].format(section=section),
+        EXAMINER_QUEUE_SCHEMA_ID,
+    )
     queue_gap = _examiner_queue_hash_gap(queue_payload, isolated_sha)
     if queue_gap:
         extra.append(queue_gap)
@@ -755,6 +824,7 @@ def remaining_plan(
             "examiner-queue counts bound to a different workbook hash are ignored",
             "examiner-queue counts without a workbook hash are ignored once an isolated file exists",
             "onesource and delta drafts without a workbook hash are ignored once an isolated file exists",
+            "leftover examiner, one-source, and fill queues that hash the isolated file are scored when the conventional file is absent or stale",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",

@@ -305,6 +305,151 @@ def test_remaining_plan_leftover_unhashed_examiner_queue_does_not_apply_counts(
     assert "examiner queue is bound to a different workbook" not in plan["missing"]
 
 
+def test_remaining_plan_scores_leftover_hash_matched_examiner_queue(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    digest = sha256_file(letter)
+    (tmp_path / "section15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION15-EXAMINER",
+                "workbook_sha256": "0" * 64,
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION15-EXAMINER",
+                "workbook_sha256": digest,
+                "blank_count": 3,
+                "conflict_count": 1,
+                "items": [
+                    {
+                        "field": "legal_description",
+                        "action": "source_proved_fill",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert plan["field_gaps"]["blank_required_count"] == 3
+    assert plan["field_gaps"]["conflict_count"] == 1
+    assert "index has 3 blank required field(s)" in plan["missing"]
+    assert "legal_description has 1 blank(s)" in plan["missing"]
+    dumped = json.dumps(plan)
+    assert "DO NOT COPY" not in dumped
+
+
+def test_remaining_plan_prefers_conventional_hash_matched_examiner_queue(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    digest = sha256_file(letter)
+    (tmp_path / "aaa-p15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION15-EXAMINER",
+                "workbook_sha256": digest,
+                "blank_count": 99,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION15-EXAMINER",
+                "workbook_sha256": digest,
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "index has 99 blank required field(s)" not in plan["missing"]
+    assert plan["field_gaps"].get("blank_required_count") == 0
+
+
+def test_remaining_plan_ignores_other_section_leftover_examiner_queue(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    digest = sha256_file(letter)
+    (tmp_path / "aaa-p13-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION13-EXAMINER",
+                "workbook_sha256": digest,
+                "blank_count": 7,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "index has 7 blank required field(s)" not in plan["missing"]
+
+
+def test_remaining_plan_scores_leftover_empty_text_queue(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "aaa-p15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "packet_id": "SECTION15-EMPTY-TEXT",
+                "items": [{"path": "face.pdf"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "1 image-only PDF(s) still have empty extracted text" in plan["missing"]
+    dumped = json.dumps(plan)
+    assert "face.pdf" not in dumped
+
+
 def test_remaining_plan_prefers_examiner_queue_over_stale_finish(
     tmp_path: Path,
 ) -> None:

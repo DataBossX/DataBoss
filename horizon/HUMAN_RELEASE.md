@@ -21,7 +21,8 @@ current isolated workbook hash is present and:
 A receipt-dir same-hash copy can satisfy the Drive readback hash gate.
 It does not complete a package. `packages_complete` stays false until
 finish records `isolated_copy`, Print Preview / Isolated/ / owner-review
-hashes match, and the examiner queue has no remaining blanks or conflicts.
+hashes match, the examiner queue has no remaining blanks or conflicts,
+and ``pdf_census`` does not still name image-only empty-text faces.
 
 ## Token
 

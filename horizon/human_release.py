@@ -4,7 +4,8 @@
 passed, Drive readback is an Isolated/ copy, index/QA/print gates hash
 the current isolated workbook, and a writer-held owner-review token
 matches that hash. After execute, finish receipts stay incomplete while
-the examiner queue has blanks or conflicts. The token cannot claim
+the examiner queue has blanks or conflicts, and while ``pdf_census``
+still names image-only empty-text faces. The token cannot claim
 external delivery or READY_TO_SUBMIT.
 """
 
@@ -490,6 +491,14 @@ def evaluate_package_completion(
         missing.append(
             "index fields are not complete (reconciliation or repair loop)"
         )
+    census = by_name.get("pdf_census")
+    if census is not None and getattr(census, "ran", False):
+        detail = getattr(census, "detail", {}) or {}
+        empty = detail.get("empty_text_files") if isinstance(detail, dict) else None
+        if isinstance(empty, int) and empty > 0:
+            missing.append(
+                f"{empty} image-only PDF(s) still have empty extracted text"
+            )
     for gate in by_name.values():
         if gate.technical_pass is False:
             label = f"blocking gate {gate.name}"

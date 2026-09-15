@@ -90,6 +90,8 @@ matches. When a leftover exclusive isolated workbook names this section
 (`aaa-p15-letter.xlsx`) and no conventional Letter or delta exists,
 `--execute` reuses that leftover as the finish workbook instead of
 writing a new `sectionN-letter.xlsx` from the source candidate.
+Leftover exclusive isolated filenames win section detection over the
+parent folder and are not picked as source workbooks.
 When a `drive=` root is
 mounted, `--execute` publishes that isolated file into
 `Section N/Isolated/` and binds SHA-256 readback. Remaining

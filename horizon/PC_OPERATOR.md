@@ -79,10 +79,12 @@ python3 -m horizon.pc_operator \
    source candidate over that leftover. Recon, repair, Print Preview,
    Drive Isolated/, and owner-review stay on that file. Conventional
    current Letter or delta files still win. Unlabeled or other-section
-   leftovers are not auto-bound. A Drive Isolated/ copy of that leftover
-   exclusive filename counts as Isolated/ for this section. Publishing
-   the leftover exclusive name into Isolated/ does not overwrite a
-   stale conventional Isolated file of a different hash.
+   leftovers are not auto-bound. Leftover exclusive isolated filenames
+   win section detection over the parent folder and are not picked as
+   source workbooks. A Drive Isolated/ copy of that leftover exclusive
+   filename counts as Isolated/ for this section. Publishing the leftover
+   exclusive name into Isolated/ does not overwrite a stale conventional
+   Isolated file of a different hash.
    `--execute` also writes `sectionN-owner-review-draft.json`; attest it
    with a named examiner after owner review only. Remaining 2+ source
    blanks are written to `sectionN-delta-draft.json`; attest that draft

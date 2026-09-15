@@ -74,22 +74,30 @@ def path_folder_sections(path: Path) -> List[int]:
     return found
 
 
-def exclusive_isolated_workbook_name(name: str, section: int) -> bool:
-    """True when a workbook filename names only this priority section.
+def exclusive_isolated_section(name: str) -> Optional[int]:
+    """Priority section named only by this isolated workbook filename.
 
     Conventional ``sectionN-letter.xlsx`` / ``sectionN-delta.xlsx`` names
     match. Leftover exclusive names such as ``aaa-p15-letter.xlsx`` also
-    match. Unlabeled or other-section leftovers do not.
+    match. Unlabeled or multi-section leftovers return None.
     """
     match = _ISOLATED_WORKBOOK_SECTION.match(name)
     if match is not None:
-        return int(match.group(1)) == section
+        number = int(match.group(1))
+        return number if number in _PRIORITY_SECTIONS else None
     marks = {
         int(item.group(1))
         for item in _SECTION_MARK.finditer(name)
         if int(item.group(1)) in _PRIORITY_SECTIONS
     }
-    return marks == {section}
+    if len(marks) != 1:
+        return None
+    return next(iter(marks))
+
+
+def exclusive_isolated_workbook_name(name: str, section: int) -> bool:
+    """True when a workbook filename names only this priority section."""
+    return exclusive_isolated_section(name) == section
 
 
 def is_drive_isolated_copy(path: Path, section: int) -> bool:

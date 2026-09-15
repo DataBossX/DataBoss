@@ -12,6 +12,7 @@ from horizon.connect_status import probe_connections
 from horizon.drive_readback import (
     DriveReadbackError,
     assess_drive_readback,
+    exclusive_isolated_section,
     is_drive_isolated_copy,
     isolated_workbook_filename,
 )
@@ -134,6 +135,11 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     assert isolated_workbook_filename(Path("aaa-p13-letter.xlsx"), 15) == (
         "section15-letter.xlsx"
     )
+    assert exclusive_isolated_section("aaa-p15-letter.xlsx") == 15
+    assert exclusive_isolated_section("aaa-p13-letter.xlsx") == 13
+    assert exclusive_isolated_section("section15-delta-2.xlsx") == 15
+    assert exclusive_isolated_section("aaa-p15-p13-letter.xlsx") is None
+    assert exclusive_isolated_section("workbook.xlsx") is None
 
 
 def test_drive_readback_requires_distinct_identical_copy(tmp_path: Path) -> None:

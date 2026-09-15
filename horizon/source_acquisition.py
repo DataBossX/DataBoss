@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from .drive_readback import exclusive_isolated_section
 from .project_manifest import ControlFileError, parse_project_manifest
 
 SCHEMA_ID = "dbx.source_acquisition_receipt"
@@ -308,8 +309,10 @@ def _folder_section(part: str) -> Optional[int]:
 def detect_section(relative_path: str) -> Optional[int]:
     """Return a prioritized section only when the path explicitly names it.
 
-    Isolated output filenames win. Otherwise the nearest folder that names a
-    priority section wins over a host ancestor such as ``Section 15 Work``.
+    Isolated output filenames win, including leftover exclusive names
+    such as ``aaa-p15-letter.xlsx``. Otherwise the nearest folder that
+    names a priority section wins over a host ancestor such as
+    ``Section 15 Work``.
     """
     path = Path(relative_path)
     isolated = _ISOLATED_SECTION_NAME.match(path.name)
@@ -317,6 +320,9 @@ def detect_section(relative_path: str) -> Optional[int]:
         number = int(isolated.group(1))
         if number in PRIORITY_SECTIONS:
             return number
+    leftover = exclusive_isolated_section(path.name)
+    if leftover is not None:
+        return leftover
     for part in reversed(path.parts[:-1]):
         folder = _folder_section(part)
         if folder is not None:

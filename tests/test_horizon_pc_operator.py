@@ -194,6 +194,32 @@ def test_operator_phase1_emits_section_commands(tmp_path: Path) -> None:
     assert "--snapshot-directory" in joined_bound
 
 
+def test_operator_does_not_pick_leftover_exclusive_as_source(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    section = root / "Section 15"
+    (section / "aaa-p15-letter.xlsx").write_bytes(b"LEFTOVER-NOT-SOURCE")
+    (section / "aaa-p13-letter.xlsx").write_bytes(b"OTHER-SECTION-LEFTOVER")
+    receipts = tmp_path / "private-receipts"
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[15],
+        receipt_dir=receipts,
+    )
+    assert receipt.packages_complete is False
+    slots = {pick.slot: pick for pick in receipt.sections[0].candidate_picks}
+    assert slots["candidate"].relative_path.endswith("Working Abstract.xlsx")
+    leftover = receipts / "aaa-p15-letter.xlsx"
+    leftover.write_bytes(b"SAME-LEFTOVER-BYTES")
+    other = receipts / "aaa-p13-letter.xlsx"
+    other.write_bytes(b"SAME-LEFTOVER-BYTES")
+    assert _same_hash_readback(None, leftover, receipts, 15) is None
+    assert _same_hash_readback(None, leftover, receipts, 13) == other.resolve()
+
+
 def test_operator_remaining_plan_names_classified_roles_as_phase2(
     tmp_path: Path,
 ) -> None:

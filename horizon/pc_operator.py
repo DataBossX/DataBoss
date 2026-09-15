@@ -24,6 +24,7 @@ from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .drive_readback import (
+    exclusive_isolated_section,
     exclusive_isolated_workbook_name,
     is_drive_isolated_copy,
     part_folder_section,
@@ -338,6 +339,8 @@ _ISOLATED_WORKBOOK_SECTION = re.compile(
 def _is_isolated_output(item: SourceFile) -> bool:
     relative = Path(item.relative_path)
     if _ISOLATED_OUTPUT_NAME.match(relative.name):
+        return True
+    if exclusive_isolated_section(relative.name) is not None:
         return True
     return any(part.casefold() == "isolated" for part in relative.parts)
 
@@ -2746,9 +2749,9 @@ def _bind_picks_to_snapshot(
 
 def _isolated_workbook_section(path: Path) -> Optional[int]:
     match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
-    if match is None:
-        return None
-    return int(match.group(1))
+    if match is not None:
+        return int(match.group(1))
+    return exclusive_isolated_section(path.name)
 
 
 def _same_hash_readback(

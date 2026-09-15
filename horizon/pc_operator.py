@@ -24,6 +24,7 @@ from .authority_draft import draft_from_files, write_draft
 from .authority_promote import build_promote_command
 from .connect_status import ConnectStatusError, ConnectStatusReceipt, probe_connections
 from .drive_readback import (
+    exclusive_isolated_workbook_name,
     is_drive_isolated_copy,
     part_folder_section,
     path_folder_sections,
@@ -1252,11 +1253,7 @@ def _exclusive_isolated_workbook(path: Path, section: int) -> bool:
             return False
     except OSError:
         return False
-    named = _isolated_workbook_section(path)
-    if named is not None:
-        return named == section
-    marks = {mark for mark in _section_marks(path.name) if mark in PRIORITY_SECTIONS}
-    return marks == {section}
+    return exclusive_isolated_workbook_name(path.name, section)
 
 
 def _leftover_isolated_workbooks(receipt_dir: Path, section: int) -> List[Path]:

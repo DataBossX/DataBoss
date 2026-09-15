@@ -1248,6 +1248,28 @@ def test_latest_isolated_uses_leftover_exclusive_letter(tmp_path: Path) -> None:
     assert _latest_isolated_path(tmp_path, 15) == delta
 
 
+def test_publish_leftover_isolated_letter_counts_as_isolated_copy(
+    tmp_path: Path,
+) -> None:
+    from horizon.source_acquisition import SourceRoot, build_receipt
+
+    drive = tmp_path / "drive-root"
+    section = drive / "Section 15"
+    section.mkdir(parents=True)
+    leftover = tmp_path / "aaa-p15-letter.xlsx"
+    leftover.write_bytes(b"LEFTOVER-LETTER")
+    inventory = build_receipt(
+        [SourceRoot("drive", drive)],
+        requested_sections=[15],
+    )
+    published, hold = _publish_isolated_to_drive(inventory, 15, leftover)
+    assert hold is None
+    assert published is not None
+    assert published.name == "aaa-p15-letter.xlsx"
+    assert is_drive_isolated_copy(published, 15) is True
+    assert is_drive_isolated_copy(published, 13) is False
+
+
 def test_execute_uses_leftover_print_of_current_isolated(
     tmp_path: Path,
 ) -> None:

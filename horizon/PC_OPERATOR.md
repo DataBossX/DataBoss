@@ -77,7 +77,8 @@ python3 -m horizon.pc_operator \
    `sectionN-letter.xlsx` or `sectionN-delta.xlsx` is absent, so Print
    Preview, Drive Isolated/, and owner-review stay on that file.
    Conventional current Letter or delta files still win. Unlabeled or
-   other-section leftovers are not auto-bound.
+   other-section leftovers are not auto-bound. A Drive Isolated/ copy of
+   that leftover exclusive filename counts as Isolated/ for this section.
    `--execute` also writes `sectionN-owner-review-draft.json`; attest it
    with a named examiner after owner review only. Remaining 2+ source
    blanks are written to `sectionN-delta-draft.json`; attest that draft

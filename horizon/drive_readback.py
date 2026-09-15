@@ -23,6 +23,8 @@ _ISOLATED_WORKBOOK_SECTION = re.compile(
     r"^section(\d+)-(letter|delta(?:-\d+)?)\.xlsx$",
     re.IGNORECASE,
 )
+_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
+_PRIORITY_SECTIONS = {11, 13, 15}
 _FOLDER_SECTION = re.compile(
     r"(?i)(?:^|[^a-z0-9])sec(?:tion)?[\s_-]*0?(11|13|15)(?![a-z0-9])"
 )
@@ -72,22 +74,37 @@ def path_folder_sections(path: Path) -> List[int]:
     return found
 
 
+def exclusive_isolated_workbook_name(name: str, section: int) -> bool:
+    """True when a workbook filename names only this priority section.
+
+    Conventional ``sectionN-letter.xlsx`` / ``sectionN-delta.xlsx`` names
+    match. Leftover exclusive names such as ``aaa-p15-letter.xlsx`` also
+    match. Unlabeled or other-section leftovers do not.
+    """
+    match = _ISOLATED_WORKBOOK_SECTION.match(name)
+    if match is not None:
+        return int(match.group(1)) == section
+    marks = {
+        int(item.group(1))
+        for item in _SECTION_MARK.finditer(name)
+        if int(item.group(1)) in _PRIORITY_SECTIONS
+    }
+    return marks == {section}
+
+
 def is_drive_isolated_copy(path: Path, section: int) -> bool:
     """True when Isolated/ names this section and no folder names another."""
     if not any(part.casefold() == "isolated" for part in path.parts):
         return False
-    match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
-    if match is None or int(match.group(1)) != section:
+    if not exclusive_isolated_workbook_name(path.name, section):
         return False
     return not any(number != section for number in path_folder_sections(path))
 
 
 def isolated_workbook_filename(path: Optional[Path], section: int) -> str:
     """Name the current isolated Letter or delta, or sectionN-letter.xlsx."""
-    if path is not None:
-        match = _ISOLATED_WORKBOOK_SECTION.match(path.name)
-        if match is not None and int(match.group(1)) == section:
-            return path.name
+    if path is not None and exclusive_isolated_workbook_name(path.name, section):
+        return path.name
     return f"section{section}-letter.xlsx"
 
 

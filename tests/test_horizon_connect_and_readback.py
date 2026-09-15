@@ -119,6 +119,21 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     assert isolated_workbook_filename(Path("Working Abstract.xlsx"), 15) == (
         "section15-letter.xlsx"
     )
+    assert is_drive_isolated_copy(
+        Path("Section 15/Isolated/aaa-p15-letter.xlsx"), 15
+    )
+    assert not is_drive_isolated_copy(
+        Path("Section 15/Isolated/aaa-p13-letter.xlsx"), 15
+    )
+    assert not is_drive_isolated_copy(
+        Path("Section 15/Isolated/workbook.xlsx"), 15
+    )
+    assert isolated_workbook_filename(Path("aaa-p15-letter.xlsx"), 15) == (
+        "aaa-p15-letter.xlsx"
+    )
+    assert isolated_workbook_filename(Path("aaa-p13-letter.xlsx"), 15) == (
+        "section15-letter.xlsx"
+    )
 
 
 def test_drive_readback_requires_distinct_identical_copy(tmp_path: Path) -> None:

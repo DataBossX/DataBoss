@@ -2364,6 +2364,18 @@ def test_discover_receipt_dir_packets_stays_on_named_section(tmp_path: Path) -> 
     assert all(
         path.name != "print-packet.json" for path in found13.values()
     )
+    (tmp_path / "temp15-print.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.native_print_receipt",
+                "packet_id": "UNLABELED-PRINT",
+            }
+        ),
+        encoding="utf-8",
+    )
+    found15 = _discover_receipt_dir_packets(tmp_path, 15)
+    assert found15["native_print_receipt"].name == "zzz-p15-print.json"
+    assert all(path.name != "temp15-print.json" for path in found15.values())
 
 
 def test_discover_owner_review_stays_on_token_sections(tmp_path: Path) -> None:

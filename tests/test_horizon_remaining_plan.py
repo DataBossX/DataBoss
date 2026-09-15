@@ -609,6 +609,45 @@ def test_remaining_plan_later_leftover_rows_win_over_empty_first_leftover(
     assert "face.pdf" not in dumped
 
 
+def test_remaining_plan_ignores_substring_temp15_empty_text_queue(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "packet_id": "SECTION15-EMPTY-TEXT",
+                "items": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "temp15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "packet_id": "UNLABELED-EMPTY-TEXT",
+                "items": [{"path": "face.pdf"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "image-only PDF(s) still have empty extracted text" not in " ".join(
+        plan["missing"]
+    )
+    assert plan["open_queues"].get("empty_text_queue") != (
+        "temp15-empty-text-queue.json"
+    )
+
+
 def test_remaining_plan_leftover_handwritten_items_win_over_empty_conventional(
     tmp_path: Path,
 ) -> None:

@@ -17,11 +17,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .drive_readback import priority_section_marks
 from .human_release import evaluate_package_completion
 from .isolated_delta import sha256_file
 from .source_acquisition import DEFAULT_REQUIRED_ROLES, PRIORITY_SECTIONS
-
-_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
 
 PLAN_SCHEMA_ID = "dbx.section_remaining_plan"
 PLAN_SCHEMA_VERSION = "1.5"
@@ -412,15 +411,6 @@ def _load_examiner_queue(
     )
 
 
-def _priority_section_marks(*texts: str) -> set[int]:
-    marks: set[int] = set()
-    for text in texts:
-        if not text:
-            continue
-        marks.update(int(match.group(1)) for match in _SECTION_MARK.finditer(text))
-    return {mark for mark in marks if mark in PRIORITY_SECTIONS}
-
-
 def _queue_exclusive_section(
     payload: Dict[str, object],
     filename: str,
@@ -428,7 +418,7 @@ def _queue_exclusive_section(
 ) -> bool:
     if not payload:
         return True
-    marks = _priority_section_marks(filename, str(payload.get("packet_id") or ""))
+    marks = priority_section_marks(filename, str(payload.get("packet_id") or ""))
     raw_sections = payload.get("sections")
     if isinstance(raw_sections, list):
         marks.update(
@@ -437,7 +427,7 @@ def _queue_exclusive_section(
             if type(item) is int and item in PRIORITY_SECTIONS
         )
     if not marks:
-        return True
+        return False
     return marks == {section}
 
 
@@ -980,6 +970,7 @@ def remaining_plan(
             "a leftover exclusive current queue ignores a stale other-section conventional file",
             "a leftover exclusive empty-text, handwritten, or crop-fill queue with rows wins over an empty conventional file",
             "a later leftover exclusive queue with rows wins over an earlier leftover that is empty",
+            "leftover exclusive queue names require a bounded section15/p15 mark; temp15 files are ignored",
             "pdf_census empty-text files keep the plan incomplete even when the leftover queue was emptied",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",

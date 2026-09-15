@@ -29,6 +29,7 @@ from .drive_readback import (
     is_drive_isolated_copy,
     part_folder_section,
     path_folder_sections,
+    priority_section_marks,
 )
 from .index_export import (
     IndexExportError,
@@ -146,20 +147,13 @@ DISCOVERABLE_SCHEMAS = {
     "dbx.pdf_page_census_packet": "pdf_census_packet",
     "dbx.source_proved_delta_packet": "delta_packet",
 }
-_SECTION_MARK = re.compile(r"(?:section|p)(\d+)", re.IGNORECASE)
-
-
-def _section_marks(text: str) -> set[int]:
-    return {int(match.group(1)) for match in _SECTION_MARK.finditer(text)}
-
-
 def _payload_names_section(
     path: Path, payload: Dict[str, object], section: int
 ) -> bool:
-    marks = _section_marks(path.name)
+    marks = priority_section_marks(path.name)
     packet_id = str(payload.get("packet_id") or "")
     if packet_id:
-        marks.update(_section_marks(packet_id))
+        marks.update(priority_section_marks(packet_id))
     priority = {mark for mark in marks if mark in PRIORITY_SECTIONS}
     if priority != {section}:
         return False
@@ -180,11 +174,11 @@ def _path_has_isolated(path: Path) -> bool:
 
 
 def _part_priority_sections(part: str) -> set[int]:
-    marks = _section_marks(part)
+    marks = priority_section_marks(part)
     folder = part_folder_section(part)
     if folder is not None:
         marks.add(folder)
-    return {mark for mark in marks if mark in PRIORITY_SECTIONS}
+    return marks
 
 
 def _bind_dir_priority_sections(path: Path) -> set[int]:

@@ -79,6 +79,16 @@ def path_folder_sections(path: Path) -> List[int]:
     return found
 
 
+def priority_section_marks(*texts: str) -> set[int]:
+    """Priority sections named by bounded ``section15`` / ``p15`` tokens."""
+    marks: set[int] = set()
+    for text in texts:
+        if not text:
+            continue
+        marks.update(int(item.group(1)) for item in _SECTION_MARK.finditer(text))
+    return marks
+
+
 def exclusive_isolated_section(name: str) -> Optional[int]:
     """Priority section named only by this isolated workbook filename.
 

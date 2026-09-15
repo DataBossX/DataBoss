@@ -15,6 +15,7 @@ from horizon.drive_readback import (
     exclusive_isolated_section,
     is_drive_isolated_copy,
     isolated_workbook_filename,
+    priority_section_marks,
 )
 from horizon.occurrence_build import build_occurrence_packet
 from horizon.occurrence_ledger import compare_packet, parse_occurrence_packet
@@ -144,6 +145,10 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     assert exclusive_isolated_section("app15.xlsx") is None
     assert exclusive_isolated_section("aaa-p15-notes.xlsx") is None
     assert exclusive_isolated_section("map15-letter.xlsx") is None
+    assert priority_section_marks("aaa-p15-print.json") == {15}
+    assert priority_section_marks("SECTION15-PRINT") == {15}
+    assert priority_section_marks("temp15-print.json") == set()
+    assert priority_section_marks("UNLABELED-PRINT") == set()
 
 
 def test_drive_readback_requires_distinct_identical_copy(tmp_path: Path) -> None:

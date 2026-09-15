@@ -71,7 +71,9 @@ python3 -m horizon.pc_operator \
    A leftover receipt that names this section and hashes the current
    isolated workbook is bound instead of forcing a reprint when the
    conventional `sectionN-native-print.json` or
-   `sectionN-owner-review.json` is absent or stale.
+   `sectionN-owner-review.json` is absent or stale. Leftover packet
+   names require a bounded `section15` / `p15` mark; substring hits
+   such as `temp15-print.json` are not bound.
    A leftover exclusive isolated workbook that names this section
    (`aaa-p15-letter.xlsx`) is reused as the finish workbook when the
    conventional `sectionN-letter.xlsx` or `sectionN-delta.xlsx` is

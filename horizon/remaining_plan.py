@@ -109,6 +109,8 @@ FILL_QUEUE_GAPS = (
     ),
 )
 CROP_FILL_SECTION = 11
+CENSUS_RECEIPT_SCHEMA = "dbx.pdf_page_census_receipt"
+EMPTY_TEXT_LINE = "{n} image-only PDF(s) still have empty extracted text"
 
 
 def _score_fill_slot(slot: str, section: int) -> bool:
@@ -285,7 +287,39 @@ def _payload_row_count(payload: Dict[str, object]) -> int:
         rows = payload.get(key)
         if isinstance(rows, list):
             return sum(1 for item in rows if isinstance(item, dict))
-    return 0
+    empty = _nonneg_int(payload.get("empty_text_files"))
+    return empty or 0
+
+
+def _census_empty_text_lines(
+    gates: Sequence[_GateView],
+    receipt_dir: Path,
+    section: int,
+) -> List[str]:
+    """Keep remaining-plan incomplete while census still has image-only faces.
+
+    ``pdf_census`` can technical_pass with empty extracted text. An emptied
+    leftover queue must not finish the plan while the finish receipt or a
+    leftover exclusive census receipt still names empty-text files.
+    """
+
+    for gate in gates:
+        if gate.name != "pdf_census" or not gate.ran:
+            continue
+        count = _nonneg_int(gate.detail.get("empty_text_files"))
+        if count:
+            return [EMPTY_TEXT_LINE.format(n=count)]
+        return []
+    payload = _preferred_queue_payload(
+        receipt_dir,
+        section,
+        CENSUS_RECEIPT_SCHEMA,
+        f"section{section}-pdf-census-receipt.json",
+    )
+    count = _nonneg_int(payload.get("empty_text_files"))
+    if count:
+        return [EMPTY_TEXT_LINE.format(n=count)]
+    return []
 
 
 def _preferred_queue(
@@ -796,6 +830,11 @@ def remaining_plan(
         extra.append(queue_gap)
     extra.extend(
         line
+        for line in _census_empty_text_lines(gates, receipt_dir, section)
+        if line not in extra
+    )
+    extra.extend(
+        line
         for line in _fill_queue_lines(receipt_dir, section, isolated_sha)
         if line not in extra
     )
@@ -937,6 +976,7 @@ def remaining_plan(
             "open_queues names the leftover current filename only; it does not copy a host path",
             "a leftover exclusive current queue ignores a stale other-section conventional file",
             "a leftover exclusive empty-text, handwritten, or crop-fill queue with rows wins over an empty conventional file",
+            "pdf_census empty-text files keep the plan incomplete even when the leftover queue was emptied",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",

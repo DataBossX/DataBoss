@@ -636,6 +636,75 @@ def test_remaining_plan_leftover_crop_items_win_over_empty_conventional(
     assert plan["open_queues"]["crop_fill_queue"] == "aaa-p11-crop-fill-queue.json"
 
 
+def test_remaining_plan_census_empty_text_blocks_after_queue_emptied(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    finish = _green_finish(letter)
+    finish["gates"].append(
+        {
+            "name": "pdf_census",
+            "ran": True,
+            "technical_pass": True,
+            "detail": {"file_count": 2, "empty_text_files": 2},
+        }
+    )
+    (tmp_path / "section15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "packet_id": "SECTION15-EMPTY-TEXT",
+                "items": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=finish,
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "2 image-only PDF(s) still have empty extracted text" in plan["missing"]
+
+
+def test_remaining_plan_leftover_census_receipt_empty_text_blocks(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-pdf-census-receipt.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_receipt",
+                "packet_id": "SECTION15-CENSUS",
+                "empty_text_files": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p15-census-receipt.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_receipt",
+                "packet_id": "SECTION15-CENSUS",
+                "empty_text_files": 3,
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "3 image-only PDF(s) still have empty extracted text" in plan["missing"]
+
+
 def test_remaining_plan_prefers_examiner_queue_over_stale_finish(
     tmp_path: Path,
 ) -> None:

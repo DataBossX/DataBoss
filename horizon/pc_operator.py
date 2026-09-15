@@ -58,6 +58,7 @@ from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
 from .pdf_census import (
     PdfCensusError,
     census_packet,
+    iter_bind_pdfs,
     write_empty_text_queue,
     write_inventory_packet,
 )
@@ -862,6 +863,7 @@ def _section_work_order(
         list(summary.missing_required_roles) if summary else list(required_roles)
     )
     missing_candidates = _missing_candidate_roles(files, section, required_roles)
+    json_paths = _json_candidate_paths(Path(receipt_dir), inventory)
     bound = _bind_section_census(
         _section_bindings(
             bindings,
@@ -872,10 +874,10 @@ def _section_work_order(
         receipt_dir,
         section,
         inventory=inventory,
+        leftover_paths=json_paths,
     )
     bound = _bind_section_workbook_packets(bound, receipt_dir, section)
     isolated = Path(_current_isolated_workbook(receipt_dir, section))
-    json_paths = _json_candidate_paths(Path(receipt_dir), inventory)
     bound, stale_holds = _unbind_stale_workbook_packets(
         bound,
         isolated if isolated.is_file() else None,
@@ -2383,11 +2385,71 @@ def _section_census_packet(
     )
 
 
+def _census_packet_matches_pdfs(path: Path, bind_dir: Path) -> bool:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return False
+        receipt = census_packet(payload, bind_dir=bind_dir)
+        if not receipt.technical_pass:
+            return False
+        raw_files = payload.get("files")
+        if not isinstance(raw_files, list) or not raw_files:
+            return False
+        listed = {
+            str(item.get("path") or "")
+            for item in raw_files
+            if isinstance(item, dict)
+        }
+        live = {
+            item.relative_to(bind_dir.expanduser().resolve()).as_posix()
+            for item in iter_bind_pdfs(bind_dir)
+        }
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, PdfCensusError):
+        return False
+    return bool(listed) and "" not in listed and listed == live
+
+
+def _select_census_packet(
+    bindings: FinishBindings,
+    leftover_paths: Sequence[Path],
+    section: int,
+) -> FinishBindings:
+    """Prefer conventional census when it matches; leftover hash-matched fallback.
+
+    Stale conventional packets are unbound so inventory can rewrite them.
+    """
+    bind_dir = bindings.pdf_bind_dir
+    ordered = _ordered_section_packets(
+        bindings.pdf_census_packet,
+        leftover_paths,
+        section,
+        "dbx.pdf_page_census_packet",
+        f"section{section}-pdf-census-packet.json",
+    )
+    if bind_dir is None:
+        return bindings
+    try:
+        resolved = bind_dir.expanduser().resolve()
+        if resolved.is_dir():
+            for candidate in ordered:
+                if _census_packet_matches_pdfs(candidate, resolved):
+                    if candidate == bindings.pdf_census_packet:
+                        return bindings
+                    return replace(bindings, pdf_census_packet=candidate)
+    except OSError:
+        return bindings
+    if bindings.pdf_census_packet is None:
+        return bindings
+    return replace(bindings, pdf_census_packet=None)
+
+
 def _bind_section_census(
     bindings: FinishBindings,
     receipt_dir: str,
     section: int,
     inventory: Optional[AcquisitionReceipt] = None,
+    leftover_paths: Sequence[Path] = (),
 ) -> FinishBindings:
     packet = _section_census_packet(
         bindings.pdf_census_packet, receipt_dir, section
@@ -2397,7 +2459,8 @@ def _bind_section_census(
         bind_dir = _section_pdf_bind_dir(receipt_dir, section)
     if bind_dir is None:
         bind_dir, _paths = _source_document_pdfs(inventory, section)
-    return replace(bindings, pdf_census_packet=packet, pdf_bind_dir=bind_dir)
+    bound = replace(bindings, pdf_census_packet=packet, pdf_bind_dir=bind_dir)
+    return _select_census_packet(bound, leftover_paths, section)
 
 
 def _inventory_pdf_census(
@@ -2407,7 +2470,11 @@ def _inventory_pdf_census(
     inventory: Optional[AcquisitionReceipt] = None,
 ) -> tuple[FinishBindings, Optional[str], Optional[str]]:
     bound = _bind_section_census(
-        bindings, str(receipt_dir), section, inventory=inventory
+        bindings,
+        str(receipt_dir),
+        section,
+        inventory=inventory,
+        leftover_paths=_json_candidate_paths(receipt_dir, inventory),
     )
     examiner_dir = _section_pdf_bind_dir(str(receipt_dir), section)
     snapshot_bind, snapshot_paths = _source_document_pdfs(inventory, section)
@@ -2430,6 +2497,8 @@ def _inventory_pdf_census(
         return bound, None, None
     dest = receipt_dir / f"section{section}-pdf-census-packet.json"
     try:
+        if dest.is_file():
+            dest.unlink()
         write_inventory_packet(
             bind_dir=bound.pdf_bind_dir,
             output=dest,

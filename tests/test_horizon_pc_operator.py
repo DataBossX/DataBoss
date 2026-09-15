@@ -2985,6 +2985,122 @@ def test_execute_inventories_section_pdfs_and_binds_census(tmp_path: Path) -> No
     )
 
 
+def test_execute_uses_leftover_census_of_current_pdfs(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 13"
+    section.mkdir(parents=True)
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    (section / "Recorded Faces").mkdir()
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    pdfs = receipts / "section13-pdfs"
+    pdfs.mkdir(parents=True)
+    face = pdfs / "part4.pdf"
+    face.write_bytes(_minimal_pdf())
+    digest = sha256_file(face)
+    stale = {
+        "schema_id": "dbx.pdf_page_census_packet",
+        "schema_version": "1.0",
+        "packet_id": "SECTION13-CENSUS",
+        "files": [
+            {
+                "path": "part4.pdf",
+                "source_sha256": "0" * 64,
+                "expected_pages": 462,
+            }
+        ],
+    }
+    current = {
+        "schema_id": "dbx.pdf_page_census_packet",
+        "schema_version": "1.0",
+        "packet_id": "SECTION13-CENSUS",
+        "files": [
+            {
+                "path": "part4.pdf",
+                "source_sha256": digest,
+                "expected_pages": 1,
+            }
+        ],
+    }
+    (receipts / "section13-pdf-census-packet.json").write_text(
+        json.dumps(stale), encoding="utf-8"
+    )
+    (receipts / "aaa-p13-census.json").write_text(
+        json.dumps(current), encoding="utf-8"
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    finish = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    census = next(gate for gate in finish["gates"] if gate["name"] == "pdf_census")
+    assert census["technical_pass"] is True
+    assert census["detail"]["empty_text_files"] == 1
+    assert '"expected_pages": 462' not in json.dumps(finish)
+    queue = json.loads(
+        (receipts / "section13-empty-text-queue.json").read_text(encoding="utf-8")
+    )
+    assert queue["items"][0]["path"] == "part4.pdf"
+
+
+def test_execute_rewrites_stale_conventional_census(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    section = root / "Section 13"
+    section.mkdir(parents=True)
+    _write_penterra(section / "Master Abstract.xlsx")
+    _write_penterra(section / "County Index.xlsx")
+    _write_penterra(section / "Handwritten Index.xlsx")
+    (section / "Recorded Faces").mkdir()
+    (section / "Recorded Faces" / "Instrument 1.pdf").write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    pdfs = receipts / "section13-pdfs"
+    pdfs.mkdir(parents=True)
+    face = pdfs / "part4.pdf"
+    face.write_bytes(_minimal_pdf())
+    (receipts / "section13-pdf-census-packet.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION13-CENSUS",
+                "files": [
+                    {
+                        "path": "part4.pdf",
+                        "source_sha256": "0" * 64,
+                        "expected_pages": 462,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    packet = json.loads(
+        (receipts / "section13-pdf-census-packet.json").read_text(encoding="utf-8")
+    )
+    assert packet["files"][0]["source_sha256"] == sha256_file(face)
+    assert packet["files"][0]["expected_pages"] == 1
+    assert packet["files"][0]["expected_pages"] != 462
+    finish = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    census = next(gate for gate in finish["gates"] if gate["name"] == "pdf_census")
+    assert census["technical_pass"] is True
+
+
 def test_cli_writes_receipt_and_stays_incomplete(tmp_path: Path) -> None:
     output = tmp_path / "operator.json"
     result = main(["--output", str(output), "--section", "15"])

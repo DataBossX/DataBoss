@@ -3099,9 +3099,9 @@ def _execute_section(
     finish_path = receipt_dir / f"section{order.section}-finish.json"
     repair_dir = receipt_dir / f"section{order.section}-repair"
     letter_path = receipt_dir / f"section{order.section}-letter.xlsx"
-    reuse_isolated = letter_path.exists()
+    latest = _latest_isolated_path(receipt_dir, order.section)
+    reuse_isolated = latest is not None
     try:
-        latest = _latest_isolated_path(receipt_dir, order.section)
         index_packet_path = None
         if any((master, pdf_index, handwritten)):
             packet_candidate = latest
@@ -3123,17 +3123,12 @@ def _execute_section(
         repair = None
         letter = None
         if reuse_isolated:
-            workbook = letter_path
+            workbook = latest
             repair = _next_empty_repair_dir(receipt_dir, order.section)
         elif candidate:
             workbook = Path(candidate)
             repair = _next_empty_repair_dir(receipt_dir, order.section)
             letter = letter_path
-        latest = _latest_isolated_path(receipt_dir, order.section)
-        if latest is not None and _isolated_delta_generation(latest, order.section):
-            workbook = latest
-            repair = _next_empty_repair_dir(receipt_dir, order.section)
-            letter = None
         delta_paths = list(sorted(receipt_dir.glob("*.json")))
         if inventory is not None:
             delta_paths.extend(
@@ -3159,24 +3154,9 @@ def _execute_section(
             delta_packet = bound.delta_packet
             delta_output = _next_delta_output(receipt_dir, order.section)
             applying_delta = True
-        if (
-            not applying_delta
-            and workbook is not None
-            and (
-                workbook == letter_path
-                or _isolated_delta_generation(workbook, order.section)
-            )
-        ):
+        if not applying_delta and reuse_isolated and workbook is not None:
             _apply_print_layout_in_place(workbook)
-        current_book = (
-            latest
-            if latest is not None and not applying_delta
-            else None
-            if applying_delta
-            else letter_path
-            if reuse_isolated
-            else None
-        )
+        current_book = latest if latest is not None and not applying_delta else None
         if current_book is not None:
             bound, stale_holds = _unbind_stale_workbook_packets(
                 bound,

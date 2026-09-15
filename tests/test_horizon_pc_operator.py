@@ -1248,6 +1248,65 @@ def test_latest_isolated_uses_leftover_exclusive_letter(tmp_path: Path) -> None:
     assert _latest_isolated_path(tmp_path, 15) == delta
 
 
+def test_execute_reuses_leftover_exclusive_letter(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    root.mkdir()
+    _section15_tree(root)
+    drive = tmp_path / "drive-root"
+    isolated_dir = drive / "Section 15" / "Isolated"
+    isolated_dir.mkdir(parents=True)
+    (isolated_dir / "section15-letter.xlsx").write_bytes(b"STALE-CONVENTIONAL")
+    receipts = tmp_path / "private-receipts"
+    receipts.mkdir()
+    leftover = receipts / "aaa-p15-letter.xlsx"
+    _write_penterra(leftover)
+    leftover_sha = sha256_file(leftover)
+    receipt = build_work_order(
+        roots=[f"pc={root}", f"drive={drive}"],
+        sections=[15],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    assert not (receipts / "section15-letter.xlsx").exists()
+    assert _latest_isolated_path(receipts, 15) == leftover
+    assert sha256_file(leftover) == leftover_sha
+    published = isolated_dir / "aaa-p15-letter.xlsx"
+    assert published.is_file()
+    assert sha256_file(published) == leftover_sha
+    assert (isolated_dir / "section15-letter.xlsx").read_bytes() == b"STALE-CONVENTIONAL"
+    finish = json.loads(
+        (receipts / "section15-finish.json").read_text(encoding="utf-8")
+    )
+    recon = next(
+        gate
+        for gate in finish["gates"]
+        if gate["name"] == "index_reconciliation"
+    )
+    assert recon["detail"]["candidate_from"] == "workbook"
+    assert recon["detail"]["workbook_sha256"] == leftover_sha
+    qa = next(gate for gate in finish["gates"] if gate["name"] == "workbook_qa")
+    assert qa["detail"]["workbook_sha256"] == leftover_sha
+    drive_gate = next(
+        gate for gate in finish["gates"] if gate["name"] == "drive_readback"
+    )
+    assert drive_gate["technical_pass"] is True
+    assert drive_gate["detail"].get("isolated_copy") is True
+    assert drive_gate["detail"]["workbook_sha256"] == leftover_sha
+    plan = json.loads(
+        (receipts / "section15-remaining-plan.json").read_text(encoding="utf-8")
+    )
+    assert plan["isolated_workbook"] == {
+        "name": "aaa-p15-letter.xlsx",
+        "sha256": leftover_sha,
+    }
+    assert "Print Preview aaa-p15-letter.xlsx on Windows Excel" in plan["missing"]
+    draft = json.loads(
+        (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")
+    )
+    assert draft["workbook_sha256"] == leftover_sha
+
+
 def test_publish_leftover_isolated_letter_counts_as_isolated_copy(
     tmp_path: Path,
 ) -> None:

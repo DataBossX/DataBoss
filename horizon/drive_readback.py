@@ -26,8 +26,9 @@ _ISOLATED_WORKBOOK_SECTION = re.compile(
 _SECTION_MARK = re.compile(
     r"(?i)(?:^|[^a-z0-9])(?:section|p)[\s_-]*0?(11|13|15)(?![a-z0-9])"
 )
-_LEFTOVER_ISOLATED_KIND = re.compile(
-    r"(?i)(?:^|[^a-z0-9])(letter|delta)(?![a-z0-9])"
+_LEFTOVER_ISOLATED_WORKBOOK = re.compile(
+    r"(?i)(?:^|[^a-z0-9])(?:p|section)[\s_-]*0?(11|13|15)"
+    r"[\s_-]+(letter|delta)(?:[\s_-]\d+)?\.xlsx$"
 )
 _PRIORITY_SECTIONS = {11, 13, 15}
 _FOLDER_SECTION = re.compile(
@@ -93,24 +94,23 @@ def exclusive_isolated_section(name: str) -> Optional[int]:
     """Priority section named only by this isolated workbook filename.
 
     Conventional ``sectionN-letter.xlsx`` / ``sectionN-delta.xlsx`` names
-    match. Leftover exclusive Letter or delta workbooks such as
-    ``aaa-p15-letter.xlsx`` also match. Source PDFs or notes that happen
-    to contain ``letter`` and ``p15`` do not. Substring hits such as
-    ``temp15.xlsx`` do not. Unlabeled or multi-section leftovers return
-    None.
+    match. Leftover exclusive workbooks such as ``aaa-p15-letter.xlsx``
+    also match. Working abstracts such as
+    ``title-opinion-letter-p15.xlsx`` do not. Source PDFs, notes, and
+    substring hits such as ``temp15.xlsx`` do not. Unlabeled or
+    multi-section leftovers return None.
     """
     match = _ISOLATED_WORKBOOK_SECTION.match(name)
     if match is not None:
         number = int(match.group(1))
         return number if number in _PRIORITY_SECTIONS else None
-    if Path(name).suffix.casefold() != ".xlsx":
-        return None
-    if _LEFTOVER_ISOLATED_KIND.search(name) is None:
+    leftover = _LEFTOVER_ISOLATED_WORKBOOK.search(name)
+    if leftover is None:
         return None
     marks = {int(item.group(1)) for item in _SECTION_MARK.finditer(name)}
     if len(marks) != 1:
         return None
-    return next(iter(marks))
+    return int(leftover.group(1))
 
 
 def exclusive_isolated_workbook_name(name: str, section: int) -> bool:

@@ -655,6 +655,8 @@ def test_ensure_fail_closes_verified_receipt_without_snapshot(
         ("Section 13/Isolated/aaa-p15-delta.xlsx", 15),
         ("Section 13/Title-Opinion-Letter-p15.pdf", 13),
         ("Section 15/Mineral-Deed-Letter-p13.pdf", 15),
+        ("Section 13/title-opinion-letter-p15.xlsx", 13),
+        ("Section 15/p15-working-letter.xlsx", 15),
         ("Section 15 Work/Section 13/Master.xlsx", 13),
         ("Section 15 Work/Master.xlsx", 15),
         ("Section 15 Work/Section 13/Isolated/section13-letter.xlsx", 13),

@@ -82,10 +82,12 @@ python3 -m horizon.pc_operator \
    Drive Isolated/, and owner-review stay on that file. Conventional
    current Letter or delta files still win. Unlabeled or other-section
    leftovers are not auto-bound. Leftover exclusive isolated filenames
-   must be a Letter or delta token with a bounded ``p15`` / ``section15``
-   mark; substring hits such as ``temp15.xlsx`` are ignored. Those
-   leftover exclusive isolated filenames win section detection over the
-   parent folder and are not picked as source workbooks. A Drive Isolated/ copy of that leftover exclusive
+   must be the leftover exclusive form `aaa-p15-letter.xlsx` /
+   `aaa-p15-delta.xlsx`; working abstracts such as
+   `title-opinion-letter-p15.xlsx` and substring hits such as
+   `temp15.xlsx` are ignored. Those leftover exclusive isolated
+   filenames win section detection over the parent folder and are not
+   picked as source workbooks. A Drive Isolated/ copy of that leftover exclusive
    filename counts as Isolated/ for this section. Publishing the leftover
    exclusive name into Isolated/ does not overwrite a stale conventional
    Isolated file of a different hash.

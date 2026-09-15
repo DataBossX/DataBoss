@@ -148,6 +148,10 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     assert exclusive_isolated_section("Title-Opinion-Letter-p15.pdf") is None
     assert exclusive_isolated_section("aaa-p15-letter.json") is None
     assert exclusive_isolated_section("Mineral-Deed-Letter-p15.docx") is None
+    assert exclusive_isolated_section("title-opinion-letter-p15.xlsx") is None
+    assert exclusive_isolated_section("letter-p15.xlsx") is None
+    assert exclusive_isolated_section("p15-working-letter.xlsx") is None
+    assert exclusive_isolated_section("aaa-p15-delta-2.xlsx") == 15
     assert priority_section_marks("aaa-p15-print.json") == {15}
     assert priority_section_marks("SECTION15-PRINT") == {15}
     assert priority_section_marks("temp15-print.json") == set()

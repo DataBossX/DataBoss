@@ -1268,9 +1268,11 @@ def test_latest_isolated_uses_leftover_exclusive_letter(tmp_path: Path) -> None:
     (tmp_path / "workbook.xlsx").write_bytes(b"UNLABELED")
     (tmp_path / "temp15.xlsx").write_bytes(b"SUBSTRING-TEMP")
     (tmp_path / "aaa-p15-notes.xlsx").write_bytes(b"NOTES-NOT-LETTER")
+    (tmp_path / "title-opinion-letter-p15.xlsx").write_bytes(b"WORKING-ABSTRACT")
     assert _latest_isolated_path(tmp_path, 15) == leftover
     assert exclusive_isolated_workbook_name("temp15.xlsx", 15) is False
     assert exclusive_isolated_workbook_name("aaa-p15-notes.xlsx", 15) is False
+    assert exclusive_isolated_workbook_name("title-opinion-letter-p15.xlsx", 15) is False
     assert _latest_isolated_path(tmp_path, 13) == tmp_path / "aaa-p13-letter.xlsx"
     assert _latest_isolated_path(tmp_path, 11) is None
     conventional = tmp_path / "section15-letter.xlsx"

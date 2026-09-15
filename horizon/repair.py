@@ -16,12 +16,12 @@ non-worksheet parts.
 from __future__ import annotations
 
 import posixpath
-import shutil
+import re
 import zipfile
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 try:
     from lxml import etree
@@ -31,6 +31,58 @@ except ImportError:  # pragma: no cover - lxml is a declared dependency
 
 _MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _NS = {"m": _MAIN_NS}
+_CELL_REFERENCE = re.compile(r"^\$?([A-Z]{1,3})\$?([1-9]\d*)$")
+_CELL_RANGE = re.compile(
+    r"^\$?([A-Z]{1,3})\$?([1-9]\d*):\$?([A-Z]{1,3})\$?([1-9]\d*)$"
+)
+
+
+def _column_number(column: str) -> int:
+    value = 0
+    for character in column:
+        value = value * 26 + ord(character) - ord("A") + 1
+    return value
+
+
+def _shared_range_bounds(
+    range_reference: str,
+) -> Optional[Tuple[int, int, int, int]]:
+    area = _CELL_RANGE.fullmatch(range_reference)
+    if area is None:
+        return None
+    min_column, min_row = _column_number(area.group(1)), int(area.group(2))
+    max_column, max_row = _column_number(area.group(3)), int(area.group(4))
+    if min_column > max_column or min_row > max_row:
+        return None
+    return min_column, min_row, max_column, max_row
+
+
+def _shared_range_contains(cell_reference: str, range_reference: str) -> bool:
+    cell = _CELL_REFERENCE.fullmatch(cell_reference)
+    bounds = _shared_range_bounds(range_reference)
+    if cell is None or bounds is None:
+        return False
+    cell_column, cell_row = _column_number(cell.group(1)), int(cell.group(2))
+    min_column, min_row, max_column, max_row = bounds
+    return (
+        min_column <= cell_column <= max_column
+        and min_row <= cell_row <= max_row
+    )
+
+
+def _shared_ranges_overlap(first: str, second: str) -> bool:
+    first_bounds = _shared_range_bounds(first)
+    second_bounds = _shared_range_bounds(second)
+    if first_bounds is None or second_bounds is None:
+        return False
+    first_min_col, first_min_row, first_max_col, first_max_row = first_bounds
+    second_min_col, second_min_row, second_max_col, second_max_row = second_bounds
+    return (
+        first_min_col <= second_max_col
+        and second_min_col <= first_max_col
+        and first_min_row <= second_max_row
+        and second_min_row <= first_max_row
+    )
 
 
 @dataclass
@@ -43,37 +95,95 @@ class RepairResult:
     error: str = ""
 
 
-def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
-    """Repair one worksheet part. Returns possibly-rewritten bytes.
+def _fix_worksheet_xml(xml_bytes: bytes, _fixes: List[str]) -> bytes:
+    """Inspect one worksheet part and refuse unsafe formula repair.
 
-    Current repairs (safe, non-destructive):
-      * Remove ``<f>`` formula elements that evaluate to an error (``t="e"`` on
-        the parent ``<c>`` or a formula body starting with ``#``), leaving any
-        last-known cached ``<v>`` value in place so no data is lost.
-      * Drop dangling shared-formula masters that reference a deleted range.
+    An errored formula cannot safely be converted to its cached value. The
+    cache may itself be ``#REF!`` or stale, and removing the formula/type marker
+    would make that error look like ordinary data. Formula restoration requires
+    :func:`restore_formula_from_template`, followed by approved recalculation.
     """
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
+    parser = etree.XMLParser(
+        remove_blank_text=False,
+        recover=False,
+        resolve_entities=False,
+        no_network=True,
+    )
     root = etree.fromstring(xml_bytes, parser=parser)
-    changed = False
+    shared_masters = {}
+    shared_dependents = []
 
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
-        t = cell.get("t")
-        f = cell.find(f"{{{_MAIN_NS}}}f")
-        if f is None:
+        formula = cell.find(f"{{{_MAIN_NS}}}f")
+        if formula is None:
             continue
-        body = (f.text or "").strip()
-        is_error = t == "e" or body.startswith("#") or body.startswith("=#")
+        formula_text = (formula.text or "").strip()
+        if formula.get("t") == "shared":
+            shared_index = formula.get("si")
+            cell_reference = cell.get("r", "?")
+            if shared_index is None:
+                raise ValueError(
+                    f"Shared formula in cell {cell_reference} has no index"
+                )
+            range_reference = formula.get("ref")
+            if formula_text:
+                if (
+                    range_reference is None
+                    or not _shared_range_contains(
+                        cell_reference, range_reference
+                    )
+                ):
+                    raise ValueError(
+                        f"Shared formula master in cell {cell_reference} has "
+                        f"invalid range {range_reference!r}"
+                    )
+                if shared_index in shared_masters:
+                    raise ValueError(
+                        f"Duplicate shared formula master index "
+                        f"{shared_index!r}"
+                    )
+                shared_masters[shared_index] = range_reference
+            elif range_reference is not None:
+                raise ValueError(
+                    f"Shared formula master in cell {cell_reference} has no "
+                    "formula text"
+                )
+            else:
+                shared_dependents.append((shared_index, cell_reference))
+        is_error = (
+            cell.get("t") == "e"
+            or formula_text.startswith("#")
+            or formula_text.startswith("=#")
+        )
         if is_error:
-            cell.remove(f)
-            # if the cached value was an error, clear the error type marker too
-            if t == "e":
-                del cell.attrib["t"]
-            fixes.append(f"removed errored formula in cell {cell.get('r', '?')}")
-            changed = True
+            raise ValueError(
+                f"Unsafe errored formula in cell {cell.get('r', '?')}; "
+                "repair refused without template authority"
+            )
 
-    if not changed:
-        return xml_bytes
-    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+    master_items = list(shared_masters.items())
+    for index, (first_id, first_range) in enumerate(master_items):
+        for second_id, second_range in master_items[index + 1:]:
+            if _shared_ranges_overlap(first_range, second_range):
+                raise ValueError(
+                    f"Shared formula master ranges overlap: {first_id!r} "
+                    f"{first_range!r} and {second_id!r} {second_range!r}"
+                )
+
+    for shared_index, cell_reference in shared_dependents:
+        master_range = shared_masters.get(shared_index)
+        if master_range is None:
+            raise ValueError(
+                f"Dangling shared formula in cell {cell_reference}: "
+                f"master index {shared_index!r} is missing"
+            )
+        if not _shared_range_contains(cell_reference, master_range):
+            raise ValueError(
+                f"Shared formula in cell {cell_reference} is outside master "
+                f"range {master_range!r}"
+            )
+
+    return xml_bytes
 
 
 def repair_workbook(
@@ -81,25 +191,33 @@ def repair_workbook(
     dest: Path,
     worksheet_fixer: Optional[Callable[[bytes, List[str]], bytes]] = None,
 ) -> RepairResult:
-    """Copy ``src`` to a new ``dest`` zip, repairing worksheet XML in transit.
+    """Validate and copy ``src`` to a new ``dest`` zip.
 
     Every non-worksheet part (media, styles, shared strings, drawings, plats) is
-    copied verbatim. ``src`` is never modified.
+    copied verbatim. The default worksheet fixer refuses unsafe formula repairs;
+    a caller-supplied fixer may apply authorized changes. ``src`` is never
+    modified.
     """
     if not _HAVE_LXML:
-        # Degrade gracefully: copy through unchanged rather than crash.
-        shutil.copy2(src, dest)
-        return RepairResult(output=dest, repaired=False,
-                            error="lxml unavailable; copied without repair")
+        return RepairResult(
+            output=None,
+            repaired=False,
+            error="lxml unavailable; workbook repair refused",
+        )
 
     fixer = worksheet_fixer or _fix_worksheet_xml
     fixes: List[str] = []
     media = 0
     dest.parent.mkdir(parents=True, exist_ok=True)
+    temporary = dest.with_suffix(dest.suffix + ".repairing")
 
     try:
+        if dest.exists():
+            raise ValueError(f"Refusing to overwrite existing output: {dest}")
+        if temporary.exists():
+            temporary.unlink()
         with zipfile.ZipFile(src, "r") as zin, \
-                zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zout:
+                zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
                 data = zin.read(item.filename)
                 name = item.filename
@@ -109,7 +227,10 @@ def repair_workbook(
                     data = fixer(data, fixes)
                 # Preserve original metadata (date/compression) for stable output.
                 zout.writestr(item, data)
-    except (zipfile.BadZipFile, OSError, etree.XMLSyntaxError) as exc:
+        temporary.replace(dest)
+    except (zipfile.BadZipFile, OSError, ValueError, etree.XMLSyntaxError) as exc:
+        if temporary.exists():
+            temporary.unlink()
         return RepairResult(output=None, repaired=False, error=str(exc))
 
     return RepairResult(

@@ -31,7 +31,11 @@ if __package__ in (None, ""):
     from horizon.orchestrator import Orchestrator
     from horizon.pipeline import build_from_workbook, find_reference_workbook
     from horizon.report_io import read_report, write_report
-    from horizon.validation import load_requirements, validate_report
+    from horizon.validation import (
+        ABSTRACT_REQUIRED_FIELDS,
+        load_requirements,
+        validate_report,
+    )
     from horizon.versioning import latest_version, next_version_path
 else:
     from .artifacts import write_all
@@ -41,7 +45,11 @@ else:
     from .orchestrator import Orchestrator
     from .pipeline import build_from_workbook, find_reference_workbook
     from .report_io import read_report, write_report
-    from .validation import load_requirements, validate_report
+    from .validation import (
+        ABSTRACT_REQUIRED_FIELDS,
+        load_requirements,
+        validate_report,
+    )
     from .versioning import latest_version, next_version_path
 
 
@@ -81,9 +89,19 @@ def run(args: argparse.Namespace) -> int:
 
     # 2. Requirements from the Golden Source of Truth.
     reqs = load_requirements(cfg.root / cfg.golden_source_name)
+    required_nonblank_fields = {
+        field.strip()
+        for field in args.required_fields.split(",")
+        if field.strip()
+    }
+    if args.require_complete_abstract:
+        required_nonblank_fields.update(ABSTRACT_REQUIRED_FIELDS)
+    reqs.required_nonblank_fields.update(required_nonblank_fields)
     audit.info("requirements", f"source={reqs.source} "
                                f"columns={len(reqs.required_columns)} "
-                               f"required_instruments={len(reqs.required_instruments)}")
+                               f"required_instruments={len(reqs.required_instruments)} "
+                               f"required_nonblank_fields="
+                               f"{sorted(reqs.required_nonblank_fields)}")
 
     # 3. Ingest the newest report iteration to perfect (if any exists yet).
     base_stem = args.base or f"{cfg.section}_Roger_Mills_Cursory_Title_Report"
@@ -215,6 +233,22 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                          "into an initial versioned report before the loop")
     ap.add_argument("--max-loops", type=int, default=None,
                     help="Override the improvement-loop cap (default 5; 0 disables the loop)")
+    ap.add_argument(
+        "--require-complete-abstract",
+        action="store_true",
+        help=(
+            "Block validation when recorded date, document type, grantor, "
+            "grantee, or legal description is blank"
+        ),
+    )
+    ap.add_argument(
+        "--required-fields",
+        default="",
+        help=(
+            "Additional comma-separated canonical fields that must be nonblank "
+            "on every report row"
+        ),
+    )
     ap.add_argument("--no-backup", action="store_true",
                     help="Skip the snapshot backup copy")
     ap.add_argument("--dry-run", action="store_true",

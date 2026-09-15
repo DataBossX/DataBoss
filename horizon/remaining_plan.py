@@ -418,8 +418,13 @@ def _fill_draft_hash_gaps(
         ),
         ("delta_draft", "dbx.source_proved_delta_draft", "delta draft"),
     ):
-        payload = _load_queue(
-            receipt_dir, OPEN_QUEUE_FILES[slot].format(section=section), schema_id
+        payload = _preferred_queue_payload(
+            receipt_dir,
+            section,
+            schema_id,
+            OPEN_QUEUE_FILES[slot].format(section=section),
+            isolated_sha256=isolated_sha256,
+            digest_field="source_workbook_sha256",
         )
         if payload.get("status") != "UNAPPROVED_DRAFT":
             continue
@@ -678,11 +683,7 @@ def remaining_plan(
         field_gaps=field_gaps,
         by_field=by_field,
     )
-    queue_payload = _load_queue(
-        receipt_dir,
-        OPEN_QUEUE_FILES["examiner_queue"].format(section=section),
-        EXAMINER_QUEUE_SCHEMA_ID,
-    )
+    queue_payload = _load_examiner_queue(receipt_dir, section, isolated_sha)
     queue_gap = _examiner_queue_hash_gap(queue_payload, isolated_sha)
     if queue_gap:
         extra.append(queue_gap)
@@ -825,6 +826,7 @@ def remaining_plan(
             "examiner-queue counts without a workbook hash are ignored once an isolated file exists",
             "onesource and delta drafts without a workbook hash are ignored once an isolated file exists",
             "leftover examiner, one-source, and fill queues that hash the isolated file are scored when the conventional file is absent or stale",
+            "hash-gap extras use the leftover current queue, not a stale conventional file",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",

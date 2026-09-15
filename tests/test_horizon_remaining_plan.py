@@ -305,6 +305,72 @@ def test_remaining_plan_leftover_unhashed_examiner_queue_does_not_apply_counts(
     assert "examiner queue is bound to a different workbook" not in plan["missing"]
 
 
+def test_remaining_plan_leftover_current_empty_queue_ignores_stale_hash_gap(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    digest = sha256_file(letter)
+    (tmp_path / "section15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION15-EXAMINER",
+                "workbook_sha256": "0" * 64,
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p15-examiner-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.examiner_fill_queue",
+                "packet_id": "SECTION15-EXAMINER",
+                "workbook_sha256": digest,
+                "blank_count": 0,
+                "conflict_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "section15-onesource-template.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_template",
+                "status": "UNAPPROVED_DRAFT",
+                "deltas": [{"row_key": "k1", "field": "legal_description", "value": ""}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p15-onesource-template.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.source_proved_delta_template",
+                "packet_id": "SECTION15-ONESOURCE",
+                "status": "UNAPPROVED_DRAFT",
+                "source_workbook_sha256": digest,
+                "deltas": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "examiner queue is bound to a different workbook" not in plan["missing"]
+    assert "examiner queue is missing a workbook hash" not in plan["missing"]
+    assert "onesource template is missing a workbook hash" not in plan["missing"]
+    assert "2 one-source row(s) still need writer-held text" not in plan["missing"]
+    assert "1 one-source row(s) still need writer-held text" not in plan["missing"]
+    assert plan["packages_complete"] is True
+
+
 def test_remaining_plan_scores_leftover_hash_matched_examiner_queue(
     tmp_path: Path,
 ) -> None:

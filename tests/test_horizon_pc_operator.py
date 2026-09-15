@@ -27,6 +27,7 @@ from horizon.pc_operator import (
     _section_crop_packet,
     _section_named_packet,
     _select_delta_packet,
+    _unbind_stale_crop_packet,
     _unbind_stale_workbook_packets,
     _section_commands,
     _section_folder_dest,
@@ -1951,6 +1952,164 @@ def test_crop_packet_without_paths_does_not_match_renders(tmp_path: Path) -> Non
         encoding="utf-8",
     )
     assert _crop_packet_matches_renders(packet, bind) is False
+
+
+def test_unbind_uses_leftover_crops_when_conventional_is_stale(
+    tmp_path: Path,
+) -> None:
+    bind = tmp_path / "section11-renders"
+    bind.mkdir()
+    render = bind / "page-01.png"
+    render.write_bytes(b"LIVE-RENDER")
+    digest = sha256_file(render)
+    pages = [
+        {
+            "page": 1,
+            "path": "page-01.png",
+            "source_sha256": digest,
+        }
+    ]
+    conventional = tmp_path / "section11-crops.json"
+    leftover = tmp_path / "aaa-p11-crops.json"
+    conventional.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "packet_id": "SECTION11-CROPS",
+                "pages": [
+                    {
+                        "page": 1,
+                        "path": "page-01.png",
+                        "source_sha256": "0" * 64,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    leftover.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "packet_id": "SECTION11-CROPS",
+                "pages": pages,
+            }
+        ),
+        encoding="utf-8",
+    )
+    bound, holds = _unbind_stale_crop_packet(
+        FinishBindings(page_render_packet=conventional),
+        bind,
+        11,
+        leftover_paths=[conventional, leftover],
+    )
+    assert bound.page_render_packet == leftover
+    assert holds == []
+
+    leftover.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "packet_id": "SECTION11-CROPS",
+                "pages": pages,
+            }
+        ),
+        encoding="utf-8",
+    )
+    conventional.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.page_render_crop_packet",
+                "packet_id": "SECTION11-CROPS",
+                "pages": pages,
+            }
+        ),
+        encoding="utf-8",
+    )
+    preferred, preferred_holds = _unbind_stale_crop_packet(
+        FinishBindings(page_render_packet=leftover),
+        bind,
+        11,
+        leftover_paths=[leftover, conventional],
+    )
+    assert preferred.page_render_packet == conventional
+    assert preferred_holds == []
+
+
+def test_execute_uses_leftover_crops_of_current_renders(tmp_path: Path) -> None:
+    root = tmp_path / "pc-root"
+    (root / "Section 11").mkdir(parents=True)
+    receipts = tmp_path / "private-receipts"
+    renders = receipts / "section11-renders"
+    renders.mkdir(parents=True)
+    render = renders / "page-01.png"
+    render.write_bytes(b"LIVE-RENDER")
+    digest = sha256_file(render)
+    stale = {
+        "schema_id": "dbx.page_render_crop_packet",
+        "schema_version": "1.0",
+        "packet_id": "SECTION11-CROPS",
+        "expected_page_count": 1,
+        "pages": [
+            {
+                "page": 1,
+                "path": "page-01.png",
+                "source_sha256": "0" * 64,
+            }
+        ],
+        "crops": [],
+    }
+    current = {
+        "schema_id": "dbx.page_render_crop_packet",
+        "schema_version": "1.0",
+        "packet_id": "SECTION11-CROPS",
+        "expected_page_count": 1,
+        "pages": [
+            {
+                "page": 1,
+                "path": "page-01.png",
+                "source_sha256": digest,
+            }
+        ],
+        "crops": [
+            {
+                "row_id": "p01r01",
+                "page": 1,
+                "crop_id": "p01r01",
+                "source_sha256": digest,
+                "docno": "2026-09901",
+                "bookpage": "",
+                "rec_date": "1/2/2026",
+                "doc_date": "",
+                "grantor": "SYNTH SURVEYOR",
+                "grantee": "The Public",
+            }
+        ],
+    }
+    (receipts / "section11-crops.json").write_text(
+        json.dumps(stale), encoding="utf-8"
+    )
+    (receipts / "aaa-p11-crops.json").write_text(
+        json.dumps(current), encoding="utf-8"
+    )
+    receipt = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[11],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert receipt.packages_complete is False
+    assert all(
+        "do not match the current renders" not in hold
+        for hold in receipt.sections[0].holds
+    )
+    finish = json.loads(
+        (receipts / "section11-finish.json").read_text(encoding="utf-8")
+    )
+    export = next(
+        gate for gate in finish["gates"] if gate["name"] == "page_render_export"
+    )
+    assert export["technical_pass"] is True
 
 
 def test_execute_does_not_bind_other_section_crop_packet(tmp_path: Path) -> None:

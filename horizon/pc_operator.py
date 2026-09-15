@@ -891,7 +891,10 @@ def _section_work_order(
         crops_draft=str(Path(receipt_dir) / f"section{section}-crops-draft.json"),
     )
     bound, crop_holds = _unbind_stale_crop_packet(
-        bound, bound.page_render_bind_dir
+        bound,
+        bound.page_render_bind_dir,
+        section,
+        leftover_paths=json_paths,
     )
     holds.extend(crop_holds)
     delta_candidates = _discover_schema_paths(
@@ -1674,17 +1677,29 @@ def _crop_packet_has_render_paths(path: Path) -> bool:
 def _unbind_stale_crop_packet(
     bindings: FinishBindings,
     bind_dir: Optional[Path],
+    section: int,
+    leftover_paths: Sequence[Path] = (),
 ) -> tuple[FinishBindings, List[str]]:
-    """Drop a crop packet whose page hashes no longer match live renders."""
-    packet = bindings.page_render_packet
-    if packet is None:
-        return bindings, []
+    """Drop a crop packet whose page hashes no longer match live renders.
+
+    Conventional sectionN-crops.json stays first. A leftover that names this
+    section and matches the current renders is fallback when the conventional
+    packet is absent or stale.
+    """
     hold = (
         "Page-render crop packet hashes do not match the current renders; "
         "re-attest section11-crops-draft.json"
     )
+    ordered = _ordered_section_packets(
+        bindings.page_render_packet,
+        leftover_paths,
+        section,
+        "dbx.page_render_crop_packet",
+        f"section{section}-crops.json",
+    )
+    packet = bindings.page_render_packet
     if bind_dir is None:
-        if _crop_packet_has_render_paths(packet):
+        if packet is not None and _crop_packet_has_render_paths(packet):
             return (
                 replace(bindings, page_render_packet=None),
                 [
@@ -1696,10 +1711,18 @@ def _unbind_stale_crop_packet(
         return bindings, []
     try:
         resolved = bind_dir.expanduser().resolve()
-        if resolved.is_dir() and _crop_packet_matches_renders(packet, resolved):
-            return bindings, []
+        if resolved.is_dir():
+            for candidate in ordered:
+                if _crop_packet_matches_renders(candidate, resolved):
+                    if candidate is packet:
+                        return bindings, []
+                    return replace(bindings, page_render_packet=candidate), []
     except OSError:
+        if packet is None:
+            return bindings, []
         return replace(bindings, page_render_packet=None), [hold]
+    if packet is None:
+        return bindings, []
     return (
         replace(bindings, page_render_packet=None),
         [hold],
@@ -2897,7 +2920,10 @@ def _execute_section(
         crops_draft=crops_draft,
     )
     bound, crop_holds = _unbind_stale_crop_packet(
-        bound, bound.page_render_bind_dir
+        bound,
+        bound.page_render_bind_dir,
+        order.section,
+        leftover_paths=_json_candidate_paths(receipt_dir, phase2 or inventory),
     )
     order.holds.extend(crop_holds)
     if not any((master, pdf_index, handwritten, bound.page_render_packet)):

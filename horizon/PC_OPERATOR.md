@@ -89,7 +89,9 @@ python3 -m horizon.pc_operator \
    directory is absent. Phase 1 live files are not hashed into the draft.
    Empty crop skeletons are seeded per hashed page. Existing crop text
    is not overwritten. `--execute` also writes
-   `section11-crop-fill-queue.json` for remaining face fills. Attest the
+   `section11-crop-fill-queue.json` for remaining face fills. A leftover
+   crop packet that names section 11 and matches the current renders is
+   bound when `section11-crops.json` is absent or stale. Attest the
    draft after a writer holds source-proved text. Crop packets whose
    page hashes no longer match the live renders are unbound.
    Handwritten-index images/PDFs are hashed into

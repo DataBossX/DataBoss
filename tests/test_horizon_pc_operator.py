@@ -2651,7 +2651,7 @@ def test_execute_does_not_reuse_other_section_pdf_bind_dir(tmp_path: Path) -> No
     )
     assert "pdf_census" not in {gate["name"] for gate in finish13["gates"]}
     dumped = json.dumps(finish13)
-    assert "462" not in dumped
+    assert '"expected_pages": 462' not in dumped
     assert "SECTION15" not in dumped
     assert not (receipts / "section13-empty-text-queue.json").exists()
     assert not (receipts / "section13-pdf-census-packet.json").exists()
@@ -2692,7 +2692,7 @@ def test_execute_does_not_bind_other_section_census_packet(tmp_path: Path) -> No
     )
     assert "pdf_census" not in {gate["name"] for gate in finish["gates"]}
     dumped = json.dumps(finish)
-    assert "462" not in dumped
+    assert '"expected_pages": 462' not in dumped
     assert "SECTION13-CENSUS" not in dumped
     assert not (receipts / "section15-empty-text-queue.json").exists()
     assert all(

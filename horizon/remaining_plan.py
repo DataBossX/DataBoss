@@ -280,6 +280,14 @@ def _iter_schema_files(
     return found
 
 
+def _payload_row_count(payload: Dict[str, object]) -> int:
+    for key in ("items", "deltas", "pages", "crops"):
+        rows = payload.get(key)
+        if isinstance(rows, list):
+            return sum(1 for item in rows if isinstance(item, dict))
+    return 0
+
+
 def _preferred_queue(
     receipt_dir: Path,
     section: int,
@@ -288,7 +296,13 @@ def _preferred_queue(
     isolated_sha256: str = "",
     digest_field: str = "",
 ) -> tuple[str, Dict[str, object]]:
-    """Prefer sectionN-* when it matches; leftover hash-matched files are fallback."""
+    """Prefer sectionN-* when it matches; leftover hash-matched files are fallback.
+
+    Empty-text, handwritten, and crop-fill queues have no workbook digest.
+    A leftover exclusive file that still has rows wins over an empty
+    conventional ``sectionN-*.json`` so remaining-plan cannot finish while
+    those leftover items are still open.
+    """
     exclusive = [
         (name, payload)
         for name, payload in _iter_schema_files(receipt_dir, schema_id)
@@ -314,10 +328,15 @@ def _preferred_queue(
         return "", {}
     if not digest_field:
         preferred = [item for item in exclusive if item[0] == conventional]
+        leftovers = [item for item in exclusive if item[0] != conventional]
         if preferred:
+            if leftovers and _payload_row_count(leftovers[0][1]) and not _payload_row_count(
+                preferred[0][1]
+            ):
+                return leftovers[0]
             return preferred[0]
-        if exclusive:
-            return exclusive[0]
+        if leftovers:
+            return leftovers[0]
         return "", {}
     payload = _load_queue(receipt_dir, conventional, schema_id)
     if payload or (receipt_dir / conventional).is_file():
@@ -917,6 +936,7 @@ def remaining_plan(
             "hash-gap extras use the leftover current queue, not a stale conventional file",
             "open_queues names the leftover current filename only; it does not copy a host path",
             "a leftover exclusive current queue ignores a stale other-section conventional file",
+            "a leftover exclusive empty-text, handwritten, or crop-fill queue with rows wins over an empty conventional file",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",

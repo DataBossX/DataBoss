@@ -522,6 +522,120 @@ def test_remaining_plan_scores_leftover_empty_text_queue(
     assert "face.pdf" not in dumped
 
 
+def test_remaining_plan_leftover_empty_text_items_win_over_empty_conventional(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "packet_id": "SECTION15-EMPTY-TEXT",
+                "items": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p15-empty-text-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.empty_text_pdf_queue",
+                "packet_id": "SECTION15-EMPTY-TEXT",
+                "items": [{"path": "face.pdf"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "1 image-only PDF(s) still have empty extracted text" in plan["missing"]
+    assert plan["open_queues"]["empty_text_queue"] == "aaa-p15-empty-text-queue.json"
+    dumped = json.dumps(plan)
+    assert "face.pdf" not in dumped
+    assert str(tmp_path) not in json.dumps(plan["open_queues"])
+
+
+def test_remaining_plan_leftover_handwritten_items_win_over_empty_conventional(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section15-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section15-handwritten-scan-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.handwritten_scan_queue",
+                "packet_id": "SECTION15-HANDWRITTEN",
+                "items": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p15-handwritten-scan-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.handwritten_scan_queue",
+                "packet_id": "SECTION15-HANDWRITTEN",
+                "items": [{"page": 1, "action": "transcribe_to_penterra"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=15,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "1 handwritten scan(s) still need a Penterra xlsx" in plan["missing"]
+    assert (
+        plan["open_queues"]["handwritten_scan_queue"]
+        == "aaa-p15-handwritten-scan-queue.json"
+    )
+
+
+def test_remaining_plan_leftover_crop_items_win_over_empty_conventional(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section11-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section11-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION11-CROPS",
+                "items": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p11-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION11-CROPS",
+                "items": [{"page": 1, "action": "source_proved_fill"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=11,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert plan["packages_complete"] is False
+    assert "1 page-render crop(s) still need face text" in plan["missing"]
+    assert plan["open_queues"]["crop_fill_queue"] == "aaa-p11-crop-fill-queue.json"
+
+
 def test_remaining_plan_prefers_examiner_queue_over_stale_finish(
     tmp_path: Path,
 ) -> None:

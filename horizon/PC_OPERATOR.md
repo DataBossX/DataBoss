@@ -199,7 +199,10 @@ python3 -m horizon.pc_operator \
    `open_queues` lists that leftover filename only; it does not copy a
    host path or point operators at a stale conventional file. A leftover
    exclusive current queue also ignores a stale other-section
-   `sectionN-*.json`.    Open handwritten-scan, empty-text, one-source, and
+   `sectionN-*.json`. A leftover exclusive empty-text, handwritten, or
+   crop-fill queue that still has rows wins over an empty conventional
+   `sectionN-*.json`, so remaining-plan cannot finish while those leftover
+   items are still open.    Open handwritten-scan, empty-text, one-source, and
    delta-draft queues keep remaining-plan incomplete when they are
    hash-bound to the current isolated file. Crop-fill queues are scored
    only for section 11. Chat/OCR supporting queues are review-only.

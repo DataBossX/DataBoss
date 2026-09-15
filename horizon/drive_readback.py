@@ -93,15 +93,18 @@ def exclusive_isolated_section(name: str) -> Optional[int]:
     """Priority section named only by this isolated workbook filename.
 
     Conventional ``sectionN-letter.xlsx`` / ``sectionN-delta.xlsx`` names
-    match. Leftover exclusive Letter or delta names such as
-    ``aaa-p15-letter.xlsx`` also match. Substring hits such as
-    ``temp15.xlsx`` or notes without Letter/delta do not. Unlabeled or
-    multi-section leftovers return None.
+    match. Leftover exclusive Letter or delta workbooks such as
+    ``aaa-p15-letter.xlsx`` also match. Source PDFs or notes that happen
+    to contain ``letter`` and ``p15`` do not. Substring hits such as
+    ``temp15.xlsx`` do not. Unlabeled or multi-section leftovers return
+    None.
     """
     match = _ISOLATED_WORKBOOK_SECTION.match(name)
     if match is not None:
         number = int(match.group(1))
         return number if number in _PRIORITY_SECTIONS else None
+    if Path(name).suffix.casefold() != ".xlsx":
+        return None
     if _LEFTOVER_ISOLATED_KIND.search(name) is None:
         return None
     marks = {int(item.group(1)) for item in _SECTION_MARK.finditer(name)}

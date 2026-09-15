@@ -653,6 +653,8 @@ def test_ensure_fail_closes_verified_receipt_without_snapshot(
         ("Section 13/aaa-p15-letter.xlsx", 15),
         ("Section 15/Isolated/aaa-p13-letter.xlsx", 13),
         ("Section 13/Isolated/aaa-p15-delta.xlsx", 15),
+        ("Section 13/Title-Opinion-Letter-p15.pdf", 13),
+        ("Section 15/Mineral-Deed-Letter-p13.pdf", 15),
         ("Section 15 Work/Section 13/Master.xlsx", 13),
         ("Section 15 Work/Master.xlsx", 15),
         ("Section 15 Work/Section 13/Isolated/section13-letter.xlsx", 13),
@@ -697,16 +699,24 @@ def test_chattel_and_township_filenames_inventory_as_faces(tmp_path: Path) -> No
     _write(root, "15-45N-76W Mineral Deed.pdf", b"township-face")
     _write(root, "Section 15/Indexes/Master Abstract.xlsx", b"master")
     _write(root, "Section 15/notes-about-index.txt", b"notes")
+    _write(root, "Section 13/Title-Opinion-Letter-p15.pdf", b"title-letter")
     receipt = build_receipt(
         [SourceRoot("pc", root)],
-        requested_sections=[15],
+        requested_sections=[15, 13],
     )
     roles = {item.relative_path: item.candidate_role for item in receipt.files}
     assert roles["Section 15/Chattel/Mortgage.pdf"] == "source_document"
     assert roles["15-45N-76W Mineral Deed.pdf"] == "source_document"
     assert roles["Section 15/Indexes/Master Abstract.xlsx"] == "master_workbook"
     assert roles["Section 15/notes-about-index.txt"] == "supporting_record"
-    counts = receipt.sections[0].candidate_role_counts
+    planted = next(
+        item
+        for item in receipt.files
+        if item.relative_path == "Section 13/Title-Opinion-Letter-p15.pdf"
+    )
+    assert planted.section == 13
+    assert planted.candidate_role == "source_document"
+    counts = next(item for item in receipt.sections if item.section == 15).candidate_role_counts
     assert counts.get("source_document") == 2
     assert counts.get("master_workbook") == 1
     assert counts.get("index", 0) == 0

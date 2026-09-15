@@ -80,7 +80,8 @@ python3 -m horizon.pc_operator \
    absent. `--execute` does not write a new conventional Letter from the
    source candidate over that leftover. Recon, repair, Print Preview,
    Drive Isolated/, and owner-review stay on that file. Conventional
-   current Letter or delta files still win. Unlabeled or other-section
+   current Letter or delta files still win. When more than one leftover
+   exclusive Letter exists, the newest file wins. Unlabeled or other-section
    leftovers are not auto-bound. Leftover exclusive isolated filenames
    must be the leftover exclusive form `aaa-p15-letter.xlsx` /
    `aaa-p15-delta.xlsx`; working abstracts such as

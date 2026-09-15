@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import openpyxl
@@ -1273,6 +1274,11 @@ def test_latest_isolated_uses_leftover_exclusive_letter(tmp_path: Path) -> None:
     assert exclusive_isolated_workbook_name("temp15.xlsx", 15) is False
     assert exclusive_isolated_workbook_name("aaa-p15-notes.xlsx", 15) is False
     assert exclusive_isolated_workbook_name("title-opinion-letter-p15.xlsx", 15) is False
+    newer = tmp_path / "zzz-p15-letter.xlsx"
+    newer.write_bytes(b"NEWER-LEFTOVER")
+    os.utime(leftover, ns=(1_000_000_000, 1_000_000_000))
+    os.utime(newer, ns=(2_000_000_000, 2_000_000_000))
+    assert _latest_isolated_path(tmp_path, 15) == newer
     assert _latest_isolated_path(tmp_path, 13) == tmp_path / "aaa-p13-letter.xlsx"
     assert _latest_isolated_path(tmp_path, 11) is None
     conventional = tmp_path / "section15-letter.xlsx"

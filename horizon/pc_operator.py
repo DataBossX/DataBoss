@@ -1253,10 +1253,21 @@ def _exclusive_isolated_workbook(path: Path, section: int) -> bool:
     return exclusive_isolated_workbook_name(path.name, section)
 
 
+def _newest_first(paths: Sequence[Path]) -> List[Path]:
+    def key(path: Path) -> tuple[int, str]:
+        try:
+            mtime = path.stat().st_mtime_ns
+        except OSError:
+            mtime = 0
+        return (-mtime, path.name.casefold())
+
+    return sorted(paths, key=key)
+
+
 def _leftover_isolated_workbooks(receipt_dir: Path, section: int) -> List[Path]:
     found: List[Path] = []
     try:
-        paths = sorted(receipt_dir.glob("*.xlsx"))
+        paths = list(receipt_dir.glob("*.xlsx"))
     except OSError:
         return found
     conventional_letter = f"section{section}-letter.xlsx"
@@ -1269,11 +1280,15 @@ def _leftover_isolated_workbooks(receipt_dir: Path, section: int) -> List[Path]:
             found.append(path)
     letters = [path for path in found if "letter" in path.name.casefold()]
     deltas = [path for path in found if "delta" in path.name.casefold()]
-    return letters + deltas + [path for path in found if path not in letters + deltas]
+    rest = [path for path in found if path not in letters + deltas]
+    return _newest_first(letters) + _newest_first(deltas) + _newest_first(rest)
 
 
 def _latest_isolated_path(receipt_dir: Path, section: int) -> Optional[Path]:
-    """Prefer conventional sectionN delta/letter; leftover exclusive xlsx is fallback."""
+    """Prefer conventional sectionN delta/letter; leftover exclusive xlsx is fallback.
+
+    Among leftover exclusive Letters or deltas, the newest file wins.
+    """
     best: Optional[Path] = None
     best_gen = 0
     try:
@@ -1304,6 +1319,7 @@ def _latest_isolated_path(receipt_dir: Path, section: int) -> Optional[Path]:
     if leftovers:
         return leftovers[0]
     return None
+
 
 
 def _next_empty_repair_dir(receipt_dir: Path, section: int) -> Path:

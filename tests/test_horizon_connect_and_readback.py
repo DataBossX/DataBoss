@@ -140,6 +140,10 @@ def test_is_drive_isolated_copy_requires_isolated_dir_and_section_name() -> None
     assert exclusive_isolated_section("section15-delta-2.xlsx") == 15
     assert exclusive_isolated_section("aaa-p15-p13-letter.xlsx") is None
     assert exclusive_isolated_section("workbook.xlsx") is None
+    assert exclusive_isolated_section("temp15.xlsx") is None
+    assert exclusive_isolated_section("app15.xlsx") is None
+    assert exclusive_isolated_section("aaa-p15-notes.xlsx") is None
+    assert exclusive_isolated_section("map15-letter.xlsx") is None
 
 
 def test_drive_readback_requires_distinct_identical_copy(tmp_path: Path) -> None:

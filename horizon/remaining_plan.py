@@ -364,11 +364,14 @@ def _preferred_queue(
         preferred = [item for item in exclusive if item[0] == conventional]
         leftovers = [item for item in exclusive if item[0] != conventional]
         if preferred:
-            if leftovers and _payload_row_count(leftovers[0][1]) and not _payload_row_count(
-                preferred[0][1]
-            ):
-                return leftovers[0]
+            if not _payload_row_count(preferred[0][1]):
+                for leftover in leftovers:
+                    if _payload_row_count(leftover[1]):
+                        return leftover
             return preferred[0]
+        for leftover in leftovers:
+            if _payload_row_count(leftover[1]):
+                return leftover
         if leftovers:
             return leftovers[0]
         return "", {}
@@ -976,6 +979,7 @@ def remaining_plan(
             "open_queues names the leftover current filename only; it does not copy a host path",
             "a leftover exclusive current queue ignores a stale other-section conventional file",
             "a leftover exclusive empty-text, handwritten, or crop-fill queue with rows wins over an empty conventional file",
+            "a later leftover exclusive queue with rows wins over an earlier leftover that is empty",
             "pdf_census empty-text files keep the plan incomplete even when the leftover queue was emptied",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",

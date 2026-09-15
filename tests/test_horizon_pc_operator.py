@@ -11,7 +11,10 @@ import pytest
 from horizon.isolated_delta import sha256_file
 from types import SimpleNamespace
 
-from horizon.drive_readback import is_drive_isolated_copy
+from horizon.drive_readback import (
+    exclusive_isolated_workbook_name,
+    is_drive_isolated_copy,
+)
 from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
@@ -1263,7 +1266,11 @@ def test_latest_isolated_uses_leftover_exclusive_letter(tmp_path: Path) -> None:
     leftover.write_bytes(b"LEFTOVER-LETTER")
     (tmp_path / "aaa-p13-letter.xlsx").write_bytes(b"OTHER-SECTION")
     (tmp_path / "workbook.xlsx").write_bytes(b"UNLABELED")
+    (tmp_path / "temp15.xlsx").write_bytes(b"SUBSTRING-TEMP")
+    (tmp_path / "aaa-p15-notes.xlsx").write_bytes(b"NOTES-NOT-LETTER")
     assert _latest_isolated_path(tmp_path, 15) == leftover
+    assert exclusive_isolated_workbook_name("temp15.xlsx", 15) is False
+    assert exclusive_isolated_workbook_name("aaa-p15-notes.xlsx", 15) is False
     assert _latest_isolated_path(tmp_path, 13) == tmp_path / "aaa-p13-letter.xlsx"
     assert _latest_isolated_path(tmp_path, 11) is None
     conventional = tmp_path / "section15-letter.xlsx"

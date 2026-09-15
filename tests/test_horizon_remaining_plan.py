@@ -88,8 +88,9 @@ def test_remaining_plan_records_open_queues_only(tmp_path: Path) -> None:
         finish=None,
         receipt_dir=tmp_path,
     )
-    assert plan["open_queues"]["examiner_queue"] == str(queue)
+    assert plan["open_queues"]["examiner_queue"] == "section15-examiner-queue.json"
     assert "onesource_template" not in plan["open_queues"]
+    assert str(tmp_path) not in json.dumps(plan["open_queues"])
     assert "no finish receipt" in plan["missing"]
 
 
@@ -368,6 +369,9 @@ def test_remaining_plan_leftover_current_empty_queue_ignores_stale_hash_gap(
     assert "onesource template is missing a workbook hash" not in plan["missing"]
     assert "2 one-source row(s) still need writer-held text" not in plan["missing"]
     assert "1 one-source row(s) still need writer-held text" not in plan["missing"]
+    assert plan["open_queues"]["examiner_queue"] == "aaa-p15-examiner-queue.json"
+    assert plan["open_queues"]["onesource_template"] == "aaa-p15-onesource-template.json"
+    assert str(tmp_path) not in json.dumps(plan["open_queues"])
     assert plan["packages_complete"] is True
 
 
@@ -418,8 +422,10 @@ def test_remaining_plan_scores_leftover_hash_matched_examiner_queue(
     assert plan["field_gaps"]["conflict_count"] == 1
     assert "index has 3 blank required field(s)" in plan["missing"]
     assert "legal_description has 1 blank(s)" in plan["missing"]
+    assert plan["open_queues"]["examiner_queue"] == "aaa-p15-examiner-queue.json"
     dumped = json.dumps(plan)
     assert "DO NOT COPY" not in dumped
+    assert str(tmp_path) not in json.dumps(plan["open_queues"])
 
 
 def test_remaining_plan_prefers_conventional_hash_matched_examiner_queue(
@@ -938,6 +944,47 @@ def test_remaining_plan_other_section_fill_queue_does_not_apply_counts(
     assert plan["packages_complete"] is False
     assert "2 page-render crop(s) still need face text" not in plan["missing"]
     assert "crop fill queue is bound to another section" in plan["missing"]
+
+
+def test_remaining_plan_leftover_exclusive_queue_ignores_stale_other_section(
+    tmp_path: Path,
+) -> None:
+    letter = tmp_path / "section11-letter.xlsx"
+    letter.write_bytes(b"SYNTH-LETTER")
+    (tmp_path / "section11-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION15-CROPS",
+                "items": [
+                    {"page": 1, "action": "source_proved_fill"},
+                    {"page": 2, "action": "source_proved_fill"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "aaa-p11-crop-fill-queue.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.crop_fill_queue",
+                "packet_id": "SECTION11-CROPS",
+                "items": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(
+        section=11,
+        finish=_green_finish(letter),
+        receipt_dir=tmp_path,
+        isolated_workbook=letter,
+    )
+    assert "crop fill queue is bound to another section" not in plan["missing"]
+    assert "page-render crop" not in "".join(plan["missing"])
+    assert plan["open_queues"]["crop_fill_queue"] == "aaa-p11-crop-fill-queue.json"
+    assert str(tmp_path) not in json.dumps(plan["open_queues"])
+    assert plan["packages_complete"] is True
 
 
 def test_remaining_plan_supporting_queue_does_not_block_completion(

@@ -57,6 +57,25 @@ OPEN_QUEUE_FILES = {
     "native_print_draft": "section{section}-native-print-draft.json",
     "owner_review_draft": "section{section}-owner-review-draft.json",
 }
+OPEN_QUEUE_SCHEMAS = {
+    "examiner_queue": EXAMINER_QUEUE_SCHEMA_ID,
+    "onesource_template": "dbx.source_proved_delta_template",
+    "delta_draft": "dbx.source_proved_delta_draft",
+    "crop_fill_queue": "dbx.crop_fill_queue",
+    "crops_draft": "dbx.page_render_crop_draft",
+    "empty_text_queue": "dbx.empty_text_pdf_queue",
+    "handwritten_scan_queue": "dbx.handwritten_scan_queue",
+    "supporting_record_queue": "dbx.supporting_record_queue",
+    "native_print_draft": "dbx.native_print_draft",
+    "owner_review_draft": "dbx.human_release_draft",
+}
+OPEN_QUEUE_DIGESTS = {
+    "examiner_queue": "workbook_sha256",
+    "onesource_template": "source_workbook_sha256",
+    "delta_draft": "source_workbook_sha256",
+    "native_print_draft": "workbook_sha256",
+    "owner_review_draft": "workbook_sha256",
+}
 FILL_QUEUE_GAPS = (
     (
         "crop_fill_queue",
@@ -133,12 +152,38 @@ def _gates_from_finish(finish: Optional[Dict[str, object]]) -> List[_GateView]:
     return views
 
 
-def _open_queues(receipt_dir: Path, section: int) -> Dict[str, str]:
+def _open_queues(
+    receipt_dir: Path,
+    section: int,
+    isolated_sha256: str = "",
+) -> Dict[str, str]:
+    """Map open fill slots to the preferred leftover filename, never a host path.
+
+    Operators must open the leftover current queue when it hashes the isolated
+    workbook. A stale conventional ``sectionN-*.json`` is not listed.
+    """
+
     found: Dict[str, str] = {}
     for slot, template in OPEN_QUEUE_FILES.items():
-        path = receipt_dir / template.format(section=section)
+        conventional = template.format(section=section)
+        schema_id = OPEN_QUEUE_SCHEMAS.get(slot, "")
+        if schema_id:
+            name, _payload = _preferred_queue(
+                receipt_dir,
+                section,
+                schema_id,
+                conventional,
+                isolated_sha256=isolated_sha256,
+                digest_field=OPEN_QUEUE_DIGESTS.get(slot, ""),
+            )
+            if name:
+                found[slot] = name
+            elif (receipt_dir / conventional).is_file():
+                found[slot] = Path(conventional).name
+            continue
+        path = receipt_dir / conventional
         if path.is_file():
-            found[slot] = str(path)
+            found[slot] = path.name
     return found
 
 
@@ -235,14 +280,14 @@ def _iter_schema_files(
     return found
 
 
-def _preferred_queue_payload(
+def _preferred_queue(
     receipt_dir: Path,
     section: int,
     schema_id: str,
     conventional: str,
     isolated_sha256: str = "",
     digest_field: str = "",
-) -> Dict[str, object]:
+) -> tuple[str, Dict[str, object]]:
     """Prefer sectionN-* when it matches; leftover hash-matched files are fallback."""
     exclusive = [
         (name, payload)
@@ -262,16 +307,40 @@ def _preferred_queue_payload(
         if matched:
             preferred = [item for item in matched if item[0] == conventional]
             rest = [item for item in matched if item[0] != conventional]
-            return (preferred + rest)[0][1]
-        return _load_queue(receipt_dir, conventional, schema_id)
+            return (preferred + rest)[0]
+        payload = _load_queue(receipt_dir, conventional, schema_id)
+        if payload or (receipt_dir / conventional).is_file():
+            return conventional, payload
+        return "", {}
     if not digest_field:
         preferred = [item for item in exclusive if item[0] == conventional]
         if preferred:
-            return preferred[0][1]
+            return preferred[0]
         if exclusive:
-            return exclusive[0][1]
-        return {}
-    return _load_queue(receipt_dir, conventional, schema_id)
+            return exclusive[0]
+        return "", {}
+    payload = _load_queue(receipt_dir, conventional, schema_id)
+    if payload or (receipt_dir / conventional).is_file():
+        return conventional, payload
+    return "", {}
+
+
+def _preferred_queue_payload(
+    receipt_dir: Path,
+    section: int,
+    schema_id: str,
+    conventional: str,
+    isolated_sha256: str = "",
+    digest_field: str = "",
+) -> Dict[str, object]:
+    return _preferred_queue(
+        receipt_dir,
+        section,
+        schema_id,
+        conventional,
+        isolated_sha256=isolated_sha256,
+        digest_field=digest_field,
+    )[1]
 
 
 def _load_examiner_queue(
@@ -434,7 +503,11 @@ def _fill_draft_hash_gaps(
     return lines
 
 
-def _fill_section_gaps(receipt_dir: Path, section: int) -> List[str]:
+def _fill_section_gaps(
+    receipt_dir: Path,
+    section: int,
+    isolated_sha256: str = "",
+) -> List[str]:
     lines: List[str] = []
     slots = (
         ("examiner_queue", EXAMINER_QUEUE_SCHEMA_ID, "examiner queue"),
@@ -456,8 +529,23 @@ def _fill_section_gaps(receipt_dir: Path, section: int) -> List[str]:
         if not _score_fill_slot(slot, section):
             continue
         filename = OPEN_QUEUE_FILES[slot].format(section=section)
-        payload = _load_queue(receipt_dir, filename, schema_id)
-        gap = _queue_section_gap(payload, filename, section, label)
+        name, payload = _preferred_queue(
+            receipt_dir,
+            section,
+            schema_id,
+            filename,
+            isolated_sha256=isolated_sha256,
+            digest_field=OPEN_QUEUE_DIGESTS.get(slot, ""),
+        )
+        if payload:
+            gap = _queue_section_gap(payload, name or filename, section, label)
+        else:
+            gap = _queue_section_gap(
+                _load_queue(receipt_dir, filename, schema_id),
+                filename,
+                section,
+                label,
+            )
         if gap:
             lines.append(gap)
     return lines
@@ -699,7 +787,7 @@ def remaining_plan(
     )
     extra.extend(
         line
-        for line in _fill_section_gaps(receipt_dir, section)
+        for line in _fill_section_gaps(receipt_dir, section, isolated_sha)
         if line not in extra
     )
     missing = extra + [item for item in missing if item not in extra]
@@ -800,7 +888,7 @@ def remaining_plan(
             }
             for gate in gates
         ],
-        "open_queues": _open_queues(receipt_dir, section),
+        "open_queues": _open_queues(receipt_dir, section, isolated_sha),
         "holds": [item for item in holds if isinstance(item, str)],
         "next_commands": commands,
         "notes": [
@@ -827,6 +915,8 @@ def remaining_plan(
             "onesource and delta drafts without a workbook hash are ignored once an isolated file exists",
             "leftover examiner, one-source, and fill queues that hash the isolated file are scored when the conventional file is absent or stale",
             "hash-gap extras use the leftover current queue, not a stale conventional file",
+            "open_queues names the leftover current filename only; it does not copy a host path",
+            "a leftover exclusive current queue ignores a stale other-section conventional file",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",

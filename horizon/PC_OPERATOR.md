@@ -192,7 +192,11 @@ python3 -m horizon.pc_operator \
    and hashes the current isolated file is scored when the conventional
    `sectionN-*.json` file is absent or stale. Hash-gap extras use that
    leftover too, so a stale conventional file does not keep remaining-plan
-   incomplete after a current leftover queue is empty.    Open handwritten-scan, empty-text, one-source, and
+   incomplete after a current leftover queue is empty. Remaining-plan
+   `open_queues` lists that leftover filename only; it does not copy a
+   host path or point operators at a stale conventional file. A leftover
+   exclusive current queue also ignores a stale other-section
+   `sectionN-*.json`.    Open handwritten-scan, empty-text, one-source, and
    delta-draft queues keep remaining-plan incomplete when they are
    hash-bound to the current isolated file. Crop-fill queues are scored
    only for section 11. Chat/OCR supporting queues are review-only.

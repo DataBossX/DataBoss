@@ -1245,7 +1245,41 @@ def _isolated_delta_generation(path: Path, section: int) -> Optional[int]:
     return None
 
 
+def _exclusive_isolated_workbook(path: Path, section: int) -> bool:
+    """True when an xlsx filename names only this priority section."""
+    try:
+        if not path.is_file() or path.suffix.casefold() != ".xlsx":
+            return False
+    except OSError:
+        return False
+    named = _isolated_workbook_section(path)
+    if named is not None:
+        return named == section
+    marks = {mark for mark in _section_marks(path.name) if mark in PRIORITY_SECTIONS}
+    return marks == {section}
+
+
+def _leftover_isolated_workbooks(receipt_dir: Path, section: int) -> List[Path]:
+    found: List[Path] = []
+    try:
+        paths = sorted(receipt_dir.glob("*.xlsx"))
+    except OSError:
+        return found
+    conventional_letter = f"section{section}-letter.xlsx"
+    for path in paths:
+        if path.name.casefold() == conventional_letter.casefold():
+            continue
+        if _isolated_delta_generation(path, section) is not None:
+            continue
+        if _exclusive_isolated_workbook(path, section):
+            found.append(path)
+    letters = [path for path in found if "letter" in path.name.casefold()]
+    deltas = [path for path in found if "delta" in path.name.casefold()]
+    return letters + deltas + [path for path in found if path not in letters + deltas]
+
+
 def _latest_isolated_path(receipt_dir: Path, section: int) -> Optional[Path]:
+    """Prefer conventional sectionN delta/letter; leftover exclusive xlsx is fallback."""
     best: Optional[Path] = None
     best_gen = 0
     try:
@@ -1272,6 +1306,9 @@ def _latest_isolated_path(receipt_dir: Path, section: int) -> Optional[Path]:
             return letter
     except OSError:
         return None
+    leftovers = _leftover_isolated_workbooks(receipt_dir, section)
+    if leftovers:
+        return leftovers[0]
     return None
 
 

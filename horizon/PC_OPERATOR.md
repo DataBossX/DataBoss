@@ -72,6 +72,12 @@ python3 -m horizon.pc_operator \
    isolated workbook is bound instead of forcing a reprint when the
    conventional `sectionN-native-print.json` or
    `sectionN-owner-review.json` is absent or stale.
+   A leftover exclusive isolated workbook that names this section
+   (`aaa-p15-letter.xlsx`) is used when the conventional
+   `sectionN-letter.xlsx` or `sectionN-delta.xlsx` is absent, so Print
+   Preview, Drive Isolated/, and owner-review stay on that file.
+   Conventional current Letter or delta files still win. Unlabeled or
+   other-section leftovers are not auto-bound.
    `--execute` also writes `sectionN-owner-review-draft.json`; attest it
    with a named examiner after owner review only. Remaining 2+ source
    blanks are written to `sectionN-delta-draft.json`; attest that draft

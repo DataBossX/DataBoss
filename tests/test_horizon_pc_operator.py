@@ -21,6 +21,7 @@ from horizon.pc_operator import (
     _bind_section_workbook_packets,
     _discover_receipt_dir_packets,
     _drive_section_dir,
+    _latest_isolated_path,
     _publish_isolated_to_drive,
     _receipt_packages_complete,
     _same_hash_readback,
@@ -1229,6 +1230,22 @@ def test_operator_drops_stale_native_print_after_delta(tmp_path: Path) -> None:
         (receipts / "section15-native-print-draft.json").read_text(encoding="utf-8")
     )
     assert draft["workbook_sha256"] == sha256_file(receipts / "section15-delta.xlsx")
+
+
+def test_latest_isolated_uses_leftover_exclusive_letter(tmp_path: Path) -> None:
+    leftover = tmp_path / "aaa-p15-letter.xlsx"
+    leftover.write_bytes(b"LEFTOVER-LETTER")
+    (tmp_path / "aaa-p13-letter.xlsx").write_bytes(b"OTHER-SECTION")
+    (tmp_path / "workbook.xlsx").write_bytes(b"UNLABELED")
+    assert _latest_isolated_path(tmp_path, 15) == leftover
+    assert _latest_isolated_path(tmp_path, 13) == tmp_path / "aaa-p13-letter.xlsx"
+    assert _latest_isolated_path(tmp_path, 11) is None
+    conventional = tmp_path / "section15-letter.xlsx"
+    conventional.write_bytes(b"CONVENTIONAL-LETTER")
+    assert _latest_isolated_path(tmp_path, 15) == conventional
+    delta = tmp_path / "section15-delta.xlsx"
+    delta.write_bytes(b"CONVENTIONAL-DELTA")
+    assert _latest_isolated_path(tmp_path, 15) == delta
 
 
 def test_execute_uses_leftover_print_of_current_isolated(

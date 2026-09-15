@@ -15,6 +15,7 @@ from horizon.drive_readback import is_drive_isolated_copy
 from horizon.pc_operator import (
     FinishBindings,
     PcOperatorError,
+    _census_packet_matches_pdfs,
     _crop_packet_matches_renders,
     _bind_dir_for_section,
     _bind_section_workbook_packets,
@@ -26,6 +27,7 @@ from horizon.pc_operator import (
     _section_census_packet,
     _section_crop_packet,
     _section_named_packet,
+    _select_census_packet,
     _select_delta_packet,
     _unbind_stale_crop_packet,
     _unbind_stale_workbook_packets,
@@ -2985,6 +2987,64 @@ def test_execute_inventories_section_pdfs_and_binds_census(tmp_path: Path) -> No
     )
 
 
+def test_census_match_uses_authorized_snapshot_subset(tmp_path: Path) -> None:
+    snapshot = tmp_path / "intake-snapshot" / "section13"
+    faces = snapshot / "pc" / "Section 13" / "Recorded Faces"
+    faces.mkdir(parents=True)
+    face = faces / "Instrument 1.pdf"
+    index_pdf = snapshot / "pc" / "Section 13" / "County Index.pdf"
+    face.write_bytes(_minimal_pdf())
+    index_pdf.write_bytes(_minimal_pdf())
+    leftover = tmp_path / "aaa-p13-census.json"
+    leftover.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION13-CENSUS",
+                "files": [
+                    {
+                        "path": "pc/Section 13/Recorded Faces/Instrument 1.pdf",
+                        "source_sha256": sha256_file(face),
+                        "expected_pages": 1,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _census_packet_matches_pdfs(leftover, snapshot) is False
+    assert (
+        _census_packet_matches_pdfs(leftover, snapshot, expected_pdfs=[face])
+        is True
+    )
+    stale = tmp_path / "section13-pdf-census-packet.json"
+    stale.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION13-CENSUS",
+                "files": [
+                    {
+                        "path": "pc/Section 13/Recorded Faces/Instrument 1.pdf",
+                        "source_sha256": "0" * 64,
+                        "expected_pages": 462,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    bound = _select_census_packet(
+        FinishBindings(pdf_census_packet=stale, pdf_bind_dir=snapshot),
+        [stale, leftover],
+        13,
+        expected_pdfs=[face],
+    )
+    assert bound.pdf_census_packet == leftover
+
+
 def test_execute_uses_leftover_census_of_current_pdfs(tmp_path: Path) -> None:
     root = tmp_path / "pc-root"
     section = root / "Section 13"
@@ -3099,6 +3159,88 @@ def test_execute_rewrites_stale_conventional_census(tmp_path: Path) -> None:
     )
     census = next(gate for gate in finish["gates"] if gate["name"] == "pdf_census")
     assert census["technical_pass"] is True
+
+
+def test_phase2_leftover_census_binds_authorized_faces_not_index_pdf(
+    tmp_path: Path,
+) -> None:
+    from horizon.authority_promote import promote
+
+    root = tmp_path / "pc-root"
+    section = root / "Section 13"
+    _write_penterra(section / "Master Abstract.xlsx")
+    (section / "County Index.pdf").write_bytes(_minimal_pdf())
+    _write_penterra(section / "Handwritten Index.xlsx")
+    (section / "Recorded Faces").mkdir()
+    face = section / "Recorded Faces" / "Instrument 1.pdf"
+    face.write_bytes(_minimal_pdf())
+    receipts = tmp_path / "private-receipts"
+    first = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert first.packages_complete is False
+    assert first.authority_promote_command is not None
+    promote(
+        draft_path=Path(first.authority_draft_path),
+        output=receipts / "source-authority.json",
+        project_manifest_output=receipts / "project_manifest.json",
+        project_id="DBX-TEST",
+        decision_id="SOURCE-AUTH-013",
+        approved_by="Pat Examiner",
+        confirm_sections=[13],
+        roots=[f"pc={root}"],
+    )
+    second = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert second.packages_complete is False
+    conventional = receipts / "section13-pdf-census-packet.json"
+    current = json.loads(conventional.read_text(encoding="utf-8"))
+    assert len(current["files"]) == 1
+    assert "Instrument 1.pdf" in current["files"][0]["path"]
+    assert "County Index.pdf" not in json.dumps(current)
+    leftover = receipts / "aaa-p13-census.json"
+    leftover.write_text(json.dumps(current), encoding="utf-8")
+    conventional.write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.pdf_page_census_packet",
+                "schema_version": "1.0",
+                "packet_id": "SECTION13-CENSUS",
+                "files": [
+                    {
+                        "path": current["files"][0]["path"],
+                        "source_sha256": "0" * 64,
+                        "expected_pages": 462,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    third = build_work_order(
+        roots=[f"pc={root}"],
+        sections=[13],
+        receipt_dir=receipts,
+        execute=True,
+    )
+    assert third.packages_complete is False
+    stale = json.loads(conventional.read_text(encoding="utf-8"))
+    assert stale["files"][0]["source_sha256"] == "0" * 64
+    assert stale["files"][0]["expected_pages"] == 462
+    finish = json.loads(
+        (receipts / "section13-finish.json").read_text(encoding="utf-8")
+    )
+    census = next(gate for gate in finish["gates"] if gate["name"] == "pdf_census")
+    assert census["technical_pass"] is True
+    assert '"expected_pages": 462' not in json.dumps(finish)
+    assert "County Index.pdf" not in json.dumps(finish)
 
 
 def test_cli_writes_receipt_and_stays_incomplete(tmp_path: Path) -> None:

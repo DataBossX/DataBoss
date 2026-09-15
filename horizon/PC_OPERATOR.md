@@ -157,8 +157,11 @@ python3 -m horizon.pc_operator \
    that also name that section, including `sectionN-delta-packet.json`.
    A leftover PDF census packet that names this section and matches the
    current bind-dir PDFs is bound when `sectionN-pdf-census-packet.json`
-   is absent or stale. A stale conventional census is unbound so
-   inventory can rewrite it from the live faces.
+   is absent or stale. After Phase 2, that match uses the authorized
+   source-document faces, not every PDF under the snapshot root
+   (authorized typed or handwritten index PDFs stay out of the census
+   file set). A stale conventional census is unbound so inventory can
+   rewrite it from the live faces.
    Crops rebound with `sectionN-renders` before finish.
    After `--execute`, each section gets `sectionN-remaining-plan.json`
    and the receipt directory gets `remaining-plan.json` in priority

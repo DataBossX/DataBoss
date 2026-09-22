@@ -33,6 +33,20 @@ py horizon/main.py
 Useful flags: `--section 31-12N-24W`, `--base <report-stem>`, `--max-loops N`,
 `--no-backup`, `--dry-run` (scan + validate only).
 
+For a delivery candidate that must not contain blank abstract fields, enable
+the strict gate:
+
+```bash
+py horizon/main.py --root "D:\Desktop\Horizon" \
+    --section 15-45N-76W --require-complete-abstract --dry-run
+```
+
+This requires a source-backed recorded date, document type, grantor, grantee,
+and legal description on every row. Missing values fail validation; Horizon
+does not guess them. Use `--required-fields field1,field2` to add other
+canonical columns. Repeating the same deterministic check does not add
+independent assurance, so resolve each cited source gap before rerunning.
+
 ### Controlled client-workbook loop
 
 For manifest-bound QA, staged repairs, rule-derived scoring, run receipts, and a
@@ -40,6 +54,76 @@ hard human release gate, use `python -m horizon.controlled_loop`. See
 [`CONTROLLED_LOOP.md`](CONTROLLED_LOOP.md) for the work-order and workbook-profile
 contracts. Checks that have no deterministic validator remain blocking; technical
 verification never means client release.
+
+On the PC that can see section roots, `python -m horizon.pc_operator` probes
+connections, runs Phase 1 inventory, writes an unapproved authority draft
+under `--receipt-dir`, and emits per-section next commands. A named examiner
+promotes that draft with `python -m horizon.authority_promote`; the next
+operator `--execute` discovers the hash-bound manifests and snapshots
+authorized bytes. Writer-held native Excel, owner-review, and PDF census packets written
+into the receipt directory are discovered the same way. `sectionN-pdfs/`
+is inventoried on `--execute` when present, as are authorized snapshot
+`source_document` PDFs after Phase 2. `expected_pages` is the counted
+page total, not a federal row count. Image-only empty-text PDFs are
+listed in `sectionN-empty-text-queue.json` for face review.
+Handwritten-index scans are hashed into
+`sectionN-handwritten-scan-draft.json` and listed for transcription;
+Horizon does not OCR or invent index rows.
+Chat and OCR supporting files are hashed for review only and cannot
+fill legal, party, or date cells.
+`--execute` writes `sectionN-remaining-plan.json` and a combined
+`remaining-plan.json` in priority order 15, 13, 11. Do `next` first.
+The plan names
+files that are still missing, classified typed and handwritten index
+roles that still need Phase-2 authority, per-field blank/conflict
+counts, connection gaps, and Print Preview / Drive Isolated /
+owner-review hops bound to the current isolated Letter or delta
+(filename and SHA-256 only) without inventing field values.
+`--execute` writes
+`sectionN-native-print-draft.json` and `sectionN-owner-review-draft.json`
+bound to the current isolated hash; attest the print draft after Windows
+Excel Print Preview and the owner-review draft with a named examiner.
+Horizon does not invent the page count or the examiner name. Native print
+and owner-review bind the current isolated workbook (`sectionN-delta.xlsx`
+after a source-proved apply) and are dropped when their hash no longer
+matches. When a leftover exclusive isolated workbook names this section
+(`aaa-p15-letter.xlsx`) and no conventional Letter or delta exists,
+`--execute` reuses that leftover as the finish workbook instead of
+writing a new `sectionN-letter.xlsx` from the source candidate.
+Leftover exclusive isolated filenames win section detection over the
+parent folder and are not picked as source workbooks.
+When a `drive=` root is
+mounted, `--execute` publishes that isolated file into
+`Section N/Isolated/` and binds SHA-256 readback. Remaining
+one-source blanks and conflicts are written to `sectionN-examiner-queue.json`
+and `sectionN-onesource-template.json` (empty `value`, provenance only);
+the queue does not invent fills. Remaining 2+ source blanks are written
+to `sectionN-delta-draft.json` for a named examiner to attest. Applied
+packets chain onto `sectionN-delta-2.xlsx` and later copies instead of
+freezing the first isolated file. Section 11 also gets
+`section11-crops-draft.json` from hashed page renders and
+`section11-crop-fill-queue.json` for remaining face fills; crop text
+stays empty until an examiner fills and attests it. The authority draft itself is not
+Phase 2.
+`python -m horizon.package_finish` then chains
+acquisition, re-extraction, occurrence ledger, master/PDF/handwritten
+reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.
+When crop packets are absent, the isolated index is projected into the
+re-extraction and occurrence gates so sections 15 and 13 are not blocked
+on a fake page-render packet.
+See [`IMAGE_ACCOUNT.md`](IMAGE_ACCOUNT.md) to count every raster and
+PDF page, queue vision before OCR, format isolated Letters like
+Section 13 and 15 dated 2026-09-22, and run the improvement-loop
+tournament. See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
+[`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md),
+[`ISOLATED_DELTA.md`](ISOLATED_DELTA.md),
+[`NATIVE_PRINT.md`](NATIVE_PRINT.md),
+[`REEXTRACTION.md`](REEXTRACTION.md),
+[`CONNECT.md`](CONNECT.md),
+[`PC_OPERATOR.md`](PC_OPERATOR.md), and
+[`HUMAN_RELEASE.md`](HUMAN_RELEASE.md). `packages_complete` stays false until
+a verified snapshot, source-backed rows, native Excel, a Drive Isolated/
+copy, and human release exist.
 
 ### Build a report from the reference workbook (Intelligence Layer)
 

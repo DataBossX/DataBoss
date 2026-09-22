@@ -499,6 +499,19 @@ def evaluate_package_completion(
             missing.append(
                 f"{empty} image-only PDF(s) still have empty extracted text"
             )
+    images = by_name.get("image_account")
+    if images is not None and getattr(images, "ran", False):
+        detail = getattr(images, "detail", {}) or {}
+        empty_images = (
+            detail.get("empty_text_images") if isinstance(detail, dict) else None
+        )
+        unaccounted = (
+            detail.get("unaccounted_images") if isinstance(detail, dict) else None
+        )
+        if isinstance(unaccounted, int) and unaccounted > 0:
+            missing.append(f"{unaccounted} image(s) are still unaccounted")
+        if isinstance(empty_images, int) and empty_images > 0:
+            missing.append(f"{empty_images} image(s) still need vision before OCR")
     for gate in by_name.values():
         if gate.technical_pass is False:
             label = f"blocking gate {gate.name}"

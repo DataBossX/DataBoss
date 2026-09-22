@@ -297,7 +297,9 @@ def _payload_row_count(payload: Dict[str, object]) -> int:
         if isinstance(rows, list):
             return sum(1 for item in rows if isinstance(item, dict))
     empty = _nonneg_int(payload.get("empty_text_files"))
-    return empty or 0
+    images = _nonneg_int(payload.get("empty_text_images"))
+    unaccounted = _nonneg_int(payload.get("unaccounted_images"))
+    return empty or images or unaccounted or 0
 
 
 def _census_empty_text_lines(
@@ -331,7 +333,11 @@ def _census_empty_text_lines(
     return []
 
 
-def _image_account_lines(gates: Sequence[_GateView]) -> List[str]:
+def _image_account_lines(
+    gates: Sequence[_GateView],
+    receipt_dir: Path,
+    section: int,
+) -> List[str]:
     """Keep remaining-plan incomplete while images are unaccounted or empty-text."""
 
     lines: List[str] = []
@@ -345,7 +351,19 @@ def _image_account_lines(gates: Sequence[_GateView]) -> List[str]:
         if empty:
             lines.append(IMAGE_ACCOUNT_LINE.format(n=empty))
         return lines
-    return []
+    payload = _preferred_queue_payload(
+        receipt_dir,
+        section,
+        "dbx.image_account_receipt",
+        f"section{section}-image-account-receipt.json",
+    )
+    unaccounted = _nonneg_int(payload.get("unaccounted_images"))
+    empty = _nonneg_int(payload.get("empty_text_images"))
+    if unaccounted:
+        lines.append(UNACCOUNTED_IMAGE_LINE.format(n=unaccounted))
+    if empty:
+        lines.append(IMAGE_ACCOUNT_LINE.format(n=empty))
+    return lines
 
 
 def _preferred_queue(
@@ -856,7 +874,7 @@ def remaining_plan(
     )
     extra.extend(
         line
-        for line in _image_account_lines(gates)
+        for line in _image_account_lines(gates, receipt_dir, section)
         if line not in extra
     )
     extra.extend(

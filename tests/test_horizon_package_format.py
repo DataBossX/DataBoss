@@ -88,7 +88,7 @@ def test_letter_format_matches_section_13_and_15(tmp_path: Path) -> None:
     workbook = openpyxl.load_workbook(isolated)
     sheet = workbook["Index"]
     assert sheet.page_setup.orientation == "landscape"
-    assert sheet.page_setup.paperSize == sheet.PAPERSIZE_LETTER
+    assert int(sheet.page_setup.paperSize) == 1
     assert str(sheet.print_title_rows).replace("$", "") in {"1:8", "1:$8"}
     workbook.close()
 
@@ -119,12 +119,15 @@ def test_exact5_zip_is_dated_20260922(tmp_path: Path) -> None:
 
 
 def test_frozen_p15_cannot_be_rebuilt(tmp_path: Path) -> None:
-    member = tmp_path / "member.xlsx"
-    member.write_bytes(b"synth")
+    members = []
+    for index in range(6):
+        path = tmp_path / f"p15-member-{index}.xlsx"
+        path.write_bytes(b"synth")
+        members.append(path)
     with pytest.raises(PackageFormatError, match="format_donor"):
         assemble_exact_package(
             package_id="P15",
-            members=[member] * 6,
+            members=members,
             output_zip=tmp_path
             / f"P15_45N-76W-15__SUPERSEDING_TURNIN_DATED_{WORK_DATE_TOKEN}_EXACT6.zip",
         )
@@ -157,7 +160,9 @@ def test_tournament_accounts_every_image_and_formats_letter(tmp_path: Path) -> N
     assert receipt.image_count == 2
     assert receipt.every_image_accounted is True
     assert receipt.passes[0].format_pass is True
+    assert receipt.technical_pass is False
     assert receipt.packages_complete is False
+    assert receipt.passes[-1].stop_reason == "empty-text images still need face review"
     assert receipt.portfolio["work_date"] == WORK_DATE.isoformat()
 
 

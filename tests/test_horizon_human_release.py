@@ -275,6 +275,51 @@ def test_completion_holds_census_empty_text_faces() -> None:
     assert missing == []
 
 
+def test_completion_holds_unaccounted_and_empty_text_images() -> None:
+    digest = "e" * 64
+    gates = [
+        _gate("source_acquisition"),
+        _gate("reextraction"),
+        _gate("occurrence_ledger"),
+        _gate(
+            "index_reconciliation",
+            blank_required_count=0,
+            conflict_count=0,
+            candidate_from="workbook",
+            workbook_sha256=digest,
+        ),
+        _gate("workbook_qa", workbook_sha256=digest),
+        _gate("native_print", workbook_sha256=digest),
+        _gate("drive_readback", isolated_copy=True, workbook_sha256=digest),
+        _gate("human_release", workbook_sha256=digest),
+        _gate(
+            "image_account",
+            image_count=4,
+            accounted_images=2,
+            unaccounted_images=2,
+            empty_text_images=3,
+        ),
+    ]
+    complete, missing = evaluate_package_completion(
+        gates, requested_sections=[15], workbook_sha256=digest
+    )
+    assert complete is False
+    assert "2 image(s) are still unaccounted" in missing
+    assert "3 image(s) still need vision before OCR" in missing
+    gates[-1] = _gate(
+        "image_account",
+        image_count=4,
+        accounted_images=4,
+        unaccounted_images=0,
+        empty_text_images=0,
+    )
+    complete, missing = evaluate_package_completion(
+        gates, requested_sections=[15], workbook_sha256=digest
+    )
+    assert complete is True
+    assert missing == []
+
+
 def test_write_human_release_token_is_owner_review_only(tmp_path) -> None:
     workbook = tmp_path / "isolated.xlsx"
     workbook.write_bytes(b"SYNTH")

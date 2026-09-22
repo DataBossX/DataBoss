@@ -16,7 +16,7 @@ from horizon.image_account import (
 )
 from horizon.package_finish import run_finish
 from horizon.remaining_plan import remaining_plan
-from horizon.vision_ocr import review_queue
+from horizon.vision_ocr import review_queue, review_bind_dir
 
 
 MINIMAL_PNG = bytes.fromhex(
@@ -91,7 +91,7 @@ def test_vision_queue_covers_empty_text_images(tmp_path: Path) -> None:
         "casefile.pdf#page=1",
         "casefile.pdf#page=2",
     }
-    reviewed = review_queue(queue, bind_dir=_bind(tmp_path))
+    reviewed = review_queue(queue, bind_dir=tmp_path / "faces")
     assert reviewed.queued == 4
     assert reviewed.vision_unavailable == 4
     assert reviewed.packages_complete is False
@@ -150,6 +150,66 @@ def test_remaining_plan_holds_unaccounted_images(tmp_path: Path) -> None:
     assert any("unaccounted" in item for item in plan["missing"])
     assert any("vision before OCR" in item for item in plan["missing"])
     assert plan["packages_complete"] is False
+
+
+def test_counts_images_inside_output_folder(tmp_path: Path) -> None:
+    bind = tmp_path / "faces"
+    nested = bind / "output"
+    nested.mkdir(parents=True)
+    (bind / "visible.png").write_bytes(MINIMAL_PNG)
+    (nested / "hidden.png").write_bytes(MINIMAL_PNG)
+    (nested / "hidden.pdf").write_bytes(TWO_PAGE_PDF)
+    receipt = account_images(bind, packet_id="SYNTH-IMG-OUTPUT")
+    assert receipt.image_count == 4
+    assert every_image_accounted(receipt)
+
+
+def test_packet_fails_when_pdf_page_is_omitted(tmp_path: Path) -> None:
+    bind = _bind(tmp_path)
+    packet = write_inventory_packet(
+        bind_dir=bind,
+        output=tmp_path / "full.json",
+        packet_id="SYNTH-IMG-PAGE",
+    )
+    packet["files"] = [
+        item
+        for item in packet["files"]
+        if item.get("path") != "casefile.pdf#page=2"
+    ]
+    receipt = verify_packet(packet, bind)
+    assert receipt.technical_pass is False
+    assert receipt.unaccounted_images >= 1
+
+
+def test_ocr_is_blocked_until_vision(tmp_path: Path) -> None:
+    queue, receipt = review_bind_dir(
+        _bind(tmp_path),
+        packet_id="SYNTH-IMG-OCR",
+        allow_ocr=True,
+    )
+    assert queue["items"]
+    assert receipt.ocr_ran == 0
+    assert all(item.ocr_status == "blocked_until_vision" for item in receipt.attempts)
+    assert all(item.vision_status == "unavailable" for item in receipt.attempts)
+
+
+def test_remaining_plan_scores_leftover_image_account_receipt(tmp_path: Path) -> None:
+    (tmp_path / "section15-image-account-receipt.json").write_text(
+        json.dumps(
+            {
+                "schema_id": "dbx.image_account_receipt",
+                "schema_version": "1.0",
+                "packet_id": "SEC15-IMAGES",
+                "unaccounted_images": 2,
+                "empty_text_images": 4,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    plan = remaining_plan(section=15, finish=None, receipt_dir=tmp_path)
+    assert any("unaccounted" in item for item in plan["missing"])
+    assert any("vision before OCR" in item for item in plan["missing"])
 
 
 def test_remaining_plan_scores_image_account_queue(tmp_path: Path) -> None:

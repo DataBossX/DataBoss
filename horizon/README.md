@@ -111,7 +111,10 @@ reconciliation, an isolated detect-and-repair loop, and Penterra workbook QA.
 When crop packets are absent, the isolated index is projected into the
 re-extraction and occurrence gates so sections 15 and 13 are not blocked
 on a fake page-render packet.
-See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
+See [`IMAGE_ACCOUNT.md`](IMAGE_ACCOUNT.md) to count every raster and
+PDF page, queue vision before OCR, format isolated Letters like
+Section 13 and 15 dated 2026-09-22, and run the improvement-loop
+tournament. See [`PACKAGE_FINISH.md`](PACKAGE_FINISH.md),
 [`INDEX_RECONCILIATION.md`](INDEX_RECONCILIATION.md),
 [`ISOLATED_DELTA.md`](ISOLATED_DELTA.md),
 [`NATIVE_PRINT.md`](NATIVE_PRINT.md),

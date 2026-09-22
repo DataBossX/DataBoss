@@ -51,6 +51,7 @@ OPEN_QUEUE_FILES = {
     "crop_fill_queue": "section{section}-crop-fill-queue.json",
     "crops_draft": "section{section}-crops-draft.json",
     "empty_text_queue": "section{section}-empty-text-queue.json",
+    "image_account_queue": "section{section}-image-account-queue.json",
     "handwritten_scan_queue": "section{section}-handwritten-scan-queue.json",
     "supporting_record_queue": "section{section}-supporting-record-queue.json",
     "native_print_draft": "section{section}-native-print-draft.json",
@@ -63,6 +64,7 @@ OPEN_QUEUE_SCHEMAS = {
     "crop_fill_queue": "dbx.crop_fill_queue",
     "crops_draft": "dbx.page_render_crop_draft",
     "empty_text_queue": "dbx.empty_text_pdf_queue",
+    "image_account_queue": "dbx.image_account_queue",
     "handwritten_scan_queue": "dbx.handwritten_scan_queue",
     "supporting_record_queue": "dbx.supporting_record_queue",
     "native_print_draft": "dbx.native_print_draft",
@@ -95,6 +97,12 @@ FILL_QUEUE_GAPS = (
         "{n} image-only PDF(s) still have empty extracted text",
     ),
     (
+        "image_account_queue",
+        "dbx.image_account_queue",
+        "items",
+        "{n} image(s) still need vision before OCR",
+    ),
+    (
         "onesource_template",
         "dbx.source_proved_delta_template",
         "deltas",
@@ -110,6 +118,8 @@ FILL_QUEUE_GAPS = (
 CROP_FILL_SECTION = 11
 CENSUS_RECEIPT_SCHEMA = "dbx.pdf_page_census_receipt"
 EMPTY_TEXT_LINE = "{n} image-only PDF(s) still have empty extracted text"
+IMAGE_ACCOUNT_LINE = "{n} image(s) still need vision before OCR"
+UNACCOUNTED_IMAGE_LINE = "{n} image(s) are still unaccounted"
 
 
 def _score_fill_slot(slot: str, section: int) -> bool:
@@ -318,6 +328,23 @@ def _census_empty_text_lines(
     count = _nonneg_int(payload.get("empty_text_files"))
     if count:
         return [EMPTY_TEXT_LINE.format(n=count)]
+    return []
+
+
+def _image_account_lines(gates: Sequence[_GateView]) -> List[str]:
+    """Keep remaining-plan incomplete while images are unaccounted or empty-text."""
+
+    lines: List[str] = []
+    for gate in gates:
+        if gate.name != "image_account" or not gate.ran:
+            continue
+        unaccounted = _nonneg_int(gate.detail.get("unaccounted_images"))
+        empty = _nonneg_int(gate.detail.get("empty_text_images"))
+        if unaccounted:
+            lines.append(UNACCOUNTED_IMAGE_LINE.format(n=unaccounted))
+        if empty:
+            lines.append(IMAGE_ACCOUNT_LINE.format(n=empty))
+        return lines
     return []
 
 
@@ -564,6 +591,7 @@ def _fill_section_gaps(
             "handwritten scan queue",
         ),
         ("empty_text_queue", "dbx.empty_text_pdf_queue", "empty-text queue"),
+        ("image_account_queue", "dbx.image_account_queue", "image-account queue"),
         (
             "onesource_template",
             "dbx.source_proved_delta_template",
@@ -828,6 +856,11 @@ def remaining_plan(
     )
     extra.extend(
         line
+        for line in _image_account_lines(gates)
+        if line not in extra
+    )
+    extra.extend(
+        line
         for line in _fill_queue_lines(receipt_dir, section, isolated_sha)
         if line not in extra
     )
@@ -972,6 +1005,7 @@ def remaining_plan(
             "a later leftover exclusive queue with rows wins over an earlier leftover that is empty",
             "leftover exclusive queue names require a bounded section15/p15 mark; temp15 files are ignored",
             "pdf_census empty-text files keep the plan incomplete even when the leftover queue was emptied",
+            "image_account unaccounted or empty-text images keep the plan incomplete",
             "fill queues whose packet_id names another priority section are ignored",
             "crop-fill queues are scored only for section 11",
             "Drive Isolated/ stays until the bound copy is under Isolated/",

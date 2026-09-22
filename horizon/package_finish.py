@@ -65,6 +65,7 @@ from .workbook_ledger import (
     workbook_to_tract_export,
 )
 from .page_render_export import PageRenderExportError, compile_page_renders
+from .image_account import ImageAccountError, account_images, every_image_accounted, verify_packet
 from .pdf_census import PdfCensusError, census_packet
 from .print_layout_repair import PrintLayoutRepairError, repair_print_layout
 from .repair_loop import RepairLoopError, run_repair_loop
@@ -440,6 +441,11 @@ def _next_actions(
             "Pass --pdf-census-packet and --pdf-bind-dir to bind federal "
             "casefile page counts and flag image-only empty-text PDFs"
         )
+    if "image_account" not in ran:
+        actions.append(
+            "Pass --image-bind-dir to count every raster and PDF page and "
+            "account for each image dated 2026-09-22"
+        )
     if "occurrence_ledger" not in ran:
         actions.append(
             "Build an isolated occurrence packet from the checkable export "
@@ -501,6 +507,17 @@ def _next_actions(
                     f"Hold {empty} image-only PDF(s) with empty extracted text; "
                     "do not invent legal text from page count"
                 )
+        if gate.ran and gate.name == "image_account":
+            unaccounted = gate.detail.get("unaccounted_images")
+            empty_images = gate.detail.get("empty_text_images")
+            if unaccounted:
+                actions.append(
+                    f"Account for {unaccounted} image(s) still missing from the ledger"
+                )
+            if empty_images:
+                actions.append(
+                    f"Hold {empty_images} empty-text image(s) for vision before OCR"
+                )
         if gate.ran and gate.technical_pass is False:
             actions.append(f"Resolve blocking {gate.name}: {gate.error or gate.detail}")
     actions.append(
@@ -534,6 +551,8 @@ def run_finish(
     page_render_bind_dir: Optional[Path] = None,
     pdf_census_packet: Optional[Path] = None,
     pdf_bind_dir: Optional[Path] = None,
+    image_bind_dir: Optional[Path] = None,
+    image_account_packet: Optional[Path] = None,
     connect_status: bool = False,
     drive_readback: Optional[Path] = None,
     human_release_token: Optional[Path] = None,
@@ -658,6 +677,39 @@ def run_finish(
             gates.append(
                 GateResult(
                     name="pdf_census",
+                    ran=True,
+                    technical_pass=False,
+                    error=str(exc),
+                )
+            )
+    if image_bind_dir is not None:
+        try:
+            if image_account_packet is not None:
+                images = verify_packet(_load_json(image_account_packet), image_bind_dir)
+            else:
+                images = account_images(
+                    image_bind_dir,
+                    packet_id="FINISH-IMAGE-ACCOUNT-20260922",
+                )
+            gates.append(
+                GateResult(
+                    name="image_account",
+                    ran=True,
+                    technical_pass=images.technical_pass
+                    and every_image_accounted(images),
+                    detail={
+                        "image_count": images.image_count,
+                        "accounted_images": images.accounted_images,
+                        "unaccounted_images": images.unaccounted_images,
+                        "empty_text_images": images.empty_text_images,
+                        "work_date": images.work_date,
+                    },
+                )
+            )
+        except (OSError, ImageAccountError, PackageFinishError) as exc:
+            gates.append(
+                GateResult(
+                    name="image_account",
                     ran=True,
                     technical_pass=False,
                     error=str(exc),
@@ -1185,6 +1237,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--page-render-bind-dir", type=Path)
     parser.add_argument("--pdf-census-packet", type=Path)
     parser.add_argument("--pdf-bind-dir", type=Path)
+    parser.add_argument("--image-bind-dir", type=Path)
+    parser.add_argument("--image-account-packet", type=Path)
     parser.add_argument("--connect-status", action="store_true")
     parser.add_argument("--drive-readback", type=Path)
     parser.add_argument("--human-release-token", type=Path)
@@ -1221,6 +1275,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             page_render_bind_dir=args.page_render_bind_dir,
             pdf_census_packet=args.pdf_census_packet,
             pdf_bind_dir=args.pdf_bind_dir,
+            image_bind_dir=args.image_bind_dir,
+            image_account_packet=args.image_account_packet,
             connect_status=args.connect_status,
             drive_readback=args.drive_readback,
             human_release_token=args.human_release_token,

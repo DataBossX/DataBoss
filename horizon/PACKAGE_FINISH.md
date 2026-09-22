@@ -16,6 +16,8 @@ python3 -m horizon.package_finish \
   --page-render-packet /path/to/page-render-crop-packet.json \
   --pdf-census-packet /path/to/pdf-page-census-packet.json \
   --pdf-bind-dir /path/to/federal-pdfs \
+  --image-bind-dir /path/to/section-images \
+  --image-account-packet /path/to/image-account-packet.json \
   --occurrence-packet /path/to/occurrence-packet.json \
   --index-packet /path/to/index-reconciliation-packet.json \
   --workbook /path/to/source-index.xlsx \

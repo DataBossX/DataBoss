@@ -20,6 +20,7 @@ from .examiner import write_new_json
 from .image_account import (
     WORK_DATE,
     ImageAccountError,
+    ImageAccountReceipt,
     account_images,
     every_image_accounted,
     vision_queue_from_receipt,
@@ -35,13 +36,6 @@ RECEIPT_SCHEMA_ID = "dbx.tournament_loop_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
 DEFAULT_MAX_LOOPS = 10
 MAX_LOOPS_CAP = 20
-CHALLENGERS = (
-    "image_account",
-    "every_image_accounted",
-    "vision_ocr_queue",
-    "letter_format",
-    "required_fields",
-)
 
 
 class TournamentLoopError(ValueError):
@@ -101,12 +95,12 @@ class TournamentReceipt:
 
 def _score_challengers(
     *,
-    image_receipt,
+    image_receipt: ImageAccountReceipt,
     accounted: bool,
     vision_queued: int,
     format_pass: Optional[bool],
 ) -> List[ChallengerScore]:
-    scores = [
+    return [
         ChallengerScore(
             name="image_account",
             passed=image_receipt.technical_pass,
@@ -121,9 +115,9 @@ def _score_challengers(
         ),
         ChallengerScore(
             name="vision_ocr_queue",
-            passed=vision_queued >= 0,
-            score=5 if vision_queued >= 0 else 0,
-            detail=f"queued={vision_queued}",
+            passed=False,
+            score=0,
+            detail=f"queued={vision_queued}; vision unavailable on this host",
         ),
         ChallengerScore(
             name="letter_format",
@@ -138,7 +132,27 @@ def _score_challengers(
             detail="workbook QA" if format_pass else "no isolated Letter",
         ),
     ]
-    return scores
+
+
+def _stop_reason(
+    *,
+    accounted: bool,
+    empty_text_images: int,
+    number: int,
+    max_loops: int,
+    letter_ok: Optional[bool],
+) -> str:
+    if not accounted:
+        return "unaccounted images remain"
+    if empty_text_images:
+        if number == max_loops:
+            return "empty-text images still need face review"
+        return ""
+    if number == max_loops:
+        return "max loops reached"
+    if accounted and letter_ok is True and number >= 2:
+        return "no new image or format defects found"
+    return ""
 
 
 def _winner(scores: Sequence[ChallengerScore]) -> str:
@@ -186,15 +200,13 @@ def run_tournament(
             vision_queued=vision.queued,
             format_pass=letter_ok,
         )
-        stop = ""
-        if not accounted:
-            stop = "unaccounted images remain"
-        elif image_receipt.empty_text_images and number == max_loops:
-            stop = "empty-text images still need face review"
-        elif number == max_loops:
-            stop = "max loops reached"
-        elif accounted and letter_ok is True and number >= 2:
-            stop = "no new image or format defects found"
+        stop = _stop_reason(
+            accounted=accounted,
+            empty_text_images=image_receipt.empty_text_images,
+            number=number,
+            max_loops=max_loops,
+            letter_ok=letter_ok,
+        )
         winner = _winner(scores)
         passes.append(
             TournamentPass(
@@ -212,7 +224,11 @@ def run_tournament(
         )
         last_accounted = accounted
         last_count = image_receipt.image_count
-        technical_pass = accounted and image_receipt.technical_pass
+        technical_pass = (
+            accounted
+            and image_receipt.technical_pass
+            and not image_receipt.empty_text_images
+        )
         if stop:
             break
     return TournamentReceipt(

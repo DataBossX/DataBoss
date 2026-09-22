@@ -32,6 +32,8 @@ DEFAULT_PROFILE = (
 )
 DEFAULT_CHECKS = ("abstract_required_fields", "abstract_print_layout")
 ROLE_NOT_FACTS = "Match Section 15 by role, not facts"
+FROZEN_PACKAGE_IDS = frozenset({"P15", "P10", "P2"})
+FROZEN_ROLES = frozenset({"format_donor", "frozen_donor", "closed"})
 
 
 class PackageFormatError(ValueError):
@@ -177,7 +179,7 @@ def assemble_exact_package(
     output_zip: Path,
 ) -> MembershipReceipt:
     contract = contract_for(package_id)
-    if contract.role in {"frozen_donor", "closed"}:
+    if contract.package_id in FROZEN_PACKAGE_IDS or contract.role in FROZEN_ROLES:
         raise PackageFormatError(
             f"{contract.package_id} is {contract.role}; do not rebuild it"
         )
@@ -201,16 +203,16 @@ def assemble_exact_package(
             f"ZIP must be named {expected_name} for work dated {WORK_DATE.isoformat()}"
         )
     listed: List[Dict[str, object]] = []
-    names = []
+    seen_names: set[str] = set()
     dest.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for member in members:
             path = member.expanduser().resolve()
             if not path.is_file():
                 raise PackageFormatError(f"missing package member: {path}")
-            if path.name in names:
+            if path.name in seen_names:
                 raise PackageFormatError(f"duplicate member name: {path.name}")
-            names.append(path.name)
+            seen_names.add(path.name)
             digest = sha256_file(path)
             archive.write(path, arcname=path.name)
             listed.append(

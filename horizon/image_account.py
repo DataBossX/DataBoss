@@ -31,7 +31,13 @@ QUEUE_SCHEMA_VERSION = "1.0"
 RASTER_SUFFIXES = frozenset(
     {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".gif", ".webp", ".bmp"}
 )
-SKIP_DIR_NAMES = frozenset({".git", "node_modules", "__pycache__", "output"})
+IMAGE_KINDS = frozenset({"raster", "pdf_page"})
+PACKET_FILE_KINDS = frozenset({"raster", "pdf_page", "pdf_container", "other"})
+SKIP_DIR_NAMES = frozenset({".git", "node_modules", "__pycache__"})
+_ALLOWED_IMAGE_ISSUES = (
+    ["extracted text is empty or nearly empty"],
+    ["raster has no text layer; vision before OCR"],
+)
 
 
 class ImageAccountError(ValueError):
@@ -124,6 +130,18 @@ def _relative(path: Path, bind: Path) -> str:
     return path.relative_to(bind).as_posix()
 
 
+def _image_key(path: str, kind: str, page: object) -> tuple[str, str, object]:
+    return (path, kind, page if kind == "pdf_page" else 1)
+
+
+def _image_records(records: Sequence[ImageRecord]) -> List[ImageRecord]:
+    return [item for item in records if item.kind in IMAGE_KINDS]
+
+
+def _acceptable_image_issues(item: ImageRecord) -> bool:
+    return not item.issues or item.issues in _ALLOWED_IMAGE_ISSUES
+
+
 def _raster_record(path: Path, bind: Path) -> ImageRecord:
     digest = sha256_file(path)
     return ImageRecord(
@@ -186,39 +204,40 @@ def _pdf_records(path: Path, bind: Path) -> List[ImageRecord]:
         issues.append(
             f"page-tree Count {declared} disagrees with counted {counted}"
         )
+    ok = counted >= 1 and not issues
     container = ImageRecord(
         path=relative,
         kind="pdf_container",
         source_sha256=digest,
         size_bytes=len(data),
         page=None,
-        accounted=counted >= 1 and not issues,
+        accounted=ok,
         empty_text=empty_text,
         vision_status="not_applicable",
         ocr_status="not_applicable",
-        disposition="container" if counted >= 1 and not issues else "unaccounted",
+        disposition="container" if ok else "unaccounted",
         issues=list(issues),
     )
-    pages: List[ImageRecord] = []
-    for page in range(1, max(counted, 0) + 1):
-        page_issues = list(issues)
-        if empty_text:
-            page_issues.append("extracted text is empty or nearly empty")
-        pages.append(
-            ImageRecord(
-                path=f"{relative}#page={page}",
-                kind="pdf_page",
-                source_sha256=digest,
-                size_bytes=len(data),
-                page=page,
-                accounted=counted >= 1 and not issues,
-                empty_text=empty_text,
-                vision_status="queued" if empty_text else "not_required",
-                ocr_status="not_run",
-                disposition="empty_text_hold" if empty_text else "accounted",
-                issues=page_issues,
-            )
+    pages = [
+        ImageRecord(
+            path=f"{relative}#page={page}",
+            kind="pdf_page",
+            source_sha256=digest,
+            size_bytes=len(data),
+            page=page,
+            accounted=ok,
+            empty_text=empty_text,
+            vision_status="queued" if empty_text else "not_required",
+            ocr_status="not_run",
+            disposition="empty_text_hold" if empty_text else "accounted",
+            issues=(
+                [*issues, "extracted text is empty or nearly empty"]
+                if empty_text
+                else list(issues)
+            ),
         )
+        for page in range(1, counted + 1)
+    ]
     return [container, *pages]
 
 
@@ -244,7 +263,7 @@ def account_images(
     token = _require_text(packet_id, "packet_id")
     bind = bind_dir.expanduser().resolve()
     records = inventory_bind_dir(bind)
-    images = [item for item in records if item.kind in {"raster", "pdf_page"}]
+    images = _image_records(records)
     containers = [item for item in records if item.kind == "pdf_container"]
     others = [item for item in records if item.kind == "other"]
     unaccounted = [
@@ -253,22 +272,23 @@ def account_images(
         if not item.accounted or item.disposition == "unaccounted"
     ]
     empty_text = [item for item in images if item.empty_text]
-    technical_pass = bool(images) and not unaccounted and all(
-        not item.issues or item.issues == ["extracted text is empty or nearly empty"]
-        or item.issues == ["raster has no text layer; vision before OCR"]
-        for item in images
+    raster_count = sum(1 for item in images if item.kind == "raster")
+    pdf_page_count = sum(1 for item in images if item.kind == "pdf_page")
+    technical_pass = (
+        bool(images)
+        and not unaccounted
+        and all(_acceptable_image_issues(item) for item in images)
+        and all(item.disposition != "unaccounted" for item in containers)
     )
-    if any(item.disposition == "unaccounted" for item in containers):
-        technical_pass = False
     return ImageAccountReceipt(
         generated_utc=datetime.now(timezone.utc).isoformat(),
         work_date=WORK_DATE.isoformat(),
         packet_id=token,
         bind_dir=str(bind),
-        file_count=len(iter_bind_files(bind)),
+        file_count=raster_count + len(containers) + len(others),
         image_count=len(images),
-        raster_count=sum(1 for item in images if item.kind == "raster"),
-        pdf_page_count=sum(1 for item in images if item.kind == "pdf_page"),
+        raster_count=raster_count,
+        pdf_page_count=pdf_page_count,
         other_file_count=len(others),
         accounted_images=len(images) - len(unaccounted),
         unaccounted_images=len(unaccounted),
@@ -280,7 +300,7 @@ def account_images(
 
 
 def every_image_accounted(receipt: ImageAccountReceipt) -> bool:
-    images = [item for item in receipt.images if item.kind in {"raster", "pdf_page"}]
+    images = _image_records(receipt.images)
     if not images:
         return False
     paths = [item.path for item in images]
@@ -295,9 +315,9 @@ def every_image_accounted(receipt: ImageAccountReceipt) -> bool:
 def vision_queue_from_receipt(receipt: ImageAccountReceipt) -> Dict[str, object]:
     items = []
     for item in receipt.images:
-        if item.kind not in {"raster", "pdf_page"}:
+        if item.kind not in IMAGE_KINDS:
             continue
-        if item.vision_status not in {"queued"} and not item.empty_text:
+        if item.vision_status != "queued" and not item.empty_text:
             continue
         items.append(
             {
@@ -346,7 +366,7 @@ def write_inventory_packet(
                 "page": item.page,
             }
             for item in receipt.images
-            if item.kind in {"raster", "pdf_page", "pdf_container"}
+            if item.kind in PACKET_FILE_KINDS
         ],
     }
     write_new_json(packet, output, "image account packet")
@@ -367,16 +387,22 @@ def verify_packet(packet: Dict[str, object], bind_dir: Path) -> ImageAccountRece
     if not isinstance(listed, list) or not listed:
         raise ImageAccountError("files must be a non-empty list")
     expected = {
-        (item.path, item.kind, item.page)
+        _image_key(item.path, item.kind, item.page)
         for item in live.images
-        if item.kind in {"raster", "pdf_page"}
+        if item.kind in IMAGE_KINDS
     }
+    by_path_kind: Dict[tuple[str, str], ImageRecord] = {}
+    for item in live.images:
+        identity = (item.path, item.kind)
+        if identity not in by_path_kind:
+            by_path_kind[identity] = item
+    listed_keys: List[tuple[str, str, object]] = []
     seen = set()
     for index, raw in enumerate(listed):
         if not isinstance(raw, dict):
             raise ImageAccountError(f"files[{index}] is invalid")
         kind = raw.get("kind")
-        if kind not in {"raster", "pdf_page"}:
+        if kind not in IMAGE_KINDS:
             continue
         path = _require_text(raw.get("path"), f"files[{index}] path")
         page = raw.get("page")
@@ -387,29 +413,44 @@ def verify_packet(packet: Dict[str, object], bind_dir: Path) -> ImageAccountRece
             digest = digest.casefold()
         if not _is_sha256(digest):
             raise ImageAccountError(f"files[{index}] source_sha256 is invalid")
-        key = (path, kind, page if kind == "pdf_page" else 1)
+        key = _image_key(path, str(kind), page)
+        listed_keys.append(key)
         seen.add(key)
-        match = next(
-            (
-                item
-                for item in live.images
-                if item.path == path and item.kind == kind
-            ),
-            None,
-        )
+        match = by_path_kind.get((path, str(kind)))
         if match is None or match.source_sha256 != digest:
-            live.technical_pass = False
-            live.unaccounted_images += 1
+            if match is not None:
+                match.accounted = False
+                match.disposition = "unaccounted"
             live.notes.append(f"packet image {path} does not match bind-dir bytes")
     missing = expected - seen
     extra = seen - expected
-    if missing or extra:
+    if len(seen) != len(listed_keys):
         live.technical_pass = False
-        live.unaccounted_images = max(live.unaccounted_images, len(missing) + len(extra))
+        live.notes.append("packet lists the same image more than once")
+    images = _image_records(live.images)
+    for item in images:
+        if _image_key(item.path, item.kind, item.page) in missing:
+            item.accounted = False
+            item.disposition = "unaccounted"
+    unaccounted = [item for item in images if not item.accounted]
+    live.accounted_images = len(images) - len(unaccounted)
+    live.unaccounted_images = len(unaccounted) + len(extra)
+    if missing or extra or unaccounted:
+        live.technical_pass = False
         if missing:
             live.notes.append(f"{len(missing)} bind-dir image(s) are missing from the packet")
         if extra:
             live.notes.append(f"{len(extra)} packet image(s) are not in bind-dir")
+    others = [item for item in live.images if item.kind == "other"]
+    listed_others = {
+        raw.get("path")
+        for raw in listed
+        if isinstance(raw, dict) and raw.get("kind") == "other"
+    }
+    hidden = [item.path for item in others if item.path not in listed_others]
+    if hidden:
+        live.technical_pass = False
+        live.notes.append(f"{len(hidden)} non-image file(s) are missing from the packet")
     return live
 
 

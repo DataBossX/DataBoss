@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -28,8 +27,6 @@ from .image_account import (
 
 RECEIPT_SCHEMA_ID = "dbx.vision_ocr_receipt"
 RECEIPT_SCHEMA_VERSION = "1.0"
-REVIEW_SCHEMA_ID = "dbx.vision_ocr_review_queue"
-REVIEW_SCHEMA_VERSION = "1.0"
 
 
 class VisionOcrError(ValueError):
@@ -88,29 +85,10 @@ def _require_text(value: object, label: str) -> str:
 
 
 def detect_tools() -> Dict[str, str]:
-    tesseract = shutil.which("tesseract")
     return {
         "vision": "unavailable",
-        "tesseract": tesseract or "unavailable",
+        "tesseract": shutil.which("tesseract") or "unavailable",
     }
-
-
-def _ocr_region(path: Path) -> tuple[int, str]:
-    tesseract = shutil.which("tesseract")
-    if tesseract is None:
-        return 0, "unavailable"
-    try:
-        completed = subprocess.run(
-            [tesseract, str(path), "stdout", "--psm", "6"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        return 0, f"ocr_error:{exc}"
-    text = completed.stdout or ""
-    return len(text.encode("utf-8")), "ran"
 
 
 def review_queue(
@@ -130,7 +108,6 @@ def review_queue(
     vision_unavailable = 0
     ocr_unavailable = 0
     ocr_ran = 0
-    bind = bind_dir.expanduser().resolve() if bind_dir is not None else None
     for index, raw in enumerate(raw_items):
         if not isinstance(raw, dict):
             raise VisionOcrError(f"items[{index}] is invalid")
@@ -141,43 +118,25 @@ def review_queue(
         notes = [
             "vision required before any OCR",
             "face text is review-only",
+            "no authenticated vision worker is connected",
         ]
-        vision_status = "unavailable"
         vision_unavailable += 1
-        notes.append("no authenticated vision worker is connected")
         ocr_status = "not_run"
-        tool = "none"
-        text_bytes = 0
-        if allow_ocr and kind == "raster" and bind is not None:
-            relative = path.split("#", 1)[0]
-            target = (bind / relative).resolve()
-            if bind not in target.parents and target != bind:
-                raise VisionOcrError(f"items[{index}] path escapes the bind directory")
-            if target.is_file():
-                text_bytes, ocr_status = _ocr_region(target)
-                tool = "tesseract" if ocr_status == "ran" else "none"
-                if ocr_status == "ran":
-                    ocr_ran += 1
-                    notes.append("OCR text is queued; do not write it into legal cells")
-                else:
-                    ocr_unavailable += 1
-            else:
-                ocr_status = "unavailable"
-                ocr_unavailable += 1
-        elif allow_ocr:
-            ocr_status = "unavailable"
+        if allow_ocr:
+            ocr_status = "blocked_until_vision"
             ocr_unavailable += 1
-            notes.append("OCR skipped for PDF pages without a rendered crop")
+            notes.append("OCR blocked; vision is unavailable")
+            notes.append("OCR may only target a named crop after a face is read")
         attempts.append(
             FaceAttempt(
                 path=path,
                 kind=kind,
                 source_sha256=digest.casefold(),
                 page=page if type(page) is int else None,
-                vision_status=vision_status,
+                vision_status="unavailable",
                 ocr_status=ocr_status,
-                tool=tool,
-                text_bytes=text_bytes,
+                tool="none",
+                text_bytes=0,
                 notes=notes,
             )
         )

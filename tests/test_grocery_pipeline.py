@@ -222,6 +222,28 @@ def test_recording_date_still_captured_when_labeled(tmp_path):
     assert fact["recording_date"] == "2015-04-20"
 
 
+def test_recording_date_captured_when_date_precedes_label(tmp_path):
+    # Regression (PR review finding): a genuine recording stamp can put the
+    # date BEFORE the label instead of after it. The label-scoped extractor
+    # must still find it -- without falling back to an unrelated date on a
+    # preceding line (see test_recording_date_still_captured_when_labeled).
+    docs = {
+        "d_date_before_label.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Effective Date: 2015-04-10\n"
+            "04/20/2015 Recorded, Book 9 Page 4\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["d_date_before_label.txt"]
+    assert fact["recording_date"] == "2015-04-20"
+
+
 # ===========================================================================
 # Regression tests -- issue #94 item 3: _DECIMAL_RX digit-count restriction,
 # and sum-to-one only asserted for a proven-complete owner set.

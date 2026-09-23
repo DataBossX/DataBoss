@@ -920,8 +920,28 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         for key, kw in [("effective_date", r"effective\s+date"),
                         ("execution_date", r"(?:executed|dated|execution\s+date)"),
                         ("recording_date", r"(?:recorded|recording\s+date|filed)")]:
-            m = re.search(rf"{kw}[^\n]{{0,40}}", text, re.I)
-            d = parse_date(m.group(0)) if m else None
+            m = re.search(kw, text, re.I)
+            d = None
+            if m:
+                # Prefer a date AFTER the label (the common case, and the
+                # original behavior); this window may cross one newline
+                # ("Recorded:\n2015-04-20"), since that text is what the
+                # label is actually introducing. Only fall back to a window
+                # BEFORE the label -- for a genuine recording stamp that puts
+                # the date first, e.g. "04/20/2015 Recorded" -- and that
+                # before-window is clamped to the CURRENT LINE ONLY, so an
+                # unrelated date on a preceding line (e.g. "Effective Date:
+                # ...\nRecorded: ...") is never picked up in its place.
+                # Still requires the label itself to match nearby; this is
+                # not the removed whole-document fallback, which had no
+                # label requirement at all.
+                after = text[m.end():min(len(text), m.end() + 40)]
+                d = parse_date(after)
+                if d is None:
+                    line_start = text.rfind("\n", 0, m.start()) + 1
+                    before_start = max(line_start, m.start() - 40)
+                    before = text[before_start:m.start()]
+                    d = parse_date(before)
             setv(key, d, 0.6 if d else 0.0)
         # IMPORTANT (issue #94 item 2): recording_date must NEVER be
         # fabricated from "the first date anywhere in the document". It is

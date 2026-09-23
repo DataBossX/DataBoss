@@ -11,6 +11,7 @@ from horizon.models import ReportModel, TitleRow
 from horizon.orchestrator import Orchestrator
 from horizon.repair import (
     RepairRefused,
+    _extract_template_formulas,
     _fix_worksheet_xml,
     _parse_worksheet_strict_or_prove_lossless,
     repair_workbook,
@@ -117,6 +118,43 @@ def _make_template_with_formula(path: Path, cell_reference: str, formula_text: s
     wb.save(path)
 
 
+def _make_template_with_shared_formula(path: Path, master_ref: str, follower_ref: str,
+                                        formula_text: str, shared_index: str = "0"):
+    """Build an approved-authority .xlsx whose ``master_ref``/``follower_ref``
+    hold a real OOXML shared formula: the master's ``<f>`` carries the
+    formula text plus ``t="shared" si=... ref=...``, and the follower's
+    ``<f>`` carries ONLY ``t="shared" si=...`` -- no text at all. This is the
+    exact shape `_extract_template_formulas` must not drop attributes from
+    (master) or skip entirely (follower, since its <f> text is empty)."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws["A1"] = "ok"
+    ws[master_ref] = "placeholder"
+    ws[follower_ref] = "placeholder"
+    wb.save(path)
+
+    data = _read_worksheet_xml(path)
+    root = etree.fromstring(data)
+    master_cell = root.find(f".//{{{_MAIN_NS}}}c[@r={master_ref!r}]")
+    follower_cell = root.find(f".//{{{_MAIN_NS}}}c[@r={follower_ref!r}]")
+    for cell, is_master in ((master_cell, True), (follower_cell, False)):
+        for tag in ("f", "v"):
+            existing = cell.find(f"{{{_MAIN_NS}}}{tag}")
+            if existing is not None:
+                cell.remove(existing)
+        f = etree.SubElement(cell, f"{{{_MAIN_NS}}}f")
+        f.set("t", "shared")
+        f.set("si", shared_index)
+        if is_master:
+            f.set("ref", f"{master_ref}:{follower_ref}")
+            f.text = formula_text
+        # Follower: no ref, no text -- exactly what Excel writes for a
+        # shared-formula follower cell.
+    new_xml = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+    _write_worksheet_xml(path, new_xml)
+
+
 @pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
 def test_repair_refuses_error_formula_without_template_authority(tmp_path):
     # NOTE: this replaces a test that used to assert the issue #94 bug --
@@ -168,6 +206,76 @@ def test_repair_restores_template_formula_and_flags_recalculation(tmp_path):
     assert formula is not None and formula.text == "SUM(B1:B2)"  # exact template text
     # The error can never resurface as a plain-looking literal.
     assert b"#REF!" not in repaired_xml
+
+
+@pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
+def test_extract_template_formulas_keeps_shared_follower_with_no_text(tmp_path):
+    """Regression (PR review finding): a shared-formula follower cell's <f>
+    carries no text -- only t="shared" si=N -- so keying template authority
+    on non-empty text silently dropped every follower. Both master and
+    follower must be present in the extracted authority."""
+    template = tmp_path / "template.xlsx"
+    _make_template_with_shared_formula(template, "A2", "A3", "SUM(B1:B2)", shared_index="0")
+
+    with zipfile.ZipFile(template) as archive:
+        formulas = _extract_template_formulas(archive, "xl/worksheets/sheet1.xml")
+
+    assert set(formulas) >= {"A2", "A3"}
+    assert formulas["A2"].text == "SUM(B1:B2)"
+    assert formulas["A2"].get("t") == "shared"
+    assert formulas["A2"].get("si") == "0"
+    assert formulas["A2"].get("ref") == "A2:A3"
+    # The follower's <f> has no text at all -- it must still be kept, and
+    # its shared-index attribute must survive.
+    assert formulas["A3"].text is None
+    assert formulas["A3"].get("t") == "shared"
+    assert formulas["A3"].get("si") == "0"
+
+
+@pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
+def test_repair_restores_shared_formula_master_and_follower_with_attributes(tmp_path):
+    """Regression (PR review finding): restoring an error cell from a
+    template must preserve the template <f>'s t/si/ref attributes (deep-copy
+    the element), not just its text -- otherwise a restored shared-formula
+    master leaves its follower cells referring to a shared index with no
+    matching master."""
+    src = tmp_path / "report.xlsx"
+    _make_xlsx_with_exact_error_cell(src, "A2")  # base fixture cell, will add a second below
+    # Give the source a second error cell at A3 (the would-be follower).
+    wb_path = src
+    data = _read_worksheet_xml(wb_path)
+    root = etree.fromstring(data)
+    # A3 doesn't exist yet in this minimal fixture; add it as another error cell.
+    sheet_data = root.find(f"{{{_MAIN_NS}}}sheetData")
+    row = sheet_data.find(f"{{{_MAIN_NS}}}row")
+    a3 = etree.SubElement(row, f"{{{_MAIN_NS}}}c")
+    a3.set("r", "A3")
+    a3.set("t", "e")
+    f = etree.SubElement(a3, f"{{{_MAIN_NS}}}f")
+    f.text = "#REF!"
+    v = etree.SubElement(a3, f"{{{_MAIN_NS}}}v")
+    v.text = "#REF!"
+    _write_worksheet_xml(wb_path, etree.tostring(root, xml_declaration=True,
+                                                  encoding="UTF-8", standalone=True))
+
+    template = tmp_path / "template.xlsx"
+    _make_template_with_shared_formula(template, "A2", "A3", "SUM(B1:B2)", shared_index="0")
+    dest = tmp_path / "report_v002.xlsx"
+
+    result = repair_workbook(src, dest, template_path=template)
+    assert result.repaired is True
+    assert result.recalculation_required is True
+
+    repaired_root = etree.fromstring(_read_worksheet_xml(dest))
+    master = repaired_root.find(f".//{{{_MAIN_NS}}}c[@r='A2']").find(f"{{{_MAIN_NS}}}f")
+    follower = repaired_root.find(f".//{{{_MAIN_NS}}}c[@r='A3']").find(f"{{{_MAIN_NS}}}f")
+
+    assert master.get("t") == "shared" and master.get("si") == "0" and master.get("ref") == "A2:A3"
+    assert master.text == "SUM(B1:B2)"
+    # The follower must come back with its shared attributes intact -- a
+    # plain-text-only reconstruction would produce a bare <f> with none of
+    # this, orphaning it from its master.
+    assert follower.get("t") == "shared" and follower.get("si") == "0"
 
 
 @pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")

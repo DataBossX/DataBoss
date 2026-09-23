@@ -443,6 +443,44 @@ class DataBossXSecurityRegressionTests(unittest.TestCase):
         # output; the synthetic placeholder must not masquerade as confident.
         self.assertNotEqual(result["confidence_score"], 0.95)
 
+    # -- Regression: PR review findings on the above fixes ------------------
+    def test_health_check_reports_ocr_unavailable_outside_demo_mode(self):
+        """/api/health must not claim OCR is available when it will fail closed."""
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "false"},
+            self._db_path("health_real.db"),
+        )
+        with TestClient(module.app) as client:
+            body = client.get("/api/health").json()
+            self.assertNotEqual(body["services"]["ocr"], "available")
+
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "true"},
+            self._db_path("health_demo.db"),
+        )
+        with TestClient(module.app) as client:
+            body = client.get("/api/health").json()
+            self.assertIn("demo", body["services"]["ocr"].lower())
+
+    def test_upload_rejects_synchronously_when_ocr_unavailable(self):
+        """An upload must not be accepted (200/"processing") only to fail
+        invisibly in the background once OCR rejects it - the client should
+        get the real 503 immediately, before any document record is created."""
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "false"},
+            self._db_path("upload_no_ocr.db"),
+        )
+        with TestClient(module.app) as client:
+            files = {"file": ("sample.pdf", b"%PDF-1.4 fake", "application/pdf")}
+            response = client.post(
+                "/api/documents/upload", files=files, headers={"X-API-Key": "test-key"}
+            )
+            self.assertEqual(response.status_code, 503)
+            documents = client.get(
+                "/api/documents", headers={"X-API-Key": "test-key"}
+            ).json()
+            self.assertEqual(documents, [], "no document record should be created for a rejected upload")
+
 
 def run_tests():
     """Run all API tests"""

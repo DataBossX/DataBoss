@@ -405,7 +405,10 @@ async def health_check():
         "timestamp": datetime.now(),
         "version": "1.0.0",
         "services": {
-            "ocr": "available",
+            # Mock OCR fails closed unless DATABOSSX_DEMO_MODE is on (issue
+            # #94 item 6) -- reporting "available" regardless would let a
+            # client upload a document that is guaranteed to fail OCR later.
+            "ocr": "available (synthetic demo mode)" if settings.demo_mode else "unavailable",
             "openai": "available" if openai_client else "unavailable",
             "anthropic": "available" if anthropic_client else "unavailable", 
             "gemini": "available" if GEMINI_API_KEY else "unavailable"
@@ -420,6 +423,21 @@ async def upload_document(
 ):
     """Upload and process document with OCR"""
     try:
+        # Reject synchronously when OCR is unavailable (issue #94 item 6):
+        # background processing already fails closed via process_ocr(), but
+        # by then the caller has already received a 200 "processing"
+        # response and the record has been created, so the advertised 503
+        # never reaches them and every accepted upload is guaranteed to fail
+        # later. Check before creating any record.
+        if not settings.demo_mode:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "OCR is unavailable: no real OCR engine is configured. "
+                    "Set DATABOSSX_DEMO_MODE=true to use the synthetic demo OCR engine."
+                ),
+            )
+
         # Enforce the file-type allowlist up front (defect #94 item 4/6 hardening).
         if file.content_type not in settings.allowed_content_types:
             raise HTTPException(status_code=400, detail="Unsupported file type")

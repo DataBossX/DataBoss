@@ -161,7 +161,11 @@ def _fix_worksheet_xml(
 
         cell_ref = cell.get("r", "?")
         template_formula = template_formulas.get(cell_ref)
-        if not template_formula:
+        # NB: template_formula is an lxml Element once found -- an Element
+        # with no children (e.g. a shared-formula follower's bare <f
+        # t="shared" si="N"/>) is falsy under `bool()`, so this must be an
+        # explicit `is None` check, never a truthiness check.
+        if template_formula is None:
             defects.append({
                 "cell": cell_ref,
                 "reason": "error_cell_no_template_authority",
@@ -177,9 +181,11 @@ def _fix_worksheet_xml(
         cell.remove(f)
         if v is not None:
             cell.remove(v)
-        restored = etree.Element(f"{{{_MAIN_NS}}}f")
-        restored.text = template_formula
-        cell.insert(0, restored)
+        # Deep-copy the exact template <f> element (preserving t/si/ref and
+        # any other attributes), never reconstruct a bare element from text
+        # alone -- that would silently corrupt shared/array/data-table
+        # formulas. Same pattern as restore_formula_from_template() below.
+        cell.insert(0, deepcopy(template_formula))
         cell.attrib.pop("t", None)
         pending_fixes.append(
             f"restored approved template formula in cell {cell_ref} "
@@ -234,20 +240,26 @@ def _sheet_parts(archive: zipfile.ZipFile) -> Dict[str, str]:
 
 def _extract_template_formulas(
     archive: zipfile.ZipFile, part_name: str
-) -> Dict[str, str]:
+) -> Dict[str, "etree._Element"]:
     """Read one approved-template worksheet part and return
-    ``{cell_ref: formula_text}`` for every formula cell -- the authority
-    source Strategy B restores error cells from."""
+    ``{cell_ref: <f> element}`` for every formula cell -- the authority
+    source Strategy B restores error cells from.
+
+    The full ``<f>`` element is kept (deep-copied), not just its text: a
+    shared/array/data-table formula's ``t``/``si``/``ref`` attributes are
+    required to restore it correctly, and a shared-formula *follower* cell's
+    ``<f>`` carries no text at all -- only a ``t="shared" si="N"`` reference
+    to its master -- so keying on non-empty text would silently drop every
+    follower from the template authority.
+    """
     root = etree.fromstring(archive.read(part_name))
-    formulas: Dict[str, str] = {}
+    formulas: Dict[str, "etree._Element"] = {}
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
         f = cell.find(f"{{{_MAIN_NS}}}f")
         cell_ref = cell.get("r")
         if f is None or not cell_ref:
             continue
-        body = (f.text or "").strip()
-        if body:
-            formulas[cell_ref] = body
+        formulas[cell_ref] = deepcopy(f)
     return formulas
 
 

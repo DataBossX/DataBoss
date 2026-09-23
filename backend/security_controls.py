@@ -19,17 +19,21 @@ ALLOWED_UPLOAD_SUFFIXES = frozenset(
 AUTH_HEADER = "X-DataBossX-Token"
 
 
+def _env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip()
+
+
 def demo_mode_enabled() -> bool:
-    return os.environ.get("DATABOSSX_DEMO_MODE", "").strip() == "1"
+    return _env("DATABOSSX_DEMO_MODE") == "1"
 
 
 def api_token() -> str:
-    return os.environ.get("DATABOSSX_API_TOKEN", "").strip()
+    return _env("DATABOSSX_API_TOKEN")
 
 
 def cors_origins() -> list[str]:
-    raw = os.environ.get("DATABOSSX_CORS_ORIGINS", "")
-    if not raw.strip():
+    raw = _env("DATABOSSX_CORS_ORIGINS")
+    if not raw:
         return list(DEFAULT_CORS_ORIGINS)
     origins = [part.strip() for part in raw.split(",") if part.strip()]
     if "*" in origins:
@@ -38,7 +42,7 @@ def cors_origins() -> list[str]:
 
 
 def bind_host() -> str:
-    host = os.environ.get("DATABOSSX_BIND_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    host = _env("DATABOSSX_BIND_HOST", "127.0.0.1") or "127.0.0.1"
     if host in {"0.0.0.0", "::"}:
         raise ValueError("legacy backend must bind loopback only")
     return host
@@ -48,7 +52,7 @@ def authenticate(provided_token: str | None) -> tuple[bool, str]:
     expected = api_token()
     if not expected:
         return False, "unauthenticated access is disabled"
-    if not provided_token or provided_token != expected:
+    if provided_token != expected:
         return False, "unauthorized"
     return True, "ok"
 

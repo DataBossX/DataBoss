@@ -15,6 +15,9 @@ def create_app(db_path: str):
     engine = PolicyEngine()
     app = FastAPI(title="DataBossX Control API", version="0.2.0")
 
+    def as_dicts(rows):
+        return [dict(row) for row in rows]
+
     @app.get("/healthz")
     def healthz():
         write = engine.decide("drive.write", write=True)
@@ -36,31 +39,33 @@ def create_app(db_path: str):
 
     @app.get("/projects/{project_id}/assets")
     def get_assets(project_id: str):
-        rows = db.fetchall(
-            """
-            SELECT a.id, a.logical_key, a.asset_class, av.sha256, av.byte_size, av.original_locator
-              FROM assets a
-              JOIN asset_versions av ON av.asset_id = a.id
-             WHERE a.project_id = ?
-             ORDER BY a.id, av.id
-            """,
-            (project_id,),
+        return as_dicts(
+            db.fetchall(
+                """
+                SELECT a.id, a.logical_key, a.asset_class, av.sha256, av.byte_size, av.original_locator
+                  FROM assets a
+                  JOIN asset_versions av ON av.asset_id = a.id
+                 WHERE a.project_id = ?
+                 ORDER BY a.id, av.id
+                """,
+                (project_id,),
+            )
         )
-        return [dict(row) for row in rows]
 
     @app.get("/projects/{project_id}/tasks")
     def get_tasks(project_id: str):
-        rows = db.fetchall(
-            """
-            SELECT t.id, t.task_type, t.state, t.priority, t.payload_json
-              FROM tasks t
-              JOIN runs r ON r.id = t.run_id
-             WHERE r.project_id = ?
-             ORDER BY t.id
-            """,
-            (project_id,),
+        return as_dicts(
+            db.fetchall(
+                """
+                SELECT t.id, t.task_type, t.state, t.priority, t.payload_json
+                  FROM tasks t
+                  JOIN runs r ON r.id = t.run_id
+                 WHERE r.project_id = ?
+                 ORDER BY t.id
+                """,
+                (project_id,),
+            )
         )
-        return [dict(row) for row in rows]
 
     @app.get("/projects/{project_id}/audit")
     def get_audit(project_id: str, q: str = ""):
@@ -86,20 +91,21 @@ def create_app(db_path: str):
                 """,
                 (project_id,),
             )
-        return [dict(row) for row in rows]
+        return as_dicts(rows)
 
     @app.get("/projects/{project_id}/claims")
     def get_claims(project_id: str):
-        rows = db.fetchall(
-            """
-            SELECT id, subject, predicate, value_text, value_state, confidence
-              FROM claims
-             WHERE project_id = ?
-             ORDER BY id
-            """,
-            (project_id,),
+        return as_dicts(
+            db.fetchall(
+                """
+                SELECT id, subject, predicate, value_text, value_state, confidence
+                  FROM claims
+                 WHERE project_id = ?
+                 ORDER BY id
+                """,
+                (project_id,),
+            )
         )
-        return [dict(row) for row in rows]
 
     @app.post("/connectors/drive/scan")
     def drive_scan(payload: dict):
@@ -107,7 +113,10 @@ def create_app(db_path: str):
         if not root:
             raise HTTPException(status_code=400, detail="root is required")
         connector = GoogleDriveConnector(
-            DriveConnection(root_locator=str(root), backend=str(payload.get("backend") or "local_mirror"))
+            DriveConnection(
+                root_locator=str(root),
+                backend=str(payload.get("backend") or "local_mirror"),
+            )
         )
         write = connector.refuse_write()
         scan = connector.scan(dry_run=bool(payload.get("dry_run", True)))

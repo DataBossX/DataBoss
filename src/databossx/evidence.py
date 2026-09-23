@@ -23,6 +23,10 @@ VALUE_STATES = (
     "review_required",
 )
 
+_UNPROMOTED_STATES = frozenset(
+    {"inferred", "assumed", "externally_researched", "review_required"}
+)
+
 
 @dataclass(frozen=True)
 class EvidenceSpanRecord:
@@ -79,9 +83,6 @@ def add_claim(
 ) -> ClaimRecord:
     if value_state not in VALUE_STATES:
         raise ValueError(f"unknown value_state {value_state!r}")
-    if value_state == "inferred" and value_text:
-        # Inferred values may exist as candidates but cannot be treated as known.
-        pass
     claim_id = db.execute(
         """
         INSERT INTO claims (
@@ -134,7 +135,7 @@ def resolve_conflict(
     reviewer_id: str,
     notes: str = "",
 ) -> None:
-    row = db.fetchone("SELECT material FROM conflicts WHERE id = ?", (conflict_id,))
+    row = db.fetchone("SELECT project_id FROM conflicts WHERE id = ?", (conflict_id,))
     if row is None:
         raise ValueError(f"unknown conflict {conflict_id}")
     if not reviewer_id.strip():
@@ -148,7 +149,7 @@ def resolve_conflict(
         (reviewer_id, conflict_id),
     )
     db.audit(
-        _project_for_conflict(db, conflict_id),
+        str(row["project_id"]),
         "conflict.resolved",
         "conflict",
         str(conflict_id),
@@ -156,10 +157,5 @@ def resolve_conflict(
     )
 
 
-def _project_for_conflict(db: DataBossDatabase, conflict_id: int) -> str:
-    row = db.fetchone("SELECT project_id FROM conflicts WHERE id = ?", (conflict_id,))
-    return str(row["project_id"]) if row else ""
-
-
 def cannot_promote_inferred(value_state: str) -> bool:
-    return value_state in {"inferred", "assumed", "externally_researched", "review_required"}
+    return value_state in _UNPROMOTED_STATES

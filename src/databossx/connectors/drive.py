@@ -24,6 +24,19 @@ class DriveWriteRefused(RuntimeError):
     pass
 
 
+_MIME_BY_SUFFIX = {
+    ".pdf": "application/pdf",
+    ".txt": "text/plain",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+}
+
+
 @dataclass(frozen=True)
 class DriveConnection:
     root_locator: str
@@ -63,17 +76,20 @@ class GoogleDriveConnector:
         for path in sorted(root.rglob("*")):
             if not path.is_file():
                 continue
+            stat = path.stat()
+            relative = path.relative_to(root)
+            parent = "" if path.parent == root else str(path.parent.relative_to(root))
             items.append(
                 ConnectorItem(
-                    provider_id=str(path.relative_to(root)).replace("\\", "/"),
+                    provider_id=str(relative).replace("\\", "/"),
                     name=path.name,
                     locator=str(path),
                     mime_type=_guess_mime(path),
-                    byte_size=path.stat().st_size,
-                    modified_time=str(int(path.stat().st_mtime)),
+                    byte_size=stat.st_size,
+                    modified_time=str(int(stat.st_mtime)),
                     checksum="" if dry_run else sha256_file(path),
                     is_folder=False,
-                    parents=(str(path.parent.relative_to(root)) if path.parent != root else "",),
+                    parents=(parent,),
                 )
             )
         return ScanResult(
@@ -91,26 +107,13 @@ class GoogleDriveConnector:
                 "credentials are never stored in the connector"
             )
         raw_items = self.api_list(cursor or self.connection.page_token)
-        items = [
-            ConnectorItem(
-                provider_id=str(row.get("id", "")),
-                name=str(row.get("name", "")),
-                locator=f"gdrive://{row.get('id', '')}",
-                mime_type=str(row.get("mimeType", "")),
-                byte_size=int(row.get("size", 0) or 0),
-                modified_time=str(row.get("modifiedTime", "")),
-                checksum=str(row.get("md5Checksum", "")),
-                is_folder=str(row.get("mimeType", "")).endswith("folder"),
-                parents=tuple(row.get("parents") or ()),
-            )
-            for row in raw_items
-        ]
-        next_cursor = ""
-        if raw_items and isinstance(raw_items[-1], dict):
-            next_cursor = str(raw_items[-1].get("nextPageToken") or "google:complete")
+        items = [_item_from_google_row(row) for row in raw_items]
+        last = raw_items[-1] if raw_items else {}
+        token = last.get("nextPageToken") if isinstance(last, dict) else None
+        next_cursor = str(token or "google:complete")
         return ScanResult(
             items=items,
-            cursor=next_cursor or "google:complete",
+            cursor=next_cursor,
             dry_run=dry_run,
             completeness_status="COMPLETE" if next_cursor in {"", "google:complete"} else "PARTIAL",
             write_attempted=False,
@@ -142,16 +145,20 @@ class GoogleDriveConnector:
         return json.dumps(payload, indent=2, sort_keys=True)
 
 
+def _item_from_google_row(row: dict) -> ConnectorItem:
+    mime_type = str(row.get("mimeType", ""))
+    return ConnectorItem(
+        provider_id=str(row.get("id", "")),
+        name=str(row.get("name", "")),
+        locator=f"gdrive://{row.get('id', '')}",
+        mime_type=mime_type,
+        byte_size=int(row.get("size", 0) or 0),
+        modified_time=str(row.get("modifiedTime", "")),
+        checksum=str(row.get("md5Checksum", "")),
+        is_folder=mime_type.endswith("folder"),
+        parents=tuple(row.get("parents") or ()),
+    )
+
+
 def _guess_mime(path: Path) -> str:
-    suffix = path.suffix.lower()
-    return {
-        ".pdf": "application/pdf",
-        ".txt": "text/plain",
-        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".tif": "image/tiff",
-        ".tiff": "image/tiff",
-    }.get(suffix, "application/octet-stream")
+    return _MIME_BY_SUFFIX.get(path.suffix.lower(), "application/octet-stream")

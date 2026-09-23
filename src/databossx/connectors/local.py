@@ -23,18 +23,15 @@ class LocalFolderConnector:
     def scan(self, *, dry_run: bool = True, cursor: str = "") -> ScanResult:
         items: list[ConnectorItem] = []
         for path in sorted(self.root.rglob("*")):
-            if path.is_dir():
+            if path.is_dir() or any(part in SKIP_DIRS for part in path.parts):
                 continue
-            if any(part in SKIP_DIRS for part in path.parts):
-                continue
-            digest = "" if dry_run else sha256_file(path)
             items.append(
                 ConnectorItem(
                     provider_id=str(path.relative_to(self.root)),
                     name=path.name,
                     locator=str(path),
                     byte_size=path.stat().st_size,
-                    checksum=digest,
+                    checksum="" if dry_run else sha256_file(path),
                     is_folder=False,
                 )
             )

@@ -49,11 +49,19 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def transition(db: DataBossDatabase, task_id: int, new_state: str) -> str:
+def _iso_after(seconds: int = 0) -> str:
+    return _iso(_now() + timedelta(seconds=seconds))
+
+
+def _task_state(db: DataBossDatabase, task_id: int) -> str:
     row = db.fetchone("SELECT state FROM tasks WHERE id = ?", (task_id,))
     if row is None:
         raise IllegalTaskTransition(f"unknown task {task_id}")
-    current = str(row["state"])
+    return str(row["state"])
+
+
+def transition(db: DataBossDatabase, task_id: int, new_state: str) -> str:
+    current = _task_state(db, task_id)
     if new_state not in LEGAL_TRANSITIONS.get(current, frozenset()):
         raise IllegalTaskTransition(f"illegal transition {current} -> {new_state}")
     db.execute("UPDATE tasks SET state = ? WHERE id = ?", (new_state, task_id))
@@ -96,13 +104,12 @@ def seed_ready_task(
 
 def lease_task(db: DataBossDatabase, task_id: int, worker_id: str, ttl_seconds: int = DEFAULT_LEASE_SECONDS) -> int:
     transition(db, task_id, "LEASED")
-    expires = _iso(_now() + timedelta(seconds=ttl_seconds))
     lease_id = db.execute(
         """
         INSERT INTO task_leases (task_id, worker_id, expires_at, heartbeat_at)
         VALUES (?, ?, ?, ?)
         """,
-        (task_id, worker_id, expires, _iso(_now())),
+        (task_id, worker_id, _iso_after(ttl_seconds), _iso_after()),
     )
     db.execute(
         "INSERT INTO task_attempts (task_id, worker_name, status) VALUES (?, ?, 'LEASED')",
@@ -114,21 +121,20 @@ def lease_task(db: DataBossDatabase, task_id: int, worker_id: str, ttl_seconds: 
 def heartbeat(db: DataBossDatabase, lease_id: int, ttl_seconds: int = DEFAULT_LEASE_SECONDS) -> None:
     db.execute(
         "UPDATE task_leases SET heartbeat_at = ?, expires_at = ? WHERE id = ?",
-        (_iso(_now()), _iso(_now() + timedelta(seconds=ttl_seconds)), lease_id),
+        (_iso_after(), _iso_after(ttl_seconds), lease_id),
     )
 
 
 def expire_stale_leases(db: DataBossDatabase) -> list[int]:
-    now = _iso(_now())
     rows = db.fetchall(
         """
-        SELECT tl.id, tl.task_id, t.state
+        SELECT tl.task_id
           FROM task_leases tl
           JOIN tasks t ON t.id = tl.task_id
          WHERE tl.expires_at <= ?
            AND t.state IN ('LEASED', 'RUNNING')
         """,
-        (now,),
+        (_iso_after(),),
     )
     expired: list[int] = []
     for row in rows:
@@ -149,7 +155,7 @@ def complete_task(
     outcome: dict[str, Any] | None = None,
     retryable: bool = False,
 ) -> str:
-    if _current(db, task_id) == "LEASED":
+    if _task_state(db, task_id) == "LEASED":
         start_task(db, task_id)
     if success:
         state = "SUCCEEDED"
@@ -163,10 +169,3 @@ def complete_task(
         (json.dumps(outcome or {}, sort_keys=True), task_id),
     )
     return new_state
-
-
-def _current(db: DataBossDatabase, task_id: int) -> str:
-    row = db.fetchone("SELECT state FROM tasks WHERE id = ?", (task_id,))
-    if row is None:
-        raise IllegalTaskTransition(f"unknown task {task_id}")
-    return str(row["state"])

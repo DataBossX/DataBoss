@@ -51,6 +51,13 @@ def index_items(items: list[ConnectorItem]) -> dict[str, ConnectorItem]:
     return {item.provider_id.replace("\\", "/"): item for item in items}
 
 
+def _pair_action(left: ConnectorItem, right: ConnectorItem) -> str:
+    both_hashed = bool(left.checksum and right.checksum)
+    if both_hashed and left.checksum != right.checksum:
+        return "hash_mismatch"
+    return "identical"
+
+
 def plan_sync(
     left: list[ConnectorItem],
     right: list[ConnectorItem],
@@ -59,26 +66,17 @@ def plan_sync(
 ) -> SyncPlan:
     left_map = index_items(left)
     right_map = index_items(right)
-    keys = sorted(set(left_map) | set(right_map))
     actions: list[SyncAction] = []
-    for key in keys:
+    for key in sorted(set(left_map) | set(right_map)):
         lft = left_map.get(key)
         rgt = right_map.get(key)
         if lft and rgt:
-            if lft.checksum and rgt.checksum and lft.checksum == rgt.checksum:
-                actions.append(
-                    SyncAction("identical", key, lft.checksum, rgt.checksum, lft.locator)
-                )
-            elif lft.checksum and rgt.checksum and lft.checksum != rgt.checksum:
-                actions.append(
-                    SyncAction("hash_mismatch", key, lft.checksum, rgt.checksum, lft.locator)
-                )
-            else:
-                actions.append(SyncAction("identical", key, lft.checksum, rgt.checksum, lft.locator))
-        elif lft and copy_missing_to_vault:
-            actions.append(SyncAction("copy_to_vault", key, lft.checksum, "", lft.locator))
+            actions.append(
+                SyncAction(_pair_action(lft, rgt), key, lft.checksum, rgt.checksum, lft.locator)
+            )
         elif lft:
-            actions.append(SyncAction("missing_on_right", key, lft.checksum, "", lft.locator))
+            action = "copy_to_vault" if copy_missing_to_vault else "missing_on_right"
+            actions.append(SyncAction(action, key, lft.checksum, "", lft.locator))
         else:
             actions.append(SyncAction("copy_to_vault", key, "", rgt.checksum, rgt.locator))
     return SyncPlan(actions=actions, write_to_provider=False)

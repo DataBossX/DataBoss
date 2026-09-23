@@ -54,6 +54,7 @@ def conservation_holds(values: list) -> bool:
     if len(values) < 2:
         return False
     try:
-        return sum_interests(values) == FULL
+        total = sum_interests(values)
     except InterestError:
         return False
+    return total == FULL

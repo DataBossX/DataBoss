@@ -11,7 +11,11 @@ from .connectors.drive import DriveConnection, GoogleDriveConnector
 from .connectors.local import LocalFolderConnector
 from .connectors.sync import apply_vault_ingest, plan_sync
 from .intake import create_project
-from .policy import PolicyEngine
+from .policy import POLICY_VERSION, PolicyEngine
+
+
+def _print_json(payload: dict) -> None:
+    print(json.dumps(payload, indent=2))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,18 +50,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_health(args: argparse.Namespace) -> int:
-    engine = PolicyEngine()
-    write = engine.decide("drive.write", write=True)
-    print(
-        json.dumps(
-            {
-                "status": "ok",
-                "policy_version": engine.decide("inventory.hash").policy_version,
-                "external_write": write.allowed,
-                "external_write_reason": write.reason,
-            },
-            indent=2,
-        )
+    write = PolicyEngine().decide("drive.write", write=True)
+    _print_json(
+        {
+            "status": "ok",
+            "policy_version": POLICY_VERSION,
+            "external_write": write.allowed,
+            "external_write_reason": write.reason,
+        }
     )
     return 0
 
@@ -70,7 +70,7 @@ def cmd_project_create(args: argparse.Namespace) -> int:
         jurisdiction_code=args.jurisdiction,
         project_id=args.project_id,
     )
-    print(json.dumps({"project_id": project.project_id, "root": str(project.root_path)}, indent=2))
+    _print_json({"project_id": project.project_id, "root": str(project.root_path)})
     return 0
 
 
@@ -91,7 +91,7 @@ def cmd_drive_sync_plan(args: argparse.Namespace) -> int:
     if args.apply:
         config = DataBossConfig.from_repo_root(args.repo_root)
         ingested = apply_vault_ingest(config, args.project_id, plan)
-        print(json.dumps({"ingested": ingested, "provider_writes": 0}, indent=2))
+        _print_json({"ingested": ingested, "provider_writes": 0})
     return 0
 
 

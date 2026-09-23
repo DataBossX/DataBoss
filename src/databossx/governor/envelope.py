@@ -8,6 +8,12 @@ from databossx.hashing import sha256_bytes
 from .models import ImprovementProposal, TaskEnvelope
 
 
+DEFAULT_CAPABILITIES = ["tests", "docs", "synthetic_fixtures"]
+DEFAULT_ALLOWLIST = ["tests/", "src/databossx/governor/", "docs/"]
+DEFAULT_BUDGETS = {"files": 12, "seconds": 180, "tokens": 0}
+ALLOWED_AUTONOMY = {"L0", "L1", "L2"}
+
+
 def compile_envelope(
     proposal: ImprovementProposal,
     *,
@@ -18,15 +24,15 @@ def compile_envelope(
 ) -> TaskEnvelope:
     if proposal.status == "vetoed":
         raise ValueError("vetoed proposals cannot compile an envelope")
-    if proposal.autonomy_level not in {"L0", "L1", "L2"}:
+    if proposal.autonomy_level not in ALLOWED_AUTONOMY:
         raise ValueError("governor may only compile L0-L2 envelopes")
     payload = {
         "proposal_id": proposal.proposal_id,
         "base_commit": base_commit,
         "inputs": sorted(inputs),
-        "capabilities": ["tests", "docs", "synthetic_fixtures"],
-        "allowlist": sorted(allowlist or ["tests/", "src/databossx/governor/", "docs/"]),
-        "budgets": {"files": 12, "seconds": 180, "tokens": 0},
+        "capabilities": list(DEFAULT_CAPABILITIES),
+        "allowlist": sorted(allowlist or list(DEFAULT_ALLOWLIST)),
+        "budgets": dict(DEFAULT_BUDGETS),
         "tests": sorted(tests),
         "autonomy_level": proposal.autonomy_level,
     }

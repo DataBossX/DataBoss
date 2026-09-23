@@ -19,6 +19,10 @@ SKIP_DIRS = {
 }
 
 
+def _skipped(path: Path) -> bool:
+    return any(part in SKIP_DIRS for part in path.parts)
+
+
 def census_repository(repo_root: str | Path) -> dict:
     root = Path(repo_root)
     counts: Counter[str] = Counter()
@@ -28,7 +32,7 @@ def census_repository(repo_root: str | Path) -> dict:
     workflows = 0
     ai_folders = []
     for path in root.rglob("*"):
-        if any(part in SKIP_DIRS for part in path.parts):
+        if _skipped(path):
             continue
         if path.is_dir():
             if path.name.startswith("_AI_"):

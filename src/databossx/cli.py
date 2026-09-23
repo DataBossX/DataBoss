@@ -25,6 +25,46 @@ def _git_head(repo_root: Path) -> str:
         return "unknown"
 
 
+def _print_json(payload: dict) -> None:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _write_docs_json(root: Path, filename: str, writer) -> int:
+    dest = root / "docs" / filename
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _print_json(writer(root, dest))
+    return 0
+
+
+def _cmd_census(root: Path, args: argparse.Namespace) -> int:
+    return _write_docs_json(root, "INVENTORY_CENSUS.json", write_census)
+
+
+def _cmd_policy_gate(root: Path, args: argparse.Namespace) -> int:
+    result = scan_publication_policy(root)
+    _print_json(result)
+    return 1 if result["status"] == "FAIL" else 0
+
+
+def _cmd_tournament(root: Path, args: argparse.Namespace) -> int:
+    return _write_docs_json(root, "TOURNAMENT_SCORECARD.json", write_scorecard)
+
+
+def _cmd_cycle(root: Path, args: argparse.Namespace) -> int:
+    receipt = run_synthetic_cycle(root, base_commit=_git_head(root), worker_id=args.worker_id)
+    print(
+        json.dumps(
+            {
+                "receipt_id": receipt.receipt_id,
+                "outcome": receipt.outcome,
+                "envelope_hash": receipt.envelope_hash,
+            },
+            indent=2,
+        )
+    )
+    return 0 if receipt.outcome.endswith("REVIEW") else 2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="databossx", description="DataBossX public-safe control CLI")
     parser.add_argument("--repo-root", default=".", help="repository root")
@@ -38,22 +78,13 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     root = Path(args.repo_root).resolve()
-    if args.command == "census":
-        dest = root / "docs" / "INVENTORY_CENSUS.json"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        print(json.dumps(write_census(root, dest), indent=2, sort_keys=True))
-        return 0
-    if args.command == "policy-gate":
-        result = scan_publication_policy(root)
-        print(json.dumps(result, indent=2, sort_keys=True))
-        return 1 if result["status"] == "FAIL" else 0
-    if args.command == "tournament":
-        dest = root / "docs" / "TOURNAMENT_SCORECARD.json"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        print(json.dumps(write_scorecard(root, dest), indent=2, sort_keys=True))
-        return 0
-    if args.command == "cycle":
-        receipt = run_synthetic_cycle(root, base_commit=_git_head(root), worker_id=args.worker_id)
-        print(json.dumps({"receipt_id": receipt.receipt_id, "outcome": receipt.outcome, "envelope_hash": receipt.envelope_hash}, indent=2))
-        return 0 if receipt.outcome.endswith("REVIEW") else 2
-    raise SystemExit(2)
+    commands = {
+        "census": _cmd_census,
+        "policy-gate": _cmd_policy_gate,
+        "tournament": _cmd_tournament,
+        "cycle": _cmd_cycle,
+    }
+    handler = commands.get(args.command)
+    if handler is None:
+        raise SystemExit(2)
+    return handler(root, args)

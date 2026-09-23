@@ -68,11 +68,15 @@ def is_protected_path(path: str) -> bool:
     return any(path == prefix or path.startswith(prefix + "/") for prefix in PROTECTED_PREFIXES)
 
 
+def _lower_headers(headers: dict[str, str] | None) -> dict[str, str]:
+    return {str(key).lower(): str(value) for key, value in (headers or {}).items()}
+
+
 def authorized(headers: dict[str, str] | None) -> bool:
     token = auth_token()
     if not token:
         return False
-    headers = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    headers = _lower_headers(headers)
     bearer = headers.get("authorization", "")
     if bearer.lower().startswith("bearer ") and bearer.split(" ", 1)[1].strip() == token:
         return True
@@ -81,7 +85,7 @@ def authorized(headers: dict[str, str] | None) -> bool:
 
 def is_synthetic_upload(filename: str | None, headers: dict[str, str] | None) -> bool:
     name = Path(filename or "").name
-    headers = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    headers = _lower_headers(headers)
     if headers.get("x-databossx-synthetic", "").strip() == "1":
         return True
     return name.upper().startswith("SYNTHETIC_")

@@ -15,6 +15,13 @@ from .models import CycleReceipt, ImprovementProposal
 from .ranker import rank_proposals
 
 
+REGRESSION_FILES = (
+    "test_issue94_integrity.py",
+    "test_governor.py",
+    "test_backend_security.py",
+    "test_publication_policy.py",
+)
+
 ISSUE94_SEEDS = [
     ImprovementProposal(
         proposal_id="issue94-repair-error-literal",
@@ -100,6 +107,10 @@ def _persist_proposal(db: DataBossDatabase, proposal: ImprovementProposal) -> No
     )
 
 
+def _missing_regressions(root: Path) -> list[str]:
+    return [str(root / "tests" / name) for name in REGRESSION_FILES if not (root / "tests" / name).exists()]
+
+
 def run_synthetic_cycle(
     repo_root: str | Path,
     *,
@@ -150,13 +161,7 @@ def run_synthetic_cycle(
     fence = acquire_lease(db, scope="repo:governor", worker_id=worker_id)
     assert_lease(db, "repo:governor", worker_id, fence)
 
-    required = [
-        root / "tests" / "test_issue94_integrity.py",
-        root / "tests" / "test_governor.py",
-        root / "tests" / "test_backend_security.py",
-        root / "tests" / "test_publication_policy.py",
-    ]
-    missing = [str(path) for path in required if not path.exists()]
+    missing = _missing_regressions(root)
     outcome = "CYCLE_ACCEPTED_FOR_INDEPENDENT_REVIEW" if not missing else "CYCLE_BLOCKED_MISSING_REGRESSIONS"
     payload = {
         "census": census,

@@ -26,18 +26,28 @@ ALLOWLIST = {
 }
 
 
+def _skipped(path: Path) -> bool:
+    return any(part in SKIP_DIRS for part in path.parts)
+
+
+def _is_text_file(path: Path) -> bool:
+    return path.suffix.lower() in TEXT_SUFFIXES or path.name == ".env.example"
+
+
+def _allowlisted(rel: str) -> bool:
+    return rel in ALLOWLIST or rel.startswith("_AI_")
+
+
 def scan_publication_policy(repo_root: str | Path) -> dict:
     root = Path(repo_root)
     findings = []
     scanned = 0
     for path in root.rglob("*"):
-        if not path.is_file() or any(part in SKIP_DIRS for part in path.parts):
-            continue
-        if path.suffix.lower() not in TEXT_SUFFIXES and path.name != ".env.example":
+        if not path.is_file() or _skipped(path) or not _is_text_file(path):
             continue
         rel = path.relative_to(root).as_posix()
         scanned += 1
-        if rel in ALLOWLIST or rel.startswith("_AI_"):
+        if _allowlisted(rel):
             continue
         try:
             text = path.read_text(encoding="utf-8")

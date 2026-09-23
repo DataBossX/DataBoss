@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .models import HARD_VETOES, ImprovementProposal
 
 
@@ -12,19 +14,11 @@ def rank_proposals(proposals: list[ImprovementProposal]) -> list[ImprovementProp
     scored: list[tuple[tuple, ImprovementProposal]] = []
     for proposal in proposals:
         vetoed = sorted(set(proposal.vetoes) & set(HARD_VETOES))
-        status = "vetoed" if vetoed else proposal.status
-        ranked = ImprovementProposal(
-            proposal_id=proposal.proposal_id,
-            title=proposal.title,
+        ranked = replace(
+            proposal,
             evidence=list(proposal.evidence),
-            value_score=proposal.value_score,
-            risk_score=proposal.risk_score,
-            cost_score=proposal.cost_score,
-            reversibility=proposal.reversibility,
-            confidence=proposal.confidence,
-            autonomy_level=proposal.autonomy_level,
             vetoes=vetoed,
-            status=status,
+            status="vetoed" if vetoed else proposal.status,
         )
         key = (
             0 if ranked.status == "vetoed" else 1,

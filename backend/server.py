@@ -7,7 +7,6 @@ Data endpoints require an explicit demo token. Mock OCR is synthetic-only.
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import uuid
 from datetime import datetime

@@ -53,18 +53,27 @@ class RepairResult:
     promoted: bool = False
 
 
+def _child_text(cell, tag: str) -> str:
+    element = cell.find(f"{{{_MAIN_NS}}}{tag}")
+    if element is None:
+        return ""
+    return (element.text or "").strip()
+
+
 def _cell_is_error_formula(cell) -> bool:
-    t = cell.get("t")
-    formula = cell.find(f"{{{_MAIN_NS}}}f")
-    body = ((formula.text or "").strip() if formula is not None else "")
-    cached = cell.find(f"{{{_MAIN_NS}}}v")
-    cached_text = ((cached.text or "").strip() if cached is not None else "")
+    body = _child_text(cell, "f")
+    cached_text = _child_text(cell, "v")
     return (
-        t == "e"
+        cell.get("t") == "e"
         or body.startswith("#")
         or body.startswith("=#")
         or cached_text.startswith("#")
     )
+
+
+def _discard(path: Path) -> None:
+    if path.exists():
+        path.unlink()
 
 
 def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
@@ -127,8 +136,7 @@ def repair_workbook(
                 # Preserve original metadata (date/compression) for stable output.
                 zout.writestr(item, data)
     except RepairDefect as exc:
-        if dest.exists():
-            dest.unlink()
+        _discard(dest)
         return RepairResult(
             output=None,
             repaired=False,
@@ -138,8 +146,7 @@ def repair_workbook(
             media_preserved=media,
         )
     except (zipfile.BadZipFile, OSError, etree.XMLSyntaxError) as exc:
-        if dest.exists():
-            dest.unlink()
+        _discard(dest)
         return RepairResult(
             output=None,
             repaired=False,
@@ -277,6 +284,5 @@ def restore_formula_from_template(
             changed_parts=[candidate_part],
         )
     except (OSError, ValueError, zipfile.BadZipFile, etree.XMLSyntaxError) as exc:
-        if temporary.exists():
-            temporary.unlink()
+        _discard(temporary)
         return RepairResult(output=None, repaired=False, error=str(exc))

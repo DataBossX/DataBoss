@@ -9,13 +9,17 @@ class StaleWriter(RuntimeError):
     pass
 
 
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 def acquire_lease(db: DataBossDatabase, scope: str, worker_id: str, ttl_seconds: int = 900) -> int:
     row = db.fetchone(
         "SELECT COALESCE(MAX(fence), 0) AS fence FROM writer_leases WHERE scope = ?",
         (scope,),
     )
     next_fence = int(row["fence"]) + 1 if row else 1
-    expires = (datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)).isoformat()
+    expires = (_utc_now() + timedelta(seconds=ttl_seconds)).isoformat()
     db.execute(
         """
         INSERT INTO writer_leases (scope, worker_id, fence, expires_at)
@@ -41,5 +45,5 @@ def assert_lease(db: DataBossDatabase, scope: str, worker_id: str, fence: int) -
         raise StaleWriter("no lease")
     if int(row["fence"]) != fence or row["worker_id"] != worker_id:
         raise StaleWriter("stale writer")
-    if row["expires_at"] <= datetime.now(timezone.utc).isoformat():
+    if row["expires_at"] <= _utc_now().isoformat():
         raise StaleWriter("expired lease")

@@ -239,18 +239,21 @@ _DATE_PATTERNS = [
 ]
 
 
+def _date_parse_args(raw: str, fmt: str) -> Tuple[str, str]:
+    if fmt == "%B %d %Y":
+        return re.sub(r",", "", raw), fmt
+    return raw.replace("/", "-").replace(".", "-"), fmt.replace("/", "-")
+
+
 def _parse_date_match(raw: str, fmt: str) -> Optional[str]:
+    token, pattern = _date_parse_args(raw, fmt)
     try:
-        if fmt == "%B %d %Y":
-            dt = _dt.datetime.strptime(re.sub(r",", "", raw), "%B %d %Y")
-        else:
-            dt = _dt.datetime.strptime(raw.replace("/", "-").replace(".", "-"),
-                                       fmt.replace("/", "-"))
-        if not (1700 <= dt.year <= 2100):
-            return None
-        return dt.strftime("%Y-%m-%d")
+        dt = _dt.datetime.strptime(token, pattern)
     except Exception:
         return None
+    if not (1700 <= dt.year <= 2100):
+        return None
+    return dt.strftime("%Y-%m-%d")
 
 
 def parse_date(text: str) -> Optional[str]:
@@ -258,10 +261,10 @@ def parse_date(text: str) -> Optional[str]:
     if not text:
         return None
     for rx, fmt in _DATE_PATTERNS:
-        m = rx.search(text)
-        if not m:
+        match = rx.search(text)
+        if not match:
             continue
-        parsed = _parse_date_match(m.group(0), fmt)
+        parsed = _parse_date_match(match.group(0), fmt)
         if parsed:
             return parsed
     return None
@@ -273,8 +276,8 @@ def parse_all_dates(text: str) -> List[str]:
     if not text:
         return found
     for rx, fmt in _DATE_PATTERNS:
-        for m in rx.finditer(text):
-            parsed = _parse_date_match(m.group(0), fmt)
+        for match in rx.finditer(text):
+            parsed = _parse_date_match(match.group(0), fmt)
             if parsed and parsed not in found:
                 found.append(parsed)
     return found
@@ -282,15 +285,28 @@ def parse_all_dates(text: str) -> List[str]:
 
 def _owner_set_is_complete(text: str, decimals: List[float]) -> bool:
     """Sum-to-one is only asserted when the owner set is proved complete."""
-    if _OWNER_SET_INCOMPLETE_RX.search(text or ""):
+    body = text or ""
+    if _OWNER_SET_INCOMPLETE_RX.search(body):
         return False
-    if _OWNER_SET_COMPLETE_RX.search(text or ""):
+    if _OWNER_SET_COMPLETE_RX.search(body):
         return True
-    # A document that presents itself as the ownership schedule with two or
-    # more labeled decimals is a claimed-complete set (still human-reviewable).
-    if re.search(r"\bownership\b.*\bdecimal interest\b", text or "", re.I | re.S):
-        return len(decimals) >= 2
-    return False
+    claimed_schedule = re.search(r"\bownership\b.*\bdecimal interest\b", body, re.I | re.S)
+    return bool(claimed_schedule) and len(decimals) >= 2
+
+
+def _date_near_label(text: str, keyword: str) -> Optional[str]:
+    match = re.search(rf"{keyword}[^\n]{{0,40}}", text, re.I)
+    return parse_date(match.group(0)) if match else None
+
+
+def _decimal_sum_check(dec_sum: Optional[float], owner_set_complete: bool) -> str:
+    if dec_sum is None:
+        return "n/a"
+    if not owner_set_complete:
+        return "INCOMPLETE_OWNER_SET: sum not asserted"
+    if abs(dec_sum - 1.0) < 1e-4:
+        return "OK"
+    return f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"
 
 
 def is_impossible_date(iso: Optional[str]) -> bool:
@@ -941,9 +957,8 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         for key, kw in [("effective_date", r"effective\s+date"),
                         ("execution_date", r"(?:executed|dated|execution\s+date)"),
                         ("recording_date", r"(?:recorded|recording\s+date|filed)")]:
-            m = re.search(rf"{kw}[^\n]{{0,40}}", text, re.I)
-            d = parse_date(m.group(0)) if m else None
-            setv(key, d, 0.6 if d else 0.0)
+            parsed = _date_near_label(text, kw)
+            setv(key, parsed, 0.6 if parsed else 0.0)
         labeled = {v.get("effective_date"), v.get("execution_date"), v.get("recording_date")}
         labeled.discard(None)
         unlabeled = [d for d in parse_all_dates(text) if d not in labeled]
@@ -1105,14 +1120,7 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
         owner_set_complete = any(f.owner_set_complete for f in group)
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
-        if dec_sum is None:
-            decimal_check = "n/a"
-        elif not owner_set_complete:
-            decimal_check = "INCOMPLETE_OWNER_SET: sum not asserted"
-        elif abs(dec_sum - 1.0) < 1e-4:
-            decimal_check = "OK"
-        else:
-            decimal_check = f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"
+        decimal_check = _decimal_sum_check(dec_sum, owner_set_complete)
         calc_rows.append([legal, len(group),
                           dec_sum if dec_sum is not None else "n/a",
                           decimal_check,

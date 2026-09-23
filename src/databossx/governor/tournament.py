@@ -15,6 +15,7 @@ SCORING_HINTS = (
     "governor",
     "publication",
 )
+CLIENTISH_TOKENS = ("book 512", "11n 25w 32", "drive.google.com/file")
 
 
 def _read(path: Path) -> str:
@@ -24,12 +25,18 @@ def _read(path: Path) -> str:
         return ""
 
 
+def _folder_files(folder: Path) -> dict[str, Path]:
+    if not folder.is_dir():
+        return {}
+    return {path.name: path for path in folder.iterdir() if path.is_file()}
+
+
 def score_folder(folder: Path) -> dict:
-    files = {p.name: p for p in folder.iterdir() if p.is_file()} if folder.is_dir() else {}
+    files = _folder_files(folder)
     missing = [name for name in BLOCKING_FILES if name not in files]
     blob = "\n".join(_read(path).lower() for path in files.values())
     hints = sum(1 for hint in SCORING_HINTS if hint in blob)
-    clientish = any(token in blob for token in ("book 512", "11n 25w 32", "drive.google.com/file"))
+    clientish = any(token in blob for token in CLIENTISH_TOKENS)
     second_os = "new operating system" in blob and "do not create a second" not in blob
     blocked = bool(missing) or clientish or second_os
     score = 0 if blocked else 10 + hints + min(len(files), 8)

@@ -73,7 +73,7 @@ def test_clean_workbook_copies_media_without_formula_rewrite(tmp_path):
 
 
 def _facts_from_text(tmp_path: Path, name: str, body: str):
-    corpus = tmp_path / "c"
+    corpus = tmp_path / f"c_{name.replace('.', '_')}"
     corpus.mkdir()
     (corpus / name).write_text(body, encoding="utf-8")
     recs = grp.inventory(corpus, tmp_path / "out", grp.BuildLog())

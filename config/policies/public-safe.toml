@@ -1,0 +1,9 @@
+# Default public-safe policy profile. Not a client project policy.
+
+name = "public-safe"
+external_writes = false
+demo_mode = false
+nonlocal_bind = false
+auto_merge = false
+autonomy_ceiling = "L2"
+client_evidence = false

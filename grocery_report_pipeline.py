@@ -263,6 +263,63 @@ def parse_date(text: str) -> Optional[str]:
     return None
 
 
+def _try_parse_date(raw: str, fmt: str) -> Optional[str]:
+    """Parse one already-matched date string; return its ISO form or None."""
+    try:
+        if fmt == "%B %d %Y":
+            dt = _dt.datetime.strptime(re.sub(r",", "", raw), "%B %d %Y")
+        else:
+            dt = _dt.datetime.strptime(raw.replace("/", "-").replace(".", "-"),
+                                       fmt.replace("/", "-"))
+        if not (1700 <= dt.year <= 2100):
+            return None
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return None
+
+
+_LABEL_DATE_GAP_RX = re.compile(r"[\s:,.\-]*")
+
+
+def _date_adjacent_to_label(window: str, prefer: str) -> Optional[str]:
+    """Find a date in `window` that is separated from the label edge by
+    punctuation/whitespace ONLY -- never by other words.
+
+    `prefer="start"`: the label sits right before `window` (an after-label
+    search); the date must start at or near position 0, with only a
+    punctuation/whitespace gap before it, and the candidate closest to the
+    start wins.
+    `prefer="end"`: the label sits right after `window` (a before-label
+    search); the date must end at or near len(window), with only a
+    punctuation/whitespace gap after it, and the candidate closest to the
+    end wins.
+
+    This is what actually prevents two failure modes a blind N-character
+    window allows: (1) a same-line window "stealing" an unrelated EARLIER
+    date that precedes the real, label-adjacent one, and (2) a window that
+    crosses into a *different* field's own label text (e.g. "Recorded:
+    \\nEffective Date: 2015-04-10") and captures that field's date instead --
+    both require crossing word characters, which the gap check forbids.
+    """
+    best = None  # (sort_key, iso) -- larger sort_key wins
+    for rx, fmt in _DATE_PATTERNS:
+        for m in rx.finditer(window):
+            if prefer == "start":
+                gap = window[:m.start()]
+                sort_key = -m.start()
+            else:
+                gap = window[m.end():]
+                sort_key = m.end()
+            if not _LABEL_DATE_GAP_RX.fullmatch(gap):
+                continue
+            iso = _try_parse_date(m.group(0), fmt)
+            if iso is None:
+                continue
+            if best is None or sort_key > best[0]:
+                best = (sort_key, iso)
+    return best[1] if best else None
+
+
 def find_all_dates(text: str) -> List[str]:
     """Return every ISO date found anywhere in text (dedup, first-seen order).
 
@@ -926,22 +983,25 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
                 # Prefer a date AFTER the label (the common case, and the
                 # original behavior); this window may cross one newline
                 # ("Recorded:\n2015-04-20"), since that text is what the
-                # label is actually introducing. Only fall back to a window
-                # BEFORE the label -- for a genuine recording stamp that puts
-                # the date first, e.g. "04/20/2015 Recorded" -- and that
-                # before-window is clamped to the CURRENT LINE ONLY, so an
-                # unrelated date on a preceding line (e.g. "Effective Date:
-                # ...\nRecorded: ...") is never picked up in its place.
+                # label is actually introducing -- but _date_adjacent_to_label
+                # requires a punctuation/whitespace-only gap, so it can never
+                # bleed into a DIFFERENT field's own label text (e.g.
+                # "Recorded:\nEffective Date: 2015-04-10" no longer steals
+                # that Effective Date). Only fall back to a window BEFORE the
+                # label -- for a genuine recording stamp that puts the date
+                # first, e.g. "04/20/2015 Recorded" -- clamped to the CURRENT
+                # LINE ONLY and, again via the gap check, immune to picking
+                # up an earlier, unrelated date earlier on that same line.
                 # Still requires the label itself to match nearby; this is
                 # not the removed whole-document fallback, which had no
                 # label requirement at all.
                 after = text[m.end():min(len(text), m.end() + 40)]
-                d = parse_date(after)
+                d = _date_adjacent_to_label(after, prefer="start")
                 if d is None:
                     line_start = text.rfind("\n", 0, m.start()) + 1
                     before_start = max(line_start, m.start() - 40)
                     before = text[before_start:m.start()]
-                    d = parse_date(before)
+                    d = _date_adjacent_to_label(before, prefer="end")
             setv(key, d, 0.6 if d else 0.0)
         # IMPORTANT (issue #94 item 2): recording_date must NEVER be
         # fabricated from "the first date anywhere in the document". It is

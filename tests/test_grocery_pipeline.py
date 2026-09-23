@@ -244,6 +244,51 @@ def test_recording_date_captured_when_date_precedes_label(tmp_path):
     assert fact["recording_date"] == "2015-04-20"
 
 
+def test_recording_date_does_not_steal_a_neighboring_field_date(tmp_path):
+    # Regression (Cursor Bugbot finding on the previous fix): the after-label
+    # window can cross a newline (to catch "label:\ndate" on the next line),
+    # but it must NOT cross into a completely different field's own label
+    # and steal that date instead -- here "Recorded:" has no date of its own
+    # at all, and the next line is a different field's label+date.
+    docs = {
+        "e_no_recording_date_present.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Recorded:\n"
+            "Effective Date: 2015-04-10\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["e_no_recording_date_present.txt"]
+    assert fact["recording_date"] == "", (
+        "recording_date must stay blank, not steal the neighboring Effective Date")
+    assert fact["effective_date"] == "2015-04-10", "the actual Effective Date must still be captured"
+
+
+def test_recording_date_prefers_label_adjacent_date_over_earlier_one_on_same_line(tmp_path):
+    # Regression (Cursor Bugbot finding): when a before-label window contains
+    # TWO dates on the same line, the one immediately adjacent to the label
+    # must win, not an earlier, unrelated one earlier on that line.
+    docs = {
+        "f_two_dates_same_line.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Reference 2010-01-01, actually 2015-04-20 Recorded\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["f_two_dates_same_line.txt"]
+    assert fact["recording_date"] == "2015-04-20"
+
+
 # ===========================================================================
 # Regression tests -- issue #94 item 3: _DECIMAL_RX digit-count restriction,
 # and sum-to-one only asserted for a proven-complete owner set.

@@ -37,7 +37,7 @@ def _is_text_file(path: Path) -> bool:
 
 
 def _allowlisted(rel: str, path: Path) -> bool:
-    return rel in ALLOWLIST or rel.startswith("_AI_") or path.name == ".env.example"
+    return rel in ALLOWLIST or path.name == ".env.example"
 
 
 def scan_publication_policy(repo_root: str | Path) -> dict:

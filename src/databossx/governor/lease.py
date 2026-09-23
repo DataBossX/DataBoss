@@ -14,11 +14,23 @@ def _utc_now() -> datetime:
 
 
 def acquire_lease(db: DataBossDatabase, scope: str, worker_id: str, ttl_seconds: int = 900) -> int:
-    row = db.fetchone(
-        "SELECT COALESCE(MAX(fence), 0) AS fence FROM writer_leases WHERE scope = ?",
+    current = db.fetchone(
+        """
+        SELECT worker_id, fence, expires_at
+          FROM writer_leases
+         WHERE scope = ?
+         ORDER BY fence DESC
+         LIMIT 1
+        """,
         (scope,),
     )
-    next_fence = int(row["fence"]) + 1 if row else 1
+    if (
+        current is not None
+        and current["expires_at"] > _utc_now().isoformat()
+        and current["worker_id"] != worker_id
+    ):
+        raise StaleWriter("scope already leased")
+    next_fence = int(current["fence"]) + 1 if current else 1
     expires = (_utc_now() + timedelta(seconds=ttl_seconds)).isoformat()
     db.execute(
         """

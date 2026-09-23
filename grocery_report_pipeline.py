@@ -872,7 +872,7 @@ _OWNER_SET_COMPLETE_RX = re.compile(
     re.I,
 )
 _OWNER_SET_INCOMPLETE_RX = re.compile(
-    r"\b(partial|incomplete|missing\s+owners?|owner\s+set\s+unknown)\b",
+    r"\b(partial|incomplete|missing\s+owners?|owner\s+set\s+unknown|not\s+(?:a\s+|the\s+)?complete)\b",
     re.I,
 )
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"

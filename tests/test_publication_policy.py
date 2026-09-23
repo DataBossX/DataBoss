@@ -18,6 +18,16 @@ def test_gate_allows_clean_tree(tmp_path):
     assert result["scanned"] >= 1
 
 
+def test_gate_scans_isolated_ai_folders(tmp_path):
+    leak = tmp_path / "_AI_LEAK__X"
+    leak.mkdir()
+    secret = "sk-" + ("b" * 24)
+    (leak / "notes.md").write_text(f'API_KEY = "{secret}"\n', encoding="utf-8")
+    result = scan_publication_policy(tmp_path)
+    assert result["status"] == "FAIL"
+    assert result["findings"][0]["path"].startswith("_AI_LEAK__X/")
+
+
 def test_current_repo_gate_documents_status():
     result = scan_publication_policy(".")
     assert "scanned" in result

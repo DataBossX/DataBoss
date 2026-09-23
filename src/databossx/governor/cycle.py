@@ -86,7 +86,7 @@ ISSUE94_SEEDS = [
 def _persist_proposal(db: DataBossDatabase, proposal: ImprovementProposal) -> None:
     db.execute(
         """
-        INSERT OR REPLACE INTO improvement_proposals (
+        INSERT OR IGNORE INTO improvement_proposals (
             proposal_id, title, evidence_json, value_score, risk_score, cost_score,
             reversibility, confidence, autonomy_level, vetoes_json, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -9,7 +9,7 @@ from .models import ImprovementProposal, TaskEnvelope
 
 
 DEFAULT_CAPABILITIES = ["tests", "docs", "synthetic_fixtures"]
-DEFAULT_ALLOWLIST = ["tests/", "src/databossx/governor/", "docs/"]
+DEFAULT_ALLOWLIST = ["tests/", "docs/"]
 DEFAULT_BUDGETS = {"files": 12, "seconds": 180, "tokens": 0}
 ALLOWED_AUTONOMY = {"L0", "L1", "L2"}
 

@@ -30,13 +30,13 @@ def test_stale_writer_rejected(tmp_path):
     db = DataBossDatabase(tmp_path / "g.db")
     db.initialize()
     fence = acquire_lease(db, "repo:governor", "worker-a")
-    acquire_lease(db, "repo:governor", "worker-b")
     try:
-        assert_lease(db, "repo:governor", "worker-a", fence)
+        acquire_lease(db, "repo:governor", "worker-b")
         raised = False
     except StaleWriter:
         raised = True
     assert raised
+    assert_lease(db, "repo:governor", "worker-a", fence)
 
 
 def test_synthetic_cycle_and_census(tmp_path):

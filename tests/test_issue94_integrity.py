@@ -133,6 +133,19 @@ def test_unrecorded_does_not_become_recording_date(tmp_path):
     assert "missing-recording-date-label" in facts[0].review_flags
 
 
+def test_negated_complete_marker_does_not_assert_sum(tmp_path):
+    facts = _facts_from_text(
+        tmp_path,
+        "excerpt.txt",
+        "SYNTHETIC TEST DOCUMENT\nOWNERSHIP schedule -- this is not a complete owner set\n"
+        "Owner A decimal interest 0.5\nOwner B decimal interest 0.25\n"
+        "Legal: Section 12, T7N, R63W\n",
+    )
+    assert facts[0].owner_set_complete is False
+    recon = grp.reconcile(facts, tmp_path / "out", grp.BuildLog())
+    assert recon["conflicts"] == []
+
+
 def test_out_of_range_decimal_is_not_coerced_to_one(tmp_path):
     facts = _facts_from_text(
         tmp_path,

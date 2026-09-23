@@ -3,16 +3,18 @@ import uuid
 import sqlite3
 import json
 import asyncio
+import secrets
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import aiosqlite
 from pathlib import Path
 
 # FastAPI imports
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi.security.api_key import APIKeyHeader
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 # OCR and LLM imports - Simplified for demo
@@ -33,24 +35,128 @@ load_dotenv()
 # Configure logger
 logger.add("logs/databossx.log", rotation="10 MB", retention="10 days")
 
+# --------------------------------------------------------------------------
+# Security configuration (issue #94, items 4-6)
+#
+# All env-driven security settings are centralized here in a single
+# pydantic-style Settings object instead of scattering os.environ.get() calls
+# across the request handlers. Relevant environment variables:
+#
+#   DATABOSSX_API_KEY               Shared secret required in the X-API-Key
+#                                    header on every non-health endpoint. If
+#                                    unset, ALL authenticated endpoints fail
+#                                    closed (401) rather than allowing access.
+#   DATABOSSX_ALLOWED_ORIGINS       Comma-separated list of trusted origins
+#                                    for CORS (e.g. "http://localhost:3000").
+#                                    Defaults to a localhost-only origin.
+#                                    "*" is always stripped out: wildcard
+#                                    origins are never combined with
+#                                    allow_credentials=True.
+#   DATABOSSX_DEMO_MODE             "true"/"1" to explicitly opt into the
+#                                    synthetic demo-OCR mode. Defaults to
+#                                    False. Outside this mode, the mock OCR
+#                                    engine refuses to run (fails closed)
+#                                    instead of fabricating document content.
+#   DATABOSSX_MAX_UPLOAD_SIZE_BYTES Maximum accepted upload size in bytes.
+#                                    Defaults to 10 MB.
+#   DATABOSSX_ALLOWED_CONTENT_TYPES Comma-separated list of accepted upload
+#                                    MIME types. Defaults to a small set of
+#                                    document/image types.
+#   DATABOSSX_HOST / DATABOSSX_PORT Bind address for `python server.py`.
+#                                    Defaults to 127.0.0.1 (localhost only).
+# --------------------------------------------------------------------------
+
+
+def _parse_bool_env(value: Optional[str], default: bool) -> bool:
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _parse_list_env(value: Optional[str], default: List[str]) -> List[str]:
+    if value is None or value.strip() == "":
+        return list(default)
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _strip_wildcards(origins: List[str]) -> List[str]:
+    """Never allow '*' to reach CORSMiddleware alongside allow_credentials=True."""
+    return [origin for origin in origins if origin and origin != "*"]
+
+
+class SecuritySettings(BaseModel):
+    """Centralized, env-driven security configuration for the demo backend."""
+
+    host: str = Field(default_factory=lambda: os.getenv("DATABOSSX_HOST", "127.0.0.1"))
+    port: int = Field(default_factory=lambda: int(os.getenv("DATABOSSX_PORT", "8001")))
+
+    # Style B auth: shared secret compared against the X-API-Key header.
+    api_key: Optional[str] = Field(default_factory=lambda: os.getenv("DATABOSSX_API_KEY") or None)
+
+    # Explicit trusted-origin allowlist for CORS. No wildcard, ever.
+    allowed_origins: List[str] = Field(
+        default_factory=lambda: _strip_wildcards(
+            _parse_list_env(os.getenv("DATABOSSX_ALLOWED_ORIGINS"), ["http://localhost:3000"])
+        )
+    )
+
+    # Explicit synthetic/demo-mode gate. Mock OCR only runs when this is True.
+    demo_mode: bool = Field(default_factory=lambda: _parse_bool_env(os.getenv("DATABOSSX_DEMO_MODE"), False))
+
+    # Upload limits.
+    max_upload_size_bytes: int = Field(
+        default_factory=lambda: int(os.getenv("DATABOSSX_MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
+    )
+    allowed_content_types: List[str] = Field(
+        default_factory=lambda: _parse_list_env(
+            os.getenv("DATABOSSX_ALLOWED_CONTENT_TYPES"),
+            ["application/pdf", "image/png", "image/jpeg", "image/tiff", "text/plain"],
+        )
+    )
+
+
+settings = SecuritySettings()
+
 # Initialize FastAPI app
 app = FastAPI(title="DataBossX API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware - explicit trusted-origin allowlist only, never "*" with
+# allow_credentials=True (defect #94 item 5).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
+
+# --------------------------------------------------------------------------
+# Authentication (issue #94 item 4): API-key header validated against
+# DATABOSSX_API_KEY, using FastAPI's Security/APIKeyHeader pattern.
+# --------------------------------------------------------------------------
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def require_api_key(api_key: Optional[str] = Security(api_key_header)) -> str:
+    """Dependency enforcing X-API-Key auth on every protected endpoint.
+
+    Fails closed: if no server-side key is configured (DATABOSSX_API_KEY
+    unset), every request is rejected rather than silently allowing
+    unauthenticated access.
+    """
+    if not settings.api_key:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not api_key or not secrets.compare_digest(api_key, settings.api_key):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return api_key
+
 
 # Database configuration
 SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "./databossx.db")
 
 # API Keys
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") 
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Initialize clients
@@ -59,7 +165,8 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_A
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# Initialize OCR engine (simplified for demo)
+# Initialize OCR engine (simplified for demo). This is a mock engine, not a
+# real OCR backend - see process_ocr() for the fail-closed gating.
 PRIMARY_OCR = "demo_ocr"
 
 # Data models
@@ -171,28 +278,64 @@ async def log_system_event(level: str, message: str, component: str, details: Op
         await db.commit()
 
 async def process_ocr(file_content: bytes, filename: str) -> Dict[str, Any]:
-    """Process document with mock OCR engine for demo purposes"""
+    """Run OCR on an uploaded document.
+
+    PRIMARY_OCR ("demo_ocr") is a mock engine only - it never reads
+    file_content and never extracts real text. To avoid fabricating
+    legal-looking content that could be mistaken for a real OCR result
+    (issue #94 item 6):
+
+      * Outside DATABOSSX_DEMO_MODE this fails closed with a 503 rather
+        than returning any invented text.
+      * Inside DATABOSSX_DEMO_MODE the output is a placeholder that is
+        unambiguously labeled synthetic on every line, carries no invented
+        parties/dates/legal facts, and is flagged with is_synthetic=True.
+    """
+    if not settings.demo_mode:
+        logger.error(
+            f"Refused to run mock OCR engine '{PRIMARY_OCR}' for {filename}: "
+            "DATABOSSX_DEMO_MODE is not enabled, failing closed instead of "
+            "fabricating OCR output."
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "OCR is unavailable: no real OCR engine is configured. "
+                "Set DATABOSSX_DEMO_MODE=true to use the synthetic demo OCR engine."
+            ),
+        )
+
     try:
-        # Mock OCR processing
         start_time = datetime.now()
-        
-        # Return mock OCR results
-        raw_text = f"Mock OCR result for {filename}.\nThis is a demo document with extracted text.\nKey Information:\n- Document Type: Sample Legal Document\n- Parties: DataBossX Corp, Client ABC\n- Date: {datetime.now().strftime('%Y-%m-%d')}\n- Summary: This document contains important legal information.\n\nNote: This is a mock OCR result for demonstration purposes."
+
+        # Synthetic placeholder only - unambiguously labeled, no invented
+        # parties, dates, or legal content that could pass as real output.
+        raw_text = (
+            "[SYNTHETIC DEMO OCR OUTPUT - NOT A REAL OCR RESULT]\n"
+            f"This is placeholder text generated by the demo OCR engine for filename: {filename}.\n"
+            "No file content was read and no legal or factual information was extracted.\n"
+            "This output exists only to exercise the demo pipeline and must never be treated "
+            "as a real document extraction.\n"
+            "[END SYNTHETIC DEMO OCR OUTPUT]"
+        )
         cleaned_text = raw_text.strip()
-        mock_confidence = 0.95
         processing_time = (datetime.now() - start_time).total_seconds()
-        
+
         return {
             "raw_text": raw_text,
             "cleaned_text": cleaned_text,
-            "confidence_score": mock_confidence,
+            # 0.0 signals "not a real confidence measurement", not a quality score.
+            "confidence_score": 0.0,
             "processing_time": processing_time,
-            "ocr_engine": PRIMARY_OCR
+            "ocr_engine": f"{PRIMARY_OCR}-synthetic",
+            "is_synthetic": True,
         }
-        
-    except Exception as e:
-        logger.error(f"OCR processing failed for {filename}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(f"OCR processing failed for {filename}")
+        raise HTTPException(status_code=500, detail="OCR processing failed")
 
 async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict[str, Any]:
     """Analyze text with specified LLM"""
@@ -240,9 +383,11 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
             "prompt_type": prompt_type
         }
         
-    except Exception as e:
-        logger.error(f"LLM analysis failed with {model_name}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(f"LLM analysis failed with {model_name}")
+        raise HTTPException(status_code=500, detail="LLM analysis failed")
 
 # API Endpoints
 @app.on_event("startup")
@@ -268,14 +413,26 @@ async def health_check():
     }
 
 @app.post("/api/documents/upload")
-async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    api_key: str = Depends(require_api_key),
+):
     """Upload and process document with OCR"""
     try:
+        # Enforce the file-type allowlist up front (defect #94 item 4/6 hardening).
+        if file.content_type not in settings.allowed_content_types:
+            raise HTTPException(status_code=400, detail="Unsupported file type")
+
         # Read file content
         file_content = await file.read()
         file_hash = calculate_file_hash(file_content)
         file_size = len(file_content)
-        
+
+        # Enforce the upload size limit.
+        if file_size > settings.max_upload_size_bytes:
+            raise HTTPException(status_code=413, detail="File too large")
+
         # Check for duplicates
         async with aiosqlite.connect(SQLITE_DB_PATH) as db:
             async with db.execute("SELECT id FROM documents WHERE file_hash = ?", (file_hash,)) as cursor:
@@ -307,9 +464,11 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
             "status": "processing"
         }
         
-    except Exception as e:
-        logger.error(f"Document upload failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Document upload failed")
+        raise HTTPException(status_code=500, detail="Upload failed")
 
 async def process_document_background(doc_id: str, file_content: bytes, filename: str):
     """Background task to process document with OCR and LLM"""
@@ -375,7 +534,7 @@ async def process_document_background(doc_id: str, file_content: bytes, filename
         logger.error(f"Background processing failed for {doc_id}: {str(e)}")
 
 @app.get("/api/documents")
-async def get_documents():
+async def get_documents(api_key: str = Depends(require_api_key)):
     """Get all documents"""
     async with aiosqlite.connect(SQLITE_DB_PATH) as db:
         async with db.execute("SELECT * FROM documents ORDER BY upload_time DESC") as cursor:
@@ -394,7 +553,7 @@ async def get_documents():
     ]
 
 @app.get("/api/documents/{document_id}")
-async def get_document_details(document_id: str):
+async def get_document_details(document_id: str, api_key: str = Depends(require_api_key)):
     """Get detailed document information including OCR and LLM results"""
     async with aiosqlite.connect(SQLITE_DB_PATH) as db:
         # Get document info
@@ -445,7 +604,7 @@ async def get_document_details(document_id: str):
     }
 
 @app.get("/api/logs")
-async def get_system_logs(limit: int = 100):
+async def get_system_logs(limit: int = 100, api_key: str = Depends(require_api_key)):
     """Get system logs"""
     async with aiosqlite.connect(SQLITE_DB_PATH) as db:
         async with db.execute("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT ?", (limit,)) as cursor:
@@ -464,7 +623,7 @@ async def get_system_logs(limit: int = 100):
     ]
 
 @app.get("/api/analytics")
-async def get_analytics():
+async def get_analytics(api_key: str = Depends(require_api_key)):
     """Get system analytics and metrics"""
     async with aiosqlite.connect(SQLITE_DB_PATH) as db:
         # Document counts by status
@@ -497,4 +656,7 @@ async def get_analytics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Bind to localhost only by default (issue #94: no unauthenticated
+    # network-wide exposure). Override via DATABOSSX_HOST if deliberately
+    # deploying behind a reverse proxy that terminates auth elsewhere.
+    uvicorn.run(app, host=settings.host, port=settings.port)

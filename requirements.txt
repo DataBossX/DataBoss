@@ -46,3 +46,12 @@ Pillow==10.4.0
 pytesseract==0.3.13
 paddlepaddle>=2.6.2; sys_platform != 'win32'
 paddleocr==2.7.0.3; sys_platform != 'win32'
+
+# backend/server.py imports these directly; the root-level `pytest` run (CI's
+# `build` job) collects backend_test.py, which loads backend/server.py
+# in-process, so these must be installable from this file too.
+aiosqlite>=0.20.0
+openai>=1.54.0
+anthropic>=0.40.0
+google-generativeai>=0.8.0
+loguru>=0.7.0

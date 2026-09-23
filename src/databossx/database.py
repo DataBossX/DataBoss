@@ -12,8 +12,12 @@ class DataBossDatabase:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
+    def migrations_dir() -> Path:
+        return Path(__file__).resolve().parents[2] / "migrations"
+
+    @staticmethod
     def schema_path() -> Path:
-        return Path(__file__).resolve().parents[2] / "migrations" / "001_initial_schema.sql"
+        return DataBossDatabase.migrations_dir() / "001_initial_schema.sql"
 
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -23,9 +27,10 @@ class DataBossDatabase:
         return conn
 
     def initialize(self) -> None:
-        schema_sql = self.schema_path().read_text(encoding="utf-8")
+        scripts = sorted(self.migrations_dir().glob("*.sql")) or [self.schema_path()]
         with self.connect() as conn:
-            conn.executescript(schema_sql)
+            for script in scripts:
+                conn.executescript(script.read_text(encoding="utf-8"))
             conn.commit()
 
     def fetchone(self, query: str, params: tuple = ()) -> sqlite3.Row | None:

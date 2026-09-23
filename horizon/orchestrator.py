@@ -23,7 +23,7 @@ from typing import List, Optional
 from .audit import AuditLog
 from .config import HorizonConfig
 from .models import ReportModel
-from .repair import repair_workbook
+from .repair import repair_workbook, workbook_defects
 from .validation import Requirements, ValidationReport, load_requirements, validate_report
 from .versioning import latest_version, next_version_path
 
@@ -92,6 +92,16 @@ class Orchestrator:
             candidate.unlink()
         return None
 
+    def template_blocked(self, src: Optional[Path]) -> bool:
+        """An errored or malformed workbook must never become a converged template."""
+        defects = workbook_defects(src) if src is not None else []
+        if defects:
+            self.audit.escalate(
+                "workbook_defect",
+                f"{src.name}: {', '.join(defects[:5])}; refusing to converge",
+            )
+        return bool(defects)
+
     def emit_version(self, report: ReportModel, base_stem: str, src: Optional[Path]) -> Path:
         """Evaluate step: persist a passing report as a new version."""
         from .report_io import write_report
@@ -119,6 +129,9 @@ class Orchestrator:
             current = self.ingest(base_stem)
             vr = self.validate(working_report, reqs)
 
+            if vr.passed and self.template_blocked(current):
+                result.exhausted = True
+                return result
             if vr.passed:
                 out = self.emit_version(working_report, base_stem, current)
                 result.iterations.append(LoopIteration(
@@ -173,9 +186,9 @@ class Orchestrator:
         # last validation so a workbook that repairs into a passing state
         # converges instead of being wrongly reported as exhausted.
         final_vr = self.validate(working_report, reqs)
-        if final_vr.passed:
-            out = self.emit_version(working_report, base_stem,
-                                    latest_version(self.cfg.final_reports, base_stem))
+        template = latest_version(self.cfg.final_reports, base_stem)
+        if final_vr.passed and not self.template_blocked(template):
+            out = self.emit_version(working_report, base_stem, template)
             result.iterations.append(LoopIteration(
                 index=self.cfg.max_loops + 1,
                 version_in=None, version_out=out.name, passed=True,

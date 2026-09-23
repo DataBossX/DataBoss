@@ -16,7 +16,6 @@ non-worksheet parts.
 from __future__ import annotations
 
 import posixpath
-import shutil
 import zipfile
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -33,6 +32,14 @@ _MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _NS = {"m": _MAIN_NS}
 
 
+class RepairDefect(ValueError):
+    """A worksheet defect that must not be silently rewritten or promoted."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
 @dataclass
 class RepairResult:
     output: Optional[Path]
@@ -41,39 +48,87 @@ class RepairResult:
     media_preserved: int = 0
     changed_parts: List[str] = field(default_factory=list)
     error: str = ""
+    defect_code: str = ""
+    promoted: bool = False
+
+
+def _child_text(cell, tag: str) -> str:
+    element = cell.find(f"{{{_MAIN_NS}}}{tag}")
+    if element is None:
+        return ""
+    return (element.text or "").strip()
+
+
+def _cell_is_error_formula(cell) -> bool:
+    body = _child_text(cell, "f")
+    cached_text = _child_text(cell, "v")
+    return (
+        cell.get("t") == "e"
+        or body.startswith("#")
+        or body.startswith("=#")
+        or cached_text.startswith("#")
+    )
+
+
+def _discard(path: Path) -> None:
+    if path.exists():
+        path.unlink()
+
+
+def _cell_inventory(xml_bytes: bytes):
+    try:
+        root = etree.fromstring(xml_bytes, parser=etree.XMLParser(recover=False, huge_tree=False))
+    except etree.XMLSyntaxError as exc:
+        raise RepairDefect("MALFORMED_WORKSHEET_XML", str(exc)) from exc
+    return (
+        [row.get("r") for row in root.iter(f"{{{_MAIN_NS}}}row")],
+        [cell.get("r") for cell in root.iter(f"{{{_MAIN_NS}}}c")],
+    )
+
+
+def workbook_defects(path: Path) -> List[str]:
+    """Strictly scan every worksheet part; empty list means promotable."""
+    if not _HAVE_LXML:
+        return ["LXML_UNAVAILABLE"]
+    defects: List[str] = []
+    try:
+        with zipfile.ZipFile(path) as archive:
+            for name in archive.namelist():
+                if not (name.startswith("xl/worksheets/") and name.endswith(".xml")):
+                    continue
+                try:
+                    _fix_worksheet_xml(archive.read(name), [])
+                except RepairDefect as exc:
+                    defects.append(f"{exc.code}:{name}")
+    except (zipfile.BadZipFile, OSError) as exc:
+        defects.append(f"WORKBOOK_UNREADABLE:{exc}")
+    return defects
 
 
 def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
-    """Repair one worksheet part. Returns possibly-rewritten bytes.
+    """Inspect one worksheet part.
 
-    Current repairs (safe, non-destructive):
-      * Remove ``<f>`` formula elements that evaluate to an error (``t="e"`` on
-        the parent ``<c>`` or a formula body starting with ``#``), leaving any
-        last-known cached ``<v>`` value in place so no data is lost.
-      * Drop dangling shared-formula masters that reference a deleted range.
+    Error formulas (``t="e"``, ``#REF!`` cached values, or formula bodies that
+    start with ``#``) are never rewritten into ordinary literals. That used to
+    hide Excel errors from later pipeline stages. Malformed XML is a hard
+    defect: parse strictly, never with recovery that can drop rows or cells.
     """
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    root = etree.fromstring(xml_bytes, parser=parser)
-    changed = False
+    parser = etree.XMLParser(remove_blank_text=False, recover=False, huge_tree=False)
+    try:
+        root = etree.fromstring(xml_bytes, parser=parser)
+    except etree.XMLSyntaxError as exc:
+        raise RepairDefect("MALFORMED_WORKSHEET_XML", str(exc)) from exc
 
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
-        t = cell.get("t")
-        f = cell.find(f"{{{_MAIN_NS}}}f")
-        if f is None:
-            continue
-        body = (f.text or "").strip()
-        is_error = t == "e" or body.startswith("#") or body.startswith("=#")
-        if is_error:
-            cell.remove(f)
-            # if the cached value was an error, clear the error type marker too
-            if t == "e":
-                del cell.attrib["t"]
-            fixes.append(f"removed errored formula in cell {cell.get('r', '?')}")
-            changed = True
+        if _cell_is_error_formula(cell):
+            ref = cell.get("r", "?")
+            raise RepairDefect(
+                "ERROR_FORMULA_DOWNGRADE_REFUSED",
+                f"cell {ref} has an error formula or cached error; "
+                "refusing to convert it to a literal or promote the workbook",
+            )
 
-    if not changed:
-        return xml_bytes
-    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+    return xml_bytes
 
 
 def repair_workbook(
@@ -87,10 +142,12 @@ def repair_workbook(
     copied verbatim. ``src`` is never modified.
     """
     if not _HAVE_LXML:
-        # Degrade gracefully: copy through unchanged rather than crash.
-        shutil.copy2(src, dest)
-        return RepairResult(output=dest, repaired=False,
-                            error="lxml unavailable; copied without repair")
+        return RepairResult(
+            output=None,
+            repaired=False,
+            error="lxml unavailable; repair refused",
+            defect_code="LXML_UNAVAILABLE",
+        )
 
     fixer = worksheet_fixer or _fix_worksheet_xml
     fixes: List[str] = []
@@ -106,11 +163,34 @@ def repair_workbook(
                 if name.startswith("xl/media/"):
                     media += 1
                 if name.startswith("xl/worksheets/") and name.endswith(".xml"):
-                    data = fixer(data, fixes)
+                    fixed = fixer(data, fixes)
+                    if _cell_inventory(fixed) != _cell_inventory(data):
+                        raise RepairDefect(
+                            "CELL_INVENTORY_CHANGED",
+                            f"{name}: repair would add or drop rows/cells",
+                        )
+                    data = fixed
                 # Preserve original metadata (date/compression) for stable output.
                 zout.writestr(item, data)
+    except RepairDefect as exc:
+        _discard(dest)
+        return RepairResult(
+            output=None,
+            repaired=False,
+            error=str(exc),
+            defect_code=exc.code,
+            promoted=False,
+            media_preserved=media,
+        )
     except (zipfile.BadZipFile, OSError, etree.XMLSyntaxError) as exc:
-        return RepairResult(output=None, repaired=False, error=str(exc))
+        _discard(dest)
+        return RepairResult(
+            output=None,
+            repaired=False,
+            error=str(exc),
+            defect_code="WORKBOOK_UNREADABLE",
+            promoted=False,
+        )
 
     return RepairResult(
         output=dest,
@@ -118,6 +198,7 @@ def repair_workbook(
         fixes=fixes,
         media_preserved=media,
         changed_parts=["xl/worksheets/*"] if fixes else [],
+        promoted=True,
     )
 
 
@@ -240,6 +321,5 @@ def restore_formula_from_template(
             changed_parts=[candidate_part],
         )
     except (OSError, ValueError, zipfile.BadZipFile, etree.XMLSyntaxError) as exc:
-        if temporary.exists():
-            temporary.unlink()
+        _discard(temporary)
         return RepairResult(output=None, repaired=False, error=str(exc))

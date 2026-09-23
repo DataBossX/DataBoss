@@ -27,7 +27,17 @@ Unreviewed output is draft work product, not a certified abstract, title opinion
 ## Tests
 
 ```bash
-python -m pytest -q
+PYTHONPATH=src python -m pytest -q
 ```
 
-See `horizon/README.md`, `RUNBOOK.md`, and `REPORT_PIPELINE_PLAN.md` for subsystem instructions.
+Public-safe governor (Issue #68 finite cycle, no auto-merge, no client writes):
+
+```bash
+PYTHONPATH=src python -m databossx census --repo-root .
+PYTHONPATH=src python -m databossx policy-gate --repo-root .
+PYTHONPATH=src python -m databossx tournament --repo-root .
+PYTHONPATH=src python -m databossx cycle --repo-root .
+```
+
+See `horizon/README.md`, `RUNBOOK.md`, `REPORT_PIPELINE_PLAN.md`, and
+`docs/CONTINUOUS_IMPROVEMENT_GOVERNOR.md` for subsystem instructions.

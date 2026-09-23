@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-09-23T19:46:14Z",
+  "repository_revision": "3149ead11d95801f0332312a0dee2218203f0ede",
+  "scope": {
+    "filesystem_root": "/workspace",
+    "github_repository": "DataBossX/DataBoss",
+    "github_list_limit": 500,
+    "client_facts_included": false
+  },
+  "counts": {
+    "files": {
+      "worktree_regular_files_after_all_six_deliverables": 257,
+      "git_tracked_files_after_all_six_deliverables": 253,
+      "specialist_deliverable_files": 6
+    },
+    "tests": {
+      "worktree_test_files": 27,
+      "specialist_tests_collected": 9,
+      "specialist_tests_passed": 9,
+      "specialist_tests_failed": 0
+    },
+    "pull_requests": {
+      "total": 100,
+      "open": 25,
+      "closed": 75,
+      "open_classification": {
+        "KEEP_SYNTHETIC": 2,
+        "CLOSE_PRESERVE_AUDIT": 15,
+        "OWNER_REVIEW": 8
+      }
+    },
+    "issues": {
+      "total": 17,
+      "open": 15,
+      "closed": 2
+    },
+    "modules": {
+      "total_source_modules": 95,
+      "python": 73,
+      "javascript_typescript": 22
+    }
+  },
+  "publication_gate": {
+    "conservative_current_tree_pass": false,
+    "finding_count": 34,
+    "findings_by_rule": {
+      "client_report_filename": 4,
+      "credential_assignment": 1,
+      "private_windows_path": 29
+    },
+    "matched_values_recorded": false,
+    "sensitive_filenames_recorded": false,
+    "interpretation": "FAIL requires remediation or human review; a pattern finding is not proof of a live credential or client artifact."
+  },
+  "methodology": {
+    "files": "find, excluding .git, __pycache__, and .pytest_cache; final count includes this six-file deliverable",
+    "tracked_files": "git ls-files after staging this six-file deliverable",
+    "test_files": "find using tests directories and common test/spec filename conventions",
+    "modules": "non-test .py, .js, .jsx, .ts, and .tsx files",
+    "pull_requests": "gh pr list --state open/closed",
+    "issues": "gh issue list --state open/closed",
+    "gate": "publication_policy_gate.py --json ."
+  },
+  "unknowns": {
+    "credential_provider_revocation": "UNKNOWN",
+    "history_rewrite_completion": "UNKNOWN",
+    "fork_and_cache_removal": "UNKNOWN",
+    "branch_protection_and_push_protection": "UNKNOWN",
+    "human_publication_approval": "UNKNOWN"
+  }
+}

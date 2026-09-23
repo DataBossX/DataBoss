@@ -35,18 +35,17 @@ def _make_xlsx_with_error_formula(path: Path):
 
 
 @pytest.mark.skipif(not _HAVE_LXML, reason="lxml required for XML repair")
-def test_repair_removes_error_formula_and_preserves_media(tmp_path):
+def test_repair_refuses_error_formula_downgrade(tmp_path):
     src = tmp_path / "report.xlsx"
     _make_xlsx_with_error_formula(src)
+    original = src.read_bytes()
     dest = tmp_path / "report_v002.xlsx"
     result = repair_workbook(src, dest)
-    assert result.repaired
-    assert result.media_preserved == 1
-    assert any("errored formula" in f for f in result.fixes)
-    # media survived byte-for-byte
-    with zipfile.ZipFile(dest) as zf:
-        assert zf.read("xl/media/plat1.png") == b"\x89PNG\r\n\x1a\nFAKEPLATDATA"
-    # source workbook was never modified
+    assert result.refused
+    assert result.output is None
+    assert result.repaired is False
+    assert not dest.exists()
+    assert src.read_bytes() == original
     assert src.exists()
 
 

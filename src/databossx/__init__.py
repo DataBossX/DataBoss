@@ -9,10 +9,12 @@ from .intake import (
     register_workbook_template,
 )
 from .orchestrator import seed_project_intake_run
+from .policy import PolicyEngine
 
 __all__ = [
     "DataBossConfig",
     "DataBossDatabase",
+    "PolicyEngine",
     "create_project",
     "inventory_source",
     "register_source_connection",
@@ -20,4 +22,4 @@ __all__ = [
     "seed_project_intake_run",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

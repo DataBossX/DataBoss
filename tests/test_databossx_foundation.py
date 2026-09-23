@@ -22,7 +22,15 @@ def test_database_initialization_sets_wal_and_creates_core_tables(tmp_path):
         row["name"]
         for row in db.fetchall("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')")
     }
-    assert {"projects", "asset_versions", "audit_events", "workflow_definitions", "tasks"} <= tables
+    assert {
+        "projects",
+        "asset_versions",
+        "audit_events",
+        "workflow_definitions",
+        "tasks",
+        "claims",
+        "evidence_spans",
+    } <= tables
 
 
 def test_copy_file_to_vault_uses_content_addressed_path(tmp_path):

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=45"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databossx"
+version = "0.2.0"
+description = "Local-first evidence-grounded title research kernel"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "DataBossX" }]
+
+[project.scripts]
+databossx = "databossx.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+addopts = "-q"

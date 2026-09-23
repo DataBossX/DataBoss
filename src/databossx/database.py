@@ -15,6 +15,10 @@ class DataBossDatabase:
     def schema_path() -> Path:
         return Path(__file__).resolve().parents[2] / "migrations" / "001_initial_schema.sql"
 
+    @staticmethod
+    def migrations_dir() -> Path:
+        return Path(__file__).resolve().parents[2] / "migrations"
+
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -23,10 +27,33 @@ class DataBossDatabase:
         return conn
 
     def initialize(self) -> None:
-        schema_sql = self.schema_path().read_text(encoding="utf-8")
+        self.apply_migrations()
+
+    def apply_migrations(self) -> list[str]:
+        applied: list[str] = []
         with self.connect() as conn:
-            conn.executescript(schema_sql)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    filename TEXT PRIMARY KEY,
+                    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            existing = {
+                row[0] for row in conn.execute("SELECT filename FROM schema_migrations")
+            }
+            for path in sorted(self.migrations_dir().glob("*.sql")):
+                if path.name in existing:
+                    continue
+                conn.executescript(path.read_text(encoding="utf-8"))
+                conn.execute(
+                    "INSERT INTO schema_migrations (filename) VALUES (?)",
+                    (path.name,),
+                )
+                applied.append(path.name)
             conn.commit()
+        return applied
 
     def fetchone(self, query: str, params: tuple = ()) -> sqlite3.Row | None:
         with self.connect() as conn:

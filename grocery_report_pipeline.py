@@ -263,6 +263,24 @@ def parse_date(text: str) -> Optional[str]:
     return None
 
 
+def find_all_dates(text: str) -> List[str]:
+    """Return every ISO date found anywhere in text (dedup, first-seen order).
+
+    Deterministic; used only to surface *candidate* dates for human review --
+    never to silently populate a labeled field like recording_date (issue
+    #94 item 2).
+    """
+    found: List[str] = []
+    if not text:
+        return found
+    for rx, _fmt in _DATE_PATTERNS:
+        for m in rx.finditer(text):
+            d = parse_date(m.group(0))
+            if d and d not in found:
+                found.append(d)
+    return found
+
+
 def is_impossible_date(iso: Optional[str]) -> bool:
     if not iso:
         return False
@@ -804,6 +822,7 @@ def classify_documents(recs: List[FileRec], texts: Dict[str, TextRec],
 FACT_FIELDS = [
     "grantor", "grantee", "lessor", "lessee", "assignor", "assignee",
     "decedent_heir_devisee", "effective_date", "execution_date", "recording_date",
+    "unlabeled_dates",
     "book_page_or_instrument", "county", "state", "legal_description",
     "tract_description", "gross_acres", "net_acres", "royalty",
     "working_interest", "net_revenue_interest", "lease_burden", "mineral_interest",
@@ -820,7 +839,11 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
-_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{4,9})", re.I)
+# issue #94 item 3: was `\d{4,9}`, which missed ordinary decimals such as
+# 0.5, 0.25, 0.125 (1-3 digits). Now accepts any valid precision (1-9
+# digits) while staying anchored to the "decimal interest" label context,
+# and the (?!\d) guard stops it truncating a longer run of digits.
+_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{1,9})(?!\d)", re.I)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
@@ -900,8 +923,22 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
             m = re.search(rf"{kw}[^\n]{{0,40}}", text, re.I)
             d = parse_date(m.group(0)) if m else None
             setv(key, d, 0.6 if d else 0.0)
+        # IMPORTANT (issue #94 item 2): recording_date must NEVER be
+        # fabricated from "the first date anywhere in the document". It is
+        # only ever set above, from text actually near a
+        # recorded/recording-date/filed label. If no such label was found,
+        # recording_date stays blank and REVIEW REQUIRED -- any other dates
+        # in the document are unrelated evidence and get parked under
+        # unlabeled_dates as separate, clearly-not-recording candidates, so
+        # they remain visible for a human reviewer without silently
+        # occupying (and thereby suppressing the missing-recording-data
+        # warning on) the recording_date slot.
         if "recording_date" not in v:
-            setv("recording_date", parse_date(text), 0.4)
+            already_seen = {v.get("effective_date"), v.get("execution_date")}
+            unlabeled = [d for d in find_all_dates(text) if d not in already_seen]
+            if unlabeled:
+                setv("unlabeled_dates", "; ".join(unlabeled), 0.2)
+            f.review_flags.append("recording-date-missing:no-recorded/filed-label-found")
 
         m = _INSTR_RX.search(text)
         if m:
@@ -1047,15 +1084,34 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
             decs = [(_to_float(f.values.get("decimal_interest")), f) for f in group
                     if f.values.get("decimal_interest")]
         dec_sum = round(sum(d for d, _ in decs if d is not None), 8) if decs else None
+        # issue #94 item 3: a sum-to-1.0 assertion is only meaningful when the
+        # owner set summed is actually complete. The one "complete owner
+        # set" signal this extraction can vouch for is a single, self
+        # contained source document that lists the decimals (a multi-owner
+        # ownership/decimal schedule -- see the all_decimals capture above).
+        # Decimals pooled across MULTIPLE different documents are not proof
+        # of a complete owner set (each doc may only show one party's slice,
+        # e.g. a lease's WI mixed with an unrelated assignment's decimal),
+        # so summing those must never manufacture a false imbalance finding.
+        contributing_files = sorted({f.source_file for _, f in decs if f is not None})
+        complete_owner_set = len(contributing_files) == 1
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
+        if dec_sum is None:
+            dec_check = "n/a"
+        elif not complete_owner_set:
+            dec_check = (f"n/a: owner set spans {len(contributing_files)} documents -- "
+                         f"not asserted complete, sum not evaluated")
+        elif abs(dec_sum - 1.0) < 1e-4:
+            dec_check = "OK"
+        else:
+            dec_check = f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"
         calc_rows.append([legal, len(group),
                           dec_sum if dec_sum is not None else "n/a",
-                          ("OK" if dec_sum is None or abs(dec_sum - 1.0) < 1e-4
-                           else f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"),
+                          dec_check,
                           ", ".join(str(g) for g in gross_vals) or "n/a",
                           ("OK" if len(gross_vals) <= 1 else f"{REVIEW}: gross acreage disagrees")])
-        if dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
+        if complete_owner_set and dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
             conflicts.append(["decimal-sum", legal, f"Decimals sum to {dec_sum} (expected 1.0)",
                               "; ".join(f.source_file for _, f in decs)])
         if len(gross_vals) > 1:

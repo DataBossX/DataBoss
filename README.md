@@ -24,6 +24,19 @@ This public repository must not contain real client manifests, exact project leg
 
 Unreviewed output is draft work product, not a certified abstract, title opinion, or substitute for a qualified title examiner or licensed attorney.
 
+## Kernel CLI
+
+```bash
+PYTHONPATH=src python -m databossx health
+PYTHONPATH=src python -m databossx drive-scan --root /path/to/drive-export --dry-run
+```
+
+Drive sync is read-only by default. It can plan and copy bytes into the local
+vault. It cannot write, delete, or share on Google Drive without an exact,
+expiring human approval.
+
+See `docs/NEXT_100_BEST_MOVES.md` for the remaining public-safe backlog.
+
 ## Tests
 
 ```bash

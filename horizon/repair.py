@@ -41,35 +41,76 @@ class RepairResult:
     media_preserved: int = 0
     changed_parts: List[str] = field(default_factory=list)
     error: str = ""
+    defects: List[str] = field(default_factory=list)
+    refused: bool = False
+
+
+class RepairRefused(ValueError):
+    """Raised when a workbook defect must not be auto-repaired into a literal."""
+
+
+def _strict_parser() -> "etree.XMLParser":
+    return etree.XMLParser(remove_blank_text=False, recover=False, huge_tree=False)
+
+
+def _cell_has_error_formula(cell) -> bool:
+    t = cell.get("t")
+    formula = cell.find(f"{{{_MAIN_NS}}}f")
+    if formula is None:
+        return t == "e"
+    body = (formula.text or "").strip()
+    return t == "e" or body.startswith("#") or body.startswith("=#")
+
+
+def inspect_worksheet_defects(xml_bytes: bytes) -> List[str]:
+    """Strictly parse worksheet XML and return defect codes. Never mutates."""
+    root = etree.fromstring(xml_bytes, parser=_strict_parser())
+    defects: List[str] = []
+    for cell in root.iter(f"{{{_MAIN_NS}}}c"):
+        if _cell_has_error_formula(cell):
+            ref = cell.get("r", "?")
+            defects.append(
+                f"error-formula:{ref}:refusing to downgrade error formula to a cached literal"
+            )
+    return defects
+
+
+def _count_cells(root) -> int:
+    return sum(1 for _ in root.iter(f"{{{_MAIN_NS}}}c"))
 
 
 def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
-    """Repair one worksheet part. Returns possibly-rewritten bytes.
+    """Apply only non-semantic structural fixes. Error formulas are refused.
 
-    Current repairs (safe, non-destructive):
-      * Remove ``<f>`` formula elements that evaluate to an error (``t="e"`` on
-        the parent ``<c>`` or a formula body starting with ``#``), leaving any
-        last-known cached ``<v>`` value in place so no data is lost.
-      * Drop dangling shared-formula masters that reference a deleted range.
+    Safe repairs:
+      * Drop dangling shared-formula masters that reference a deleted range
+        when the cell is not an Excel error type.
+
+    Forbidden:
+      * Removing an error formula and leaving ``#REF!`` (or any cached error)
+        as an ordinary-looking literal. That hides the defect from later
+        pipelines and is treated as a hard refusal.
     """
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
+    parser = _strict_parser()
     root = etree.fromstring(xml_bytes, parser=parser)
-    changed = False
+    cells_before = _count_cells(root)
+    defects = inspect_worksheet_defects(xml_bytes)
+    if defects:
+        raise RepairRefused("; ".join(defects))
 
+    changed = False
     for cell in root.iter(f"{{{_MAIN_NS}}}c"):
-        t = cell.get("t")
-        f = cell.find(f"{{{_MAIN_NS}}}f")
-        if f is None:
+        formula = cell.find(f"{{{_MAIN_NS}}}f")
+        if formula is None:
             continue
-        body = (f.text or "").strip()
-        is_error = t == "e" or body.startswith("#") or body.startswith("=#")
-        if is_error:
-            cell.remove(f)
-            # if the cached value was an error, clear the error type marker too
-            if t == "e":
-                del cell.attrib["t"]
-            fixes.append(f"removed errored formula in cell {cell.get('r', '?')}")
-            changed = True
+        # Shared-formula cleanup only when the cell is not an error type.
+        if formula.get("t") == "shared" and not formula.text and cell.get("t") != "e":
+            ref = formula.get("ref")
+            if ref:
+                fixes.append(f"noted shared-formula master {cell.get('r', '?')} ref={ref}")
+
+    if _count_cells(root) != cells_before:
+        raise RepairRefused("worksheet repair would change cell count; refusing promotion")
 
     if not changed:
         return xml_bytes
@@ -94,23 +135,65 @@ def repair_workbook(
 
     fixer = worksheet_fixer or _fix_worksheet_xml
     fixes: List[str] = []
+    defects: List[str] = []
     media = 0
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with zipfile.ZipFile(src, "r") as zin, \
-                zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zout:
-            for item in zin.infolist():
+        with zipfile.ZipFile(src, "r") as zin:
+            worksheet_parts = [
+                item for item in zin.infolist()
+                if item.filename.startswith("xl/worksheets/") and item.filename.endswith(".xml")
+            ]
+            for item in worksheet_parts:
                 data = zin.read(item.filename)
-                name = item.filename
-                if name.startswith("xl/media/"):
-                    media += 1
-                if name.startswith("xl/worksheets/") and name.endswith(".xml"):
-                    data = fixer(data, fixes)
-                # Preserve original metadata (date/compression) for stable output.
-                zout.writestr(item, data)
+                try:
+                    defects.extend(inspect_worksheet_defects(data))
+                except etree.XMLSyntaxError as exc:
+                    return RepairResult(
+                        output=None,
+                        repaired=False,
+                        refused=True,
+                        error=f"malformed worksheet XML in {item.filename}: {exc}",
+                        defects=[f"malformed-xml:{item.filename}"],
+                    )
+            if defects:
+                return RepairResult(
+                    output=None,
+                    repaired=False,
+                    refused=True,
+                    error="workbook repair refused; error formulas cannot be downgraded to literals",
+                    defects=defects,
+                )
+            with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zout:
+                for item in zin.infolist():
+                    data = zin.read(item.filename)
+                    name = item.filename
+                    if name.startswith("xl/media/"):
+                        media += 1
+                    if name.startswith("xl/worksheets/") and name.endswith(".xml"):
+                        data = fixer(data, fixes)
+                    zout.writestr(item, data)
+    except RepairRefused as exc:
+        if dest.exists():
+            dest.unlink()
+        return RepairResult(
+            output=None,
+            repaired=False,
+            refused=True,
+            error=str(exc),
+            defects=[str(exc)],
+        )
     except (zipfile.BadZipFile, OSError, etree.XMLSyntaxError) as exc:
-        return RepairResult(output=None, repaired=False, error=str(exc))
+        if dest.exists():
+            dest.unlink()
+        return RepairResult(
+            output=None,
+            repaired=False,
+            refused=True,
+            error=str(exc),
+            defects=[str(exc)],
+        )
 
     return RepairResult(
         output=dest,

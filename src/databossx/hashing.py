@@ -34,6 +34,10 @@ class StoredAsset:
     vault_path: Path
 
 
+class VaultIntegrityError(RuntimeError):
+    pass
+
+
 def copy_file_to_vault(source_path: str | Path, vault_root: str | Path) -> StoredAsset:
     source = Path(source_path)
     digest = sha256_file(source)
@@ -44,6 +48,8 @@ def copy_file_to_vault(source_path: str | Path, vault_root: str | Path) -> Store
         with source.open("rb") as src, temp_path.open("wb") as dst:
             shutil.copyfileobj(src, dst)
         os.replace(temp_path, destination)
+    if sha256_file(destination) != digest:
+        raise VaultIntegrityError(f"vault copy failed integrity check for {source}")
     return StoredAsset(
         sha256=digest,
         byte_size=source.stat().st_size,

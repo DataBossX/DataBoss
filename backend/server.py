@@ -7,7 +7,6 @@ from typing import Optional, Dict, Any
 from fastapi import Depends, FastAPI, File, Header, UploadFile, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from security_controls import (
@@ -72,15 +71,6 @@ if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
     except Exception:
         GEMINI_API_KEY = None
-
-
-class Document(BaseModel):
-    id: str
-    filename: str
-    file_hash: str
-    upload_time: datetime
-    file_size: int
-    status: str
 
 
 def _require_db():

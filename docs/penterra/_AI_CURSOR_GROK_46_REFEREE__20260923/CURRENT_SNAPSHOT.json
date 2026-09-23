@@ -1,0 +1,12 @@
+{
+  "packet": "_AI_CURSOR_GROK_46_REFEREE__20260923",
+  "created_utc": "2026-09-23T19:50:00Z",
+  "timezone_stated": "America/Chicago",
+  "model": "Cursor Grok 4.6",
+  "run": "bc-01a0ccfd-2463-7517-bf1b-04d999c0e6ca",
+  "drive_write": "FAILED_NO_CREDENTIALS",
+  "drive_read_shared_folders": "PARTIAL",
+  "mutation_of_originals": "NONE",
+  "writer_assignment": "NONE_THIS_CHAT",
+  "ready_closed_complete": "NO"
+}

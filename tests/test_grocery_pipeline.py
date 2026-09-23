@@ -133,3 +133,223 @@ def test_rerunnable_idempotent(run, tmp_path):
     grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=log)
     grp.run_pipeline(corpus, out, "Grocery_Report", apply_quar=False, log=log)
     assert (out / "run_manifest.json").exists()
+
+
+# ===========================================================================
+# Regression tests -- issue #94 item 2: recording_date must never be
+# fabricated from an unrelated/unlabeled date.
+# ===========================================================================
+def _run_custom_corpus(tmp_path, docs: dict):
+    """Build a small synthetic corpus with the given {filename: text} and
+    run the full pipeline against it, in isolation from the shared `run`
+    fixture's corpus."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for name, body in docs.items():
+        (corpus / name).write_text(body, encoding="utf-8")
+    out = tmp_path / "output"
+    log = grp.BuildLog()
+    manifest = grp.run_pipeline(corpus, out, "Test_Report", apply_quar=False, log=log)
+    return out, manifest
+
+
+def test_recording_date_blank_without_label_and_review_required(tmp_path):
+    # MANDATORY REGRESSION (issue #94 item 2): a document with an
+    # effective/execution date but NO recording label must yield a blank
+    # recording_date plus a REVIEW REQUIRED flag.
+    docs = {
+        "a_no_recording_label.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Effective Date: 2015-04-10  Executed: 2015-04-10\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["a_no_recording_label.txt"]
+    assert fact["execution_date"] == "2015-04-10"
+    assert fact["effective_date"] == "2015-04-10"
+    assert fact["recording_date"] == "", (
+        "recording_date must stay blank when no recorded/recording-date/filed "
+        "label is present -- it must never be fabricated from an unrelated date "
+        "(here, the effective/execution date)")
+    rr = _read_csv(out / "review_required.csv")
+    assert any(r["rule"] == "missing-recording-data" and r["subject"] == "a_no_recording_label.txt"
+               for r in rr), (
+        "missing recording data must be flagged REVIEW REQUIRED, not silently "
+        "suppressed by a fabricated recording_date")
+
+
+def test_unlabeled_date_kept_separate_not_used_as_recording_date(tmp_path):
+    # A stray, unrelated date with no recording/effective/execution label
+    # nearby must surface as a candidate under `unlabeled_dates`, never as
+    # `recording_date`.
+    docs = {
+        "b_stray_date.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "CORRESPONDENCE regarding title matter.\n"
+            "Please respond by 2022-11-01.\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["b_stray_date.txt"]
+    assert fact["recording_date"] == "", "unlabeled date must not become recording_date"
+    assert "2022-11-01" in fact["unlabeled_dates"], (
+        "the unlabeled date should still be surfaced as a candidate for human review")
+
+
+def test_recording_date_still_captured_when_labeled(tmp_path):
+    # Regression: labeled recording dates must keep working exactly as before.
+    docs = {
+        "c_recorded.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Effective Date: 2015-04-10\n"
+            "Recorded: 2015-04-20  Book 9 Page 4\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["c_recorded.txt"]
+    assert fact["recording_date"] == "2015-04-20"
+
+
+def test_recording_date_captured_when_date_precedes_label(tmp_path):
+    # Regression (PR review finding): a genuine recording stamp can put the
+    # date BEFORE the label instead of after it. The label-scoped extractor
+    # must still find it -- without falling back to an unrelated date on a
+    # preceding line (see test_recording_date_still_captured_when_labeled).
+    docs = {
+        "d_date_before_label.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Effective Date: 2015-04-10\n"
+            "04/20/2015 Recorded, Book 9 Page 4\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["d_date_before_label.txt"]
+    assert fact["recording_date"] == "2015-04-20"
+
+
+def test_recording_date_does_not_steal_a_neighboring_field_date(tmp_path):
+    # Regression (Cursor Bugbot finding on the previous fix): the after-label
+    # window can cross a newline (to catch "label:\ndate" on the next line),
+    # but it must NOT cross into a completely different field's own label
+    # and steal that date instead -- here "Recorded:" has no date of its own
+    # at all, and the next line is a different field's label+date.
+    docs = {
+        "e_no_recording_date_present.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Recorded:\n"
+            "Effective Date: 2015-04-10\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["e_no_recording_date_present.txt"]
+    assert fact["recording_date"] == "", (
+        "recording_date must stay blank, not steal the neighboring Effective Date")
+    assert fact["effective_date"] == "2015-04-10", "the actual Effective Date must still be captured"
+
+
+def test_recording_date_prefers_label_adjacent_date_over_earlier_one_on_same_line(tmp_path):
+    # Regression (Cursor Bugbot finding): when a before-label window contains
+    # TWO dates on the same line, the one immediately adjacent to the label
+    # must win, not an earlier, unrelated one earlier on that line.
+    docs = {
+        "f_two_dates_same_line.txt": (
+            "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
+            "MINERAL DEED\n"
+            "Grantor: Alpha Owner\n"
+            "Grantee: Beta Buyer\n"
+            "Reference 2010-01-01, actually 2015-04-20 Recorded\n"
+            "Legal: Section 4, T2N, R55W\n"
+        ),
+    }
+    out, _ = _run_custom_corpus(tmp_path, docs)
+    facts = {f["source_file"]: f for f in _read_csv(out / "extracted_facts.csv")}
+    fact = facts["f_two_dates_same_line.txt"]
+    assert fact["recording_date"] == "2015-04-20"
+
+
+# ===========================================================================
+# Regression tests -- issue #94 item 3: _DECIMAL_RX digit-count restriction,
+# and sum-to-one only asserted for a proven-complete owner set.
+# ===========================================================================
+def _make_fact(source_file, values, all_decimals=None):
+    f = grp.Fact(source_file=source_file)
+    f.values.update(values)
+    f.all_decimals = all_decimals or []
+    return f
+
+
+def test_decimal_regex_accepts_short_precision():
+    # MANDATORY REGRESSION (issue #94 item 3): ordinary values like 0.5 /
+    # 0.25 / 0.125 must parse (previously required 4-9 digits after '.').
+    assert grp._DECIMAL_RX.findall("decimal interest 0.5") == ["0.5"]
+    assert grp._DECIMAL_RX.findall("decimal interest of 0.25") == ["0.25"]
+    assert grp._DECIMAL_RX.findall("decimal: 0.125") == ["0.125"]
+    # still anchored to the "decimal interest" label context -- an unrelated
+    # 0.5 in prose must not match.
+    assert grp._DECIMAL_RX.findall("the tract is roughly 0.5 miles wide") == []
+
+
+def test_decimal_05_plus_05_reconciles_to_one(tmp_path):
+    # MANDATORY REGRESSION: 0.5 + 0.5 parses and reconciles to 1.0 (complete
+    # owner set: both decimals come from one self-contained ownership doc).
+    legal = "Section 8, T3N, R58W"
+    f = _make_fact("single_ownership_sheet.txt", {"legal_description": legal},
+                    all_decimals=[0.5, 0.5])
+    out = tmp_path / "out_complete"
+    log = grp.BuildLog()
+    recon = grp.reconcile([f], out, log)
+    assert not any(c[0] == "decimal-sum" for c in recon["conflicts"]), (
+        "0.5 + 0.5 from a single complete ownership document must reconcile "
+        "to 1.0 without a false decimal-sum conflict")
+
+
+def test_decimal_sum_not_asserted_for_incomplete_owner_set(tmp_path):
+    # MANDATORY REGRESSION: an incomplete owner set (decimals scattered
+    # across unrelated documents) must NOT assert a false sum-to-one
+    # conflict, even though 0.6 + 0.9 = 1.5 != 1.0.
+    legal = "Section 9, T3N, R58W"
+    f1 = _make_fact("assignment_partial.txt", {"legal_description": legal}, all_decimals=[0.6])
+    f2 = _make_fact("ownership_sheet_other.txt", {"legal_description": legal}, all_decimals=[0.9])
+    out = tmp_path / "out_incomplete"
+    log = grp.BuildLog()
+    recon = grp.reconcile([f1, f2], out, log)
+    assert not any(c[0] == "decimal-sum" for c in recon["conflicts"]), (
+        "decimals spread across multiple unrelated documents are not proof of "
+        "a complete owner set and must not raise a false decimal-sum conflict")
+
+
+def test_decimal_sum_conflict_still_flagged_when_owner_set_complete(tmp_path):
+    # A genuine imbalance within a single, complete ownership document must
+    # still be flagged (this is what test_decimal_sum_flagged also covers
+    # end-to-end via the synthetic corpus).
+    legal = "Section 10, T3N, R58W"
+    f = _make_fact("single_sheet_incomplete_sum.txt", {"legal_description": legal},
+                    all_decimals=[0.6, 0.3])
+    out = tmp_path / "out_genuine_conflict"
+    log = grp.BuildLog()
+    recon = grp.reconcile([f], out, log)
+    dec_conflicts = [c for c in recon["conflicts"] if c[0] == "decimal-sum"]
+    assert dec_conflicts, "a genuine imbalance within a complete owner set must still be flagged"
+    assert "0.9" in dec_conflicts[0][2]

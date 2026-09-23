@@ -1,8 +1,23 @@
 import requests
 import unittest
 import os
+import sys
 import time
+import asyncio
+import tempfile
+import shutil
+import importlib
+import importlib.util
 from datetime import datetime
+
+try:
+    from fastapi.testclient import TestClient
+    from fastapi import HTTPException
+    _FASTAPI_TESTCLIENT_AVAILABLE = True
+except Exception:  # pragma: no cover - exercised only when fastapi/httpx missing
+    TestClient = None
+    HTTPException = None
+    _FASTAPI_TESTCLIENT_AVAILABLE = False
 
 
 def _resolve_backend_url():
@@ -225,6 +240,247 @@ class DataBossXAPITester(unittest.TestCase):
         
         print("✅ Document processing workflow test completed")
         return data
+
+_REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+_SERVER_PATH = os.path.join(_REPO_ROOT, "backend", "server.py")
+
+_SECURITY_ENV_KEYS = [
+    "DATABOSSX_API_KEY",
+    "DATABOSSX_ALLOWED_ORIGINS",
+    "DATABOSSX_DEMO_MODE",
+    "DATABOSSX_MAX_UPLOAD_SIZE_BYTES",
+    "DATABOSSX_ALLOWED_CONTENT_TYPES",
+    "DATABOSSX_HOST",
+    "DATABOSSX_PORT",
+]
+
+
+def _load_server_module(env_overrides, db_path):
+    """Import backend/server.py fresh under a controlled environment.
+
+    A brand-new module object is returned each call, so module-level state
+    (the `settings` singleton built from env vars, the FastAPI `app`) reflects
+    exactly `env_overrides`, independent of any other test or the real
+    process environment. Used by the issue #94 regression tests below so each
+    scenario (demo mode on/off, API key set/unset, custom CORS allowlist) gets
+    its own isolated backend instance.
+    """
+    saved = {key: os.environ.get(key) for key in _SECURITY_ENV_KEYS + ["SQLITE_DB_PATH"]}
+    try:
+        for key in _SECURITY_ENV_KEYS:
+            os.environ.pop(key, None)
+        os.environ.update(env_overrides)
+        os.environ["SQLITE_DB_PATH"] = db_path
+
+        sys.modules.pop("server", None)
+        spec = importlib.util.spec_from_file_location("server", _SERVER_PATH)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["server"] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+@unittest.skipUnless(
+    _FASTAPI_TESTCLIENT_AVAILABLE,
+    "fastapi/httpx TestClient not installed; skipping in-process backend "
+    "security regression tests (issue #94).",
+)
+class DataBossXSecurityRegressionTests(unittest.TestCase):
+    """In-process regression tests for issue #94 items 4-6.
+
+    These do not depend on a live server (unlike DataBossXAPITester above):
+    they import backend/server.py directly and drive it with FastAPI's
+    TestClient, so they run in any environment that has the backend's own
+    dependencies installed.
+    """
+
+    def setUp(self):
+        self._tmp_dir = tempfile.mkdtemp(prefix="databossx_test_")
+        self.addCleanup(shutil.rmtree, self._tmp_dir, ignore_errors=True)
+
+    def _db_path(self, name):
+        return os.path.join(self._tmp_dir, name)
+
+    # -- Test 1: every non-health data endpoint requires authentication -----
+    def test_data_endpoints_reject_unauthenticated_requests(self):
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "correct-horse-battery-staple"},
+            self._db_path("auth.db"),
+        )
+        with TestClient(module.app) as client:
+            # Health check stays open.
+            self.assertEqual(client.get("/api/health").status_code, 200)
+
+            protected_requests = [
+                ("GET", "/api/documents"),
+                ("GET", "/api/documents/does-not-exist"),
+                ("GET", "/api/logs"),
+                ("GET", "/api/analytics"),
+            ]
+            for method, path in protected_requests:
+                with self.subTest(endpoint=path, auth="missing"):
+                    response = client.request(method, path)
+                    self.assertIn(
+                        response.status_code, (401, 403),
+                        f"{path} should reject an unauthenticated request, got {response.status_code}",
+                    )
+                with self.subTest(endpoint=path, auth="wrong"):
+                    response = client.request(method, path, headers={"X-API-Key": "wrong-key"})
+                    self.assertIn(
+                        response.status_code, (401, 403),
+                        f"{path} should reject a wrong API key, got {response.status_code}",
+                    )
+                with self.subTest(endpoint=path, auth="correct"):
+                    response = client.request(
+                        method, path, headers={"X-API-Key": "correct-horse-battery-staple"}
+                    )
+                    self.assertNotIn(response.status_code, (401, 403))
+
+            # Upload endpoint: unauthenticated multipart POST must also be rejected.
+            files = {"file": ("sample.txt", b"hello world", "text/plain")}
+            response = client.post("/api/documents/upload", files=files)
+            self.assertIn(response.status_code, (401, 403))
+            response = client.post(
+                "/api/documents/upload", files=files, headers={"X-API-Key": "wrong-key"}
+            )
+            self.assertIn(response.status_code, (401, 403))
+
+    def test_data_endpoints_reject_when_no_api_key_configured(self):
+        """Fail closed: with DATABOSSX_API_KEY unset, nothing gets in - not even a blank key."""
+        module = _load_server_module({}, self._db_path("noauth.db"))
+        self.assertIsNone(module.settings.api_key)
+        with TestClient(module.app) as client:
+            response = client.get("/api/documents", headers={"X-API-Key": ""})
+            self.assertIn(response.status_code, (401, 403))
+            response = client.get("/api/documents")
+            self.assertIn(response.status_code, (401, 403))
+
+    # -- Test 2: untrusted origins cannot make credentialed CORS requests ---
+    def test_cors_never_combines_wildcard_with_credentials(self):
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_ALLOWED_ORIGINS": "*"},
+            self._db_path("cors_wildcard.db"),
+        )
+        # Even if misconfigured with "*", the loaded settings must never expose
+        # a wildcard origin while credentials are allowed.
+        self.assertNotIn("*", module.settings.allowed_origins)
+
+    def test_cors_rejects_untrusted_origin_for_credentialed_request(self):
+        module = _load_server_module(
+            {
+                "DATABOSSX_API_KEY": "test-key",
+                "DATABOSSX_ALLOWED_ORIGINS": "https://trusted.databossx.example",
+            },
+            self._db_path("cors_allowlist.db"),
+        )
+        self.assertNotIn("*", module.settings.allowed_origins)
+
+        with TestClient(module.app) as client:
+            # An origin not on the allowlist must not be reflected back.
+            response = client.get(
+                "/api/health",
+                headers={"Origin": "https://evil.attacker.example"},
+            )
+            self.assertNotEqual(
+                response.headers.get("access-control-allow-origin"),
+                "https://evil.attacker.example",
+            )
+            self.assertIsNone(response.headers.get("access-control-allow-origin"))
+
+            # A trusted origin is allowed through with credentials support.
+            response = client.get(
+                "/api/health",
+                headers={"Origin": "https://trusted.databossx.example"},
+            )
+            self.assertEqual(
+                response.headers.get("access-control-allow-origin"),
+                "https://trusted.databossx.example",
+            )
+            self.assertEqual(response.headers.get("access-control-allow-credentials"), "true")
+
+    # -- Test 3: outside demo mode, mock OCR fails closed and never fabricates content --
+    def test_ocr_fails_closed_outside_demo_mode(self):
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "false"},
+            self._db_path("ocr_real.db"),
+        )
+        self.assertFalse(module.settings.demo_mode)
+
+        async def _run():
+            return await module.process_ocr(b"real uploaded file bytes", "real_document.pdf")
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(_run())
+        self.assertEqual(ctx.exception.status_code, 503)
+        # The failure detail must not itself contain any fabricated document content.
+        self.assertNotIn("Parties", str(ctx.exception.detail))
+        self.assertNotIn("DataBossX Corp", str(ctx.exception.detail))
+
+    def test_ocr_demo_mode_output_is_unambiguously_labeled_synthetic(self):
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "true"},
+            self._db_path("ocr_demo.db"),
+        )
+        self.assertTrue(module.settings.demo_mode)
+
+        async def _run():
+            return await module.process_ocr(b"anything", "some_document.pdf")
+
+        result = asyncio.run(_run())
+        self.assertTrue(result.get("is_synthetic"))
+        self.assertIn("SYNTHETIC", result["raw_text"])
+        # No invented legal-sounding facts (the original defect's fabricated
+        # parties/summary text) should ever appear, even in demo mode.
+        for fabricated_fact in ("Parties:", "DataBossX Corp", "Client ABC", "Sample Legal Document"):
+            self.assertNotIn(fabricated_fact, result["raw_text"])
+        # The old defect returned a fixed high confidence (0.95) for fabricated
+        # output; the synthetic placeholder must not masquerade as confident.
+        self.assertNotEqual(result["confidence_score"], 0.95)
+
+    # -- Regression: PR review findings on the above fixes ------------------
+    def test_health_check_reports_ocr_unavailable_outside_demo_mode(self):
+        """/api/health must not claim OCR is available when it will fail closed."""
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "false"},
+            self._db_path("health_real.db"),
+        )
+        with TestClient(module.app) as client:
+            body = client.get("/api/health").json()
+            self.assertNotEqual(body["services"]["ocr"], "available")
+
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "true"},
+            self._db_path("health_demo.db"),
+        )
+        with TestClient(module.app) as client:
+            body = client.get("/api/health").json()
+            self.assertIn("demo", body["services"]["ocr"].lower())
+
+    def test_upload_rejects_synchronously_when_ocr_unavailable(self):
+        """An upload must not be accepted (200/"processing") only to fail
+        invisibly in the background once OCR rejects it - the client should
+        get the real 503 immediately, before any document record is created."""
+        module = _load_server_module(
+            {"DATABOSSX_API_KEY": "test-key", "DATABOSSX_DEMO_MODE": "false"},
+            self._db_path("upload_no_ocr.db"),
+        )
+        with TestClient(module.app) as client:
+            files = {"file": ("sample.pdf", b"%PDF-1.4 fake", "application/pdf")}
+            response = client.post(
+                "/api/documents/upload", files=files, headers={"X-API-Key": "test-key"}
+            )
+            self.assertEqual(response.status_code, 503)
+            documents = client.get(
+                "/api/documents", headers={"X-API-Key": "test-key"}
+            ).json()
+            self.assertEqual(documents, [], "no document record should be created for a rejected upload")
+
 
 def run_tests():
     """Run all API tests"""

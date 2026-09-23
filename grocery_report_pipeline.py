@@ -263,6 +263,81 @@ def parse_date(text: str) -> Optional[str]:
     return None
 
 
+def _try_parse_date(raw: str, fmt: str) -> Optional[str]:
+    """Parse one already-matched date string; return its ISO form or None."""
+    try:
+        if fmt == "%B %d %Y":
+            dt = _dt.datetime.strptime(re.sub(r",", "", raw), "%B %d %Y")
+        else:
+            dt = _dt.datetime.strptime(raw.replace("/", "-").replace(".", "-"),
+                                       fmt.replace("/", "-"))
+        if not (1700 <= dt.year <= 2100):
+            return None
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return None
+
+
+_LABEL_DATE_GAP_RX = re.compile(r"[\s:,.\-]*")
+
+
+def _date_adjacent_to_label(window: str, prefer: str) -> Optional[str]:
+    """Find a date in `window` that is separated from the label edge by
+    punctuation/whitespace ONLY -- never by other words.
+
+    `prefer="start"`: the label sits right before `window` (an after-label
+    search); the date must start at or near position 0, with only a
+    punctuation/whitespace gap before it, and the candidate closest to the
+    start wins.
+    `prefer="end"`: the label sits right after `window` (a before-label
+    search); the date must end at or near len(window), with only a
+    punctuation/whitespace gap after it, and the candidate closest to the
+    end wins.
+
+    This is what actually prevents two failure modes a blind N-character
+    window allows: (1) a same-line window "stealing" an unrelated EARLIER
+    date that precedes the real, label-adjacent one, and (2) a window that
+    crosses into a *different* field's own label text (e.g. "Recorded:
+    \\nEffective Date: 2015-04-10") and captures that field's date instead --
+    both require crossing word characters, which the gap check forbids.
+    """
+    best = None  # (sort_key, iso) -- larger sort_key wins
+    for rx, fmt in _DATE_PATTERNS:
+        for m in rx.finditer(window):
+            if prefer == "start":
+                gap = window[:m.start()]
+                sort_key = -m.start()
+            else:
+                gap = window[m.end():]
+                sort_key = m.end()
+            if not _LABEL_DATE_GAP_RX.fullmatch(gap):
+                continue
+            iso = _try_parse_date(m.group(0), fmt)
+            if iso is None:
+                continue
+            if best is None or sort_key > best[0]:
+                best = (sort_key, iso)
+    return best[1] if best else None
+
+
+def find_all_dates(text: str) -> List[str]:
+    """Return every ISO date found anywhere in text (dedup, first-seen order).
+
+    Deterministic; used only to surface *candidate* dates for human review --
+    never to silently populate a labeled field like recording_date (issue
+    #94 item 2).
+    """
+    found: List[str] = []
+    if not text:
+        return found
+    for rx, _fmt in _DATE_PATTERNS:
+        for m in rx.finditer(text):
+            d = parse_date(m.group(0))
+            if d and d not in found:
+                found.append(d)
+    return found
+
+
 def is_impossible_date(iso: Optional[str]) -> bool:
     if not iso:
         return False
@@ -804,6 +879,7 @@ def classify_documents(recs: List[FileRec], texts: Dict[str, TextRec],
 FACT_FIELDS = [
     "grantor", "grantee", "lessor", "lessee", "assignor", "assignee",
     "decedent_heir_devisee", "effective_date", "execution_date", "recording_date",
+    "unlabeled_dates",
     "book_page_or_instrument", "county", "state", "legal_description",
     "tract_description", "gross_acres", "net_acres", "royalty",
     "working_interest", "net_revenue_interest", "lease_burden", "mineral_interest",
@@ -820,7 +896,11 @@ _NET_RX = re.compile(r"([\d,]+(?:\.\d+)?)\s*net\s+acres?", re.I)
 _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)", re.I)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
-_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{4,9})", re.I)
+# issue #94 item 3: was `\d{4,9}`, which missed ordinary decimals such as
+# 0.5, 0.25, 0.125 (1-3 digits). Now accepts any valid precision (1-9
+# digits) while staying anchored to the "decimal interest" label context,
+# and the (?!\d) guard stops it truncating a longer run of digits.
+_DECIMAL_RX = re.compile(r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{1,9})(?!\d)", re.I)
 _INSTR_RX = re.compile(r"(?:book\s*(\d+)\s*,?\s*page\s*(\d+)|"
                        r"(?:doc(?:ument)?|instr(?:ument)?|reception)\s*(?:no\.?|#|number)?\s*[:#]?\s*([0-9]{4,}))",
                        re.I)
@@ -897,11 +977,48 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         for key, kw in [("effective_date", r"effective\s+date"),
                         ("execution_date", r"(?:executed|dated|execution\s+date)"),
                         ("recording_date", r"(?:recorded|recording\s+date|filed)")]:
-            m = re.search(rf"{kw}[^\n]{{0,40}}", text, re.I)
-            d = parse_date(m.group(0)) if m else None
+            m = re.search(kw, text, re.I)
+            d = None
+            if m:
+                # Prefer a date AFTER the label (the common case, and the
+                # original behavior); this window may cross one newline
+                # ("Recorded:\n2015-04-20"), since that text is what the
+                # label is actually introducing -- but _date_adjacent_to_label
+                # requires a punctuation/whitespace-only gap, so it can never
+                # bleed into a DIFFERENT field's own label text (e.g.
+                # "Recorded:\nEffective Date: 2015-04-10" no longer steals
+                # that Effective Date). Only fall back to a window BEFORE the
+                # label -- for a genuine recording stamp that puts the date
+                # first, e.g. "04/20/2015 Recorded" -- clamped to the CURRENT
+                # LINE ONLY and, again via the gap check, immune to picking
+                # up an earlier, unrelated date earlier on that same line.
+                # Still requires the label itself to match nearby; this is
+                # not the removed whole-document fallback, which had no
+                # label requirement at all.
+                after = text[m.end():min(len(text), m.end() + 40)]
+                d = _date_adjacent_to_label(after, prefer="start")
+                if d is None:
+                    line_start = text.rfind("\n", 0, m.start()) + 1
+                    before_start = max(line_start, m.start() - 40)
+                    before = text[before_start:m.start()]
+                    d = _date_adjacent_to_label(before, prefer="end")
             setv(key, d, 0.6 if d else 0.0)
+        # IMPORTANT (issue #94 item 2): recording_date must NEVER be
+        # fabricated from "the first date anywhere in the document". It is
+        # only ever set above, from text actually near a
+        # recorded/recording-date/filed label. If no such label was found,
+        # recording_date stays blank and REVIEW REQUIRED -- any other dates
+        # in the document are unrelated evidence and get parked under
+        # unlabeled_dates as separate, clearly-not-recording candidates, so
+        # they remain visible for a human reviewer without silently
+        # occupying (and thereby suppressing the missing-recording-data
+        # warning on) the recording_date slot.
         if "recording_date" not in v:
-            setv("recording_date", parse_date(text), 0.4)
+            already_seen = {v.get("effective_date"), v.get("execution_date")}
+            unlabeled = [d for d in find_all_dates(text) if d not in already_seen]
+            if unlabeled:
+                setv("unlabeled_dates", "; ".join(unlabeled), 0.2)
+            f.review_flags.append("recording-date-missing:no-recorded/filed-label-found")
 
         m = _INSTR_RX.search(text)
         if m:
@@ -1047,15 +1164,34 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
             decs = [(_to_float(f.values.get("decimal_interest")), f) for f in group
                     if f.values.get("decimal_interest")]
         dec_sum = round(sum(d for d, _ in decs if d is not None), 8) if decs else None
+        # issue #94 item 3: a sum-to-1.0 assertion is only meaningful when the
+        # owner set summed is actually complete. The one "complete owner
+        # set" signal this extraction can vouch for is a single, self
+        # contained source document that lists the decimals (a multi-owner
+        # ownership/decimal schedule -- see the all_decimals capture above).
+        # Decimals pooled across MULTIPLE different documents are not proof
+        # of a complete owner set (each doc may only show one party's slice,
+        # e.g. a lease's WI mixed with an unrelated assignment's decimal),
+        # so summing those must never manufacture a false imbalance finding.
+        contributing_files = sorted({f.source_file for _, f in decs if f is not None})
+        complete_owner_set = len(contributing_files) == 1
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
+        if dec_sum is None:
+            dec_check = "n/a"
+        elif not complete_owner_set:
+            dec_check = (f"n/a: owner set spans {len(contributing_files)} documents -- "
+                         f"not asserted complete, sum not evaluated")
+        elif abs(dec_sum - 1.0) < 1e-4:
+            dec_check = "OK"
+        else:
+            dec_check = f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"
         calc_rows.append([legal, len(group),
                           dec_sum if dec_sum is not None else "n/a",
-                          ("OK" if dec_sum is None or abs(dec_sum - 1.0) < 1e-4
-                           else f"{REVIEW}: decimals sum to {dec_sum}, expected 1.0"),
+                          dec_check,
                           ", ".join(str(g) for g in gross_vals) or "n/a",
                           ("OK" if len(gross_vals) <= 1 else f"{REVIEW}: gross acreage disagrees")])
-        if dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
+        if complete_owner_set and dec_sum is not None and abs(dec_sum - 1.0) > 1e-4:
             conflicts.append(["decimal-sum", legal, f"Decimals sum to {dec_sum} (expected 1.0)",
                               "; ".join(f.source_file for _, f in decs)])
         if len(gross_vals) > 1:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 from databossx.governor.cycle import run_synthetic_cycle
@@ -65,7 +66,29 @@ def _cmd_cycle(root: Path, args: argparse.Namespace) -> int:
     return 0 if receipt.outcome.endswith("REVIEW") else 2
 
 
+def _take_repo_root(argv: list[str]) -> tuple[list[str], str | None]:
+    """Allow --repo-root before or after the subcommand without argparse conflicts."""
+    cleaned: list[str] = []
+    repo_root = None
+    index = 0
+    while index < len(argv):
+        item = argv[index]
+        if item == "--repo-root" and index + 1 < len(argv):
+            repo_root = argv[index + 1]
+            index += 2
+            continue
+        if item.startswith("--repo-root="):
+            repo_root = item.split("=", 1)[1]
+            index += 1
+            continue
+        cleaned.append(item)
+        index += 1
+    return cleaned, repo_root
+
+
 def main(argv: list[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    cleaned, extracted_root = _take_repo_root(raw)
     parser = argparse.ArgumentParser(prog="databossx", description="DataBossX public-safe control CLI")
     parser.add_argument("--repo-root", default=".", help="repository root")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -76,8 +99,8 @@ def main(argv: list[str] | None = None) -> int:
     cycle = sub.add_parser("cycle", help="run one synthetic L2 improvement cycle")
     cycle.add_argument("--worker-id", default="governor-l2")
 
-    args = parser.parse_args(argv)
-    root = Path(args.repo_root).resolve()
+    args = parser.parse_args(cleaned)
+    root = Path(extracted_root if extracted_root is not None else args.repo_root).resolve()
     commands = {
         "census": _cmd_census,
         "policy-gate": _cmd_policy_gate,

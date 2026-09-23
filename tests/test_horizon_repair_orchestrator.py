@@ -39,16 +39,17 @@ def test_repair_refuses_error_formula_downgrade(tmp_path):
     src = tmp_path / "report.xlsx"
     _make_xlsx_with_error_formula(src)
     dest = tmp_path / "report_v002.xlsx"
+    src_bytes = src.read_bytes()
     result = repair_workbook(src, dest)
     assert not result.repaired
     assert result.promoted is False
     assert result.output is None
     assert result.defect_code == "ERROR_FORMULA_DOWNGRADE_REFUSED"
     assert not dest.exists()
-    # source workbook was never modified
-    assert src.exists()
+    assert src.read_bytes() == src_bytes
     with zipfile.ZipFile(src) as zf:
         assert zf.read("xl/media/plat1.png") == b"\x89PNG\r\n\x1a\nFAKEPLATDATA"
+        assert b"#REF!" in zf.read("xl/worksheets/sheet1.xml")
 
 
 def test_report_io_roundtrip(tmp_path):

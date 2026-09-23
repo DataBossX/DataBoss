@@ -100,7 +100,7 @@ def test_ordinary_decimals_parse_and_incomplete_set_does_not_sum(tmp_path):
     complete = _facts_from_text(
         tmp_path,
         "owners.txt",
-        "SYNTHETIC TEST DOCUMENT\nOWNERSHIP / mineral owner decimal interest schedule\n"
+        "SYNTHETIC TEST DOCUMENT\nOWNERSHIP / mineral owner decimal interest schedule -- complete owner set\n"
         "Owner A decimal interest 0.5\nOwner B decimal interest 0.5\n"
         "Legal: Section 12, T7N, R63W\n",
     )
@@ -119,6 +119,30 @@ def test_ordinary_decimals_parse_and_incomplete_set_does_not_sum(tmp_path):
     assert incomplete[0].owner_set_complete is False
     recon_incomplete = grp.reconcile(incomplete, tmp_path / "out", grp.BuildLog())
     assert recon_incomplete["conflicts"] == []
+
+
+def test_unrecorded_does_not_become_recording_date(tmp_path):
+    facts = _facts_from_text(
+        tmp_path,
+        "lease.txt",
+        "SYNTHETIC TEST DOCUMENT\nOIL AND GAS LEASE\n"
+        "Lessor: Foo\nLessee: Bar\nThis unrecorded lease dated 2019-03-15\n"
+        "Legal: Section 12, T7N, R63W\n",
+    )
+    assert facts[0].values.get("recording_date") in (None, "")
+    assert "missing-recording-date-label" in facts[0].review_flags
+
+
+def test_out_of_range_decimal_is_not_coerced_to_one(tmp_path):
+    facts = _facts_from_text(
+        tmp_path,
+        "acres.txt",
+        "SYNTHETIC TEST DOCUMENT\nMINERAL DEED\n"
+        "Grantor: Foo\nGrantee: Bar\ndecimal interest 1.5\n"
+        "Legal: Section 12, T7N, R63W\n",
+    )
+    assert 1.0 not in facts[0].all_decimals
+    assert 1.5 not in facts[0].all_decimals
 
 
 def test_existing_synthetic_decimal_sum_still_flagged(tmp_path):

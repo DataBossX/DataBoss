@@ -288,10 +288,7 @@ def _owner_set_is_complete(text: str, decimals: List[float]) -> bool:
     body = text or ""
     if _OWNER_SET_INCOMPLETE_RX.search(body):
         return False
-    if _OWNER_SET_COMPLETE_RX.search(body):
-        return True
-    claimed_schedule = re.search(r"\bownership\b.*\bdecimal interest\b", body, re.I | re.S)
-    return bool(claimed_schedule) and len(decimals) >= 2
+    return bool(_OWNER_SET_COMPLETE_RX.search(body))
 
 
 def _date_near_label(text: str, keyword: str) -> Optional[str]:
@@ -867,7 +864,7 @@ _ROYALTY_RX = re.compile(r"(?:royalty|rr)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%|\d+/\d+)
 _NRI_RX = re.compile(r"(?:net\s+revenue\s+interest|nri)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _WI_RX = re.compile(r"(?:working\s+interest|wi)\s*(?:of|:)?\s*(\d+(?:\.\d+)?%?)", re.I)
 _DECIMAL_RX = re.compile(
-    r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d{1,16}|1(?:\.0+)?|0)",
+    r"(?:decimal(?:\s+interest)?)\s*(?:of|:)?\s*(0?\.\d+|1(?:\.0+)?|0)(?!\d|\.\d)",
     re.I,
 )
 _OWNER_SET_COMPLETE_RX = re.compile(
@@ -917,6 +914,7 @@ class Fact:
     all_decimals: List[float] = field(default_factory=list)
     unlabeled_dates: List[str] = field(default_factory=list)
     owner_set_complete: bool = False
+    sha256: str = ""
 
 
 def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
@@ -930,7 +928,7 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         if not text.strip():
             continue
         cats = classes.get(r.path, [])
-        f = Fact(source_file=r.rel_path)
+        f = Fact(source_file=r.rel_path, sha256=r.sha256)
         v = f.values
         c = f.confidence
 
@@ -956,7 +954,7 @@ def extract_facts(recs: List[FileRec], texts: Dict[str, TextRec],
         # a fabricated recording_date (Issue #94).
         for key, kw in [("effective_date", r"effective\s+date"),
                         ("execution_date", r"(?:executed|dated|execution\s+date)"),
-                        ("recording_date", r"(?:recorded|recording\s+date|filed)")]:
+                        ("recording_date", r"(?<![A-Za-z])(?:recorded|recording\s+date|filed)\b")]:
             parsed = _date_near_label(text, kw)
             setv(key, parsed, 0.6 if parsed else 0.0)
         labeled = {v.get("effective_date"), v.get("execution_date"), v.get("recording_date")}
@@ -1112,12 +1110,20 @@ def reconcile(facts: List[Fact], output_dir: Path, log: BuildLog
     conflicts: List[List[Any]] = []
     for legal, group in sorted(tract_groups.items()):
         # Sum ALL decimals found in each doc (multi-owner sheets contribute many).
-        decs = [(d, f) for f in group for d in (f.all_decimals or [])]
+        # Exact byte-duplicates of one schedule must not be summed twice.
+        distinct, seen_sha = [], set()
+        for f in group:
+            if f.sha256 and f.sha256 in seen_sha:
+                continue
+            if f.sha256:
+                seen_sha.add(f.sha256)
+            distinct.append(f)
+        decs = [(d, f) for f in distinct for d in (f.all_decimals or [])]
         if not decs:
-            decs = [(_to_float(f.values.get("decimal_interest")), f) for f in group
+            decs = [(_to_float(f.values.get("decimal_interest")), f) for f in distinct
                     if f.values.get("decimal_interest")]
         dec_sum = round(sum(d for d, _ in decs if d is not None), 8) if decs else None
-        owner_set_complete = any(f.owner_set_complete for f in group)
+        owner_set_complete = any(f.owner_set_complete for f in distinct)
         gross = [_to_float(f.values.get("gross_acres")) for f in group if f.values.get("gross_acres")]
         gross_vals = sorted(set(g for g in gross if g is not None))
         decimal_check = _decimal_sum_check(dec_sum, owner_set_complete)
@@ -1208,6 +1214,9 @@ def validate(recs: List[FileRec], texts: Dict[str, TextRec], classes: Dict[str, 
         if not f.values.get("book_page_or_instrument") and not f.values.get("recording_date"):
             add("yellow", "missing-recording-data", f.source_file,
                 "No book/page/instrument and no recording date extracted", f.source_file)
+        elif not f.values.get("recording_date"):
+            add("yellow", "missing-recording-date", f.source_file,
+                "No labeled recording date; unlabeled dates are candidates only", f.source_file)
         # impossible dates
         for dk in ("recording_date", "execution_date", "effective_date"):
             if is_impossible_date(f.values.get(dk)):
@@ -1692,7 +1701,7 @@ def make_synthetic_corpus(dest: Path) -> None:
             "Legal: Section 12, T7N, R63W\n"),
         "04_ownership_note.txt": (
             "SYNTHETIC TEST DOCUMENT -- NOT REAL TITLE DATA\n"
-            "OWNERSHIP / mineral owner decimal interest schedule\n"
+            "OWNERSHIP / mineral owner decimal interest schedule -- complete owner set\n"
             "Owner Acme Minerals LLC decimal interest 0.75000000\n"
             "Owner Sample Family Trust decimal interest 0.20000000\n"
             "Legal: Section 12, T7N, R63W\n"),  # sums to 0.95 -> should be flagged

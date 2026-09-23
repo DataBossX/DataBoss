@@ -7,6 +7,7 @@ never process real client uploads or invent legal facts.
 
 from __future__ import annotations
 
+import hmac
 import os
 from pathlib import Path
 
@@ -78,9 +79,12 @@ def authorized(headers: dict[str, str] | None) -> bool:
         return False
     headers = _lower_headers(headers)
     bearer = headers.get("authorization", "")
-    if bearer.lower().startswith("bearer ") and bearer.split(" ", 1)[1].strip() == token:
-        return True
-    return headers.get("x-databossx-demo-token", "").strip() == token
+    presented = ""
+    if bearer.lower().startswith("bearer "):
+        presented = bearer.split(" ", 1)[1].strip()
+    else:
+        presented = headers.get("x-databossx-demo-token", "").strip()
+    return hmac.compare_digest(presented, token)
 
 
 def is_synthetic_upload(filename: str | None, headers: dict[str, str] | None) -> bool:

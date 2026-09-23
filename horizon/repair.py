@@ -16,7 +16,6 @@ non-worksheet parts.
 from __future__ import annotations
 
 import posixpath
-import shutil
 import zipfile
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -76,6 +75,36 @@ def _discard(path: Path) -> None:
         path.unlink()
 
 
+def _cell_inventory(xml_bytes: bytes):
+    try:
+        root = etree.fromstring(xml_bytes, parser=etree.XMLParser(recover=False, huge_tree=False))
+    except etree.XMLSyntaxError as exc:
+        raise RepairDefect("MALFORMED_WORKSHEET_XML", str(exc)) from exc
+    return (
+        [row.get("r") for row in root.iter(f"{{{_MAIN_NS}}}row")],
+        [cell.get("r") for cell in root.iter(f"{{{_MAIN_NS}}}c")],
+    )
+
+
+def workbook_defects(path: Path) -> List[str]:
+    """Strictly scan every worksheet part; empty list means promotable."""
+    if not _HAVE_LXML:
+        return ["LXML_UNAVAILABLE"]
+    defects: List[str] = []
+    try:
+        with zipfile.ZipFile(path) as archive:
+            for name in archive.namelist():
+                if not (name.startswith("xl/worksheets/") and name.endswith(".xml")):
+                    continue
+                try:
+                    _fix_worksheet_xml(archive.read(name), [])
+                except RepairDefect as exc:
+                    defects.append(f"{exc.code}:{name}")
+    except (zipfile.BadZipFile, OSError) as exc:
+        defects.append(f"WORKBOOK_UNREADABLE:{exc}")
+    return defects
+
+
 def _fix_worksheet_xml(xml_bytes: bytes, fixes: List[str]) -> bytes:
     """Inspect one worksheet part.
 
@@ -113,10 +142,12 @@ def repair_workbook(
     copied verbatim. ``src`` is never modified.
     """
     if not _HAVE_LXML:
-        # Degrade gracefully: copy through unchanged rather than crash.
-        shutil.copy2(src, dest)
-        return RepairResult(output=dest, repaired=False,
-                            error="lxml unavailable; copied without repair")
+        return RepairResult(
+            output=None,
+            repaired=False,
+            error="lxml unavailable; repair refused",
+            defect_code="LXML_UNAVAILABLE",
+        )
 
     fixer = worksheet_fixer or _fix_worksheet_xml
     fixes: List[str] = []
@@ -132,7 +163,13 @@ def repair_workbook(
                 if name.startswith("xl/media/"):
                     media += 1
                 if name.startswith("xl/worksheets/") and name.endswith(".xml"):
-                    data = fixer(data, fixes)
+                    fixed = fixer(data, fixes)
+                    if _cell_inventory(fixed) != _cell_inventory(data):
+                        raise RepairDefect(
+                            "CELL_INVENTORY_CHANGED",
+                            f"{name}: repair would add or drop rows/cells",
+                        )
+                    data = fixed
                 # Preserve original metadata (date/compression) for stable output.
                 zout.writestr(item, data)
     except RepairDefect as exc:

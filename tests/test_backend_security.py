@@ -58,6 +58,24 @@ def test_synthetic_placeholder_has_no_invented_legal_facts(demo_env):
     assert "Client ABC" not in text
 
 
+def test_auth_is_default_deny_for_unknown_routes(demo_env):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    from backend.server import create_app
+
+    app = create_app()
+
+    @app.get("/api/new-later-route")
+    def later():
+        return {"ok": True}
+
+    client = TestClient(app)
+    assert client.get("/api/new-later-route").status_code == 401
+    ok = client.get("/api/new-later-route", headers={"X-Databossx-Demo-Token": "demo-token"})
+    assert ok.status_code == 200
+
+
 def test_app_data_routes_unauthenticated(demo_env):
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient

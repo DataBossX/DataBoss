@@ -176,6 +176,20 @@ def test_error_formula_repair_is_refused_not_downgraded(tmp_path, cell_xml):
             assert not _downgraded_error_literals(produced), produced
 
 
+def test_repair_without_lxml_refuses_instead_of_copying(tmp_path, monkeypatch):
+    import horizon.repair as repair_module
+
+    monkeypatch.setattr(repair_module, "_HAVE_LXML", False)
+    src = _build_xlsx(tmp_path / "synthetic_src.xlsx",
+                      _sheet_xml(_rows(ERROR_CELL_VARIANTS["issue_exact_ref"])))
+    src_bytes = src.read_bytes()
+    dest = tmp_path / "out" / "synthetic_v002.xlsx"
+
+    result = repair_module.repair_workbook(src, dest)
+
+    _assert_refused(result, src, src_bytes, dest)
+
+
 def test_template_restore_leaves_no_cached_error_literal(tmp_path):
     """The only approved non-refusal path: exact template formula, no cached
     value, so native recalculation is required before any value is trusted."""
@@ -254,6 +268,12 @@ MALFORMED_SHEETS = {
     "undefined_entity": _sheet_xml(_rows('<c r="A2" t="inlineStr"><is><t>a&nbsp;b</t></is></c>')),
     "duplicate_attribute": _sheet_xml(_rows('<c r="A2" r="A9" t="n"><v>2</v></c>')),
     "truncated_part": _sheet_xml(_VALID_ROWS)[: len(_sheet_xml(_VALID_ROWS)) * 2 // 3],
+    # Recovery parsing would "fix" the #REF! and silently drop row 3.
+    "unclosed_row_with_error_cell": _sheet_xml(
+        '<row r="1"><c r="A1" t="n"><v>1</v></c>'
+        f'<row r="2">{ERROR_CELL_VARIANTS["issue_exact_ref"]}</row>'
+        '<row r="3"><c r="A3" t="n"><v>3</v></c></row>'
+        '<row r="4"><c r="A4" t="n"><v>4</v></c></row>'),
 }
 
 
@@ -308,9 +328,10 @@ def test_clean_workbook_repair_preserves_every_cell_and_media(tmp_path):
             assert zf.read(MEDIA_PART) == MEDIA_BYTES
 
 
-def test_malformed_workbook_never_versioned_by_orchestrator(horizon_cfg):
+@pytest.mark.parametrize("variant", ["unclosed_row", "unclosed_row_with_error_cell"])
+def test_malformed_workbook_never_versioned_by_orchestrator(horizon_cfg, variant):
     seed = _build_xlsx(horizon_cfg.final_reports / f"{BASE}_v001.xlsx",
-                       MALFORMED_SHEETS["unclosed_row"])
+                       MALFORMED_SHEETS[variant])
     seed_bytes = seed.read_bytes()
     report = ReportModel(section="31-12N-24W", rows=[
         TitleRow(grantor="A", grantee="B", instrument_number="100")])

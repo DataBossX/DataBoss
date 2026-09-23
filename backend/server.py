@@ -54,7 +54,9 @@ def create_app() -> FastAPI:
         path = request.url.path
         if security.is_public_path(path):
             return await call_next(request)
-        if security.is_protected_path(path) and not security.authorized(_header_map(request)):
+        if request.method == "OPTIONS" and request.headers.get("access-control-request-method"):
+            return await call_next(request)
+        if not security.authorized(_header_map(request)):
             return _generic_error(401, "unauthorized")
         return await call_next(request)
 

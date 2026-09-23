@@ -19,6 +19,7 @@ import asyncio
 import importlib
 import inspect
 import json
+import os
 import re
 import subprocess
 import sys
@@ -131,8 +132,8 @@ def test_backend_imports_without_llm_sdks_or_side_effects(tmp_path):
         leaked = [m for m in sys.modules if any(m == b or m.startswith(b + ".") for b in BLOCKED)]
         assert not leaked, leaked
     """)
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path),
-           "SQLITE_DB_PATH": str(tmp_path / "issue94.db")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("DATABOSSX_")}
+    env.update(SQLITE_DB_PATH=str(tmp_path / "issue94.db"), PYTHONDONTWRITEBYTECODE="1")
     proc = subprocess.run([sys.executable, "-c", probe], cwd=tmp_path, env=env,
                           capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, proc.stderr[-2000:]
@@ -171,25 +172,24 @@ def test_known_data_routes_reject_unauthenticated(make_client, method, path):
 
 
 BAD_CREDENTIALS = {
-    "none": {},
-    "wrong_bearer": {"Authorization": "Bearer wrong"},
-    "empty_bearer": {"Authorization": "Bearer "},
-    "prefix_of_token": {"Authorization": f"Bearer {TOKEN[:-1]}"},
-    "token_plus_suffix": {"Authorization": f"Bearer {TOKEN}x"},
-    "no_scheme": {"Authorization": TOKEN + "x"},
-    "basic_scheme": {"Authorization": "Basic aXNzdWU5NDp3cm9uZw=="},
-    "wrong_demo_header": {"X-Databossx-Demo-Token": "wrong"},
-    "query_string_token": {},
+    "none": ({}, ""),
+    "wrong_bearer": ({"Authorization": "Bearer wrong"}, ""),
+    "empty_bearer": ({"Authorization": "Bearer "}, ""),
+    "prefix_of_token": ({"Authorization": f"Bearer {TOKEN[:-1]}"}, ""),
+    "token_plus_suffix": ({"Authorization": f"Bearer {TOKEN}x"}, ""),
+    "no_scheme": ({"Authorization": TOKEN + "x"}, ""),
+    "basic_scheme": ({"Authorization": "Basic aXNzdWU5NDp3cm9uZw=="}, ""),
+    "wrong_demo_header": ({"X-Databossx-Demo-Token": "wrong"}, ""),
+    "token_in_query_string": ({}, f"?token={TOKEN}&access_token={TOKEN}"),
+    "token_in_cookie": ({"Cookie": f"token={TOKEN}; session={TOKEN}"}, ""),
 }
 
 
-@pytest.mark.parametrize("headers", BAD_CREDENTIALS.values(), ids=BAD_CREDENTIALS.keys())
+@pytest.mark.parametrize("headers, query", BAD_CREDENTIALS.values(), ids=BAD_CREDENTIALS.keys())
 @pytest.mark.parametrize("path", ["/api/documents", "/api/logs", "/api/analytics"])
-def test_bad_credentials_rejected(make_client, headers, path):
+def test_bad_credentials_rejected(make_client, headers, query, path):
     client, _, _ = make_client()
-    resp = client.get(f"{path}?token={TOKEN}&access_token={TOKEN}", headers=headers) \
-        if not headers else client.get(path, headers=headers)
-    _assert_rejected(resp, f"GET {path} {headers}")
+    _assert_rejected(client.get(path + query, headers=headers), f"GET {path}{query} {headers}")
 
 
 @pytest.mark.parametrize("headers", [
@@ -215,9 +215,8 @@ def test_valid_token_is_accepted(make_client):
 def test_path_variants_do_not_bypass_auth(make_client, path):
     client, _, _ = make_client()
     resp = client.get(path, follow_redirects=False)
-    assert resp.status_code != 200 or resp.json() in ({"status": "healthy"},), (
-        f"{path}: unauthenticated 200 {resp.text[:200]}")
-    assert resp.status_code in (301, 307, 308, 401, 403, 404, 405), resp.status_code
+    assert resp.status_code in (301, 307, 308, 401, 403, 404, 405), (
+        f"{path}: unauthenticated HTTP {resp.status_code} {resp.text[:200]}")
     _assert_no_leak(resp, path)
 
 
@@ -326,7 +325,8 @@ def _assert_no_invented_facts(resp, where):
         assert not conf, f"{where}: mock OCR reported confidence {conf}"
         text = f"{ocr.get('raw_text', '')}\n{ocr.get('cleaned_text', '')}"
         assert not re.search(r"\b\d{4}-\d{2}-\d{2}\b", text), f"{where}: OCR text carries a date"
-        assert not re.search(r"(?im)^\s*-?\s*parties?\s*[:=]\s*\S", text), f"{where}: invented parties"
+        assert not re.search(r"(?im)^[ \t]*-?[ \t]*parties?[ \t]*[:=][ \t]*\S", text), (
+            f"{where}: invented parties")
 
 
 def _assert_refused_upload(resp, where):
@@ -418,7 +418,11 @@ def test_default_bind_is_loopback(make_client, monkeypatch):
     _, _, server = make_client()
     source = Path(server.__file__).read_text(encoding="utf-8")
     assert not re.search(r"host\s*=\s*['\"]0\.0\.0\.0['\"]", source), "hard-coded 0.0.0.0 bind"
-    security = importlib.import_module("backend.security_controls")
+    try:
+        security = importlib.import_module("backend.security_controls")
+    except ImportError:
+        assert "127.0.0.1" in source, "no loopback default bind found"
+        return
     monkeypatch.delenv("DATABOSSX_BIND", raising=False)
     assert security.bind_host() in ("127.0.0.1", "::1", "localhost")
     monkeypatch.setenv("DATABOSSX_BIND", "0.0.0.0")

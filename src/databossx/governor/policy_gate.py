@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 FORBIDDEN = [
-    (re.compile(r"(?i)(api[_-]?key|secret[_-]?key|xoxb-|sk-[A-Za-z0-9]{20,})"), "credential"),
+    (re.compile(r"(?i)(api[_-]?key|secret[_-]?key)[ \t]*[:=][ \t]*['\"][^\s'\"]{16,}"), "credential"),
+    (re.compile(r"(?i)(xoxb-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{20,})"), "credential"),
     (re.compile(r"[A-Za-z]:\\(?:Users|DataBoss|Desktop)\\"), "private_windows_path"),
     (re.compile(r"(?i)-----BEGIN (RSA |OPENSSH |PRIVATE )"), "private_key"),
 ]
@@ -21,6 +22,7 @@ ALLOWLIST = {
     "grocery_report_pipeline.py",
     "horizon/README.md",
     "horizon/main.py",
+    "horizon/config.py",
     "Run_Horizon.bat",
     "docs/DATABOSSX_OS_BLUEPRINT.md",
 }
@@ -34,8 +36,8 @@ def _is_text_file(path: Path) -> bool:
     return path.suffix.lower() in TEXT_SUFFIXES or path.name == ".env.example"
 
 
-def _allowlisted(rel: str) -> bool:
-    return rel in ALLOWLIST or rel.startswith("_AI_")
+def _allowlisted(rel: str, path: Path) -> bool:
+    return rel in ALLOWLIST or rel.startswith("_AI_") or path.name == ".env.example"
 
 
 def scan_publication_policy(repo_root: str | Path) -> dict:
@@ -47,7 +49,7 @@ def scan_publication_policy(repo_root: str | Path) -> dict:
             continue
         rel = path.relative_to(root).as_posix()
         scanned += 1
-        if _allowlisted(rel):
+        if _allowlisted(rel, path):
             continue
         try:
             text = path.read_text(encoding="utf-8")

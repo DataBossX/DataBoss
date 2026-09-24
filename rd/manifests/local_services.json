@@ -1,0 +1,33 @@
+{
+  "schema_id": "databossx.rd.local_services",
+  "schema_version": "1.0",
+  "read_only": true,
+  "network_policy": {
+    "allowed_hosts": ["127.0.0.1"],
+    "deny_non_loopback": true,
+    "deny_cloud": true,
+    "follow_env_hosts": false
+  },
+  "services": {
+    "ollama": {
+      "host": "127.0.0.1",
+      "port": 11434,
+      "read_only": true,
+      "allowed_methods": [
+        ["GET", "/api/version"],
+        ["GET", "/api/tags"],
+        ["POST", "/api/show"]
+      ]
+    },
+    "n8n": {
+      "host": "127.0.0.1",
+      "port": 5678,
+      "read_only": true,
+      "allowed_methods": [
+        ["GET", "/healthz"],
+        ["GET", "/healthz/readiness"],
+        ["GET", "/rest/settings"]
+      ]
+    }
+  }
+}

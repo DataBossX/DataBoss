@@ -1,0 +1,6 @@
+{
+  "schema_id": "databossx.rd.n8n_prerelease_allowlist",
+  "schema_version": "1.0",
+  "allowlist": [],
+  "note": "Empty by default. Prerelease n8n builds fail closed unless an exact version string is listed here or in DATABOSSX_RD_N8N_PRERELEASE_ALLOWLIST."
+}

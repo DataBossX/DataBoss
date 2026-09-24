@@ -1,0 +1,92 @@
+{
+  "schema_id": "databossx.rd.parser_bench",
+  "schema_version": "1.0",
+  "title": "DataBossX document-parser bench specification",
+  "read_only": true,
+  "install_policy": "never_automatic",
+  "network_policy": {
+    "allowed_hosts": ["127.0.0.1"],
+    "deny_cloud": true
+  },
+  "mutable_target": {
+    "path": "runtime/rd",
+    "writer_policy": "single_writer",
+    "production_paths_forbidden": [
+      "output/",
+      "projects/",
+      "private_projects/",
+      "client_work/",
+      "evidence/",
+      "website/",
+      "backend/",
+      "frontend/",
+      "horizon/"
+    ]
+  },
+  "candidates": [
+    {
+      "id": "databossx_current",
+      "label": "current DataBossX parser pipeline",
+      "implementation": "grocery_report_pipeline.extract_text",
+      "version": "1.0.0",
+      "enabled": true,
+      "install": "already_in_repo",
+      "deterministic_expected": true
+    },
+    {
+      "id": "docling",
+      "label": "Docling",
+      "version": "2.130.0",
+      "enabled": false,
+      "install": "never_automatic",
+      "available": false,
+      "note": "Specification only. Do not pip install or download models."
+    },
+    {
+      "id": "mineru",
+      "label": "MinerU",
+      "version": "4.0.7",
+      "enabled": false,
+      "license_accepted": false,
+      "install": "never_automatic",
+      "available": false,
+      "block_reason": "LICENSE_ACCEPTED=false",
+      "note": "Optional candidate. Disabled by default and blocked until LICENSE_ACCEPTED is explicitly true. Never auto-install."
+    }
+  ],
+  "required_result_fields": [
+    "input_sha256",
+    "source_page_count",
+    "source_start_count",
+    "extracted_page_count",
+    "extracted_block_count",
+    "extracted_table_count",
+    "page_provenance",
+    "source_provenance",
+    "elapsed_ms",
+    "peak_memory_kb",
+    "errors",
+    "unknown_fields",
+    "missing_or_dropped_pages",
+    "missing_or_dropped_blocks",
+    "output_sha256",
+    "deterministic_output_expected"
+  ],
+  "test_sources": [
+    {
+      "id": "synthetic_two_page_text",
+      "path": "rd/fixtures/synthetic/SYNTHETIC_BENCH_PAGE.txt",
+      "input_sha256": "a9d6f39c9d84fac7396bf8fc00b236152846bd336de68be29997ddd1e44cd178",
+      "source_start_count": 1,
+      "declared_page_count": 2,
+      "deterministic_output_expected": true,
+      "classification": "synthetic_public_safe"
+    }
+  ],
+  "acceptance": {
+    "missing_evidence_fails_closed": true,
+    "unknown_is_not_success": true,
+    "never_infer_capability_from_name": true,
+    "no_package_or_model_downloads": true
+  }
+}

@@ -12,6 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from .constants import LOOPBACK_HOST, UNKNOWN
 
 Transport = Callable[[str, str, Optional[bytes], Mapping[str, str]], "HttpResult"]
+_REDACT_HEADERS = frozenset({"authorization", "cookie", "set-cookie", "x-n8n-api-key"})
 
 
 class LoopbackHttpError(Exception):
@@ -76,14 +77,31 @@ def _decode_body(raw: bytes) -> tuple[Any, Any]:
 
 
 def _header_map(headers: Mapping[str, str]) -> dict[str, str]:
-    safe: dict[str, str] = {}
-    for key, value in headers.items():
-        lowered = key.lower()
-        if lowered in {"authorization", "cookie", "set-cookie", "x-n8n-api-key"}:
-            safe[key] = "REDACTED"
-        else:
-            safe[key] = value
-    return safe
+    return {
+        key: ("REDACTED" if key.lower() in _REDACT_HEADERS else value)
+        for key, value in headers.items()
+    }
+
+
+def _http_result(
+    url: str,
+    *,
+    ok: bool,
+    status: Any = UNKNOWN,
+    headers: Optional[Mapping[str, str]] = None,
+    raw: bytes = b"",
+    error: Any = UNKNOWN,
+) -> HttpResult:
+    text, payload = _decode_body(raw)
+    return HttpResult(
+        ok=ok,
+        url=url,
+        status=status,
+        headers=_header_map(headers or {}),
+        body_text=text,
+        json_body=payload,
+        error=error,
+    )
 
 
 def default_transport(
@@ -100,37 +118,27 @@ def default_transport(
     opener = build_opener(_FailClosedRedirectHandler)
     try:
         with opener.open(request, timeout=timeout) as response:
-            raw = response.read()
-            text, payload = _decode_body(raw)
-            return HttpResult(
+            return _http_result(
+                url,
                 ok=200 <= int(response.status) < 300,
-                url=url,
                 status=int(response.status),
-                headers=_header_map(response.headers),
-                body_text=text,
-                json_body=payload,
-                error=UNKNOWN,
+                headers=response.headers,
+                raw=response.read(),
             )
     except LoopbackHttpError as exc:
         return HttpResult(ok=False, url=url, error=str(exc))
     except HTTPError as exc:
         raw = exc.read() if exc.fp is not None else b""
-        text, payload = _decode_body(raw)
-        return HttpResult(
+        return _http_result(
+            url,
             ok=False,
-            url=url,
             status=int(exc.code),
-            headers=_header_map(exc.headers or {}),
-            body_text=text,
-            json_body=payload,
+            headers=exc.headers or {},
+            raw=raw,
             error=f"http_error:{exc.code}",
         )
     except URLError as exc:
-        return HttpResult(
-            ok=False,
-            url=url,
-            error=f"unreachable:{exc.reason}",
-        )
+        return HttpResult(ok=False, url=url, error=f"unreachable:{exc.reason}")
     except Exception as exc:  # pragma: no cover - fail closed
         return HttpResult(ok=False, url=url, error=f"request_failed:{type(exc).__name__}")
 

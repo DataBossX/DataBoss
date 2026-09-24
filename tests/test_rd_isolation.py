@@ -49,21 +49,26 @@ def test_production_package_does_not_export_rd():
     assert completed.returncode == 0, completed.stderr
 
 
+def _imported_modules(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names.append(node.module)
+    return names
+
+
 def test_production_paths_do_not_import_rd():
     offenders = []
     for root in PRODUCTION_ROOTS:
         if not root.exists():
             continue
         for path in _iter_python_files(root):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        if alias.name == "databossx_rd" or alias.name.startswith("databossx_rd."):
-                            offenders.append(str(path))
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    if node.module == "databossx_rd" or node.module.startswith("databossx_rd."):
-                        offenders.append(str(path))
+            for name in _imported_modules(path):
+                if name == "databossx_rd" or name.startswith("databossx_rd."):
+                    offenders.append(str(path))
     assert not offenders, f"production path imported R&D package: {offenders}"
 
 

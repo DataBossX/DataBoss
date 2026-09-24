@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from .constants import DEFAULT_RUNTIME_RD, REPO_ROOT
 from .n8n_guard import probe_n8n
@@ -24,46 +24,59 @@ def _output_root(explicit: Optional[str]) -> Path:
     return DEFAULT_RUNTIME_RD
 
 
+def _fail_if(*verdicts: str) -> int:
+    return 2 if any(verdict == "fail" for verdict in verdicts) else 0
+
+
+def _write_observation(root: Path, writer_id: str, files: dict[str, dict]) -> None:
+    target = root / "observations" / _stamp()
+    with exclusive_writer(target, writer_id, [root]) as writer:
+        written = None
+        for name, payload in files.items():
+            written = writer.write_json(name, payload)
+        print(written)
+
+
 def cmd_observe(args: argparse.Namespace) -> int:
     root = _output_root(args.output_root)
-    target = root / "observations" / _stamp()
     ollama = probe_ollama()
     n8n = probe_n8n()
-    combined = {
-        "schema_id": "databossx.rd.live_observation",
-        "schema_version": "1.0",
-        "repo_root": str(REPO_ROOT),
-        "ollama": ollama,
-        "n8n": n8n,
-    }
-    with exclusive_writer(target, "databossx-rd-observe", [root]) as writer:
-        writer.write_json("ollama.json", ollama)
-        writer.write_json("n8n.json", n8n)
-        writer.write_json("observation.json", combined)
-        print(writer.target / "observation.json")
-    if ollama["verdict"] == "fail" or n8n["verdict"] == "fail":
-        return 2
-    return 0
+    _write_observation(
+        root,
+        "databossx-rd-observe",
+        {
+            "ollama.json": ollama,
+            "n8n.json": n8n,
+            "observation.json": {
+                "schema_id": "databossx.rd.live_observation",
+                "schema_version": "1.0",
+                "repo_root": str(REPO_ROOT),
+                "ollama": ollama,
+                "n8n": n8n,
+            },
+        },
+    )
+    return _fail_if(ollama["verdict"], n8n["verdict"])
 
 
 def cmd_probe_ollama(args: argparse.Namespace) -> int:
     result = probe_ollama()
-    root = _output_root(args.output_root)
-    target = root / "observations" / _stamp()
-    with exclusive_writer(target, "databossx-rd-ollama", [root]) as writer:
-        writer.write_json("ollama.json", result)
-        print(writer.target / "ollama.json")
-    return 0 if result["verdict"] != "fail" else 2
+    _write_observation(
+        _output_root(args.output_root),
+        "databossx-rd-ollama",
+        {"ollama.json": result},
+    )
+    return _fail_if(result["verdict"])
 
 
 def cmd_probe_n8n(args: argparse.Namespace) -> int:
     result = probe_n8n()
-    root = _output_root(args.output_root)
-    target = root / "observations" / _stamp()
-    with exclusive_writer(target, "databossx-rd-n8n", [root]) as writer:
-        writer.write_json("n8n.json", result)
-        print(writer.target / "n8n.json")
-    return 0 if result["verdict"] != "fail" else 2
+    _write_observation(
+        _output_root(args.output_root),
+        "databossx-rd-n8n",
+        {"n8n.json": result},
+    )
+    return _fail_if(result["verdict"])
 
 
 def cmd_bench(args: argparse.Namespace) -> int:
@@ -76,7 +89,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
         mode=args.mode,
     )
     print(result.get("output_path"))
-    return 0 if result["verdict"] != "fail" else 2
+    return _fail_if(result["verdict"])
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -102,16 +115,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
+    "observe": cmd_observe,
+    "probe-ollama": cmd_probe_ollama,
+    "probe-n8n": cmd_probe_n8n,
+    "bench": cmd_bench,
+}
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.command == "observe":
-        return cmd_observe(args)
-    if args.command == "probe-ollama":
-        return cmd_probe_ollama(args)
-    if args.command == "probe-n8n":
-        return cmd_probe_n8n(args)
-    if args.command == "bench":
-        return cmd_bench(args)
-    parser.error("unknown command")
-    return 2
+    handler = COMMANDS.get(args.command)
+    if handler is None:
+        parser.error("unknown command")
+    return handler(args)

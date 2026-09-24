@@ -28,82 +28,90 @@ from .loopback_http import LoopbackClient, LoopbackHttpError
 from .redact import is_secret_key, redact
 
 _PRERELEASE_TOKEN_RE = re.compile(
-    r"(alpha|beta|rc|n(?:ightly)?|dev|next|canary|pre|preview|snapshot)",
+    r"(alpha|beta|rc|nightly|dev|next|canary|pre|preview|snapshot)",
     re.IGNORECASE,
 )
 _AGENT_KEY_RE = re.compile(
     r"(agent|instance[_-]?ai|instanceai|aiassistant)",
     re.IGNORECASE,
 )
+_VERSION_RE = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?(.*)$")
 _VERSION_KEYS = (
     "versionCli",
     "version",
     "n8nVersion",
     "cliVersion",
 )
+_N8N_GET_PATHS = (
+    ("health", "/healthz"),
+    ("readiness", "/healthz/readiness"),
+    ("settings", "/rest/settings"),
+)
 
 
-def _parse_version(label: Any) -> tuple[Any, bool]:
-    """Return ((major, minor, patch), is_prerelease) or (UNKNOWN, True/UNKNOWN)."""
+def _suffix_is_prerelease(extra: str) -> bool:
+    extra = extra.strip()
+    if extra.startswith("+"):
+        return False
+    if extra.startswith("-") or _PRERELEASE_TOKEN_RE.search(extra):
+        return True
+    return bool(extra)
+
+
+def _parse_version(label: Any) -> tuple[Any, Any]:
+    """Return ((major, minor, patch), is_prerelease) or (UNKNOWN, UNKNOWN)."""
     if not isinstance(label, str) or not label.strip():
         return UNKNOWN, UNKNOWN
-    text = label.strip().lstrip("vV")
-    match = re.match(r"^(\d+)\.(\d+)\.(\d+)(.*)$", text)
+    match = _VERSION_RE.match(label.strip().lstrip("vV"))
     if not match:
-        match = re.match(r"^(\d+)\.(\d+)(.*)$", text)
-        if not match:
-            return UNKNOWN, UNKNOWN
-        extra = match.group(3)
-        parsed = (int(match.group(1)), int(match.group(2)), 0)
-    else:
-        extra = match.group(4)
-        parsed = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
-    extra = extra.strip()
-    prerelease = bool(extra) and (
-        extra.startswith("-") or extra.startswith("+") or bool(_PRERELEASE_TOKEN_RE.search(extra))
-    )
-    if extra.startswith("-") or bool(_PRERELEASE_TOKEN_RE.search(extra)):
-        prerelease = True
-    elif extra.startswith("+"):
-        prerelease = False
-    else:
-        prerelease = bool(extra)
-    return parsed, prerelease
+        return UNKNOWN, UNKNOWN
+    major, minor, patch, extra = match.groups()
+    parsed = (int(major), int(minor), int(patch or 0))
+    return parsed, _suffix_is_prerelease(extra)
 
 
 def load_prerelease_allowlist(
     path: Optional[Path] = None,
     environ: Optional[dict[str, str]] = None,
 ) -> set[str]:
-    allowed: set[str] = set()
     env = environ if environ is not None else os.environ
-    raw_env = env.get(N8N_PRERELEASE_ALLOWLIST_ENV, "")
-    if raw_env.strip():
-        allowed.update(part.strip() for part in raw_env.split(",") if part.strip())
+    allowed = {
+        part.strip()
+        for part in env.get(N8N_PRERELEASE_ALLOWLIST_ENV, "").split(",")
+        if part.strip()
+    }
     manifest = path or (MANIFEST_ROOT / "n8n_prerelease_allowlist.json")
-    if manifest.exists():
-        try:
-            payload = json.loads(manifest.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            return allowed
-        listed = payload.get("allowlist", [])
-        if isinstance(listed, list):
-            allowed.update(str(item).strip() for item in listed if str(item).strip())
+    if not manifest.exists():
+        return allowed
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return allowed
+    listed = payload.get("allowlist", [])
+    if isinstance(listed, list):
+        allowed.update(str(item).strip() for item in listed if str(item).strip())
     return allowed
 
 
+def _first_version_field(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return UNKNOWN
+    for key in _VERSION_KEYS:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return UNKNOWN
+
+
 def _version_from_payload(payload: Any, headers: dict[str, str]) -> Any:
-    if isinstance(payload, dict):
-        for key in _VERSION_KEYS:
-            value = payload.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-        nested = payload.get("versionNotifications")
-        if isinstance(nested, dict):
-            for key in _VERSION_KEYS:
-                value = nested.get(key)
-                if isinstance(value, str) and value.strip():
-                    return value.strip()
+    version = _first_version_field(payload)
+    if version is not UNKNOWN:
+        return version
+    nested = _first_version_field(
+        payload.get("versionNotifications") if isinstance(payload, dict) else None
+    )
+    if nested is not UNKNOWN:
+        return nested
     for header_name in ("n8n-version", "x-n8n-version"):
         for key, value in headers.items():
             if key.lower() == header_name and value.strip():
@@ -117,12 +125,13 @@ def _agent_settings(payload: Any) -> dict[str, Any]:
         return found
 
     def walk(node: Any, prefix: str) -> None:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                path = f"{prefix}.{key}" if prefix else str(key)
-                if _AGENT_KEY_RE.search(str(key)):
-                    found[path] = value
-                walk(value, path)
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if _AGENT_KEY_RE.search(str(key)):
+                found[path] = value
+            walk(value, path)
 
     walk(payload, "")
     return found
@@ -134,11 +143,59 @@ def _observable_env(environ: Optional[dict[str, str]]) -> dict[str, Any]:
     for key in N8N_OBSERVABLE_ENV_KEYS:
         if key not in env:
             continue
-        if is_secret_key(key):
-            observed[key] = "REDACTED"
-            continue
-        observed[key] = env[key]
+        observed[key] = "REDACTED" if is_secret_key(key) else env[key]
     return observed
+
+
+def _safety_record(
+    *,
+    verdict: str,
+    parsed_version: Any,
+    prerelease: Any,
+    prerelease_allowlisted: bool,
+    agents_owner_review: Any,
+    upgrade_candidate: Any,
+    flags: list[str],
+    errors: list[str],
+) -> dict[str, Any]:
+    return {
+        "verdict": verdict,
+        "parsed_version": parsed_version,
+        "prerelease": prerelease,
+        "prerelease_allowlisted": prerelease_allowlisted,
+        "agents_owner_review": agents_owner_review,
+        "upgrade_candidate": upgrade_candidate,
+        "flags": flags,
+        "errors": errors,
+    }
+
+
+def _release_type_is_prerelease(release_type: Any) -> bool:
+    return (
+        isinstance(release_type, str)
+        and release_type != UNKNOWN
+        and bool(_PRERELEASE_TOKEN_RE.search(release_type))
+    )
+
+
+def _agents_need_owner_review(
+    parsed: Any,
+    agent_settings: dict[str, Any],
+    flags: list[str],
+) -> bool:
+    review = False
+    if isinstance(parsed, tuple) and parsed[:2] == N8N_AGENTS_REVIEW_MINOR:
+        review = True
+        flags.append("n8n_2_41_default_enabled_agents")
+    enabled_hints = [
+        key
+        for key, value in agent_settings.items()
+        if value is True or (isinstance(value, str) and value.lower() in {"true", "enabled"})
+    ]
+    if enabled_hints:
+        review = True
+        flags.append("observable_agents_enabled")
+    return review
 
 
 def evaluate_n8n_safety(
@@ -150,73 +207,78 @@ def evaluate_n8n_safety(
 ) -> dict[str, Any]:
     flags: list[str] = []
     errors: list[str] = []
-    upgrade_candidate = UNKNOWN
-    verdict = "fail"
     parsed, prerelease = _parse_version(version_label)
-    allow = allowlist or set()
 
     if version_label is UNKNOWN or parsed is UNKNOWN:
         errors.append("n8n_version_unknown")
-        return {
-            "verdict": "fail",
-            "parsed_version": UNKNOWN,
-            "prerelease": UNKNOWN,
-            "prerelease_allowlisted": False,
-            "agents_owner_review": UNKNOWN,
-            "upgrade_candidate": UNKNOWN,
-            "flags": flags,
-            "errors": errors,
-        }
+        return _safety_record(
+            verdict="fail",
+            parsed_version=UNKNOWN,
+            prerelease=UNKNOWN,
+            prerelease_allowlisted=False,
+            agents_owner_review=UNKNOWN,
+            upgrade_candidate=UNKNOWN,
+            flags=flags,
+            errors=errors,
+        )
 
-    prerelease_flag = bool(prerelease)
-    if isinstance(release_type, str) and _PRERELEASE_TOKEN_RE.search(release_type):
-        prerelease_flag = True
-    allowlisted = str(version_label) in allow
+    prerelease_flag = bool(prerelease) or _release_type_is_prerelease(release_type)
+    allowlisted = str(version_label) in (allowlist or set())
     if prerelease_flag and not allowlisted:
         errors.append("prerelease_not_allowlisted")
         verdict = "fail"
-    elif prerelease_flag and allowlisted:
+    elif prerelease_flag:
         flags.append("prerelease_allowlisted")
         verdict = "owner_review"
     else:
         verdict = "pass"
 
-    agents_review = False
-    if isinstance(parsed, tuple) and parsed[:2] == N8N_AGENTS_REVIEW_MINOR:
-        agents_review = True
-        flags.append("n8n_2_41_default_enabled_agents")
-    observed_agents = agent_settings or {}
-    if observed_agents:
-        enabled_hints = []
-        for key, value in observed_agents.items():
-            if value is True or (isinstance(value, str) and value.lower() in {"true", "enabled"}):
-                enabled_hints.append(key)
-        if enabled_hints:
-            agents_review = True
-            flags.append("observable_agents_enabled")
+    agents_review = _agents_need_owner_review(parsed, agent_settings or {}, flags)
     if agents_review and verdict == "pass":
         verdict = "owner_review"
 
-    if (
-        isinstance(parsed, tuple)
-        and not prerelease_flag
-        and parsed < N8N_MIN_STABLE
-    ):
+    upgrade_candidate: Any = UNKNOWN
+    if isinstance(parsed, tuple) and not prerelease_flag and parsed < N8N_MIN_STABLE:
         upgrade_candidate = N8N_MIN_STABLE_LABEL
         flags.append("upgrade_candidate_only")
         if verdict == "pass":
             verdict = "owner_review"
 
-    return {
-        "verdict": verdict,
-        "parsed_version": list(parsed) if isinstance(parsed, tuple) else UNKNOWN,
-        "prerelease": prerelease_flag,
-        "prerelease_allowlisted": allowlisted,
-        "agents_owner_review": agents_review,
-        "upgrade_candidate": upgrade_candidate,
-        "flags": flags,
-        "errors": errors,
-    }
+    return _safety_record(
+        verdict=verdict,
+        parsed_version=list(parsed) if isinstance(parsed, tuple) else UNKNOWN,
+        prerelease=prerelease_flag,
+        prerelease_allowlisted=allowlisted,
+        agents_owner_review=agents_review,
+        upgrade_candidate=upgrade_candidate,
+        flags=flags,
+        errors=errors,
+    )
+
+
+def _record_settings(result: dict[str, Any], response: Any) -> tuple[Any, dict[str, str]]:
+    if response.ok and isinstance(response.json_body, dict):
+        payload = response.json_body
+        result["observable_settings"] = {
+            key: payload[key]
+            for key in payload
+            if _AGENT_KEY_RE.search(str(key)) or key in _VERSION_KEYS
+        }
+        return payload, response.headers
+    result["errors"].append(
+        response.error if response.error is not UNKNOWN else "settings_unreadable"
+    )
+    return UNKNOWN, {}
+
+
+def _n8n_reached(result: dict[str, Any], settings_payload: Any) -> bool:
+    if settings_payload is not UNKNOWN:
+        return True
+    for key in ("health", "readiness"):
+        payload = result.get(key)
+        if isinstance(payload, dict) and payload.get("ok") is True:
+            return True
+    return False
 
 
 def probe_n8n(
@@ -227,7 +289,6 @@ def probe_n8n(
     environ: Optional[dict[str, str]] = None,
     allowlist_path: Optional[Path] = None,
 ) -> dict[str, Any]:
-    observed_at = datetime.now(timezone.utc).isoformat()
     env_observed = _observable_env(environ)
     result: dict[str, Any] = {
         "schema_id": "databossx.rd.n8n_guard",
@@ -235,7 +296,7 @@ def probe_n8n(
         "read_only": True,
         "host": host,
         "port": port,
-        "observed_at": observed_at,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
         "verdict": "fail",
         "n8n_version": UNKNOWN,
         "health": UNKNOWN,
@@ -258,33 +319,16 @@ def probe_n8n(
     http = client or LoopbackClient()
     settings_payload: Any = UNKNOWN
     headers: dict[str, str] = {}
-    for label, path in (
-        ("health", "/healthz"),
-        ("readiness", "/healthz/readiness"),
-        ("settings", "/rest/settings"),
-    ):
+    for label, path in _N8N_GET_PATHS:
         try:
             response = http.request("GET", host, port, path, allowed=N8N_ALLOWED_PATHS)
         except LoopbackHttpError as exc:
             result["errors"].append(str(exc))
             continue
-        if label == "health":
-            result["health"] = response.as_dict()
-        elif label == "readiness":
-            result["readiness"] = response.as_dict()
+        if label == "settings":
+            settings_payload, headers = _record_settings(result, response)
         else:
-            if response.ok and isinstance(response.json_body, dict):
-                settings_payload = response.json_body
-                result["observable_settings"] = {
-                    key: settings_payload[key]
-                    for key in settings_payload
-                    if _AGENT_KEY_RE.search(str(key)) or key in _VERSION_KEYS
-                }
-                headers = response.headers
-            else:
-                result["errors"].append(
-                    response.error if response.error is not UNKNOWN else "settings_unreadable"
-                )
+            result[label] = response.as_dict()
 
     version = _version_from_payload(settings_payload, headers)
     if version is UNKNOWN:
@@ -302,22 +346,15 @@ def probe_n8n(
 
     safety = evaluate_n8n_safety(
         result["n8n_version"],
-        agent_settings=agent_related if agent_related else None,
+        agent_settings=agent_related or None,
         release_type=env_observed.get("N8N_RELEASE_TYPE", UNKNOWN),
         allowlist=load_prerelease_allowlist(allowlist_path, environ),
     )
     result["safety"] = safety
-    reached = False
-    for key in ("health", "readiness"):
-        payload = result.get(key)
-        if isinstance(payload, dict) and payload.get("ok") is True:
-            reached = True
-    if settings_payload is not UNKNOWN:
-        reached = True
-    if not reached:
+    if _n8n_reached(result, settings_payload):
+        result["verdict"] = safety["verdict"]
+    else:
         result["errors"].append("n8n_loopback_unreachable")
         result["verdict"] = "fail"
-    else:
-        result["verdict"] = safety["verdict"]
     result["errors"].extend(safety["errors"])
     return redact(result)

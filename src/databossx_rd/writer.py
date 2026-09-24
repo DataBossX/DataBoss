@@ -27,16 +27,26 @@ class WriterConflict(Exception):
 
 def _is_relative_to(path: Path, root: Path) -> bool:
     try:
-        path.resolve().relative_to(root.resolve())
+        path.relative_to(root)
         return True
     except Exception:
         return False
 
 
+def _atomic_write_json(path: Path, payload: Any) -> Path:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(tmp, path)
+    return path
+
+
 def assert_isolated_target(target: Path, allowed_roots: Optional[list[Path]] = None) -> Path:
     resolved = target.resolve()
     roots = [Path(root).resolve() for root in (allowed_roots or [DEFAULT_RUNTIME_RD])]
-    if not any(_is_relative_to(resolved, root) or resolved == root for root in roots):
+    if not any(_is_relative_to(resolved, root) for root in roots):
         raise IsolationError(f"write_outside_isolated_root:{resolved}")
     repo = REPO_ROOT.resolve()
     if _is_relative_to(resolved, repo):
@@ -63,15 +73,26 @@ class ExclusiveWriter:
         self._handle: Any = None
 
     def _write_meta(self, active: bool) -> None:
-        payload = {
-            "writer_id": self.writer_id,
-            "active": active,
-            "target": str(self.target),
-            "acquired_at": datetime.now(timezone.utc).isoformat(),
-        }
-        tmp = self.meta_path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(tmp, self.meta_path)
+        _atomic_write_json(
+            self.meta_path,
+            {
+                "writer_id": self.writer_id,
+                "active": active,
+                "target": str(self.target),
+                "acquired_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+
+    def _open_lock(self) -> None:
+        self._handle = os.open(self.lock_path, os.O_RDWR | os.O_CREAT, 0o644)
+        if fcntl is None:
+            return
+        try:
+            fcntl.flock(self._handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            os.close(self._handle)
+            self._handle = None
+            raise WriterConflict("target_locked_by_other_writer") from exc
 
     def acquire(self) -> Path:
         self.target.mkdir(parents=True, exist_ok=True)
@@ -84,15 +105,7 @@ class ExclusiveWriter:
                 raise WriterConflict(
                     f"target_has_other_writer:{existing.get('writer_id')}"
                 )
-        flags = os.O_RDWR | os.O_CREAT
-        self._handle = os.open(self.lock_path, flags, 0o644)
-        if fcntl is not None:
-            try:
-                fcntl.flock(self._handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as exc:
-                os.close(self._handle)
-                self._handle = None
-                raise WriterConflict("target_locked_by_other_writer") from exc
+        self._open_lock()
         self._write_meta(True)
         return self.target
 
@@ -102,14 +115,15 @@ class ExclusiveWriter:
                 self._write_meta(False)
             except OSError:
                 pass
-        if self._handle is not None:
-            if fcntl is not None:
-                try:
-                    fcntl.flock(self._handle, fcntl.LOCK_UN)
-                except OSError:
-                    pass
-            os.close(self._handle)
-            self._handle = None
+        if self._handle is None:
+            return
+        if fcntl is not None:
+            try:
+                fcntl.flock(self._handle, fcntl.LOCK_UN)
+            except OSError:
+                pass
+        os.close(self._handle)
+        self._handle = None
 
     def write_json(self, relative: str, payload: dict[str, Any]) -> Path:
         if self._handle is None:
@@ -117,13 +131,7 @@ class ExclusiveWriter:
         dest = (self.target / relative).resolve()
         assert_isolated_target(dest, [self.target])
         dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest.with_suffix(dest.suffix + ".tmp")
-        tmp.write_text(
-            json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(tmp, dest)
-        return dest
+        return _atomic_write_json(dest, payload)
 
 
 @contextmanager

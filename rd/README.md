@@ -19,6 +19,16 @@ controller, agent runtime, or production parser.
 - Enable MinerU (`LICENSE_ACCEPTED=false`, candidate disabled).
 - Grant any AI write authority.
 
+## Safety contracts
+
+- Loopback only (`127.0.0.1`). Absent capability or evidence is `UNKNOWN`.
+- Never infer Ollama thinking from a model name.
+- n8n prerelease fail-closed unless allowlisted.
+- n8n 2.41.x flags owner review for default-enabled Agents.
+- n8n older than 2.40.5 is an upgrade candidate only; nothing is upgraded.
+- Parser bench candidates stay recorded, never auto-installed.
+- Isolated outputs, one writer, fail closed on missing evidence.
+
 ## Commands
 
 ```bash
@@ -27,8 +37,8 @@ python -m databossx_rd bench --mode spec_only --output-root runtime/rd
 python -m databossx_rd bench --mode current_only --output-root runtime/rd
 ```
 
-Outputs are written only under the isolated root (`runtime/rd` by default).
-One writer may hold a given target at a time.
+Outputs stay under the isolated root (`runtime/rd` by default). One writer
+may hold a given target at a time.
 
 ## Rollback
 

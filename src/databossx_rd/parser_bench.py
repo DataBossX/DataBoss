@@ -82,6 +82,11 @@ def _peak_memory_kb() -> Any:
     return int(usage) if usage else UNKNOWN
 
 
+def _require(condition: bool, message: str) -> None:
+    if not condition:
+        raise BenchSpecError(message)
+
+
 def load_bench_spec(path: Optional[Path] = None) -> dict[str, Any]:
     spec_path = path or (MANIFEST_ROOT / "parser_bench_spec.v1.json")
     try:
@@ -95,53 +100,40 @@ def load_bench_spec(path: Optional[Path] = None) -> dict[str, Any]:
 
 
 def validate_bench_spec(spec: dict[str, Any], *, spec_path: Optional[Path] = None) -> None:
-    if spec.get("schema_id") != "databossx.rd.parser_bench":
-        raise BenchSpecError("schema_id_invalid")
-    if spec.get("install_policy") != "never_automatic":
-        raise BenchSpecError("install_policy_must_be_never_automatic")
-    if spec.get("network_policy", {}).get("allowed_hosts") != ["127.0.0.1"]:
-        raise BenchSpecError("network_policy_must_be_loopback_only")
+    _require(spec.get("schema_id") == "databossx.rd.parser_bench", "schema_id_invalid")
+    _require(spec.get("install_policy") == "never_automatic", "install_policy_must_be_never_automatic")
+    _require(
+        spec.get("network_policy", {}).get("allowed_hosts") == ["127.0.0.1"],
+        "network_policy_must_be_loopback_only",
+    )
     candidates = spec.get("candidates")
-    if not isinstance(candidates, list) or len(candidates) != 3:
-        raise BenchSpecError("candidates_must_be_current_docling_mineru")
+    _require(isinstance(candidates, list) and len(candidates) == 3, "candidates_must_be_current_docling_mineru")
     ids = [item.get("id") for item in candidates]
-    if ids != ["databossx_current", "docling", "mineru"]:
-        raise BenchSpecError("candidate_order_or_ids_invalid")
+    _require(ids == ["databossx_current", "docling", "mineru"], "candidate_order_or_ids_invalid")
     current, docling, mineru = candidates
-    if current.get("implementation") != CURRENT_PARSER_REF:
-        raise BenchSpecError("current_parser_ref_mismatch")
-    if current.get("version") != CURRENT_PARSER_VERSION:
-        raise BenchSpecError("current_parser_version_mismatch")
-    if docling.get("version") != DOCLING_PINNED_VERSION:
-        raise BenchSpecError("docling_version_mismatch")
-    if docling.get("install") != "never_automatic":
-        raise BenchSpecError("docling_must_not_auto_install")
-    if mineru.get("version") != MINERU_PINNED_VERSION:
-        raise BenchSpecError("mineru_version_mismatch")
-    if mineru.get("enabled") is not False:
-        raise BenchSpecError("mineru_must_default_disabled")
-    if mineru.get("license_accepted") is not False:
-        raise BenchSpecError("mineru_license_must_default_false")
-    if mineru.get("install") != "never_automatic":
-        raise BenchSpecError("mineru_must_not_auto_install")
-    required = spec.get("required_result_fields")
-    if required != list(REQUIRED_RESULT_FIELDS):
-        raise BenchSpecError("required_result_fields_mismatch")
+    _require(current.get("implementation") == CURRENT_PARSER_REF, "current_parser_ref_mismatch")
+    _require(current.get("version") == CURRENT_PARSER_VERSION, "current_parser_version_mismatch")
+    _require(docling.get("version") == DOCLING_PINNED_VERSION, "docling_version_mismatch")
+    _require(docling.get("install") == "never_automatic", "docling_must_not_auto_install")
+    _require(mineru.get("version") == MINERU_PINNED_VERSION, "mineru_version_mismatch")
+    _require(mineru.get("enabled") is False, "mineru_must_default_disabled")
+    _require(mineru.get("license_accepted") is False, "mineru_license_must_default_false")
+    _require(mineru.get("install") == "never_automatic", "mineru_must_not_auto_install")
+    _require(
+        spec.get("required_result_fields") == list(REQUIRED_RESULT_FIELDS),
+        "required_result_fields_mismatch",
+    )
     sources = spec.get("test_sources")
-    if not isinstance(sources, list) or not sources:
-        raise BenchSpecError("test_sources_missing")
+    _require(isinstance(sources, list) and bool(sources), "test_sources_missing")
     for source in sources:
         rel = source.get("path")
         expected = source.get("input_sha256")
-        if not rel or not expected:
-            raise BenchSpecError("test_source_requires_path_and_sha256")
-        source_path = (REPO_ROOT / rel).resolve() if not Path(rel).is_absolute() else Path(rel)
+        _require(bool(rel) and bool(expected), "test_source_requires_path_and_sha256")
+        source_path = Path(rel) if Path(rel).is_absolute() else (REPO_ROOT / rel).resolve()
         if spec_path is not None and not source_path.exists():
             raise BenchSpecError(f"test_source_missing:{rel}")
-        if source_path.exists():
-            digest = sha256_file(source_path)
-            if digest != expected:
-                raise BenchSpecError(f"test_source_sha256_mismatch:{rel}")
+        if source_path.exists() and sha256_file(source_path) != expected:
+            raise BenchSpecError(f"test_source_sha256_mismatch:{rel}")
 
 
 def mineru_license_accepted(environ: Optional[dict[str, str]] = None) -> bool:
@@ -188,13 +180,20 @@ def _pdf_page_count(path: Path) -> Any:
     return UNKNOWN
 
 
+def _source_unknowns(start_count: Any = 1) -> dict[str, Any]:
+    return {
+        "source_start_count": start_count,
+        "source_page_count": UNKNOWN,
+        "source_page_numbers": UNKNOWN,
+        "source_block_count": UNKNOWN,
+    }
+
+
 def source_counts(path: Path) -> dict[str, Any]:
-    source_start_count = 1
-    suffix = path.suffix.lower()
-    if suffix == ".pdf":
+    if path.suffix.lower() == ".pdf":
         pages = _pdf_page_count(path)
         return {
-            "source_start_count": source_start_count,
+            "source_start_count": 1,
             "source_page_count": pages,
             "source_page_numbers": list(range(1, pages + 1)) if isinstance(pages, int) else UNKNOWN,
             "source_block_count": UNKNOWN,
@@ -202,15 +201,10 @@ def source_counts(path: Path) -> dict[str, Any]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except Exception:
-        return {
-            "source_start_count": source_start_count,
-            "source_page_count": UNKNOWN,
-            "source_page_numbers": UNKNOWN,
-            "source_block_count": UNKNOWN,
-        }
+        return _source_unknowns()
     numbers = _page_numbers_from_text(text)
     return {
-        "source_start_count": source_start_count,
+        "source_start_count": 1,
         "source_page_count": len(numbers) if isinstance(numbers, list) else UNKNOWN,
         "source_page_numbers": numbers,
         "source_block_count": _block_count(text),
@@ -222,8 +216,7 @@ def _drop_status(expected: Any, observed: Any) -> Any:
         return UNKNOWN
     if not isinstance(expected, list) or not isinstance(observed, list):
         return UNKNOWN
-    missing = [item for item in expected if item not in observed]
-    return missing
+    return [item for item in expected if item not in observed]
 
 
 def unknown_fields_of(result: dict[str, Any]) -> list[str]:
@@ -262,19 +255,18 @@ def extract_with_current_pipeline(path: Path) -> tuple[str, str, bool, str]:
         sys.path.insert(0, repo)
     import grocery_report_pipeline as grp
 
-    ext = path.suffix.lower()
-    if ext in grp.TEXT_EXT:
-        return grp._extract_txt(path)
-    if ext in grp.CSV_EXT:
-        return grp._extract_csv(path)
-    if ext in grp.EXCEL_EXT:
-        return grp._extract_xlsx(path)
-    if ext in grp.WORD_EXT:
-        return grp._extract_docx(path)
-    if ext in grp.PDF_EXT:
-        return grp._extract_pdf(path)
-    if ext in grp.IMAGE_EXT:
-        return grp._extract_image(path)
+    suffix = path.suffix.lower()
+    extractors = (
+        (grp.TEXT_EXT, grp._extract_txt),
+        (grp.CSV_EXT, grp._extract_csv),
+        (grp.EXCEL_EXT, grp._extract_xlsx),
+        (grp.WORD_EXT, grp._extract_docx),
+        (grp.PDF_EXT, grp._extract_pdf),
+        (grp.IMAGE_EXT, grp._extract_image),
+    )
+    for extensions, extract in extractors:
+        if suffix in extensions:
+            return extract(path)
     return "", "skip", False, "unsupported extension"
 
 
@@ -299,9 +291,8 @@ def measure_extractor(
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     extracted_pages = _page_numbers_from_text(text)
     extracted_blocks = _block_count(text) if text.strip() else 0
-    page_provenance: Any
     if isinstance(extracted_pages, list):
-        page_provenance = [
+        page_provenance: Any = [
             {
                 "page": page,
                 "source_sha256": digest,
@@ -314,6 +305,9 @@ def measure_extractor(
         page_provenance = UNKNOWN
     else:
         page_provenance = []
+    dropped_blocks: Any = UNKNOWN
+    if source["source_block_count"] is not UNKNOWN:
+        dropped_blocks = max(source["source_block_count"] - extracted_blocks, 0)
     result = {
         "input_sha256": digest,
         "source_page_count": source["source_page_count"],
@@ -335,11 +329,7 @@ def measure_extractor(
         "errors": errors,
         "unknown_fields": [],
         "missing_or_dropped_pages": _drop_status(source["source_page_numbers"], extracted_pages),
-        "missing_or_dropped_blocks": (
-            UNKNOWN
-            if source["source_block_count"] is UNKNOWN
-            else max(source["source_block_count"] - extracted_blocks, 0)
-        ),
+        "missing_or_dropped_blocks": dropped_blocks,
         "output_sha256": sha256_text(text) if text else UNKNOWN,
         "deterministic_output_expected": deterministic_expected and not ocr_used,
     }
@@ -347,8 +337,8 @@ def measure_extractor(
     return result
 
 
-def _candidate_gate(candidate: dict[str, Any], environ: Optional[dict[str, str]]) -> dict[str, Any]:
-    status = {
+def _candidate_status_base(candidate: dict[str, Any]) -> dict[str, Any]:
+    return {
         "id": candidate.get("id"),
         "version": candidate.get("version"),
         "enabled": candidate.get("enabled"),
@@ -358,42 +348,41 @@ def _candidate_gate(candidate: dict[str, Any], environ: Optional[dict[str, str]]
         "block_reason": UNKNOWN,
         "ran": False,
     }
+
+
+def _block(status: dict[str, Any], reason: str) -> dict[str, Any]:
+    status["blocked"] = True
+    status["block_reason"] = reason
+    return status
+
+
+def _candidate_gate(candidate: dict[str, Any], environ: Optional[dict[str, str]]) -> dict[str, Any]:
+    status = _candidate_status_base(candidate)
     ident = candidate.get("id")
     if ident == "databossx_current":
         status["available"] = True
         return status
     if candidate.get("install") != "never_automatic":
-        status["blocked"] = True
-        status["block_reason"] = "install_policy_violation"
-        return status
+        return _block(status, "install_policy_violation")
     if ident == "docling":
         status["available"] = _module_available("docling")
         if not status["available"]:
-            status["block_reason"] = "candidate_not_installed"
-            status["blocked"] = True
-        elif not candidate.get("enabled", False):
-            status["blocked"] = True
-            status["block_reason"] = "disabled_by_spec"
+            return _block(status, "candidate_not_installed")
+        if not candidate.get("enabled", False):
+            return _block(status, "disabled_by_spec")
         return status
     if ident == "mineru":
         license_ok = mineru_license_accepted(environ)
         status["license_accepted"] = license_ok
         if not license_ok:
-            status["blocked"] = True
-            status["block_reason"] = "LICENSE_ACCEPTED=false"
-            return status
+            return _block(status, "LICENSE_ACCEPTED=false")
         if not candidate.get("enabled", False):
-            status["blocked"] = True
-            status["block_reason"] = "disabled_by_spec"
-            return status
+            return _block(status, "disabled_by_spec")
         status["available"] = _module_available("mineru")
         if not status["available"]:
-            status["blocked"] = True
-            status["block_reason"] = "candidate_not_installed"
+            return _block(status, "candidate_not_installed")
         return status
-    status["blocked"] = True
-    status["block_reason"] = "unknown_candidate"
-    return status
+    return _block(status, "unknown_candidate")
 
 
 def _resolve_source(rel: str) -> Path:
@@ -401,6 +390,94 @@ def _resolve_source(rel: str) -> Path:
     if path.is_absolute():
         return path
     return (REPO_ROOT / rel).resolve()
+
+
+def _mark_current_ran(candidate_status: list[dict[str, Any]]) -> None:
+    for status in candidate_status:
+        if status["id"] == "databossx_current" and not status["blocked"]:
+            status["ran"] = True
+
+
+def _apply_current_source_gates(
+    measured: dict[str, Any],
+    source_spec: dict[str, Any],
+) -> bool:
+    failed = False
+    if measured["input_sha256"] != source_spec["input_sha256"]:
+        measured["errors"].append("input_sha256_mismatch")
+        failed = True
+    pages = measured["missing_or_dropped_pages"]
+    if pages not in (UNKNOWN, []):
+        measured["errors"].append("dropped_pages")
+        failed = True
+    if pages is UNKNOWN:
+        measured["errors"].append("drop_detection_unknown")
+        failed = True
+    if measured["missing_or_dropped_blocks"] not in (UNKNOWN, 0):
+        measured["errors"].append("dropped_blocks")
+        failed = True
+    return failed
+
+
+def _run_current_sources(
+    loaded: dict[str, Any],
+    extractor: ExtractFn,
+    errors: list[str],
+) -> tuple[list[dict[str, Any]], str]:
+    verdict = "pass"
+    sources_out: list[dict[str, Any]] = []
+    for source_spec in loaded["test_sources"]:
+        path = _resolve_source(source_spec["path"])
+        if not path.exists():
+            errors.append(f"source_missing:{source_spec['path']}")
+            verdict = "fail"
+            sources_out.append(_empty_result(path, UNKNOWN, ["source_missing"]))
+            continue
+        measured = measure_extractor(
+            path,
+            extractor,
+            deterministic_expected=bool(source_spec.get("deterministic_output_expected", True)),
+        )
+        if _apply_current_source_gates(measured, source_spec):
+            verdict = "fail"
+        sources_out.append(measured)
+    return sources_out, verdict
+
+
+def _run_spec_only_sources(loaded: dict[str, Any]) -> list[dict[str, Any]]:
+    sources_out: list[dict[str, Any]] = []
+    for source_spec in loaded["test_sources"]:
+        path = _resolve_source(source_spec["path"])
+        digest = source_spec.get("input_sha256", UNKNOWN)
+        if path.exists():
+            digest = sha256_file(path)
+        placeholder = _empty_result(path, digest, ["spec_only_no_extract"])
+        placeholder["source_start_count"] = 1
+        if path.exists():
+            counts = source_counts(path)
+            placeholder["source_page_count"] = counts["source_page_count"]
+            placeholder["source_start_count"] = counts["source_start_count"]
+        placeholder["unknown_fields"] = unknown_fields_of(placeholder)
+        sources_out.append(placeholder)
+    return sources_out
+
+
+def _enforce_mineru_license(
+    candidate_status: list[dict[str, Any]],
+    environ: Optional[dict[str, str]],
+    errors: list[str],
+) -> bool:
+    failed = False
+    for status in candidate_status:
+        if status["id"] != "mineru" or status.get("block_reason") == "LICENSE_ACCEPTED=false":
+            continue
+        if mineru_license_accepted(environ):
+            continue
+        status["blocked"] = True
+        status["block_reason"] = "LICENSE_ACCEPTED=false"
+        errors.append("mineru_license_gate_failed")
+        failed = True
+    return failed
 
 
 def run_parser_bench(
@@ -424,62 +501,20 @@ def run_parser_bench(
     assert_isolated_target(target, roots)
 
     candidate_status = [_candidate_gate(item, environ) for item in loaded["candidates"]]
-    sources_out: list[dict[str, Any]] = []
-    verdict = "pass"
     errors: list[str] = []
-
     if mode == "current_only":
-        extractor = current_extractor or extract_with_current_pipeline
-        for source_spec in loaded["test_sources"]:
-            path = _resolve_source(source_spec["path"])
-            if not path.exists():
-                errors.append(f"source_missing:{source_spec['path']}")
-                verdict = "fail"
-                sources_out.append(_empty_result(path, UNKNOWN, ["source_missing"]))
-                continue
-            measured = measure_extractor(
-                path,
-                extractor,
-                deterministic_expected=bool(source_spec.get("deterministic_output_expected", True)),
-            )
-            if measured["input_sha256"] != source_spec["input_sha256"]:
-                measured["errors"].append("input_sha256_mismatch")
-                verdict = "fail"
-            if measured["missing_or_dropped_pages"] not in (UNKNOWN, []):
-                measured["errors"].append("dropped_pages")
-                verdict = "fail"
-            if measured["missing_or_dropped_pages"] is UNKNOWN:
-                measured["errors"].append("drop_detection_unknown")
-                verdict = "fail"
-            if measured["missing_or_dropped_blocks"] not in (UNKNOWN, 0):
-                measured["errors"].append("dropped_blocks")
-                verdict = "fail"
-            sources_out.append(measured)
-        for status in candidate_status:
-            if status["id"] == "databossx_current" and not status["blocked"]:
-                status["ran"] = True
+        sources_out, verdict = _run_current_sources(
+            loaded,
+            current_extractor or extract_with_current_pipeline,
+            errors,
+        )
+        _mark_current_ran(candidate_status)
     else:
-        for source_spec in loaded["test_sources"]:
-            path = _resolve_source(source_spec["path"])
-            digest = source_spec.get("input_sha256", UNKNOWN)
-            if path.exists():
-                digest = sha256_file(path)
-            placeholder = _empty_result(path, digest, ["spec_only_no_extract"])
-            placeholder["source_start_count"] = 1
-            if path.exists():
-                counts = source_counts(path)
-                placeholder["source_page_count"] = counts["source_page_count"]
-                placeholder["source_start_count"] = counts["source_start_count"]
-            placeholder["unknown_fields"] = unknown_fields_of(placeholder)
-            sources_out.append(placeholder)
+        sources_out = _run_spec_only_sources(loaded)
+        verdict = "pass"
 
-    for status in candidate_status:
-        if status["id"] == "mineru" and status.get("block_reason") != "LICENSE_ACCEPTED=false":
-            if not mineru_license_accepted(environ):
-                status["blocked"] = True
-                status["block_reason"] = "LICENSE_ACCEPTED=false"
-                verdict = "fail"
-                errors.append("mineru_license_gate_failed")
+    if _enforce_mineru_license(candidate_status, environ, errors):
+        verdict = "fail"
 
     payload = {
         "schema_id": "databossx.rd.parser_bench_run",

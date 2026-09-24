@@ -60,6 +60,12 @@ def _transport(routes):
     return transport
 
 
+def _unreachable_client(url: str) -> LoopbackClient:
+    return LoopbackClient(
+        transport=lambda *_args, **_kwargs: HttpResult(ok=False, url=url, error="unreachable")
+    )
+
+
 def test_loopback_client_rejects_cloud_and_writes():
     with pytest.raises(LoopbackHttpError):
         assert_loopback_url("https://ollama.com/api/tags")
@@ -145,12 +151,7 @@ def test_ollama_probe_records_show_and_never_pulls():
 
 
 def test_ollama_probe_fail_closed_when_unreachable():
-    client = LoopbackClient(
-        transport=lambda *args, **kwargs: HttpResult(
-            ok=False, url="http://127.0.0.1:11434/api/version", error="unreachable"
-        )
-    )
-    result = probe_ollama(client=client)
+    result = probe_ollama(client=_unreachable_client("http://127.0.0.1:11434/api/version"))
     assert result["verdict"] == "fail"
     assert result["ollama_version"] is UNKNOWN
     assert result["cloud_calls_attempted"] is False
@@ -190,13 +191,8 @@ def test_n8n_241_and_upgrade_candidate():
 
 
 def test_n8n_probe_unreachable_is_fail_closed(tmp_path):
-    client = LoopbackClient(
-        transport=lambda *args, **kwargs: HttpResult(
-            ok=False, url="http://127.0.0.1:5678/healthz", error="unreachable"
-        )
-    )
     result = probe_n8n(
-        client=client,
+        client=_unreachable_client("http://127.0.0.1:5678/healthz"),
         environ={"N8N_VERSION": "2.40.5", "N8N_ENCRYPTION_KEY": "must-not-appear"},
         allowlist_path=tmp_path / "missing.json",
     )
@@ -324,10 +320,14 @@ def test_single_writer_and_forbidden_production_paths(tmp_path):
         first.write_json("a.json", {"ok": True})
         with pytest.raises(WriterConflict):
             exclusive_writer(target, "writer-b", [tmp_path]).__enter__()
-    with pytest.raises(IsolationError):
-        exclusive_writer(REPO_ROOT / "output" / "leaked", "writer-a", [REPO_ROOT / "output"])
-    with pytest.raises(IsolationError):
-        exclusive_writer(REPO_ROOT / "website" / "rd", "writer-a", [REPO_ROOT / "website"])
+    forbidden = (
+        (REPO_ROOT / "output" / "leaked", REPO_ROOT / "output"),
+        (REPO_ROOT / "website" / "rd", REPO_ROOT / "website"),
+    )
+    for path, root in forbidden:
+        with pytest.raises(IsolationError):
+            with exclusive_writer(path, "writer-a", [root]):
+                pass
 
 
 def test_live_loopback_observation_records_unknown_when_absent():

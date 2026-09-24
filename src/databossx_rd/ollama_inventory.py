@@ -15,7 +15,7 @@ from .constants import (
     OLLAMA_PORT,
     UNKNOWN,
 )
-from .loopback_http import LoopbackClient, LoopbackHttpError
+from .loopback_http import HttpResult, LoopbackClient, LoopbackHttpError
 from .redact import redact
 
 _THINKING_VALUE_KEYS = (
@@ -30,6 +30,13 @@ _THINKING_DEFAULT_KEYS = (
     "default_think",
     "think_default",
     "thinking_default",
+)
+_SHOW_KEEP_KEYS = (
+    "capabilities",
+    "details",
+    "modified_at",
+    *_THINKING_VALUE_KEYS,
+    *_THINKING_DEFAULT_KEYS,
 )
 
 
@@ -92,20 +99,86 @@ def _model_identity(item: Any) -> Any:
     return UNKNOWN
 
 
+def _response_error(response: HttpResult, fallback: str) -> str:
+    return response.error if response.error is not UNKNOWN else fallback
+
+
+def _fail(result: dict[str, Any], error: str) -> dict[str, Any]:
+    result["errors"].append(error)
+    return redact(result)
+
+
+def _kept_show_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    kept = {key: payload[key] for key in _SHOW_KEEP_KEYS if key in payload}
+    parameters = payload.get("parameters")
+    if isinstance(parameters, dict):
+        kept["parameters"] = parameters
+    return kept
+
+
+def _blank_model(item: Any, identity: Any) -> dict[str, Any]:
+    details = item.get("details", UNKNOWN) if isinstance(item, dict) else UNKNOWN
+    digest = item.get("digest", UNKNOWN) if isinstance(item, dict) else UNKNOWN
+    return {
+        "name": identity,
+        "digest": digest,
+        "details": details,
+        "show": UNKNOWN,
+        "thinking": thinking_from_show(None),
+        "errors": [],
+    }
+
+
+def _inventory_model(
+    http: LoopbackClient,
+    host: str,
+    port: int,
+    item: Any,
+) -> tuple[dict[str, Any], bool]:
+    identity = _model_identity(item)
+    entry = _blank_model(item, identity)
+    if identity is UNKNOWN:
+        entry["errors"].append("model_identity_absent")
+        return entry, True
+    try:
+        show = http.request(
+            "POST",
+            host,
+            port,
+            "/api/show",
+            allowed=OLLAMA_ALLOWED_PATHS,
+            body={"model": identity},
+        )
+    except LoopbackHttpError as exc:
+        entry["errors"].append(str(exc))
+        return entry, True
+    if not show.ok or not isinstance(show.json_body, dict):
+        entry["errors"].append(_response_error(show, "show_unreadable"))
+        return entry, True
+    # Record supplied capability fields only. Do not keep license text
+    # or templates that can be large or sensitive.
+    entry["show"] = _kept_show_fields(show.json_body)
+    entry["thinking"] = thinking_from_show(show.json_body)
+    return entry, False
+
+
+def _read_json(http: LoopbackClient, host: str, port: int, path: str) -> HttpResult:
+    return http.request("GET", host, port, path, allowed=OLLAMA_ALLOWED_PATHS)
+
+
 def probe_ollama(
     *,
     host: str = LOOPBACK_HOST,
     port: int = OLLAMA_PORT,
     client: Optional[LoopbackClient] = None,
 ) -> dict[str, Any]:
-    observed_at = datetime.now(timezone.utc).isoformat()
     result: dict[str, Any] = {
         "schema_id": "databossx.rd.ollama_inventory",
         "schema_version": "1.0",
         "read_only": True,
         "host": host,
         "port": port,
-        "observed_at": observed_at,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
         "verdict": "fail",
         "ollama_version": UNKNOWN,
         "models": [],
@@ -115,118 +188,46 @@ def probe_ollama(
         "cloud_calls_attempted": False,
     }
     if host != LOOPBACK_HOST:
-        result["errors"].append(f"non_loopback_host:{host}")
-        return redact(result)
+        return _fail(result, f"non_loopback_host:{host}")
 
     http = client or LoopbackClient()
     try:
-        version = http.request(
-            "GET", host, port, "/api/version", allowed=OLLAMA_ALLOWED_PATHS
-        )
+        version = _read_json(http, host, port, "/api/version")
     except LoopbackHttpError as exc:
-        result["errors"].append(str(exc))
-        return redact(result)
-
+        return _fail(result, str(exc))
     if not version.ok or not isinstance(version.json_body, dict):
-        result["errors"].append(version.error if version.error is not UNKNOWN else "version_unreadable")
-        return redact(result)
+        return _fail(result, _response_error(version, "version_unreadable"))
 
     ollama_version = version.json_body.get("version", UNKNOWN)
     result["ollama_version"] = ollama_version if ollama_version else UNKNOWN
     if result["ollama_version"] is UNKNOWN:
-        result["errors"].append("ollama_version_unknown")
-        return redact(result)
+        return _fail(result, "ollama_version_unknown")
     result["unknowns"].remove("ollama_version")
 
     try:
-        tags = http.request(
-            "GET", host, port, "/api/tags", allowed=OLLAMA_ALLOWED_PATHS
-        )
+        tags = _read_json(http, host, port, "/api/tags")
     except LoopbackHttpError as exc:
-        result["errors"].append(str(exc))
-        return redact(result)
-
+        return _fail(result, str(exc))
     if not tags.ok or not isinstance(tags.json_body, dict):
-        result["errors"].append(tags.error if tags.error is not UNKNOWN else "tags_unreadable")
-        return redact(result)
+        return _fail(result, _response_error(tags, "tags_unreadable"))
 
     raw_models = tags.json_body.get("models", UNKNOWN)
     if raw_models is UNKNOWN or raw_models is None:
-        result["errors"].append("models_field_absent")
-        return redact(result)
+        return _fail(result, "models_field_absent")
     if not isinstance(raw_models, list):
-        result["errors"].append("models_field_unusable")
-        return redact(result)
+        return _fail(result, "models_field_unusable")
 
     result["unknowns"].remove("models")
     models: list[dict[str, Any]] = []
     show_failures = 0
     for item in raw_models:
-        identity = _model_identity(item)
-        entry = {
-            "name": identity,
-            "digest": item.get("digest", UNKNOWN) if isinstance(item, dict) else UNKNOWN,
-            "details": item.get("details", UNKNOWN) if isinstance(item, dict) else UNKNOWN,
-            "show": UNKNOWN,
-            "thinking": thinking_from_show(None),
-            "errors": [],
-        }
-        if identity is UNKNOWN:
-            entry["errors"].append("model_identity_absent")
-            show_failures += 1
-            models.append(entry)
-            continue
-        try:
-            show = http.request(
-                "POST",
-                host,
-                port,
-                "/api/show",
-                allowed=OLLAMA_ALLOWED_PATHS,
-                body={"model": identity},
-            )
-        except LoopbackHttpError as exc:
-            entry["errors"].append(str(exc))
-            show_failures += 1
-            models.append(entry)
-            continue
-        if not show.ok or not isinstance(show.json_body, dict):
-            entry["errors"].append(
-                show.error if show.error is not UNKNOWN else "show_unreadable"
-            )
-            show_failures += 1
-            models.append(entry)
-            continue
-        # Record supplied capability fields only. Do not keep license text
-        # or templates that can be large or sensitive.
-        show_keep = {
-            key: show.json_body[key]
-            for key in (
-                "capabilities",
-                "details",
-                "modified_at",
-                "supported_thinking_values",
-                "thinking_values",
-                "think_values",
-                "think_levels",
-                "supported_think_values",
-                "default_thinking",
-                "default_think",
-                "think_default",
-                "thinking_default",
-            )
-            if key in show.json_body
-        }
-        if isinstance(show.json_body.get("parameters"), dict):
-            show_keep["parameters"] = show.json_body["parameters"]
-        entry["show"] = show_keep
-        entry["thinking"] = thinking_from_show(show.json_body)
+        entry, failed = _inventory_model(http, host, port, item)
         models.append(entry)
+        show_failures += int(failed)
 
     result["models"] = models
     if show_failures:
-        result["errors"].append(f"show_incomplete:{show_failures}")
-        return redact(result)
+        return _fail(result, f"show_incomplete:{show_failures}")
 
     result["verdict"] = "pass"
     return redact(result)

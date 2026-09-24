@@ -1,0 +1,12 @@
+SYNTHETIC-BENCH-FIXTURE
+This is fictional text for DataBossX parser-bench scaffolding.
+It is not client evidence and contains no secrets.
+
+[PAGE 1]
+Grantor: Alice Example
+Grantee: Bob Example
+Instrument: Warranty Deed (fictional)
+
+[PAGE 2]
+Additional fictional paragraph for provenance and drop-detection checks.
+No real legal description, owner, or recording data.

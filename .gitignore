@@ -67,6 +67,7 @@ android-sdk/
 _synthetic_corpus/
 .pytest_cache/
 runtime/
+rd/BENCH/out/
 
 # Client-specific operations data must stay in approved private systems
 projects/OK-*/

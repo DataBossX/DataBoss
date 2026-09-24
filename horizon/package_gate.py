@@ -88,11 +88,12 @@ def readback_matches(original: Path, readback: Path) -> bool:
     return sha256_file(original) == sha256_file(readback)
 
 
-def record_cycle(ledger_path: Path, outer_sha: str, clean: bool, note: str = "") -> int:
+def record_cycle(ledger_path: Path | str, outer_sha: str, clean: bool, note: str = "") -> int:
     """Append a QA cycle; return consecutive clean cycles on *outer_sha*.
 
     Any cycle on a different SHA, or any unclean cycle, resets the streak.
     """
+    ledger_path = Path(ledger_path)
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else []
     ledger.append({"sha256": outer_sha, "clean": bool(clean), "note": note})
     ledger_path.write_text(json.dumps(ledger, indent=1))

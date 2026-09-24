@@ -78,3 +78,7 @@ def test_clean_cycle_streak_resets_on_sha_change(tmp_path):
     assert record_cycle(ledger, "s2", True) == 1
     assert record_cycle(ledger, "s2", False) == 0
     assert record_cycle(ledger, "s2", True) == 1
+
+
+def test_clean_cycle_accepts_str_path(tmp_path):
+    assert record_cycle(str(tmp_path / "ledger.json"), "s1", True) == 1

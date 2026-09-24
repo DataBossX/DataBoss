@@ -1,0 +1,26 @@
+P12 / P14 best prompts — 2026-09-24
+
+Paste one file per model. Do not give two writers the same ZIP.
+
+00_DISPATCH_AND_SOURCE_LAW.md — every model reads this first
+01_CLAUDE_P12_SOLE_WRITER.md — Claude only, Section 12
+02_CODEX_P14_SOLE_WRITER.md — Codex only, Section 14
+03_GEMINI_SOURCE_VISION.md — Gemini, one section per chat
+04_GROK_ADVERSARIAL.md — Grok, after a writer ZIP exists
+05_CHATGPT_PIXEL_CLOSER.md — ChatGPT, read-only pixel closes
+06_KIMI_BYTE_FORMAT.md — Kimi, same SHA as the writer
+07_COPILOT_PC_NATIVE_QA.md — Copilot on the Windows PC
+08_OPUS_SECOND_SOURCE.md — a second model that did not write the file
+09_LOCAL_MODELS_LOCATOR_ONLY.md — local OCR only
+10_CURSOR_GROK_ORCHESTRATOR.md — running order
+
+Drive copies of this pack:
+Section 12 folder https://drive.google.com/drive/folders/1m2HG2d_j5UOGdx-3XylAULrljG3H2MdO
+Section 14 folder https://drive.google.com/drive/folders/1Nh_06Ii31EylMow_KhYzxdPOZrcsfxmW
+Zip SHA-256 1b385de44b732768aefa6cb5c8c9ba5ce0ea79250fa5329292414297aa73ab50
+
+Selected packages stay read-only:
+P12 1nT3Vy3bg91rtftmoAkUwWkZD9p2EY-Tn SHA ef5f1d5293734f0ffb6afeafdfc525140b10d0b8790270861b51206dc8da3bfe
+P14 1JxivHrWMSnrpEGTOHwrIQSKPoy1xMvyT SHA 1d9962043ef36eb6658813d360481a7f0f9735461991628eece4991cd27964ee
+
+Client preparation date is 9/23/2026. Do not sign, certify, or send the abstracts out.

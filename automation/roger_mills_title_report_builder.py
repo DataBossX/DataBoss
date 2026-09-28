@@ -40,9 +40,19 @@ WHAT IT DOES (matches the mission spec)
     --support-dir.
 11. VALIDATES: reopens the output to prove it is not corrupted, confirms sheets
     and populated rows, and writes a validation summary.
+12. COUNTS AND DOCUMENTS EVERY IMAGE under --root (png/jpg/jpeg/tif/tiff/bmp):
+    writes image_inventory_codexv1.csv AND appends an "Image Index" sheet
+    directly into the final report workbook, so the image count travels with
+    the deliverable itself, not just a side file.
+13. PACKAGES a dated, ready-to-turn-in delivery zip next to the output
+    workbook: "{section}_Title_Report_Delivery_Package_(MM-DD-YYYY).zip",
+    containing the finished report + a Documentation/ folder with every
+    support file (inventory, audit, conflicts, image index, validation
+    summary, build log). Pass --no-package to skip this.
 
 IT NEVER INVENTS DATA. Unverified-but-supported rows are flagged in the
-conflict/review outputs rather than silently trusted.
+conflict/review outputs rather than silently trusted, and the image count is
+always a direct file listing, never an estimate.
 
 USAGE (Windows PowerShell or CMD)
 ---------------------------------
@@ -53,6 +63,27 @@ USAGE (Windows PowerShell or CMD)
         --output "D:\\Desktop\\Horizon\\Roger Mills\\31-12N-24W_Roger_Mills_Cursory_Title_Report_(6-27-2026)codexv1.xlsx" ^
         --support-dir "D:\\Desktop\\Horizon\\Roger Mills\\files" ^
         --section "31-12N-24W"
+
+To rebuild Section 12 and Section 14 so they match the already-finished
+Section 11/13/15 format (adjust the paths to where those sections' source
+folders actually live on your machine; each section gets its own
+--root/--output/--support-dir/--section):
+
+    py automation\\roger_mills_title_report_builder.py ^
+        --root "D:\\DataBoss\\DataBossX_Final_Modular\\Section 12" ^
+        --output "D:\\DataBoss\\DataBossX_Final_Modular\\Section 12\\Section_12_Roger_Mills_Cursory_Title_Report_(9-28-2026)codexv1.xlsx" ^
+        --support-dir "D:\\DataBoss\\DataBossX_Final_Modular\\Section 12\\files" ^
+        --section "Section 12"
+
+    py automation\\roger_mills_title_report_builder.py ^
+        --root "D:\\DataBoss\\DataBossX_Final_Modular\\Section 14" ^
+        --output "D:\\DataBoss\\DataBossX_Final_Modular\\Section 14\\Section_14_Roger_Mills_Cursory_Title_Report_(9-28-2026)codexv1.xlsx" ^
+        --support-dir "D:\\DataBoss\\DataBossX_Final_Modular\\Section 14\\files" ^
+        --section "Section 14"
+
+Or double-click automation\\RUN_SECTIONS_12_14.bat to run both back-to-back
+and get two dated delivery zips in one pass (edit the folder paths at the
+top of that file first to match your machine).
 
 Run with --dry-run first to see the plan without writing the final workbook.
 
@@ -71,6 +102,7 @@ import re
 import shutil
 import sys
 import traceback
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -796,6 +828,90 @@ def write_conflicts_xlsx(path: Path, conflicts: List[Dict[str, str]]) -> None:
 
 
 # ----------------------------------------------------------------------------
+# Image documentation (every scanned exhibit/photo counted and cited)
+# ----------------------------------------------------------------------------
+def collect_images(recs: List[FileRec]) -> List[FileRec]:
+    return sorted((r for r in recs if r.kind == "image"), key=lambda r: r.rel.lower())
+
+
+def write_image_inventory_csv(path: Path, images: List[FileRec]) -> None:
+    """Every image file found under --root, one row each. This is the source
+    citation for the image count that also gets written into the report
+    itself - nothing here is estimated, it is a direct file listing."""
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["#", "relative_path", "filename", "ext", "size_kb", "modified"])
+        for i, rec in enumerate(images, start=1):
+            w.writerow([i, rec.rel, rec.path.name, rec.ext,
+                        f"{rec.size / 1024:.1f}", rec.mtime.strftime("%Y-%m-%d %H:%M:%S")])
+        w.writerow([])
+        w.writerow(["TOTAL IMAGES", len(images)])
+
+
+def append_image_index_sheet(output_path: Path, images: List[FileRec], section: str) -> int:
+    """Appends an 'Image Index' sheet to the already-written final workbook so
+    the image count/citations travel with the report itself, not just a side
+    CSV. Never touches any existing sheet from the template. Returns the
+    image count actually written."""
+    wb = openpyxl.load_workbook(output_path, data_only=False)
+    title = "Image Index"
+    if title in wb.sheetnames:
+        del wb[title]
+    ws = wb.create_sheet(title)
+
+    bold = openpyxl.styles.Font(bold=True)
+    ws.cell(row=1, column=1, value=f"{section} - Roger Mills County - Image / Exhibit Index").font = bold
+    ws.cell(row=2, column=1,
+            value=f"Generated {_dt.datetime.now():%Y-%m-%d %H:%M:%S}  |  TOTAL IMAGES: {len(images)}").font = bold
+
+    headers = ["#", "Relative Path", "Filename", "Ext", "Size (KB)", "Modified"]
+    header_row = 4
+    for c, h in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=c, value=h)
+        cell.font = bold
+    for i, rec in enumerate(images, start=1):
+        r = header_row + i
+        ws.cell(row=r, column=1, value=i)
+        ws.cell(row=r, column=2, value=rec.rel)
+        ws.cell(row=r, column=3, value=rec.path.name)
+        ws.cell(row=r, column=4, value=rec.ext)
+        ws.cell(row=r, column=5, value=round(rec.size / 1024, 1))
+        ws.cell(row=r, column=6, value=rec.mtime.strftime("%Y-%m-%d %H:%M:%S"))
+    if not images:
+        ws.cell(row=header_row + 1, column=1, value="(no image files found under --root)")
+
+    ws.freeze_panes = f"A{header_row + 1}"
+    widths = [6, 60, 30, 8, 12, 20]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    wb.save(output_path)
+    wb.close()
+    return len(images)
+
+
+# ----------------------------------------------------------------------------
+# Delivery packaging (final turn-in zip)
+# ----------------------------------------------------------------------------
+def package_delivery_zip(section: str, output_path: Path, support_dir: Path,
+                          extra_support_files: Sequence[Path]) -> Path:
+    """Bundles the finished report workbook + its documentation trail into a
+    single dated zip, ready to turn in. Never deletes or modifies the
+    originals; the zip is an additional, disposable artifact."""
+    stamp = _dt.datetime.now().strftime("%m-%d-%Y")
+    safe_section = re.sub(r"[^A-Za-z0-9\-]+", "_", section)
+    zip_path = output_path.parent / f"{safe_section}_Title_Report_Delivery_Package_({stamp}).zip"
+
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        if output_path.exists():
+            zf.write(output_path, arcname=output_path.name)
+        for f in extra_support_files:
+            if f.exists():
+                zf.write(f, arcname=f"Documentation/{f.name}")
+    return zip_path
+
+
+# ----------------------------------------------------------------------------
 # Validation
 # ----------------------------------------------------------------------------
 def validate_output(output_path: Path, data_sheet: str, expected_rows: int) -> Tuple[bool, List[str]]:
@@ -843,6 +959,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--section", default="31-12N-24W", help="Target section label")
     ap.add_argument("--template", default="", help="Explicit template .xlsx (else auto-detect)")
     ap.add_argument("--dry-run", action="store_true", help="Analyze & plan only; do not write final workbook")
+    ap.add_argument("--no-package", action="store_true",
+                     help="Skip building the final dated turn-in zip (packaging is on by default)")
     args = ap.parse_args(argv)
 
     root = Path(args.root)
@@ -977,6 +1095,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     write_conflicts_xlsx(support_dir / "conflicts_review_codexv1.xlsx", conflicts)
     LOG("Wrote source_inventory_codexv1.csv, merge_audit_codexv1.csv, conflicts_review_codexv1.xlsx")
 
+    # 8b. Image / exhibit documentation - count every image, cite every one
+    LOG.section("8b. Image documentation")
+    images = collect_images(recs)
+    image_inventory_path = support_dir / "image_inventory_codexv1.csv"
+    write_image_inventory_csv(image_inventory_path, images)
+    LOG(f"TOTAL IMAGES found under --root: {len(images)}")
+    if not args.dry_run and output_path.exists():
+        append_image_index_sheet(output_path, images, args.section)
+        LOG(f"Appended 'Image Index' sheet ({len(images)} rows) to {output_path.name}")
+    else:
+        LOG("DRY-RUN or no output workbook written: image index CSV only, no sheet appended.")
+
     # 9. validation
     LOG.section("9. Validation")
     val_lines: List[str] = []
@@ -1001,6 +1131,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"Unique records merged:   {len(merged)}",
         f"Rows written to output:  {rows_written}",
         f"Field-level conflicts:   {len(conflicts)}",
+        f"Images found & indexed:  {len(images)}  (see image_inventory_codexv1.csv"
+        f" and the 'Image Index' sheet in the report)",
         f"Index extraction method: {method}",
         f"Rows verified vs index:  {n_verified}/{len(merged)}",
         f"Formatting authority:    {template_rec.rel if template_rec else '(none)'}",
@@ -1028,6 +1160,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # build log last (captures everything above)
     LOG.dump(support_dir / "build_log_codexv1.txt")
 
+    # 10. package for delivery (final dated turn-in zip)
+    zip_path: Optional[Path] = None
+    if not args.dry_run and not args.no_package and output_path.exists():
+        LOG.section("10. Package for delivery")
+        extra = [
+            support_dir / "source_inventory_codexv1.csv",
+            support_dir / "merge_audit_codexv1.csv",
+            support_dir / "conflicts_review_codexv1.xlsx",
+            image_inventory_path,
+            support_dir / "final_validation_summary_codexv1.txt",
+            support_dir / "build_log_codexv1.txt",
+        ]
+        zip_path = package_delivery_zip(args.section, output_path, support_dir, extra)
+        LOG(f"Delivery package: {zip_path}")
+    elif args.dry_run:
+        LOG.section("10. DRY-RUN: skipping delivery package")
+    elif args.no_package:
+        LOG.section("10. --no-package: skipping delivery package")
+
     # final console report
     print("\n" + "=" * 70)
     print("FINAL REPORT")
@@ -1037,12 +1188,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("  - source_inventory_codexv1.csv")
     print("  - merge_audit_codexv1.csv")
     print("  - conflicts_review_codexv1.xlsx")
+    print("  - image_inventory_codexv1.csv")
     print("  - build_log_codexv1.txt")
     print("  - final_validation_summary_codexv1.txt")
     print(f"Source files reviewed: {len(recs)}")
     print(f"Records merged:        {len(merged)}  (written: {rows_written})")
     print(f"Conflicts found:       {len(conflicts)}")
+    print(f"TOTAL IMAGES found:    {len(images)}  (documented in image_inventory_codexv1.csv"
+          f" + 'Image Index' sheet)")
     print(f"Index verified rows:   {n_verified}/{len(merged)}  (method: {method})")
+    print(f"Delivery package:      {zip_path if zip_path else '(not created - see log above)'}")
     print("Human review:          see final_validation_summary_codexv1.txt")
     return 0
 

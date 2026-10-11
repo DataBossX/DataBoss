@@ -1,0 +1,30 @@
+{
+  "gold_standard": {
+    "overtime_S11": {"folder_id":"1AD0QYdt55MmwkruI18YcSQvUjekRzWaA","files":[
+      {"n":"45N-76W-11_Campbell_Co_Penterra_Abstract_Index.ods","id":"1tOby3IqiJ0lFClvu7FXNXaDdySgtWccT","role":"county_index"},
+      {"n":"WYW-005955 Campbell Co. Penterra Abstract Index.ods","id":"1mG7Y6vPDgo8C5NpYk77_sm2HEI9qfCFj","role":"federal"},
+      {"n":"WYW-047318 Campbell Co. Penterra Abstract Index.ods","id":"1zvMbwCvBRVPtyMzNOypPefHAakchbCQZ","role":"federal"},
+      {"n":"WYW-051704 Campbell Co. Penterra Abstract Index.ods","id":"1sak-cu-X6nAPxSfri3x641sGPhZ5g8wa","role":"federal"},
+      {"n":"Abstract_Checklist_11-45N-76W.xlsx","id":"1j7M8ZZzJGD5tDLwywvwrcJlKs3zauprW","role":"checklist"},
+      {"n":"11-45N-76W_Certification_Letter.docx","id":"1-DjOMLKVsPB6Wb9t89YeluCzOopmRMMo","role":"letter_docx"},
+      {"n":"11-45N-76W_Certification_Letter.pdf","id":"1nHsIDn5V-6D30MZiDecBOmEtd-xp-JK6","role":"letter_pdf"}]},
+    "overtime_S15": {"folder_id":"1aZcbcmtKvMCjLAmgh2pyBn7ONK2Q_W2y","files":[
+      {"n":"45N-76W-15_Campbell_Co_Penterra_Abstract_Index.ods","id":"1d7hmd6WdElxr_GRLsnfiRbvPya-lpmBM","role":"county_index"},
+      {"n":"WYW-021220 Campbell Co. Penterra Abstract Index.ods","id":"1W4oFBQC5_qSmXqZY70cYNAe1LKLVBkg2","role":"federal"},
+      {"n":"WYW-089855 Campbell Co. Penterra Abstract Index.ods","id":"1sISDbY9poRkU5XmUOb5A4QaKZkA8Kuaw","role":"federal"},
+      {"n":"Abstract_Checklist_15-45N-76W.xlsx","id":"1ocoEeZ_tzViLmMvb7Y_pofHLq56xYffy","role":"checklist"},
+      {"n":"15-45N-76W_Certification_Letter.docx","id":"1hsKTR65G-ckcKSOGeXom5EhFCoax57FD","role":"letter_docx"},
+      {"n":"15-45N-76W_Certification_Letter.pdf","id":"1dexLWUkB-5INVk4_ALg_RGK0qFSAl3zM","role":"letter_pdf"}]}
+  },
+  "penterra_root":"1FPmpuHDir7hgyxMAqPYoOJmceC0gaLiF",
+  "penterra_sections": {
+    "6":  {"twp_rng":"47N-76W","county":"Johnson","folder":"15GBJLhByFtnADI9-93lUOWIcTdQ0g2yH","abstract_folder":"1vXwMW5aCrELrLwz3qFr0T-RWk0N1Gjx_","payloads":18,"workbooks":2,"federal_count":0},
+    "7":  {"twp_rng":"47N-76W","county":"Johnson","folder":"1A7L_0JAJM9aYSROtp-4yjmHPKD48eV-c","abstract_folder":"1bxoTd_gfFFiato5ckQ78WPoQ4apzxbC2","payloads":19,"workbooks":3,"federal_count":1,"federals":["WYW-131225"]},
+    "13": {"twp_rng":"47N-77W","county":"Johnson","folder":"18mSVGqo0VJsvXxg21bMd27CWvYSSIz4-","abstract_folder":"10oCBwQCSjb070mC8MqeNgFn9Igg4SOqb","payloads":36,"workbooks":7,"federal_count":5,"federals":["USA W-40637","WYW-094604","WYW-094605","WYW-153528","WYW-153681"]},
+    "24": {"twp_rng":"47N-77W","county":"Johnson","folder":"1asXIdwPZ5BUjFL3-x07PBImS48Z-GKi0","abstract_folder":"1Iul2npPVHs4tvuOr3mbkjJjkUOB2Re4s","payloads":33,"workbooks":7,"federal_count":5,"federals":["W-39577(HOLD)","WYW-094604","WYW-094605","WYW-145618","WYW-153681"]}
+  },
+  "workbook_total":19,
+  "overtime_header_fields":["Index County","Lands","Date","Starting Date","Date Posted Thru","Indexed By","Project"],
+  "overtime_table_columns":["Document Type","Grantor","Grantee","Doc No","Book-Page","Date of Doc","Rec Date","Legal Description","Comments"],
+  "overtime_project_label":"Abstract 4576 Overtime"
+}

@@ -1,0 +1,109 @@
+{
+ "_method": "county entries = first index table rows - BLM survey/plat rows; federal entries = index rows in federal companion workbook. Validated: Overtime S11 county 476-1=475 (checklist 475); Overtime federal WYW-005955 = 48 (checklist 48).",
+ "reference_overtime": {
+  "S11": {
+   "county_entries": 475,
+   "index_rows": 476,
+   "blm_plat_rows": 1,
+   "starting": "Inception",
+   "posted_thru": "4/22/2026",
+   "indexed_by": "Ryan Gille",
+   "project": "Abstract 4576 Overtime",
+   "federals": {
+    "WYW-005955": 48,
+    "WYW-047318": 143,
+    "WYW-051704": 290
+   },
+   "srp_thru": "8/4/2026",
+   "prepared": "9/22/2026"
+  },
+  "S15": {
+   "county_entries": 151,
+   "starting": "Inception",
+   "posted_thru": "7/21/2026",
+   "indexed_by": "Ryan Gille",
+   "project": "Abstract 4576 Overtime",
+   "federals": {
+    "WYW-021220": null,
+    "WYW-089855": null
+   },
+   "srp_thru": "8/12/2026",
+   "prepared": "9/10/2026"
+  }
+ },
+ "penterra": {
+  "6": {
+   "county_entries": 45,
+   "index_rows": 49,
+   "blm_plat_rows": 4,
+   "secondary_proposal_rows": 0,
+   "starting": "Unknown",
+   "posted_thru": "Unknown",
+   "indexed_by": "Working draft - review pending",
+   "project": "Combine-Harvest-Winnow Abstract (210275)",
+   "lands": "T47N-R76W Section 6",
+   "earliest_rec": "10/18/1951",
+   "latest_rec": "3/15/2017",
+   "federals": {}
+  },
+  "7": {
+   "county_entries": 3,
+   "index_rows": 3,
+   "blm_plat_rows": 0,
+   "secondary_proposal_rows": 0,
+   "starting": "UNKNOWN",
+   "posted_thru": "UNKNOWN",
+   "indexed_by": "Prepared for Ryan Gille",
+   "project": "Combine-Harvest-Winnow (210275) | QUALIFIED PARTIAL WORKING ABSTRACT",
+   "lands": "7-47N-76W",
+   "earliest_rec": "12/31/1963",
+   "latest_rec": "2/1/1994",
+   "federals": {
+    "WYW-131225": 1
+   }
+  },
+  "13": {
+   "county_entries": 27,
+   "index_rows": 28,
+   "blm_plat_rows": 1,
+   "secondary_proposal_rows": 24,
+   "starting": "Inception",
+   "posted_thru": "UNKNOWN",
+   "indexed_by": "Ryan Gille",
+   "project": "Combine-Harvest-Winnow AFE 210275 - Qualified review copy",
+   "lands": "13-47N-77W: supplied source-specific lands; coverage incomplete",
+   "earliest_rec": "9/10/1963",
+   "latest_rec": "9/25/2015",
+   "federals": {
+    "USA W-40637": 1,
+    "WYW-094604": 2,
+    "WYW-094605": 4,
+    "WYW-153528": 2,
+    "WYW-153681": 3
+   }
+  },
+  "24": {
+   "county_entries": 90,
+   "index_rows": 95,
+   "blm_plat_rows": 5,
+   "secondary_proposal_rows": 6,
+   "starting": "Inception",
+   "posted_thru": "UNKNOWN",
+   "indexed_by": "Ryan Gille",
+   "project": "Combine-Harvest-Winnow AFE 210275 - Qualified review copy",
+   "lands": "24-47N-77W: supplied source-specific lands; coverage incomplete",
+   "earliest_rec": "2/1/1923",
+   "latest_rec": "5/30/2025",
+   "federals": {
+    "W-39577": 1,
+    "WYW-094604": 1,
+    "WYW-094605": 13,
+    "WYW-145618": 5,
+    "WYW-153681": 8
+   },
+   "federal_notes": {
+    "W-39577": "HOLD - schedule describes T42N-R77W Sections 1 & 12; applicability to target Section 24 NOT proved"
+   }
+  }
+ }
+}

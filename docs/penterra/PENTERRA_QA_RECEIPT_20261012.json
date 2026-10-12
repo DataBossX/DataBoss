@@ -1,0 +1,152 @@
+{
+  "receipt_type": "PENTERRA_COORDINATOR_QA_DETERMINATION",
+  "receipt_version": "R1",
+  "generated_utc": "2026-10-12T00:00:00Z",
+  "generating_session": "01UFx4h7vPFg35fehfK1A1AX",
+  "canonical_writer_session": "01a123e8-b924-78a1-b876-071d89be9718",
+  "generating_session_is_canonical_writer": false,
+  "sole_writer_rule_preserved": true,
+  "actions_performed_by_this_session": ["read", "metadata_verify", "reconcile", "classify"],
+  "actions_not_performed_by_this_session": [
+    "publish", "adopt", "native_edit", "pdf_rebuild", "zip_production",
+    "source_original_write", "signature", "submission", "deletion"
+  ],
+
+  "release_status": "HOLD",
+  "release_status_is_ready": false,
+  "clean_cycles_completed": 0,
+  "clean_cycles_required": 5,
+  "clean_cycle_counter_reset_utc": "2026-10-12T03:26:53Z",
+  "clean_cycle_counter_reset_cause": "publication of S24 letter-metadata R14 successor into canonical destination",
+
+  "gates": [
+    {"gate": "source_completeness", "result": "FAIL"},
+    {"gate": "verified_cutoffs", "result": "FAIL", "detail": "searched-through and posted-through cutoffs Unknown"},
+    {"gate": "examiner_disposition", "result": "FAIL", "detail": "no source-cited examiner disposition located"},
+    {"gate": "canonical_adoption", "result": "FAIL_PENDING", "detail": "R14 successors published without adoption receipt; adopted_credit 0 in both source lanes"},
+    {"gate": "owner_authorization", "result": "FAIL", "detail": "no owner acceptance or release authority document located"},
+    {"gate": "five_clean_cycles", "result": "FAIL", "detail": "0 of 5"},
+    {"gate": "sha256_reverification", "result": "NOT_PERFORMED", "reason": "interface exposes no checksum; content only as in-context base64; approx 580 MB"},
+    {"gate": "drive_pc_byte_parity", "result": "NOT_PERFORMED", "reason": "isolated cloud container has no access to the owner PC or mapped Drive path"},
+    {"gate": "actual_office_native_print", "result": "NOT_PERFORMED", "reason": "no Office, no GUI, no printer in this environment"},
+    {"gate": "formal_five_gate_closure", "result": "UNKNOWN", "detail": "request names five gates; controlling matrix records twelve; mapping unresolved"}
+  ],
+
+  "hash_provenance_note": "No SHA256 value referenced in the companion determination was computed by this session. All hashes are quoted from prior receipts. Byte counts, filenames, parent IDs and modified times WERE re-read live via the Drive API and matched the referee identity register.",
+
+  "canonical_destination_parent": "1Ny07XjEtlXm2qJu_PBIUSvFl7G5w28xG",
+  "custody_verified_live": [
+    {"item": "S6_parent", "file": "AFE210275_Johnson_S6_T47N_R76W_QUALIFIED_WORKING_20261011_938294b0802e.zip", "bytes": 10516758, "drive_id": "10JFgBkKLELHK1jNv3Zb4o-cXgmwhSxj2", "modified_utc": "2026-10-11T18:39:33.023Z", "register_match": true},
+    {"item": "S13_parent", "file": "AFE210275_Johnson_S13_T47N_R77W_QUALIFIED_WORKING_20261011_NATIVEPRINT_5c7e54ec39c2.zip", "bytes": 119097744, "drive_id": "1chC_b6bwvfSiXLn0zKVN-BuR1Elee7vQ", "modified_utc": "2026-10-11T20:12:23.137Z", "register_match": true},
+    {"item": "S24_parent", "file": "AFE210275_Johnson_S24_T47N_R77W_QUALIFIED_WORKING_20261011_8fbec90b674f.zip", "bytes": 11096616, "drive_id": "1bZ8S-7LtfvHOnQw_qOmYG12x7qmvkoPL", "modified_utc": "2026-10-11T19:40:06.065Z", "register_match": true},
+    {"item": "S7_parent", "file": "AFE210275_Johnson_S7_QUALIFIED_COMPLETE_CHECKLIST_20261011_6660217a9fb0.zip", "bytes": 11860223, "drive_id": "1KFy7xYl2kqYMJDPYBzONwj8Q_opEiKCd", "modified_utc": "2026-10-12T00:24:01.743Z", "register_match": true},
+    {"item": "S18_parent", "file": "AFE210275_Johnson_S18_QUALIFIED_COMPLETE_CHECKLIST_20261011_ee43e4313084.zip", "bytes": 11939435, "drive_id": "1_EBa64Dk2OY_8c7vJJBaN-PPNLtUc0Ok", "modified_utc": "2026-10-12T00:24:14.077Z", "register_match": true},
+    {"item": "R20_companion", "file": "AFE210275_SOURCE_COMPANION_R20_0377_ACCEPTED573577_CONTROLLED4_QUALIFIED.zip", "bytes": 15266327, "drive_id": "1YLZocNvp0iL-qML5XWVBp2_RDPnt262J", "modified_utc": "2026-10-11T21:27:26.180Z", "register_match": true},
+    {"item": "R21_R5_companion", "file": "AFE210275_SOURCE_COMPANION_R21_0385_FIRST40_QUALIFIED1693_R5_WITH_SEPARATE_EXACT_INPUT.zip", "bytes": 42484665, "drive_id": "1ggwqKCsefATYyBHayjAOKdaMl4G1FmBA", "modified_utc": "2026-10-12T02:01:45.213Z", "register_match": true},
+    {"item": "R2_exact_input", "file": "SOURCE0385_FIRST40_ROOT_KNOWN9_CSV8_MIRRORS_R2_QUALIFIED_LITERAL_HOLD.zip", "bytes": 85209950, "drive_id": "1QgE2TRqTMBaWI9yVfhvnMDernzYa-Vbc", "modified_utc": "2026-10-12T01:41:23.830Z", "register_match": true},
+    {"item": "S6_R14_successor", "file": "AFE210275_Johnson_S6_QUALIFIED_LETTER_METADATA_NATIVE_R14_20261011_424acab4caab.zip", "bytes": 10719061, "drive_id": "1LL_T58oJcD2fB88F3j-E6HBWlIlH7EnA", "modified_utc": "2026-10-12T03:25:45.512Z", "register_match": true, "note": "referee register said Unknown/unpublished; now published"},
+    {"item": "S13_R14_successor", "file": "AFE210275_Johnson_S13_QUALIFIED_LETTER_METADATA_NATIVE_R14_20261011_83f5ccaab1cd.zip", "bytes": 119389756, "drive_id": "12Hi7HMNzfYkvpr_aHoqhIbb_NCkGmKtl", "modified_utc": "2026-10-12T03:26:23.706Z", "register_match": true, "note": "referee register said Unknown/unpublished; now published"},
+    {"item": "S24_R14_successor", "file": "AFE210275_Johnson_S24_QUALIFIED_LETTER_METADATA_NATIVE_R14_20261011_52e09a9f4f6e.zip", "bytes": 11402369, "drive_id": "15X5mWYC2wzJIRTq1hlDLVnctR8eOYFcm", "modified_utc": "2026-10-12T03:26:53.819Z", "register_match": true, "note": "referee register said Unknown/unpublished; now published"}
+  ],
+
+  "duplicate_findings": [
+    {"kind": "byte_identical_staging_copies", "parent": "1dnFSpxu6-EXaev3Meq53L5KPxUg-OaEy", "drive_ids": ["1xvdVejQ-fJVQ0-fwcLSuEYs_Hv_8A5JU", "1QrZMxfkvoA7jkvzHGay7h1rJXCE4tF1X", "1XJZTBlcuwPd1G0JFfJYdqJkYCW7n7Fif"], "created_utc_range": "2026-10-12T03:06:08Z/2026-10-12T03:06:31Z", "credit_granted": 0},
+    {"kind": "inherited_mirror_sprawl", "files": ["S13_WYW-153681_Johnson_Co_Penterra_Abstract_Index.ods", "S24_WYW-145618_Johnson_Co_Penterra_Historical_Federal_Lease_Index.ods", "S24_WYW-153681_Johnson_Co_Penterra_Abstract_Index.ods"], "approx_distinct_parents": 30, "credit_granted": 0}
+  ],
+
+  "reviewer_lanes_located": [
+    {"lane": "coordinator_handoff", "drive_id": "1tp1R7oCwzgsU0dLR_uh_uwu6YQWOdoSxQCEzyjtklHM", "status": "release HOLD"},
+    {"lane": "final_package_referee", "drive_id": "1RdHfijL-UagrDGIRlJaaoEDqMndXS5MW", "status": "qualified retention; release HELD; no successor selected or published by referee"},
+    {"lane": "independent_source_review_WYW145618_part2_R1", "drive_id": "108TmW67Sa1CLJHPbUqnidQCmZv7XtyNd", "status": "PASS_BOUNDED_SOURCE_TRANSCRIPTION_AND_PROPOSED_SYNTHESIS; NO_ADOPTION", "adopted_credit": 0},
+    {"lane": "independent_native_calc_candidate_review_S7_S18", "drive_id": "1Ne9gJRFAtk6uIH1qLwzo8UtbF8jZrpR4", "status": "both candidates UNSELECTED; navigation OPEN"},
+    {"lane": "monday_independent_reviews_20261010", "drive_ids": ["1vLKALPT9gajcBC9Yk9dK3Rm2AiakCF0T", "1SZDE_1ZoWOhORuuBHIONz03fZo1LiMVJ", "1PQv1t16Yc_sNO-oOMgExwd0IE5ldojZ3"], "status": "separate earlier package population; not conflated"},
+    {"lane": "r14_reviewer_intake", "drive_ids": ["1hez2NrXsdXedMuIdaho4ZJlSAJuWdTtw", "1HmquGPPBefKt4Gjf-qBEbTX9htjsLn4m"], "status": "intake pending custody, raw PC"},
+    {"lane": "other_ai_chatgpt_folders_present_not_relied_on", "drive_ids": ["1gamkXMR31E3moIvvUwQIpuZeNp-9lSQb", "1MquliUL7zTjZRqTmizD7G6dHCcVErc8y", "1crbbUUhFNqC7x7ySZUSEtLezxXtvXati"]}
+  ],
+  "gemini_reviewer_output_located": false,
+  "comparison_basis": "original_source_evidence_not_ai_vote",
+
+  "dispositions": {
+    "S6": {
+      "accept": ["V4 qualified parent retention 68/0", "R14 letter-metadata successor correction (nine hidden DOCX fields)"],
+      "reject": ["combined editable19 2322", "Microsoft ODS83cc", "S6 XLSX H29 canonical replacement", "five isolated Monday alternatives"],
+      "defer": ["1693 unaccepted accessible faces in 44 modules", "Doc105911 Book335 pp580-583 + Exhibits A/B + 2010-10-25 PSA", "Doc181277 Book387 p423(part) release", "22 conditional dependencies", "May28/Part limitation at qualification pp85,109"],
+      "rows": {"county": 68, "federal": 0},
+      "index_field_literals": 544
+    },
+    "S7": {
+      "accept": ["R11 at recorded qualified scope"],
+      "reject": ["checklist R3/R4", "R21 R3/R4 transport ancestors as current successors"],
+      "defer": ["UNSELECTED native Calc candidate (211 cells, 23290 ODS bytes, 49947 PDF bytes, 1 page) - navigation OPEN", "Document 161576", "county 8493/9081", "ten S7/S18 original county joins", "expanded 8856/9562 kept separate"],
+      "rows": {"county": 3, "federal": 1}
+    },
+    "S13": {
+      "accept": ["V9 Native Print parent retention 49/17", "R14 letter-metadata successor correction"],
+      "reject": [],
+      "defer": ["Doc163698 clarification vs 163002/163699 and tract index", "seven missing faces", "163698 survey", "WYW-134920 vs WYW-153528"],
+      "rows": {"county": 49, "federal": 17},
+      "confirmed_defect": {"artifact": "current S13 letter PDF", "quoted_sha256": "5dad7eea1f1e138250d42d6cc2f63f147938516 78f2bebfa59a2ee46fce5649a", "visible": "Section13/T47N-R77W/Johnson County", "hidden_subject_keywords": "Section2/T45N-R76W/Campbell County"}
+    },
+    "S18": {
+      "accept": ["R11 ancillary at recorded qualified scope"],
+      "reject": [],
+      "defer": ["UNSELECTED native Calc candidate (205 cells, 25415 ODS bytes, 49330 PDF bytes, 1 page) - navigation OPEN", "nine outstanding joins", "whole county corpus and denominator Unknown"],
+      "rows": {"county": 3, "federal": 1},
+      "completeness_percentage_asserted": null
+    },
+    "S24": {
+      "accept": ["V8 Current Mirrors retention 144/28, Doc3719 once, correct routes", "R14 letter-metadata successor correction", "four closed source corrections (30 CFR 218.54 literal; physical4 five-line locator with 27 serials unchanged; physical16 row5 blank township/range; remove unsupported economic characterization, retain 2015-01-01)"],
+      "reject": ["index p83/p84 characterized as an omission - no omission established; minor layout finding only"],
+      "defer": ["11 proposed source-record groups + one navigation record - no row allocated, no exact same-event match to Index 10-14 1998-2001 events", "physical 8 patented Section 24 tract 50 lead (30.9075 acres, 6.7840% PA, 100% Anschutz WI)", "jacket geography T57N R83W vs exhibits T47N R77W discrepancy retained", "unnamed parties / party C16 / governing source"],
+      "rows": {"county": 144, "federal": 28},
+      "index_field_literals": 1404,
+      "source_body_quoted": {"bytes": 14521539, "quoted_sha256": "6953698c712b9a376931fe8ee806476ffb4fc477dab977a8c45c3ec63cad82b2", "physical_pages": 35},
+      "mapping_target_quoted_sha256": "ba7cd127429eb67c1e365befb647d03525c29a77e93d47e612e8f24eb5e41d87"
+    },
+    "cross_section": {
+      "accept": ["R20 retained parent reference", "R21 R5 plus separate exact R2 input as qualified supporting custody"],
+      "reject": ["any universal print preset (donor fonts/orientation/scaling differ)", "rewriting source wording where PDF extraction yields replacement glyphs but the render is correct"],
+      "open_unknown": ["Overtime13 donor checklist claims 189 federal entries vs index 187 - explanation Unknown"],
+      "current217_unknown21": {"date_roles_unknown": 217, "operative_current_rights_adoption_flags_true": 0}
+    }
+  },
+
+  "counts_as_reported_by_prior_lanes_not_reverified_here": {
+    "row_applications": {"county": 267, "federal": 47, "total": 314},
+    "natives": {"total": 27, "spreadsheets": 22, "docx": 5, "retaining_exact_prior_bytes": 25},
+    "populated_spreadsheet_cells": 20890,
+    "stored_formula_caches": 62,
+    "classified_xml_representation_differences": 78,
+    "section_pdfs": 61,
+    "pdf_page_instances": 2070,
+    "selected_final_page_instances": {"total": 1090, "readers": 1065, "native_print": 25},
+    "pdf_links": {"total": 607, "named_destinations": 338, "qualified_directory_gateways": 269},
+    "route_ledger_records": 468,
+    "cell_destinations": 15353,
+    "unique_index_row_bindings": 314,
+    "native_internal_destinations": 201,
+    "document_image_register": {"pdfs": 67, "page_instances": 2126, "raster_placements": 371},
+    "section_zip_extraction": {"files": 1623, "payloads": 1618},
+    "companion_additional_files": 392,
+    "r14_containers": {"files": 798, "payloads": 795, "bindings": 91, "pdf_routes": 591},
+    "unknown_containing_native_schema_slots": 304
+  },
+
+  "deliverables_not_produced": {
+    "five_zips": false,
+    "reason": "a complete manifest requires hashes this environment cannot compute, over successors this session is not authorized to select; fabricating them was declined"
+  },
+
+  "readiness_ranking_most_to_least_ready": ["S24_V8", "S13_V9", "S7_R11", "S6_V4", "S18_R11"],
+
+  "claims_explicitly_not_made": [
+    "no missing source is claimed recovered",
+    "no approval or authorization is claimed received",
+    "no completion percentage is inferred",
+    "no clean-cycle credit is claimed",
+    "no SHA256 was computed by this session",
+    "no Drive/PC byte parity was established",
+    "no native Office print, viewer click or printer acceptance occurred",
+    "no Gemini reviewer output exists or was substituted"
+  ]
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import { serviceStatusPresentation } from './serviceStatusPresentation';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -137,15 +138,16 @@ const App = () => {
     );
   };
 
-  const ServiceStatus = ({ serviceName, isAvailable }) => (
-    <div className="flex items-center space-x-2">
-      <div className={`w-3 h-3 rounded-full ${isAvailable ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
-      <span className="text-cyan-300">{serviceName}</span>
-      <span className={`text-xs ${isAvailable ? 'text-green-400' : 'text-red-400'}`}>
-        {isAvailable ? 'ONLINE' : 'OFFLINE'}
-      </span>
-    </div>
-  );
+  const ServiceStatus = ({ serviceName, isAvailable, status }) => {
+    const presentation = serviceStatusPresentation(status, isAvailable);
+    return (
+      <div className="flex items-center space-x-2">
+        <div className={`w-3 h-3 rounded-full ${presentation.dotClass}`}></div>
+        <span className="text-cyan-300">{serviceName}</span>
+        <span className={`text-xs ${presentation.textClass}`}>{presentation.label}</span>
+      </div>
+    );
+  };
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -158,7 +160,7 @@ const App = () => {
           <ServiceStatus serviceName="OCR Engine" isAvailable={true} />
           <ServiceStatus serviceName="OpenAI GPT" isAvailable={systemHealth.services?.openai === 'available'} />
           <ServiceStatus serviceName="Anthropic Claude" isAvailable={systemHealth.services?.anthropic === 'available'} />
-          <ServiceStatus serviceName="Google Gemini" isAvailable={systemHealth.services?.gemini === 'available'} />
+          <ServiceStatus serviceName="Google Gemini" status={systemHealth.provider_configuration?.gemini?.status} />
         </div>
       </div>
 

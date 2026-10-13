@@ -24,6 +24,11 @@ import io
 import hashlib
 import base64
 
+if __package__:
+    from .gemini_model_policy import GeminiModelConfigurationError, resolve_text_model
+else:
+    from gemini_model_policy import GeminiModelConfigurationError, resolve_text_model
+
 # Logging
 from loguru import logger
 
@@ -224,7 +229,11 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
             result = response.content[0].text
             
         elif model_name == "gemini" and GEMINI_API_KEY:
-            model = genai.GenerativeModel('gemini-pro')
+            try:
+                model_identifier = resolve_text_model()
+            except GeminiModelConfigurationError as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+            model = genai.GenerativeModel(model_identifier)
             response = model.generate_content(prompt)
             result = response.text
             
@@ -233,16 +242,34 @@ async def analyze_with_llm(text: str, model_name: str, prompt_type: str) -> Dict
         
         processing_time = (datetime.now() - start_time).total_seconds()
         
-        return {
+        analysis_result = {
             "analysis": result,
             "processing_time": processing_time,
             "model_used": model_name,
             "prompt_type": prompt_type
         }
+        if model_name == "gemini":
+            analysis_result["model_identifier"] = model_identifier
+        return analysis_result
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"LLM analysis failed with {model_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
+
+def gemini_configuration_status() -> Dict[str, Any]:
+    """Configuration presence does not prove live provider availability."""
+    if not GEMINI_API_KEY:
+        return {"status": "unavailable", "model": None, "live_api_verification": "NOT_RUN"}
+    try:
+        model = resolve_text_model()
+    except GeminiModelConfigurationError as exc:
+        return {"status": "paused", "model": None,
+                "live_api_verification": "NOT_RUN", "reason": str(exc)}
+    return {"status": "configured_unverified", "model": model,
+            "live_api_verification": "NOT_RUN"}
+
 
 # API Endpoints
 @app.on_event("startup")
@@ -255,6 +282,7 @@ async def startup_event():
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
+    gemini_configuration = gemini_configuration_status()
     return {
         "status": "healthy",
         "timestamp": datetime.now(),
@@ -263,8 +291,9 @@ async def health_check():
             "ocr": "available",
             "openai": "available" if openai_client else "unavailable",
             "anthropic": "available" if anthropic_client else "unavailable", 
-            "gemini": "available" if GEMINI_API_KEY else "unavailable"
-        }
+            "gemini": gemini_configuration["status"]
+        },
+        "provider_configuration": {"gemini": gemini_configuration}
     }
 
 @app.post("/api/documents/upload")
@@ -338,7 +367,7 @@ async def process_document_background(doc_id: str, file_content: bytes, filename
             available_models.append("gpt-4")
         if anthropic_client:
             available_models.append("claude")
-        if GEMINI_API_KEY:
+        if gemini_configuration_status()["status"] == "configured_unverified":
             available_models.append("gemini")
         
         for model in available_models:

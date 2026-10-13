@@ -12,7 +12,10 @@ from unittest.mock import patch
 
 
 BACKEND = Path(__file__).resolve().parents[1]
-REQUIRED = ("fastapi", "aiosqlite", "dotenv", "openai", "anthropic", "google.generativeai", "PIL", "loguru", "multipart", "httpx")
+REQUIRED = (
+    "fastapi", "aiosqlite", "dotenv", "openai", "anthropic",
+    "google.generativeai", "PIL", "loguru", "multipart", "httpx",
+)
 
 
 def runtime_dependencies_available():
@@ -33,13 +36,18 @@ class GeminiHTTPTests(unittest.TestCase):
         previous = os.getcwd()
         os.chdir(self.workspace.name)
         self.addCleanup(os.chdir, previous)
-        env = patch.dict(os.environ, {"GEMINI_API_KEY": "synthetic-placeholder", "SQLITE_DB_PATH": str(Path(self.workspace.name) / "test.db")}, clear=True)
+        env = patch.dict(os.environ, {
+            "GEMINI_API_KEY": "synthetic-placeholder",
+            "SQLITE_DB_PATH": str(Path(self.workspace.name) / "test.db"),
+        }, clear=True)
         env.start()
         self.addCleanup(env.stop)
         # Real provider SDKs are imported, but outbound sockets are forbidden.
         self.sockets = []
         for name in ("connect", "connect_ex"):
-            blocker = patch.object(socket.socket, name, side_effect=AssertionError("Outbound network forbidden in qualification"))
+            blocker = patch.object(socket.socket, name, side_effect=AssertionError(
+                "Outbound network forbidden in qualification"
+            ))
             blocker.start()
             self.addCleanup(blocker.stop)
             self.sockets.append(blocker)
@@ -51,7 +59,11 @@ class GeminiHTTPTests(unittest.TestCase):
             added_sinks.append(sink)
             return sink
 
-        with patch.object(sys, "path", [str(BACKEND), *sys.path]), patch("dotenv.load_dotenv", return_value=False), patch.object(logger, "add", side_effect=add_test_sink):
+        with (
+            patch.object(sys, "path", [str(BACKEND), *sys.path]),
+            patch("dotenv.load_dotenv", return_value=False),
+            patch.object(logger, "add", side_effect=add_test_sink),
+        ):
             spec = importlib.util.spec_from_file_location("gemini_http_server", BACKEND / "server.py")
             self.server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(self.server)

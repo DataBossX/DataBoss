@@ -1,0 +1,7 @@
+Row 70 Doc No 95181 -> 095481. Recording stamp on 86A53-0001 reads 095481. Barrett Resources Corporation to Williams Production RMT Company, recorded 8/31/2001.
+Row 82 Doc No 12374 -> 013374. Recording stamp on 88A127-0674 reads 013374, filed 4/21/2003.
+Row 69 Doc No 81345 -> 081345. The instrument's document number is 081345. The longer provenance note is not the document number.
+Row 13 Doc No 195136246 -> 36246. The 1951 reception number on the stamp is 36246. The leading 1951 is the recording year, not part of the document number. Recording date remains 5/17/1951. Deed date remains 5/3/1951.
+Row 27 Doc No 85507 -> Unknown. The county index prints 85507 at 0104-0170. That number is not on the instrument endorsement, so the client document number stays Unknown.
+Row 28 Doc No 85508 -> Unknown. The county index prints 85508 at 0104-0172. That number is not on the instrument endorsement, so the client document number stays Unknown.
+Row 326 Date of Doc None -> 4/30/2017. The second addendum, Book 0368-0711, was accepted effective and acknowledged 4/30/2017. A separate execution date is not shown on the page that was read.

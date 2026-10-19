@@ -1,0 +1,7 @@
+# PEACHES engine v1 — deliberately minimal.
+# Everything else is Python standard library (ODS is read via zipfile + XML).
+PyMuPDF>=1.24
+openpyxl>=3.1
+# Optional external binary: tesseract (only used by boundaries --ocr hook).
+# The engine runs fully without it; image-only PDFs are queued for vision
+# review instead of being OCR-certified.

@@ -21,5 +21,8 @@ BLM File No and Comments stay in the sheet and stay blank. Page is the first phy
 Do not commit selected instrument rows to the public DataBoss repository. Run the builder against a local master JSON and deliver the package on Drive.
 
 ```bash
+python3 tools/ch185443/import_part_census.py /path/to/master.json /path/to/part-census.json /path/to/receipt.json
 python3 tools/ch185443/build_package.py /path/to/master.json /path/to/output
 ```
+
+`import_part_census.py` reads a visual case-part census that is not stored in this repository. It adds a section row only when that census names the project section, and it fills a blank Rec Date only when the same Part and starting Page already exist and the census states a received date.

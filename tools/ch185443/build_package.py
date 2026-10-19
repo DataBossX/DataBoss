@@ -187,7 +187,7 @@ def status_markdown(master: dict, audits: list[dict]) -> str:
         "| Section | BLM file | Documents | Parts | Part numbers | Blank cells | Unknown cells |",
         "| --- | --- | ---: | ---: | --- | ---: | ---: |",
     ]
-    for audit in audits:
+    for audit in sorted(audits, key=lambda item: (item["section"], item["file"])):
         if audit["kind"] == "county":
             continue
         part_text = ", ".join(str(part) for part in audit["parts"]) if audit["parts"] else ""
@@ -211,6 +211,7 @@ def status_markdown(master: dict, audits: list[dict]) -> str:
         "",
         "WYW153681 Part 2 now has a 79-page visual census: 29 source occurrences, of which 25 are substantive documents, plus 1 administrative document, 2 postal records, and 1 jacket. The other federal parts named in the 10/19/2026 master notes still need a full boundary census.",
         "",
+        *_part2_import_lines(master),
         "Codex, Claude, and the Grok bot were not used. This package was built from the selected master rows and the two census receipts already on Drive.",
         "",
         "## Source notes that stay open",
@@ -263,6 +264,17 @@ def status_markdown(master: dict, audits: list[dict]) -> str:
         "",
     ]
     return "\n".join(lines) + "\n"
+
+
+def _part2_import_lines(master: dict) -> list[str]:
+    note = master.get("wyw153681_part2_import")
+    if not note:
+        return []
+    held = ", ".join(note.get("not_placed_on_a_project_section") or []) or "none"
+    return [
+        f"The Part 2 census was applied to the eight section packages: {note.get('added_count', 0)} new section applications and {note.get('filled_count', 0)} received dates filled on rows that already had the same Part and starting Page. A document is added only when its reviewed legal names that project section. Depth and formation stay out of the client legal. Documents with no listed project-section lands stay in the census: {held}.",
+        "",
+    ]
 
 
 class Counterish(dict):

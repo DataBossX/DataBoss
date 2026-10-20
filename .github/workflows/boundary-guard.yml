@@ -1,0 +1,26 @@
+name: Public boundary guard
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Check changed files against the publication policy
+        env:
+          # Optional repository secret: JSON list of regexes for private project/client identifiers.
+          BOUNDARY_GUARD_EXTRA_PATTERNS: ${{ secrets.BOUNDARY_GUARD_EXTRA_PATTERNS }}
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          PYTHONPATH=src python3 -m databossx.boundary_guard --base "origin/$BASE_REF"

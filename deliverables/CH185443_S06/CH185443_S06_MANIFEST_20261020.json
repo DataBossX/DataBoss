@@ -1,0 +1,115 @@
+{
+ "project": "Combine-Harvest CH185443 / AFE 210275",
+ "section": "Section 6, T47N-R76W, Johnson County, Wyoming",
+ "prepared": "10/20/2026",
+ "county_posted_thru": "10/6/2026",
+ "federal_posted_thru": "10/13/2026",
+ "county_rows": 69,
+ "blm_rows": 61,
+ "status": "QUALIFIED - UNSIGNED - pending examiner acceptance",
+ "client_zip": {
+  "name": "CH185443_S06_CLIENT_PACKAGE_20261020.zip",
+  "bytes": 230968,
+  "sha256": "d00fa67a2623621bccbc8e7c6c03562ffe31d272a1ff64d382decedcc4c8da25",
+  "files": [
+   {
+    "file": "CH185443_S06_County_Abstract_Index_20261020.ods",
+    "bytes": 24895,
+    "sha256": "dcd4abe14b2b30e8af521b5e42d69c83e831986f50c4c98ea1e51f82d80db453"
+   },
+   {
+    "file": "CH185443_S06_County_Abstract_Index_20261020.xlsx",
+    "bytes": 10744,
+    "sha256": "25f1b65dd6e33b8c3122bf7521424abf5b5dcb85289071a30fe6ad761d8d867f"
+   },
+   {
+    "file": "CH185443_S06_County_Abstract_Index_20261020.pdf",
+    "bytes": 44114,
+    "sha256": "c2e231fbdd29d644e99941dfe083aabd37c533767009b436eef4f245d9e9590e"
+   },
+   {
+    "file": "CH185443_S06_BLM_WYW-149799_Abstract_Index_20261020.ods",
+    "bytes": 29058,
+    "sha256": "e57420247536f1ec617f601678fad817ad7da109c1421aba35c9c72deab599b6"
+   },
+   {
+    "file": "CH185443_S06_BLM_WYW-149799_Abstract_Index_20261020.xlsx",
+    "bytes": 10326,
+    "sha256": "c95d60e6158518c4a81e08782900e71e73e6d703a44cd54f197be6e1e3e711f0"
+   },
+   {
+    "file": "CH185443_S06_BLM_WYW-149799_Abstract_Index_20261020.pdf",
+    "bytes": 53841,
+    "sha256": "e8bf8b0da26b5c7e197c17a2fdaa9a5c5c2faa5571fb46dd70ad9946b41c7a24"
+   },
+   {
+    "file": "CH185443_S06_Abstract_Checklist_6-47N-76W_20261020.xlsx",
+    "bytes": 5891,
+    "sha256": "c4b0ec779e05e8fdb9e91db2d32a70a7f5f81b9b1e44c83e4b969b3dce38a007"
+   },
+   {
+    "file": "CH185443_S06_Abstract_Checklist_6-47N-76W_20261020.pdf",
+    "bytes": 24897,
+    "sha256": "578ca3fc0e57023027b8636c26828026868f55b5a0cc1b9aecb9799af39e0c58"
+   },
+   {
+    "file": "CH185443_S06_6-47N-76W_Certification_Letter_UNSIGNED.docx",
+    "bytes": 24960,
+    "sha256": "08835ad4c7deb4a74b5340ce1d77f9070229944905587688438a9f6063549477"
+   },
+   {
+    "file": "CH185443_S06_6-47N-76W_Certification_Letter_UNSIGNED.pdf",
+    "bytes": 41932,
+    "sha256": "253d7b8a5a0faf1c0deaeddafba9e1a678aa1259583f65742444220aa0ac165f"
+   }
+  ]
+ },
+ "qa_internal_zip": {
+  "name": "CH185443_S06_QA_INTERNAL_20261020.zip",
+  "bytes": 188369,
+  "sha256": "b454e7c1137101af03c836188fa4b621ed2db72ed1bc49d9dc050892d8d7cfcc",
+  "files": [
+   {
+    "file": "CH185443_S06_QA_REGISTER_INTERNAL_20261020.xlsx",
+    "bytes": 15234,
+    "sha256": "0a99dc30f80fb08c79ebcdce310440b02c1fbaea2dd527adeaa653ea75bcf2dc"
+   },
+   {
+    "file": "QA_GATES.json",
+    "bytes": 4939,
+    "sha256": "32759d9437580ec062dd44d3216b2f3bad3eb7f027b20634c4761254fdb080e8"
+   },
+   {
+    "file": "S6_County_field_actions.json",
+    "bytes": 33727,
+    "sha256": "5b57ae0d58b95e5581e7feb3ce1ca84ccaef83dd2c1265d161f8b6b8a2260642"
+   },
+   {
+    "file": "S6_BLM_field_actions.json",
+    "bytes": 1359,
+    "sha256": "d1696b9b45fc50822414304a801122926069f1e729c3ecf513d0f567f2787ded"
+   },
+   {
+    "file": "source/SRP_WYW149799_10-13-2026.pdf",
+    "bytes": 203127,
+    "sha256": "f83813500eb04b7126422e2ed5804e647310c6e43113c8794859a631fb2a4e33"
+   },
+   {
+    "file": "source/ORIGINAL_S6_County.ods",
+    "bytes": 119769,
+    "sha256": "d5ae1ec6e2f4c1cbe716959da030d378ad79a09f88484962e800624493406125"
+   },
+   {
+    "file": "source/ORIGINAL_S06_WYW149799_Combined_Parts_1-2.ods",
+    "bytes": 5217,
+    "sha256": "26d32397428f879a28bb3337e201483d7c7f679692c317a0a4f739bebdb3e864"
+   }
+  ]
+ },
+ "source_hashes": {
+  "S6_County.ods": "d5ae1ec6e2f4c1cbe716959da030d378ad79a09f88484962e800624493406125",
+  "S06_WYW149799_Combined_Parts_1-2.ods": "26d32397428f879a28bb3337e201483d7c7f679692c317a0a4f739bebdb3e864",
+  "SRP_WYW149799.pdf": "f83813500eb04b7126422e2ed5804e647310c6e43113c8794859a631fb2a4e33",
+  "Overtime_Examples_11_13_15.zip": "abcb8e81eac185c15669f82c1ec81c9aa0528a13a56428c61202b56d84dd1373"
+ }
+}

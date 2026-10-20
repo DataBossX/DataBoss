@@ -4,7 +4,6 @@ import os
 import random
 import shutil
 import tempfile
-import importlib.util
 import unittest
 import zipfile
 from pathlib import Path
@@ -13,6 +12,13 @@ from aqa_tests import fixtures as fx
 from aqa import federal, inventory, pipeline, reconcile, safety, style, tables
 from aqa.config import load_config
 from aqa.util import sha256_file
+
+
+try:
+    import pypdf  # noqa: F401
+    HAVE_PYPDF = True
+except ImportError:
+    HAVE_PYPDF = False
 
 
 def tree_hashes(root: Path) -> dict:
@@ -310,7 +316,7 @@ class EndToEndTests(Base):
         self.assertTrue({"SOURCE_DISAPPEARED", "SOURCE_CHANGED"} <= codes)
         self.assertEqual(res["status"], "BLOCKED")
 
-    @unittest.skipUnless(importlib.util.find_spec("pypdf"), "clean PDF page counts require pypdf; fallback counting is flagged as an error by design")
+    @unittest.skipUnless(HAVE_PYPDF, "clean PDF page counts require pypdf; fallback counting is flagged as an error by design")
     def test_clean_package_is_clear_but_never_complete(self):
         s = self.src
         fx.make_pdf(s / "doc_a.pdf", 3)

@@ -13,3 +13,12 @@ repos:
         args: ["--maxkb=2048"]
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: public-boundary-guard
+        name: Public boundary guard (no title data in the public repo)
+        entry: env PYTHONPATH=src python3 -m databossx.boundary_guard --staged
+        language: system
+        pass_filenames: false
+        always_run: true

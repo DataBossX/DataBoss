@@ -1,0 +1,19 @@
+{
+  "allow_binary_globs": [
+    "website/public/**",
+    "website/docs/qa/**",
+    "tests/fixtures/**",
+    "examples/**"
+  ],
+  "allow_scan_globs": [],
+  "ignore_globs": [
+    ".github/workflows/**"
+  ],
+  "synthetic_values": [
+    "31-12N-24W",
+    "32-11N-25W",
+    "14-23N-7W",
+    "T7N R63W",
+    "T7N, R63W"
+  ]
+}

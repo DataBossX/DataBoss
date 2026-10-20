@@ -10,15 +10,60 @@ const App = () => {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentDetails, setDocumentDetails] = useState(null);
+  const [locked, setLocked] = useState(false);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [authError, setAuthError] = useState('');
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
+
+  // The shared secret stays on the server. The operator types it once; the
+  // browser keeps only an httpOnly session cookie after POST /api/session.
+  const api = async (path, options = {}) => {
+    const response = await fetch(`${backendUrl}${path}`, {
+      ...options,
+      credentials: "include",
+      headers: { ...(options.headers || {}) },
+    });
+    if (response.status === 401) {
+      setLocked(true);
+    }
+    return response;
+  };
+
+  const unlock = async (event) => {
+    event.preventDefault();
+    setAuthError('');
+    const typedKey = keyDraft;
+    setKeyDraft('');
+    try {
+      const response = await api('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: typedKey }),
+      });
+      if (response.ok) {
+        setLocked(false);
+        fetchDocuments();
+        fetchSystemLogs();
+        fetchAnalytics();
+        fetchSystemHealth();
+      } else {
+        setAuthError('The key was not accepted.');
+        setLocked(true);
+      }
+    } catch (error) {
+      console.error('Error opening session:', error);
+      setAuthError('The control center could not reach the API.');
+    }
+  };
 
   // Fetch data functions
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/documents`);
+      const response = await api('/api/documents');
+      if (!response.ok) return;
       const data = await response.json();
-      setDocuments(data);
+      setDocuments(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
@@ -26,9 +71,10 @@ const App = () => {
 
   const fetchSystemLogs = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/logs`);
+      const response = await api('/api/logs');
+      if (!response.ok) return;
       const data = await response.json();
-      setSystemLogs(data);
+      setSystemLogs(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching logs:', error);
     }
@@ -36,7 +82,8 @@ const App = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/analytics`);
+      const response = await api('/api/analytics');
+      if (!response.ok) return;
       const data = await response.json();
       setAnalytics(data);
     } catch (error) {
@@ -56,7 +103,8 @@ const App = () => {
 
   const fetchDocumentDetails = async (documentId) => {
     try {
-      const response = await fetch(`${backendUrl}/api/documents/${documentId}`);
+      const response = await api(`/api/documents/${documentId}`);
+      if (!response.ok) return;
       const data = await response.json();
       setDocumentDetails(data);
     } catch (error) {
@@ -75,7 +123,7 @@ const App = () => {
     setUploadStatus('uploading');
 
     try {
-      const response = await fetch(`${backendUrl}/api/documents/upload`, {
+      const response = await api('/api/documents/upload', {
         method: 'POST',
         body: formData,
       });
@@ -155,7 +203,10 @@ const App = () => {
           <span className="mr-2">⚡</span> SYSTEM STATUS
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <ServiceStatus serviceName="OCR Engine" isAvailable={true} />
+          <ServiceStatus
+            serviceName="OCR Engine"
+            isAvailable={String(systemHealth.services?.ocr || '').startsWith('available')}
+          />
           <ServiceStatus serviceName="OpenAI GPT" isAvailable={systemHealth.services?.openai === 'available'} />
           <ServiceStatus serviceName="Anthropic Claude" isAvailable={systemHealth.services?.anthropic === 'available'} />
           <ServiceStatus serviceName="Google Gemini" isAvailable={systemHealth.services?.gemini === 'available'} />
@@ -446,6 +497,31 @@ const App = () => {
           </div>
         </div>
       </nav>
+
+      {locked && (
+        <div className="bg-gray-900 border-b border-cyan-500">
+          <form onSubmit={unlock} className="container mx-auto p-4 flex flex-col gap-3 md:flex-row md:items-end">
+            <label className="flex-1 text-sm text-cyan-300">
+              Control-center key
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={keyDraft}
+                onChange={(event) => setKeyDraft(event.target.value)}
+                className="mt-1 w-full rounded border border-cyan-500 bg-black px-3 py-2 text-white"
+              />
+            </label>
+            <button type="submit" className="rounded bg-cyan-500 px-4 py-2 font-medium text-black">
+              Unlock
+            </button>
+            <p className="text-xs text-gray-400 md:max-w-sm">
+              The key is sent once to open a session. It is not stored in this page.
+              Use the same host (localhost or 127.0.0.1) for this page and the API.
+              {authError ? ` ${authError}` : ''}
+            </p>
+          </form>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto p-6">

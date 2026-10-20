@@ -1,0 +1,52 @@
+[
+  {
+    "book": "86A77-0686",
+    "doc": "130370",
+    "date_of_doc": null,
+    "page": null,
+    "quote": null,
+    "file_id": "1_Q_HlndHo-wAaXI-I4WmdZFpSUgcmtu7",
+    "legal_by_section": null,
+    "notes": "UCC amendment (added collateral). download_file_content failed: File too large for download, over limit of 10 MB (Drive metadata fileSize 13877060 bytes, title 86A77-0686.pdf). Date of Doc not read from the image; not guessed. Clerk filing stamp was not used."
+  },
+  {
+    "book": "86A84-0235",
+    "doc": "159708",
+    "date_of_doc": null,
+    "page": null,
+    "quote": null,
+    "file_id": "1rTU-Ej4O30tAtEUOjg-4bb9rQmVn-Bur",
+    "legal_by_section": null,
+    "notes": "UCC termination. download_file_content failed: File too large for download, over limit of 10 MB (Drive metadata fileSize 13350804 bytes, title 86A84-0235.pdf). Date of Doc not read from the image; not guessed. Clerk filing stamp was not used."
+  },
+  {
+    "book": "0353-0156",
+    "doc": "138043",
+    "date_of_doc": null,
+    "page": null,
+    "quote": null,
+    "file_id": "1aUmh9-LIcB_CT1znR3UxUPlB8dhbDj2e",
+    "legal_by_section": null,
+    "notes": "Assignment and Bill of Sale. download_file_content failed: File too large for download, over limit of 10 MB (Drive metadata fileSize 17707165 bytes, title 0353-0156.pdf). Date of Doc not read from the image; not guessed. Clerk filing stamp was not used."
+  },
+  {
+    "book": "0400-0147",
+    "doc": "323930",
+    "date_of_doc": null,
+    "page": null,
+    "quote": null,
+    "file_id": "1cX3NEx8FhldfYFqF6vpoJEGR74VGgU4f",
+    "legal_by_section": null,
+    "notes": "Release of Mortgages. download_file_content failed: File too large for download, over limit of 10 MB (Drive metadata fileSize 20556148 bytes, title 0400-0147.pdf). Date of Doc not read from the image; not guessed. Clerk filing stamp was not used. Sections 19 (47N-76W) and 24 (47N-77W) were not readable, so legal is null. Whether section 18 (47N-76W) or section 7 is named was not determined."
+  },
+  {
+    "book": "0392-0413",
+    "doc": "304779",
+    "date_of_doc": null,
+    "page": null,
+    "quote": null,
+    "file_id": "19HUhfvYGnE6y2LqMF_FbX_lwKHDho_E8",
+    "legal_by_section": null,
+    "notes": "Assignment, Bill of Sale and Conveyance. download_file_content failed: File too large for download, over limit of 10 MB (Drive metadata fileSize 24084717 bytes, title 0392-0413.pdf). Date of Doc not read from the image; not guessed. Clerk filing stamp was not used."
+  }
+]

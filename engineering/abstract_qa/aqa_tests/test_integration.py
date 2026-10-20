@@ -8,7 +8,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from tests import fixtures as fx
+from aqa_tests import fixtures as fx
 from aqa import federal, inventory, pipeline, reconcile, safety, style, tables
 from aqa.config import load_config
 from aqa.util import sha256_file

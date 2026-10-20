@@ -1,6 +1,6 @@
 import unittest
 
-from tests import fixtures  # noqa: F401  (sets sys.path)
+from aqa_tests import fixtures  # noqa: F401  (sets sys.path)
 from aqa import checks, census, tables
 from aqa.config import load_config
 from aqa.reconcile import recorder_identity

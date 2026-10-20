@@ -12,7 +12,7 @@ invents or "corrects" title facts. Original images remain the only source of sub
 python -m aqa run --config config.local.json [--run-id ID]
 python -m aqa run --config config.local.json --resume ID     # reuse completed stages with unchanged inputs
 python -m aqa verify runs/ID/final-XXXXXXXXXXXX              # re-hash every artifact against qa_receipt.json
-python -m unittest discover -s tests -t .                    # 41 tests, synthetic fixtures only
+python -m unittest discover -s aqa_tests -t .                    # 41 tests, synthetic fixtures only
 ```
 Exit codes: `0` automated checks clear, `2` blocked (or verify failed), `1` usage/overwrite/config error.
 Config: copy `config.example.json` to `config.local.json` (git-ignored). **The shipped schemas, section

@@ -1,0 +1,24 @@
+{
+  "_comment": "TEMPLATE WITH FICTIONAL VALUES. Copy to config.local.json (git-ignored) and fill with the real private paths, headers and rules. Never commit the filled copy.",
+  "project_label": "EXAMPLE-PROJECT",
+  "source_roots": ["C:/Projects/EXAMPLE/originals", "C:/Projects/EXAMPLE/package_exports"],
+  "protected_paths": ["C:/Projects/EXAMPLE/canonical_client_indexes"],
+  "output_root": "C:/Projects/EXAMPLE_engineering/abstract_qa_out",
+  "claimed_placements": 2251,
+  "baseline_manifest": null,
+  "expected_sources": [],
+  "section_rules": [
+    {"regex": "(?i)(?<![A-Za-z0-9])(?P<section>[RT]\\d{1,3})(?![A-Za-z0-9])"}
+  ],
+  "branch_groups": {
+    "branch_A": ["R41", "R43", "R45", "R46", "R47"],
+    "branch_B": ["R10", "R11", "R13", "R15"]
+  },
+  "donor_section": "R41",
+  "owner_overrides": {"R10": {"allow": ["ext", "name_pattern"]}},
+  "county_schema": ["Index No", "Tract", "Instrument Type", "Grantor", "Grantee", "Recording Date", "Recorder ID", "Source PDF", "PDF Page"],
+  "federal_schema": ["Serial No", "Event Date", "Event Type", "Lessee/Assignor", "Assignee", "Tract", "Acres", "Status", "Source PDF", "PDF Page"],
+  "county_default": "Example",
+  "serial_regex": "(?i)WYW\\s*0*(\\d+)",
+  "serial_prefix": "WYW"
+}

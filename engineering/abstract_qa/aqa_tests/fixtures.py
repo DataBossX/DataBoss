@@ -13,18 +13,37 @@ from aqa.config import COUNTY_SCHEMA_DEFAULT as COUNTY, FEDERAL_SCHEMA_DEFAULT a
 
 
 def make_pdf(path: Path | None, pages: int) -> bytes:
-    from pypdf import PdfWriter
-
-    w = PdfWriter()
-    for _ in range(pages):
-        w.add_blank_page(width=612, height=792)
-    buf = io.BytesIO()
-    w.write(buf)
-    data = buf.getvalue()
+    """Minimal valid PDF built by hand so tests do not depend on a PDF writer library."""
+    objs = ["<< /Type /Catalog /Pages 2 0 R >>",
+            f"<< /Type /Pages /Kids [{' '.join(f'{3 + i} 0 R' for i in range(pages))}] /Count {pages} >>"]
+    objs += ["<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>"] * pages
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for i, body in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n{body}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    for off in offsets:
+        out += f"{off:010d} 00000 n \n".encode()
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    data = bytes(out)
     if path is not None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     return data
+
+
+def make_png(path: Path) -> None:
+    import struct
+    import zlib
+
+    def chunk(t: bytes, d: bytes) -> bytes:
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+
+    raw = zlib.compress(b"\x00\x00\x00\x00")
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+                     + chunk(b"IDAT", raw) + chunk(b"IEND", b""))
 
 
 def make_xlsx(path: Path, rows: list[list], sheet: str = "Index", bold_header: bool = True) -> None:

@@ -4,6 +4,7 @@ import os
 import random
 import shutil
 import tempfile
+import importlib.util
 import unittest
 import zipfile
 from pathlib import Path
@@ -56,8 +57,7 @@ class InventoryTests(Base):
             z.writestr("a.pdf", data)
             z.writestr("nested.zip", inner.getvalue())
         fx.make_pdf(self.src / "loose.pdf", 4)
-        from PIL import Image
-        Image.new("RGB", (4, 4)).save(self.src / "scan.png")
+        fx.make_png(self.src / "scan.png")
         cfg = load_config(None, fx.base_config(self.tmp))
         inv = inventory.run_inventory(cfg)
         e = {x["path"]: x for x in inv["entries"]}
@@ -310,6 +310,7 @@ class EndToEndTests(Base):
         self.assertTrue({"SOURCE_DISAPPEARED", "SOURCE_CHANGED"} <= codes)
         self.assertEqual(res["status"], "BLOCKED")
 
+    @unittest.skipUnless(importlib.util.find_spec("pypdf"), "clean PDF page counts require pypdf; fallback counting is flagged as an error by design")
     def test_clean_package_is_clear_but_never_complete(self):
         s = self.src
         fx.make_pdf(s / "doc_a.pdf", 3)

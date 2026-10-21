@@ -1,0 +1,138 @@
+{
+  "run": {
+    "worker": "Claude",
+    "model": "claude-opus-5",
+    "host": "Claude Code cloud session (Linux container)",
+    "role": "Section 19 federal source examiner",
+    "preparation_date": "2026-10-19",
+    "research_cutoff": "Unknown",
+    "currentness": "Unknown",
+    "completed_utc": "2026-10-21T18:45:25Z",
+    "writes_outside_own_folder": 0,
+    "promotes_to_any_package": false,
+    "canonical_succession_claimed": false
+  },
+  "tools_actually_used": [
+    "Google Drive connector read_file_content / search_files (read-only)",
+    "LibreOffice 'soffice' headless for .ods and .pdf native export",
+    "Python openpyxl (xlsx authoring)",
+    "pdfplumber, pdfinfo, pdffonts, pdftoppm (PDF verification)",
+    "Pillow / pdftoppm render for visual check"
+  ],
+  "tools_claimed_but_NOT_available": {
+    "Microsoft Excel/Word/Acrobat": "not present; no MS Office parity tested",
+    "Calibri font": "not installed; Carlito 11 metric-compatible substitute used and disclosed on the sheet",
+    "tesseract OCR": "not installed in this container",
+    "Desktop Commander / RyansPC": "MCP server failed to connect (CONNECT_TIMEOUT); device reported OFFLINE 2026-10-19",
+    "Codex Root": "offline; it remains the only sanctioned production writer"
+  },
+  "denominator_reconciliation": {
+    "total_pages_15_pdfs": 1332,
+    "federal_pages": 1315,
+    "county_pages": 17,
+    "WYW131225_pages": 485,
+    "WYW133620_pages": 617,
+    "WYW094605_pages": 213,
+    "prior_fresh_visual_total": 65,
+    "prior_fresh_visual_federal": 48,
+    "prior_fresh_visual_county": 17,
+    "all_agree_with_accepted_baseline": true
+  },
+  "page_ledger": {
+    "rows": 1315,
+    "explicit_disposition": 1315,
+    "blank_disposition": 0,
+    "read_from_source_text": 6,
+    "not_reviewable_in_this_environment": 1309,
+    "ocr_listed_in_nav_index": 1098,
+    "ocr_claimed_but_no_text_located": 211
+  },
+  "ledgers": {
+    "events": 25,
+    "proposals": 8,
+    "proposals_accepted": 0,
+    "open_blockers": 11
+  },
+  "workbook_qa": {
+    "schema": "federal 10-column: Document Type|Grantor|Grantee|File No|Page|Date of Doc|Rec Date|Comments|Legal Description|Part",
+    "metadata_rows": "1-7",
+    "blank_row": 8,
+    "header_row": 9,
+    "entries_start_row": 10,
+    "data_rows": 24,
+    "file_no_column_blank_all_rows": true,
+    "comments_column_blank_all_rows": true,
+    "intentional_blank_rule": "File No and Comments intentionally blank; Comments is blank or exactly 'missing image'",
+    "unknown_cells_preserved": 97,
+    "font_named": "Calibri 11",
+    "font_actually_embedded_in_pdf": [
+      "BAAAAA+Carlito-Bold",
+      "CAAAAA+Carlito-Regular"
+    ],
+    "rendered_text_sizes_pt": [
+      11.0
+    ],
+    "body_type_shrunk_to_fit": false,
+    "page_count": 6,
+    "page_size": "792 x 612 pts (US Letter landscape)",
+    "scale_percent": 100,
+    "column_band_split": false,
+    "header_row_repeats_on_every_printed_page": true,
+    "clipping_check": "visual render inspected at 110 dpi; full legal descriptions present, no truncated cells",
+    "mid_word_header_or_value_breaks": false,
+    "ods_xlsx_cell_parity": "EXACT MATCH via independent csv export of both (209 non-empty cells)",
+    "native_xml_all_parts_parse": true,
+    "zip_crc_errors": 0,
+    "manual_pdf_facsimile": false,
+    "pdf_is_native_export_from_the_native_file": true
+  },
+  "artifacts": {
+    "Instrument_Event_Ledger.csv": {
+      "sha256": "30a9d9d9afdf87c7aa76332f66ebb5631f243fac8494e815401e61310e9ec30e",
+      "bytes": 11782
+    },
+    "Missing_Source_and_Conflict_Register.csv": {
+      "sha256": "a1a282317c0a4cc656819c6b4d3a645516b8369ee99b7eafbbee952c648d9d46",
+      "bytes": 6468
+    },
+    "Page_Review_Ledger.csv": {
+      "sha256": "e4f0187c0d854fb40daf347ba4c626abae238a231aed2feec4ba3b6a67a15358",
+      "bytes": 1163189
+    },
+    "Proposed_Changes.csv": {
+      "sha256": "0a55925d093807af3246d0116cc40f3a71fec7ac71960209863567482a37cb4b",
+      "bytes": 8686
+    },
+    "QA_Receipt.json": {
+      "sha256": "331f2cff201aa1a23b7c4e8fad99107a55357fcf5d664e13bc2654769626299f",
+      "bytes": 5630
+    },
+    "S19_Federal_1_PROPOSAL_Claude_20261019.ods": {
+      "sha256": "ecf5e9ba46d11b06010a60c639e6e5b62b5dace504fe63b0515d902c2a5f3c63",
+      "bytes": 32336
+    },
+    "S19_Federal_1_PROPOSAL_Claude_20261019.pdf": {
+      "sha256": "ba9aadeb58e8b4e14ca29321d60965a095782838cf68138cf6a1ebcf2fa669e9",
+      "bytes": 51799
+    },
+    "S19_Federal_1_PROPOSAL_Claude_20261019.xlsx": {
+      "sha256": "d1aa4a6bb08a8360bdb4587270e2f83d6085eb758f6a7378ed65d9c9a90d3ec1",
+      "bytes": 8371
+    },
+    "START_HERE_STATUS.md": {
+      "sha256": "719c085452e4996e3a21cc464648f7a2c3a8f78c975bbe6354a6ed17425423cc",
+      "bytes": 6492
+    },
+    "Source_Register.csv": {
+      "sha256": "da28f92ccac81690655dad5e03a27cd3663bd6ee29cbe750c88aa42455dd35f6",
+      "bytes": 7451
+    }
+  },
+  "limitations": [
+    "1,309 of 1,315 federal pages were NOT reviewed: no native text layer, connector returns empty text, bytes not transferable, no local OCR.",
+    "Register drive_id values differ from the shared-folder Drive IDs while byte counts agree; SHA equivalence between the two copy sets is unproven.",
+    "All SHA-256 values for original sources are as-supplied, not recomputed.",
+    "Serial Register Pages are 2026-10-07 MLRS snapshots with an express no-warranty notice and obsolete legacy remarks.",
+    "No release gate passed. Not certified, not current, not signed, not ready for final release."
+  ]
+}

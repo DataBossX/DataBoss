@@ -2,7 +2,7 @@
 
 **Run date (preparation date): 2026-10-19. Research cutoff: Unknown. Currentness: Unknown.**
 Worker: Claude, model `claude-opus-5`, Claude Code cloud session (Linux container).
-Started 2026-10-19 (UTC). Completed 2026-10-19T12:00:40Z.
+Started 2026-10-19 (UTC). Completed 2026-10-21T18:45:25Z.
 
 ## Standing caveat on this assignment
 
@@ -34,7 +34,7 @@ only current final-package priority.
    including the 1309 that are not reviewable in this environment. No page is left blank.
 5. Produced an **isolated proposal workbook** in the federal ten-column schema, as native .xlsx, native
    .ods and a native .pdf export, verified for values, row order, typography, pagination and clipping.
-6. Recorded **9 concrete open blockers** with the exact missing item and next owner.
+6. Recorded **11 concrete open blockers** with the exact missing item and next owner.
 
 ## Independently verified denominators
 
@@ -65,9 +65,22 @@ The SRP recapitulation independently carries WYW136880 tract 02 at 74.1100 acres
 - Source files readable in this environment: 6 of 14 attempted = 42.857%
   (3 of the 10 register federal PDFs = 30.000%; all three readable ones are the 2-page jackets).
 - Proposals accepted: 0/8 = 0.000%. Acceptance belongs to the adjudicator, not to this run.
-- Open blockers: 9. Release gates passed: 0 of 8. All remain qualified.
+- Open blockers: 11. Release gates passed: 0 of 8. All remain qualified.
 
 These percentages are coverage measures. **They are not correctness, not completion, and not currentness.**
+
+## OCR navigation index (follow-up finding)
+
+`FEDERAL_NAVIGATION_OCR_ONLY.json` lists **1,098 of the 1,315** federal pages (WYW-131225 Parts 1-3 = 483,
+WYW-133620 Parts 1-3 = 615). It is a **locator, not evidence**: per page it holds keyword flags and an offline
+Windows path, never page text. 880 pages carry at least one flag and 218 carry none.
+
+- **WYW-094605 Part 1 (211 pages) is not in the index at all.** That part holds the CA WYW136880 agreement
+  (p.82) and approval (p.81), so blocker B03 cannot be resolved without it (new blocker B10).
+- The vocabulary has 10 terms. It includes `section7` and `section18` but **no `section19`**, so it cannot locate
+  Section 19 pages, and its broadest flags (`depth` 470 pages, `approval` 415) narrow nothing (new blocker B11).
+- Pages never read stay `NOT_REVIEWABLE`; the ledger now records, per page, whether OCR text is listed in the
+  index (1,098) or merely claimed by the register with no text located (211).
 
 ## What is explicitly NOT established
 

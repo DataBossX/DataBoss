@@ -7,7 +7,7 @@
     "preparation_date": "2026-10-19",
     "research_cutoff": "Unknown",
     "currentness": "Unknown",
-    "completed_utc": "2026-10-19T12:00:40Z",
+    "completed_utc": "2026-10-21T18:45:25Z",
     "writes_outside_own_folder": 0,
     "promotes_to_any_package": false,
     "canonical_succession_claimed": false
@@ -43,13 +43,15 @@
     "explicit_disposition": 1315,
     "blank_disposition": 0,
     "read_from_source_text": 6,
-    "not_reviewable_in_this_environment": 1309
+    "not_reviewable_in_this_environment": 1309,
+    "ocr_listed_in_nav_index": 1098,
+    "ocr_claimed_but_no_text_located": 211
   },
   "ledgers": {
     "events": 25,
     "proposals": 8,
     "proposals_accepted": 0,
-    "open_blockers": 9
+    "open_blockers": 11
   },
   "workbook_qa": {
     "schema": "federal 10-column: Document Type|Grantor|Grantee|File No|Page|Date of Doc|Rec Date|Comments|Legal Description|Part",
@@ -90,16 +92,20 @@
       "bytes": 11782
     },
     "Missing_Source_and_Conflict_Register.csv": {
-      "sha256": "7f39511a000f641ae058728c168d604a62da1387d35b1ab360dbe4e086689f0f",
-      "bytes": 5287
+      "sha256": "a1a282317c0a4cc656819c6b4d3a645516b8369ee99b7eafbbee952c648d9d46",
+      "bytes": 6468
     },
     "Page_Review_Ledger.csv": {
-      "sha256": "b474d3fa22bf939725d51d9eb7666048a30c60300555c9a6f4c5490ee1b24d60",
-      "bytes": 1019258
+      "sha256": "e4f0187c0d854fb40daf347ba4c626abae238a231aed2feec4ba3b6a67a15358",
+      "bytes": 1163189
     },
     "Proposed_Changes.csv": {
       "sha256": "0a55925d093807af3246d0116cc40f3a71fec7ac71960209863567482a37cb4b",
       "bytes": 8686
+    },
+    "QA_Receipt.json": {
+      "sha256": "331f2cff201aa1a23b7c4e8fad99107a55357fcf5d664e13bc2654769626299f",
+      "bytes": 5630
     },
     "S19_Federal_1_PROPOSAL_Claude_20261019.ods": {
       "sha256": "ecf5e9ba46d11b06010a60c639e6e5b62b5dace504fe63b0515d902c2a5f3c63",
@@ -114,8 +120,8 @@
       "bytes": 8371
     },
     "START_HERE_STATUS.md": {
-      "sha256": "17b78d8afa16aa81f97d46d5a9b5c7ace858c5fabdeb9b4c96701c96779b401c",
-      "bytes": 5524
+      "sha256": "719c085452e4996e3a21cc464648f7a2c3a8f78c975bbe6354a6ed17425423cc",
+      "bytes": 6492
     },
     "Source_Register.csv": {
       "sha256": "da28f92ccac81690655dad5e03a27cd3663bd6ee29cbe750c88aa42455dd35f6",

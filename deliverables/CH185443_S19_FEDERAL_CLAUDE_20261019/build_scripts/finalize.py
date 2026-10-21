@@ -86,6 +86,19 @@ The SRP recapitulation independently carries WYW136880 tract 02 at 74.1100 acres
 
 These percentages are coverage measures. **They are not correctness, not completion, and not currentness.**
 
+## OCR navigation index (follow-up finding)
+
+`FEDERAL_NAVIGATION_OCR_ONLY.json` lists **1,098 of the 1,315** federal pages (WYW-131225 Parts 1-3 = 483,
+WYW-133620 Parts 1-3 = 615). It is a **locator, not evidence**: per page it holds keyword flags and an offline
+Windows path, never page text. 880 pages carry at least one flag and 218 carry none.
+
+- **WYW-094605 Part 1 (211 pages) is not in the index at all.** That part holds the CA WYW136880 agreement
+  (p.82) and approval (p.81), so blocker B03 cannot be resolved without it (new blocker B10).
+- The vocabulary has 10 terms. It includes `section7` and `section18` but **no `section19`**, so it cannot locate
+  Section 19 pages, and its broadest flags (`depth` 470 pages, `approval` 415) narrow nothing (new blocker B11).
+- Pages never read stay `NOT_REVIEWABLE`; the ledger now records, per page, whether OCR text is listed in the
+  index (1,098) or merely claimed by the register with no text located (211).
+
 ## What is explicitly NOT established
 
 - No section has affirmative currentness or examiner release proof. 2026-10-19 is a preparation date only.
@@ -104,7 +117,8 @@ page images. Only after acceptance may the designated integrator apply any of th
 open(f"{OUT}/START_HERE_STATUS.md","w").write(STATUS)
 
 arts={os.path.basename(p):{"sha256":sha(p),"bytes":os.path.getsize(p)}
-      for p in sorted(glob.glob(f"{OUT}/*")) if os.path.isfile(p) and not p.endswith(".png")}
+      for p in sorted(glob.glob(f"{OUT}/*")) if os.path.isfile(p) and not p.endswith(".png")
+      and os.path.basename(p) not in ("SHA256SUMS.txt","Worker_Delivery.zip")}
 QA={
  "run":{"worker":"Claude","model":"claude-opus-5","host":"Claude Code cloud session (Linux container)",
         "role":"Section 19 federal source examiner","preparation_date":"2026-10-19",
@@ -124,7 +138,8 @@ QA={
         "prior_fresh_visual_total":65,"prior_fresh_visual_federal":48,"prior_fresh_visual_county":17,
         "all_agree_with_accepted_baseline":True},
  "page_ledger":{"rows":len(pages),"explicit_disposition":len(pages),"blank_disposition":0,
-        "read_from_source_text":reviewed,"not_reviewable_in_this_environment":len(pages)-reviewed},
+        "read_from_source_text":reviewed,"not_reviewable_in_this_environment":len(pages)-reviewed,
+        "ocr_listed_in_nav_index":1098,"ocr_claimed_but_no_text_located":211},
  "ledgers":{"events":len(evs),"proposals":len(props),"proposals_accepted":0,"open_blockers":len(blk)},
  "workbook_qa":{"schema":"federal 10-column: Document Type|Grantor|Grantee|File No|Page|Date of Doc|Rec Date|Comments|Legal Description|Part",
         "metadata_rows":"1-7","blank_row":8,"header_row":9,"entries_start_row":10,"data_rows":24,

@@ -23,9 +23,14 @@ from pathlib import Path
 
 from .census import census_workbook
 from .qa import check_index
-from .render import (ChecklistData, IndexMeta, LetterData, convert, write_checklist, write_index, write_letter)
+from .render import (ChecklistData, IndexMeta, LetterData, convert as _convert, write_checklist, write_index, write_letter)
 from .normalize import is_blank, norm_book_page, normalize_blm_row, normalize_county_row
 
+
+
+def _noop_convert(path, fmt, outdir=None, retries=0):
+    """Used with --no-convert on machines without LibreOffice: skips ODS/PDF output only."""
+    return Path(path)
 
 
 def load_profile(path: str | None) -> dict:
@@ -52,6 +57,7 @@ def _long(d: date) -> str:
 
 def build_section(a) -> dict:
     prof = load_profile(a.profile)
+    convert = _noop_convert if getattr(a, "no_convert", False) else _convert
     out = Path(a.out); client = out / "CLIENT"; qa_dir = out / "QA_INTERNAL"
     client.mkdir(parents=True, exist_ok=True); qa_dir.mkdir(parents=True, exist_ok=True)
     prep = _d(a.prep_date); thru = _d(a.county_thru)
@@ -181,6 +187,7 @@ def main(argv=None):
     ap.add_argument("--starting-date", default=None); ap.add_argument("--srp-date", nargs="*")
     ap.add_argument("--case-files", nargs="*", help="serials with a case-file image set in hand (letter claim)")
     ap.add_argument("--unnumbered", nargs="*", help="federal serials whose source file carries no part number (Part stays blank)")
+    ap.add_argument("--no-convert", action="store_true", dest="no_convert", help="skip ODS/PDF conversion (no LibreOffice)")
     ap.add_argument("--patches", help="private JSON of evidence-backed cell patches")
     ap.add_argument("--profile", help="private JSON profile (see profile.example.json)")
     ap.add_argument("--qualified-note", default=None); ap.add_argument("--donor-letter"); ap.add_argument("--out", required=True)

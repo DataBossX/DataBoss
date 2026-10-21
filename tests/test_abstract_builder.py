@@ -163,7 +163,7 @@ def test_patch_overlay_fills_and_logs(tmp_path: Path):
     prof.write_text(json.dumps({"preparer": "P", "project": "J", "client": "C", "file_label": "Abstract_Index"}))
     build_section(NS(section=6, twp=47, rge=76, county="Example", county_in=str(src), blm_in=[], prep_date="2026-01-01",
                      county_thru=None, starting_date=None, srp_date=[], qualified_note=None, donor_letter=None,
-                     profile=str(prof), patches=str(tmp_path / "p.json"), out=str(tmp_path / "out"), case_files=None, unnumbered=None))
+                     profile=str(prof), patches=str(tmp_path / "p.json"), out=str(tmp_path / "out"), case_files=None, unnumbered=None, no_convert=True))
     log = (tmp_path / "out/QA_INTERNAL/CHANGE_LOG.csv").read_text()
     assert "PATCH_FILL:date_of_doc" in log and "PATCH_CONFIRMED_BLANK:grantee" in log
     ws = openpyxl.load_workbook(next((tmp_path / "out/CLIENT").glob("*Abstract_Index.xlsx"))).active

@@ -24,7 +24,7 @@ from pathlib import Path
 from .census import census_workbook
 from .qa import check_index
 from .render import (ChecklistData, IndexMeta, LetterData, convert as _convert, write_checklist, write_index, write_letter)
-from .normalize import is_blank, norm_book_page, normalize_blm_row, normalize_county_row
+from .normalize import is_blank, norm_book_page, norm_date, normalize_blm_row, normalize_county_row
 
 
 
@@ -76,8 +76,22 @@ def build_section(a) -> dict:
     patches = [pt for pt in load_patches(getattr(a, "patches", None)) if pt.get("layout", "county") == "county"]
     COL = {"doc_type": 0, "grantor": 1, "grantee": 2, "doc_no": 3, "book_page": 4, "date_of_doc": 5, "rec_date": 6, "legal": 7, "comments": 8}
     dispositions: dict[tuple, str] = {}
-    for i, r in enumerate(c.rows, start=10):
-        r = list(r)
+    src_rows = [list(r) for r in c.rows]
+    added = 0
+    for pt in patches:
+        if pt.get("kind") != "add_row":
+            continue
+        nr = [pt["row"].get(k) for k in COL]
+        key = (str(pt["row"].get("doc_no") or ""), norm_book_page(pt["row"].get("book_page"))[0])
+        if any((str(x[3] or "").lstrip("0"), norm_book_page(x[4])[0]) == (key[0].lstrip("0"), key[1]) for x in src_rows):
+            continue                                # identity already present; never duplicate
+        nd = norm_date(nr[6])[0]
+        pos = next((k for k, x in enumerate(src_rows) if nd and norm_date(x[6])[0] and norm_date(x[6])[0] > nd), len(src_rows))
+        src_rows.insert(pos, nr); added += 1
+        log_rows.append({"file": "county", "row": 10 + pos, "note": f"PATCH_ADD_ROW:doc {key[0]} {key[1]} | {pt['evidence']}"})
+    patches = [pt for pt in patches if pt.get("kind") != "add_row"]
+    counts["county_rows_added"] = added
+    for i, r in enumerate(src_rows, start=10):
         rbp, rdn = norm_book_page(r[4])[0], str(r[3] or "").strip().lstrip("0")
         for pt in patches:
             if norm_book_page(pt.get("book_page"))[0] == rbp and str(pt.get("doc_no", "")).lstrip("0") in ("", rdn):

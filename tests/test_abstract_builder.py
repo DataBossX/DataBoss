@@ -177,3 +177,25 @@ def test_lot_ranges_and_doc_type_dashes_have_no_dash_punctuation():
     assert out == "Lots 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16 of 31-47N-76W"
     assert norm_doc_type("UCC Financing Statement Amendment — Termination")[0] == "UCC Financing Statement Amendment: Termination"
     assert norm_doc_type("Notice of Location--Lode")[0] == "Notice of Location: Lode"
+
+
+def test_add_row_overlay_inserts_by_rec_date_and_never_duplicates(tmp_path: Path):
+    import json
+    from types import SimpleNamespace as NS
+    from abstract_builder.build import build_section
+    rows = [["Deed", "A", "B", 1001, "0001-0001", date(2020, 1, 1), date(2020, 1, 2), "All of 6-47N-76W", None],
+            ["Deed", "C", "D", 1003, "0001-0003", date(2020, 3, 1), date(2020, 3, 3), "All of 6-47N-76W", None]]
+    src = write_index(rows, _meta(), "county", tmp_path / "in.xlsx")
+    new = {"doc_type": "Deed", "grantor": "E", "grantee": "F", "doc_no": 1002, "book_page": "0001-0002", "date_of_doc": "2/1/2020",
+           "rec_date": "2/2/2020", "legal": "All of 6-47N-76W", "comments": None}
+    patches = [{"kind": "add_row", "row": new, "evidence": "official index + face p1 (viewed)"},
+               {"kind": "add_row", "row": {**new, "doc_no": 1001, "book_page": "0001-0001"}, "evidence": "dup"}]
+    (tmp_path / "p.json").write_text(json.dumps(patches))
+    prof = tmp_path / "prof.json"
+    prof.write_text(json.dumps({"preparer": "P", "project": "J", "client": "C", "file_label": "Abstract_Index"}))
+    res = build_section(NS(section=6, twp=47, rge=76, county="Example", county_in=str(src), blm_in=[], prep_date="2026-01-01",
+                           county_thru=None, starting_date=None, srp_date=[], qualified_note=None, donor_letter=None,
+                           profile=str(prof), patches=str(tmp_path / "p.json"), out=str(tmp_path / "out"), case_files=None, unnumbered=None, no_convert=True))
+    ws = openpyxl.load_workbook(next((tmp_path / "out/CLIENT").glob("*Abstract_Index.xlsx"))).active
+    assert [ws.cell(r, 4).value for r in (10, 11, 12)] == [1001, 1002, 1003]
+    assert res["counts"]["county_rows_added"] == 1 and ws.max_row == 12

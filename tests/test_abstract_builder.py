@@ -140,3 +140,33 @@ def test_donor_print_setup(tmp_path: Path):
     pm = ws.page_margins
     assert (pm.left, pm.right, pm.top, pm.bottom) == (0.7, 0.7, 0.3, 0.3)
     assert ws.page_setup.orientation == "landscape" and ws.page_setup.fitToWidth == 1 and ws.page_setup.fitToHeight == 0
+
+
+def test_unnumbered_source_clears_part_and_logs():
+    r = normalize_blm_row(["Assignment", "A", "B", None, 12, "1/2/2020", None, None, "Lots 1 of 6-47N-76W", 3], unnumbered=True)
+    assert r.values[9] is None and any(n.startswith("PART_CLEARED_UNNUMBERED_SOURCE:3") for n in r.notes)
+    r2 = normalize_blm_row(["Assignment", "A", "B", None, 12, "1/2/2020", None, None, "Lots 1 of 6-47N-76W", 3])
+    assert r2.values[9] == 3
+
+
+def test_patch_overlay_fills_and_logs(tmp_path: Path):
+    import json
+    from types import SimpleNamespace as NS
+    from abstract_builder.build import build_section
+    rows = [["Deed", "A", "B", 1001, "0001-0001", None, date(2020, 1, 2), "All of 6-47N-76W", None],
+            ["Deed", "C", None, 1002, "0001-0002", None, date(2020, 1, 3), "All of 6-47N-76W", None]]
+    src = write_index(rows, _meta(), "county", tmp_path / "in.xlsx")
+    patches = [{"book_page": "0001-0001", "doc_no": 1001, "col": "date_of_doc", "value": "12/29/2020", "kind": "fill", "evidence": "face p3"},
+               {"book_page": "0001-0002", "doc_no": 1002, "col": "grantee", "value": None, "kind": "confirmed_blank", "evidence": "face p1"}]
+    (tmp_path / "p.json").write_text(json.dumps(patches))
+    prof = tmp_path / "prof.json"
+    prof.write_text(json.dumps({"preparer": "P", "project": "J", "client": "C", "file_label": "Abstract_Index"}))
+    build_section(NS(section=6, twp=47, rge=76, county="Example", county_in=str(src), blm_in=[], prep_date="2026-01-01",
+                     county_thru=None, starting_date=None, srp_date=[], qualified_note=None, donor_letter=None,
+                     profile=str(prof), patches=str(tmp_path / "p.json"), out=str(tmp_path / "out"), case_files=None, unnumbered=None))
+    log = (tmp_path / "out/QA_INTERNAL/CHANGE_LOG.csv").read_text()
+    assert "PATCH_FILL:date_of_doc" in log and "PATCH_CONFIRMED_BLANK:grantee" in log
+    ws = openpyxl.load_workbook(next((tmp_path / "out/CLIENT").glob("*Abstract_Index.xlsx"))).active
+    assert ws["F10"].value.date() == date(2020, 12, 29)
+    assert "SOURCE-SUPPORTED BLANK" in (tmp_path / "out/QA_INTERNAL/OPEN_ITEMS.csv").read_text()
+    assert not list((tmp_path / "out/CLIENT").glob("*Certification_Letter*"))     # no donor letter configured -> no letter

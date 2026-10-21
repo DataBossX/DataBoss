@@ -18,9 +18,9 @@ COUNTY_HEADERS = ["Document Type", "Grantor", "Grantee", "Doc No", "Book-Page",
 BLM_HEADERS = ["Document Type", "Grantor", "Grantee", "File No", "Page",
                "Date of Doc", "Rec Date", "Comments", "Legal Description", "Part"]
 
-# measured column widths (openpyxl units)
-COUNTY_WIDTHS = [32.85, 36.23, 36.65, 7.92, 7.82, 8.24, 7.92, 37.71, 10.24]
-BLM_WIDTHS = [40.95, 42.57, 43.65, 6.89, 5.0, 10.54, 10.13, 10.0, 44.86, 4.33]
+# physical column widths read from the donor ODS (cm) converted with (cm/2.54*96 - 5)/7 for Calibri 11 (openpyxl units)
+COUNTY_WIDTHS = [43.71, 48.29, 48.86, 10.0, 9.86, 10.43, 10.0, 50.29, 13.14]
+BLM_WIDTHS = [42.57, 44.29, 45.43, 6.57, 4.57, 10.43, 10.0, 9.86, 46.71, 3.86]
 
 COUNTY_NUMERIC_COLS = {4, 5, 6, 7}      # Doc No, Book-Page, Date of Doc, Rec Date (donor centres these)
 BLM_NUMERIC_COLS = {4, 5, 6, 7, 10}     # File No, Page, Date of Doc, Rec Date, Part

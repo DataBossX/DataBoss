@@ -126,10 +126,19 @@ def write_checklist(data: ChecklistData, out_xlsx: Path) -> Path:
     put(2, D.CHECKLIST_BAND1, True); put(3, data.band1, False)
     put(5, D.CHECKLIST_BAND2, True); put(6, data.band2, False)
     put(8, D.CHECKLIST_BAND3, True); put(9, data.band3, False)
-    for r, h in D.CHECKLIST_ROW_HEIGHTS.items():
-        ws.row_dimensions[r].height = h
+    import math
     for c, w in enumerate(D.CHECKLIST_WIDTHS, start=1):
         ws.column_dimensions[get_column_letter(c)].width = w
+    for r, h in D.CHECKLIST_ROW_HEIGHTS.items():
+        need = 15
+        for c in range(1, 12):
+            v = ws.cell(r, c).value
+            if v is None:
+                continue
+            w = D.CHECKLIST_WIDTHS[c - 1]
+            lines = sum(max(1, math.ceil(len(str(part)) * 1.08 / max(w - 1, 1))) for part in str(v).split("\n"))
+            need = max(need, 15 * lines + 3)
+        ws.row_dimensions[r].height = max(h, need)
     _page_setup(ws, dict(D.CHECKLIST_PAGE, paperSize=1), fit_width=True)
     out_xlsx = Path(out_xlsx); out_xlsx.parent.mkdir(parents=True, exist_ok=True)
     wb.save(out_xlsx)
@@ -142,8 +151,9 @@ class LetterData:
     county: str                          # "Johnson"
     county_cutoff_text: str              # e.g. "from Inception to last Indexed Instrument Recorded October 6, 2026."
     assessor_text: str = "N/A"
-    federal_serials: list[str] = field(default_factory=list)   # ["WYW-149799"]
-    federal_through_text: str | None = None                      # "October 13, 2026" or None
+    federal_serials: list[str] = field(default_factory=list)   # serials with a case file in hand
+    srp_serials: list[str] = field(default_factory=list)       # serials with a Serial Register Page in hand
+    federal_through_text: str | None = None                      # SRP run date, only when one date applies
     client: str = ""
     prepared_on: date = date(2026, 10, 20)
     preparer: str = ""
@@ -180,24 +190,28 @@ def write_letter(data: LetterData, donor_docx: Path, out_docx: Path) -> Path:
     # P0 title: runs = ['Township 45 North, Range 76 West, 6', 'th', ' ', 'P.M.', ...'\nSection 11: All Campbell County, Wyoming']
     r = P[0].runs
     r[0].text = f"Township {data.twp} North, Range {data.rge} West, 6"
-    # find the run carrying the Section line (contains 'Section')
-    for run in r[1:]:
-        if "Section" in run.text:
-            run.text = re.sub(r"Section \d+: All .* County, Wyoming",
-                              f"Section {data.section}: All {data.county} County, Wyoming", run.text)
+    # runs after the 'P.M.' run carry the second title line; replace them as one block
+    idx = next(i for i, run in enumerate(r) if run.text.strip().startswith("P.M."))
+    tail = r[idx + 1:]
+    if tail:
+        tail[0].text = f"\nSection {data.section}: All {data.county} County, Wyoming"
+        for run in tail[1:]:
+            run.text = ""
     set_text(P[2], f"\nIndex of Documents reflecting on the entries posted in the tract indices located and maintained\n"
                    f"by the {data.county} County Clerk's office, {data.county_cutoff_text}")
     set_text(P[3], f"\n{data.county} County Assessor and/or Treasurer office reports, detailing surface owner property "
                    f"accounts and the state of any taxes due, {data.assessor_text}.")
     if data.federal_serials:
-        ser = _serials_phrase(data.federal_serials)
-        thru = f" from date of lease sale to {data.federal_through_text}." if data.federal_through_text else \
-               " from date of lease sale through the dates shown on the Serial Register Pages."
         pl = "files" if len(data.federal_serials) > 1 else "file"
-        set_text(P[4], f"Images of Federal Lease {pl} {ser}{thru}")
-        set_text(P[5], f"\nBureau of Land Management (MLRS) Serial Register Pages {ser}{thru}")
+        set_text(P[4], f"Images of Federal Lease {pl} {_serials_phrase(data.federal_serials)} from date of lease sale "
+                       f"as supplied in the case file images.")
     else:
         set_text(P[4], "Images of Federal Lease files, N/A.")
+    if data.srp_serials:
+        thru = f" as of {data.federal_through_text}." if data.federal_through_text else \
+               " as of the run dates printed on each page."
+        set_text(P[5], f"\nBureau of Land Management (MLRS) Serial Register Pages {_serials_phrase(data.srp_serials)}{thru}")
+    else:
         set_text(P[5], "\nBureau of Land Management (MLRS) Serial Register Pages, N/A.")
     set_text(P[7], f"\nThis abstract was prepared and made solely for the benefit of {data.client}\n"
                    f"and is not to be construed as a title opinion, nor a guaranty of title, and the information\n"

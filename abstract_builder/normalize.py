@@ -393,7 +393,7 @@ def normalize_county_row(row: list[Any], section: int, twp: int, rge: int) -> Ro
     return RowResult(vals, notes, opens)
 
 
-def normalize_blm_row(row: list[Any]) -> RowResult:
+def normalize_blm_row(row: list[Any], unnumbered: bool = False) -> RowResult:
     """row = [Document Type, Grantor, Grantee, File No, Page, Date of Doc, Rec Date, Comments, Legal, Part]
     File No and Comments are intentionally blank in every data row (not research gaps)."""
     row = list(row) + [None] * (10 - len(row))
@@ -411,7 +411,11 @@ def normalize_blm_row(row: list[Any]) -> RowResult:
         notes.append(f"BLM_COMMENT_CLEARED:{row[7]!r}")
     vals.append(None)
     x, n = norm_legal(row[8], blm_casewide=True); vals.append(x); notes += n
-    x, n = norm_int(row[9], "PART"); vals.append(x); notes += n
+    x, n = norm_int(row[9], "PART"); notes += n
+    if unnumbered and x is not None:
+        notes.append(f"PART_CLEARED_UNNUMBERED_SOURCE:{x}")
+        x = None
+    vals.append(x)
     opens = [n for n in notes if n.startswith(_OPEN_PREFIXES)]
     # a blank Rec Date on a BLM row is common (no RECEIVED stamp) - keep as open item, examiner decides
     return RowResult(vals, notes, opens)

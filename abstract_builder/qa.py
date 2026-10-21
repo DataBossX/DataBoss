@@ -1,6 +1,8 @@
 """Format-compliance gates for a rendered index workbook (gate C 'fields & donor format')."""
 from __future__ import annotations
 
+import re
+import zipfile
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -9,6 +11,20 @@ import openpyxl
 
 from . import donor as D
 from .normalize import is_blank, is_unknown
+
+
+def custom_height_rows(xlsx: Path) -> int:
+    """Number of data rows (r >= 10) whose height is pinned (customHeight=1). Auto-fit rows carry ht but customHeight=0,
+    which openpyxl cannot tell apart, so the raw sheet XML is read."""
+    with zipfile.ZipFile(xlsx) as z:
+        name = next(n for n in z.namelist() if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n))
+        x = z.read(name).decode("utf-8", "replace")
+    n = 0
+    for tag in re.findall(r"<(?:\w+:)?row\b[^>]*>", x):
+        m = re.search(r'\br="(\d+)"', tag)
+        if m and int(m.group(1)) >= 10 and re.search(r'customHeight="(?:1|true)"', tag):
+            n += 1
+    return n
 
 
 def check_index(xlsx: Path, allow_text_doc_no: bool = False) -> list[str]:
@@ -67,7 +83,15 @@ def check_index(xlsx: Path, allow_text_doc_no: bool = False) -> list[str]:
                 fails.append(f"BLM_FILE_NO_OR_COMMENT_NOT_BLANK:{cell.coordinate}")
             if layout == "blm" and c in (5, 10) and not is_blank(v) and not isinstance(v, int):
                 fails.append(f"BLM_PAGE_PART_NOT_INT:{cell.coordinate}={v!r}")
-            if ws.row_dimensions[r].height is not None:
-                fails.append(f"FIXED_ROW_HEIGHT:{r}")
-                break
+    n_fixed = custom_height_rows(xlsx)
+    if n_fixed:
+        fails.append(f"FIXED_ROW_HEIGHT:{n_fixed}_rows_pinned")
+    if ws.freeze_panes:
+        fails.append(f"FREEZE_PANES:{ws.freeze_panes}")
+    widths = D.BLM_WIDTHS if layout == "blm" else D.COUNTY_WIDTHS
+    from openpyxl.utils import get_column_letter
+    for c, w in enumerate(widths, start=1):
+        got = ws.column_dimensions[get_column_letter(c)].width
+        if got is None or abs(got - w) > 1.0:
+            fails.append(f"COL_WIDTH:{get_column_letter(c)}={got if got is None else round(got, 2)} donor {w}")
     return sorted(set(fails))

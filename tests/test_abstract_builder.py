@@ -6,7 +6,7 @@ import openpyxl
 import pytest
 
 from abstract_builder import donor as D
-from abstract_builder.normalize import (norm_book_page, norm_comment, norm_date, norm_doc_no, norm_int, norm_legal,
+from abstract_builder.normalize import (norm_book_page, norm_comment, norm_date, norm_doc_no, norm_int, norm_doc_type, norm_legal,
                                         norm_parties, normalize_blm_row, normalize_county_row)
 from abstract_builder.qa import check_index
 from abstract_builder.render import IndexMeta, write_index
@@ -25,7 +25,7 @@ def test_doc_no_non_numeric_kept_and_logged():
 @pytest.mark.parametrize("src,exp", [
     ("228-21-22", "0228-0021-0022"), ("0228-0025/0028", "0228-0025-0028"), ("0296-0095 through 0269", "0296-0095-0269"),
     ("86A-83-0071", "86A83-0071"), ("87A42-264A", "87A42-264A"), ("A060-0046", "A060-0046"), ("67MR-350", "67MR-0350"),
-    ("R/W 32-623", "R/W32-0623"), ("0224 (Mining)-0001", "0224 (Mining)-0001"), ("Book 224 Page 769", "0224-0769"),
+    ("R/W 32-623", "R/W32-0623"), ("0224 (Mining)-0001", "0224-0001"), ("Book 224 Page 769", "0224-0769"),
     ("399-142", "0399-0142")])
 def test_book_page(src, exp):
     assert norm_book_page(src)[0] == exp
@@ -170,3 +170,10 @@ def test_patch_overlay_fills_and_logs(tmp_path: Path):
     assert ws["F10"].value.date() == date(2020, 12, 29)
     assert "SOURCE-SUPPORTED BLANK" in (tmp_path / "out/QA_INTERNAL/OPEN_ITEMS.csv").read_text()
     assert not list((tmp_path / "out/CLIENT").glob("*Certification_Letter*"))     # no donor letter configured -> no letter
+
+
+def test_lot_ranges_and_doc_type_dashes_have_no_dash_punctuation():
+    out, _ = norm_legal("Lots 5–12, 14–16 of Section 31, T47N-R76W", 31, 47, 76)
+    assert out == "Lots 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16 of 31-47N-76W"
+    assert norm_doc_type("UCC Financing Statement Amendment — Termination")[0] == "UCC Financing Statement Amendment: Termination"
+    assert norm_doc_type("Notice of Location--Lode")[0] == "Notice of Location: Lode"

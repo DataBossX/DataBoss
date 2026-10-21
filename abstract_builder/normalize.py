@@ -55,12 +55,13 @@ def norm_doc_no(v: Any) -> tuple[Any, list[str]]:
 
 # ----------------------------------------------------------------------------- Book-Page
 _BP_SPLIT = re.compile(r"\s*(?:-|–|—|/|\bthrough\b|\bthru\b|\bto\b|,)\s*", re.I)
+_MINING_INLINE = re.compile(r"\s*\(mining\)", re.I)
 _MINING_SUFFIX = re.compile(r"\s*\((mining|r/w|misc|deed|lease)\)\s*$", re.I)
 
 
 def norm_book_page(v: Any) -> tuple[Any, list[str]]:
     """0399-0142 pattern. Numeric books/folios zero-padded to 4; spans joined with '-'. Alpha book series are
-    preserved (A060, 67MR, 86A70, R/W32, '0224 (Mining)'); '86A-83-0071' style is collapsed to '86A83-0071'."""
+    preserved (A060, 67MR, 86A70, R/W32); a '(Mining)' designation is dropped from the display (owner override); '86A-83-0071' style is collapsed to '86A83-0071'."""
     if is_blank(v):
         return None, ["BOOK_PAGE_BLANK"]
     if is_unknown(v):
@@ -68,6 +69,9 @@ def norm_book_page(v: Any) -> tuple[Any, list[str]]:
     raw = str(v).strip()
     notes: list[str] = []
     suffix = ""
+    if _MINING_INLINE.search(raw):
+        raw = _MINING_INLINE.sub("", raw)
+        notes.append(f"BOOK_PAGE_MINING_DESIGNATION_DROPPED:{v!r}")
     m = _MINING_SUFFIX.search(raw)
     if m:
         suffix = " " + m.group(0).strip()
@@ -256,6 +260,20 @@ def _extract_str(s: str) -> tuple[tuple[int, int, int] | None, str]:
     return None, s
 
 
+_LOT_RANGE = re.compile(r"(\d+)\s*[\u2013\u2014-]\s*(\d+)")
+
+
+def _expand_lot_ranges(call: str) -> tuple[str, list[str]]:
+    """'Lots 5-8' -> 'Lots 5, 6, 7, 8' (house format enumerates lots; no dash punctuation in client text)."""
+    if "lot" not in call.lower():
+        return call, []
+    def rep(m: re.Match) -> str:
+        a, b = int(m.group(1)), int(m.group(2))
+        return ", ".join(str(i) for i in range(a, b + 1)) if a < b <= a + 60 else m.group(0)
+    out = _LOT_RANGE.sub(rep, call)
+    return out, ([f"LEGAL_LOT_RANGE_EXPANDED:{call!r}"] if out != call else [])
+
+
 def norm_legal(v: Any, section: int | None = None, twp: int | None = None, rge: int | None = None,
                blm_casewide: bool = False) -> tuple[str | None, list[str]]:
     """House format '<CALL> of <SEC>-<TWP>N-<RGE>W' plus ', aol' when other lands are covered. Strips county, state,
@@ -300,6 +318,7 @@ def norm_legal(v: Any, section: int | None = None, twp: int | None = None, rge: 
         call = re.sub(r"\s{2,}", " ", call)
         call = re.sub(r"\bLots?\s+", "Lots ", call, flags=re.I)
         call = re.sub(r"(?<=\d),(?=\d)", ", ", call)
+        call, rn = _expand_lot_ranges(call); notes += rn
         if not call or call.lower() in {"all", "all of"}:
             call = "All"
         out_lines.append(f"{call} of {sec}-{t}N-{r}W")
@@ -357,6 +376,10 @@ def norm_doc_type(v: Any) -> tuple[str | None, list[str]]:
         return None, [f"DOC_TYPE_UNKNOWN_BLANKED:{v!r}"]
     s = re.sub(r"\s{2,}", " ", str(v).strip())
     notes = []
+    s2 = re.sub(r"\s*(?:\u2014|\u2013|--)\s*", ": ", s)
+    if s2 != s:
+        s = s2
+        notes.append("DOC_TYPE_DASH_PUNCTUATION_REPLACED")
     if s.isupper() and len(s) > 4:
         s = s.title().replace(" Of ", " of ").replace(" And ", " and ").replace(" To ", " to ")
         notes.append("DOC_TYPE_CASE_NORMALIZED")

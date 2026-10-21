@@ -155,7 +155,7 @@ def build_section(a) -> dict:
     clx = write_checklist(cl, client / f"Abstract_Checklist_{sec}-{twp}N-{rge}W.xlsx")
     convert(clx, "pdf")
     cutoff_text = (f"{'from ' + a.starting_date if a.starting_date else 'from the earliest indexed instrument'} to last Indexed Instrument Recorded {_long(thru)}."
-                   if thru else "from the earliest indexed instrument through the date of the tract-index print supplied.")
+                   if thru else "from the earliest indexed instrument; the county tract-index coverage date has not been established.")
     ld = LetterData(twp, rge, sec, a.county, cutoff_text, "N/A", case_files, srp_have,
                     _long(_d(next(iter(srp_dates.values())))) if srp_have and len({srp_dates[x] for x in srp_have}) == 1 else None, prof["client"], prep, prof["preparer"], a.qualified_note)
     donor_letter = a.donor_letter or prof["donor_letter"]

@@ -46,10 +46,9 @@ def to_xlsx(path: Path) -> Path:
     path = Path(path)
     if path.suffix.lower() == ".xlsx":
         return path
+    from .render import convert
     out = Path(tempfile.mkdtemp(prefix="ab_census_"))
-    subprocess.run(["soffice", "--headless", "--convert-to", "xlsx", "--outdir", str(out), str(path)],
-                   check=True, capture_output=True, timeout=180)
-    cand = out / (path.stem + ".xlsx")
+    cand = convert(path, "xlsx", out)
     if not cand.exists():
         raise RuntimeError(f"conversion failed for {path}")
     return cand

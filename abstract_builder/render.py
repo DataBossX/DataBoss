@@ -213,11 +213,25 @@ def write_letter(data: LetterData, donor_docx: Path, out_docx: Path) -> Path:
     return out_docx
 
 
-def convert(path: Path, fmt: str, outdir: Path | None = None) -> Path:
+def soffice_cmd(fmt: str, outdir: Path, path: Path, profile_dir: str) -> list[str]:
+    """Each call gets a private LibreOffice profile so parallel conversions never collide on the shared lock."""
+    return ["soffice", f"-env:UserInstallation=file://{profile_dir}", "--headless", "--convert-to", fmt,
+            "--outdir", str(outdir), str(path)]
+
+
+def convert(path: Path, fmt: str, outdir: Path | None = None, retries: int = 2) -> Path:
     """LibreOffice conversion: fmt in {'ods','pdf','xlsx','docx'}."""
+    import tempfile
     path = Path(path); outdir = Path(outdir or path.parent)
-    subprocess.run(["soffice", "--headless", "--convert-to", fmt, "--outdir", str(outdir), str(path)],
-                   check=True, capture_output=True, timeout=300)
+    last = None
+    for _ in range(retries + 1):
+        with tempfile.TemporaryDirectory(prefix="lo_profile_") as prof:
+            r = subprocess.run(soffice_cmd(fmt, outdir, path, prof), capture_output=True, timeout=300)
+        if r.returncode == 0 and (outdir / (path.stem + "." + fmt)).exists():
+            break
+        last = r.stderr.decode(errors="replace")[:300]
+    else:
+        raise RuntimeError(f"conversion to {fmt} failed for {path}: {last}")
     out = outdir / (path.stem + "." + fmt)
     if not out.exists():
         raise RuntimeError(f"conversion to {fmt} failed for {path}")

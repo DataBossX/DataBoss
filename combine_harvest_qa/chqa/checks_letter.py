@@ -39,6 +39,7 @@ def _template(text: str) -> str:
     t = re.sub(r"\bT\d+N-R\d+W\b", "<STR>", t)
     t = re.sub(r"\bSection \d+\b", "Section <N>", t)
     t = re.sub(r"\bWYW-?\d{5,6}\b", "<WYW>", t)
+    t = re.sub(r"<WYW>(?:\s*(?:,\s*and|,|and)\s*<WYW>)*", "<WYWS>", t)     # one serial or a list of serials
     t = re.sub(r"\b\d+ entries\b", "<N> entries", t)
     t = re.sub(r"\b(Campbell|Johnson|Converse|Natrona|Weston|Crook)\b", "<COUNTY>", t)
     return re.sub(r"\s+", " ", t).strip()

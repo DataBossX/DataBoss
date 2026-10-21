@@ -60,3 +60,10 @@ It never fills, guesses or rewrites facts: everything else lands in `needs_human
 - Letter wording check masks dates, STR, serials, counts and county names, then requires paragraph-for-paragraph equality with the donor letter.
 - `discover` ranks metadata only. Name-based "best" is weak: a 1 KB sheet named `..._100pct` is flagged `possible_stub`; open it.
 - Keep `out/` (client data) out of git; it is git-ignored.
+
+## Donor notes (verified against the finished Section 11 package)
+- `Overtime_Examples_11_13_15.zip` SHA-256 `abcb8e81eac185c15669f82c1ec81c9aa0528a13a56428c61202b56d84dd1373` (929,863 bytes, CRC ok) matches the recorded value.
+  Verify any donor with `python3 chqa_run.py package DONOR.zip --section 11 --sha256 <recorded>`.
+- BLM style donors: use `S11_BLM_WYW051704.ods` or `S11_WYW-047318...ods` (10 columns A:J). `S11_WYW-005955...ods` is an older 7-column layout
+  (no File No / Comments / Part) and fails the A:J profile; do not use it as the BLM reference.
+- The toolkit can prove gates 1-3 and 5 on bytes it is given. It cannot prove gate 4 (native Excel/Word/Acrobat print) or custody/examiner release.

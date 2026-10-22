@@ -76,3 +76,7 @@ evidence/
 **/final_delivery/
 **/*FINAL*.xlsx
 **/*CLIENT*.xlsx
+
+# Operator working data (source documents, downloaded indexes, census output) is private
+work/
+abstract_builder/profile.json

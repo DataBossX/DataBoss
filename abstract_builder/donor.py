@@ -21,6 +21,9 @@ BLM_HEADERS = ["Document Type", "Grantor", "Grantee", "File No", "Page",
 # physical column widths read from the donor ODS (cm) converted with (cm/2.54*96 - 5)/7 for Calibri 11 (openpyxl units)
 COUNTY_WIDTHS = [43.71, 48.29, 48.86, 10.0, 9.86, 10.43, 10.0, 50.29, 13.14]
 BLM_WIDTHS = [42.57, 44.29, 45.43, 6.57, 4.57, 10.43, 10.0, 9.86, 46.71, 3.86]
+# Exact ODS column widths in cm, read from the donor ODS files (the ODS is the client deliverable)
+COUNTY_ODS_CM = [8.22854166666667, 9.07520833333333, 9.18104166666667, 1.984375, 1.95791666666667, 2.06375, 1.984375, 9.445625, 2.56645833333333]
+BLM_ODS_CM = [8.016875, 8.334375, 8.54604166666667, 1.349375, 0.978958333333333, 2.06375, 1.984375, 1.95791666666667, 8.78416666666667, 0.846666666666667]
 
 COUNTY_NUMERIC_COLS = {4, 5, 6, 7}      # Doc No, Book-Page, Date of Doc, Rec Date (donor centres these)
 BLM_NUMERIC_COLS = {4, 5, 6, 7, 10}     # File No, Page, Date of Doc, Rec Date, Part

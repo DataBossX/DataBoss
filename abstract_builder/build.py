@@ -23,7 +23,8 @@ from pathlib import Path
 
 from .census import census_workbook
 from .qa import check_index
-from .render import (ChecklistData, IndexMeta, LetterData, convert as _convert, write_checklist, write_index, write_letter)
+from . import donor as D
+from .render import (ChecklistData, IndexMeta, LetterData, convert as _convert, set_ods_column_widths, write_checklist, write_index, write_letter)
 from .normalize import is_blank, norm_book_page, norm_date, normalize_blm_row, normalize_county_row
 
 
@@ -39,6 +40,12 @@ def load_profile(path: str | None) -> dict:
     if path:
         base.update(json.loads(Path(path).read_text()))
     return base
+
+
+def _fix_ods(path, widths_cm) -> None:
+    """Snap the converted ODS to the donor's exact column widths (no-op when conversion was skipped)."""
+    if Path(path).exists():
+        set_ods_column_widths(path, widths_cm)
 
 
 def load_patches(path: str | None) -> list[dict]:
@@ -119,7 +126,7 @@ def build_section(a) -> dict:
     meta = IndexMeta(a.county, f"T{twp}N-R{rge}W Section {sec}: All", prep, a.starting_date or None, thru, indexed_by=prof["preparer"], project=prof["project"])
     cx = write_index(rows, meta, "county", client / f"{stem}.xlsx")
     gates = {"county": check_index(cx, allow_text_doc_no=True)}
-    convert(cx, "ods"); convert(cx, "pdf")
+    convert(cx, "ods"); _fix_ods(cx.with_suffix(".ods"), D.COUNTY_ODS_CM); convert(cx.with_suffix(".ods") if cx.with_suffix(".ods").exists() else cx, "pdf")
 
     # ---------------- BLM
     srp_dates = dict(x.split("=") for x in (a.srp_date or []))
@@ -143,7 +150,7 @@ def build_section(a) -> dict:
             bmeta = IndexMeta(a.county, serial, prep, a.starting_date or None, sd, indexed_by=prof["preparer"], project=prof["project"])
             bx = write_index(brows, bmeta, "blm", client / f"{serial} {a.county} Co. {prof['file_label'].replace('_', ' ')}.xlsx")
             gates[serial] = check_index(bx)
-            convert(bx, "ods"); convert(bx, "pdf")
+            convert(bx, "ods"); _fix_ods(bx.with_suffix(".ods"), D.BLM_ODS_CM); convert(bx.with_suffix(".ods") if bx.with_suffix(".ods").exists() else bx, "pdf")
             counts["blm"][serial] = {"rows_in": b.n_rows, "rows_out": len(brows),
                                      "blank_substantive_after": sum(1 for r in brows for k in (0, 1, 2, 4, 5, 6, 8, 9) if is_blank(r[k])),
                                      "parts": sorted({r[9] for r in brows if r[9] is not None}),

@@ -250,3 +250,41 @@ def convert(path: Path, fmt: str, outdir: Path | None = None, retries: int = 2) 
     if not out.exists():
         raise RuntimeError(f"conversion to {fmt} failed for {path}")
     return out
+
+
+def set_ods_column_widths(path: Path, widths_cm: list[float]) -> None:
+    """Rewrite the first len(widths_cm) column widths of the first sheet to exact cm values (donor geometry).
+    LibreOffice converts XLSX character widths with its own font metrics, so the ODS ends up a few percent off the donor."""
+    import re as _re
+    import zipfile as _zf
+    path = Path(path)
+    with _zf.ZipFile(path) as zin:
+        items = [(i, zin.read(i.filename)) for i in zin.infolist()]
+    xml = next(d for i, d in items if i.filename == "content.xml").decode("utf8")
+    tbl = _re.search(r"<table:table\b.*?</table:table>", xml, _re.S).group(0)
+    n_target, idx, styles, out = len(widths_cm), 0, [], tbl
+    for m in list(_re.finditer(r"<table:table-column\b[^>]*/>", tbl)):
+        tag = m.group(0)
+        rm = _re.search(r'\s*table:number-columns-repeated="(\d+)"', tag)
+        rep = int(rm.group(1)) if rm else 1
+        if idx >= n_target:
+            break
+        single = _re.sub(r'\s*table:number-columns-repeated="\d+"', "", tag)
+        take = min(rep, n_target - idx)
+        pieces = []
+        for k in range(take):
+            name = f"codonor{idx + k}"
+            styles.append((name, widths_cm[idx + k]))
+            pieces.append(_re.sub(r'table:style-name="[^"]+"', f'table:style-name="{name}"', single))
+        if rep > take:
+            pieces.append(single.replace("/>", f' table:number-columns-repeated="{rep - take}"/>'))
+        out = out.replace(tag, "".join(pieces), 1)
+        idx += rep
+    css = "".join(f'<style:style style:name="{n}" style:family="table-column"><style:table-column-properties fo:break-before="auto" style:column-width="{w:.6f}cm"/></style:style>' for n, w in styles)
+    xml = xml.replace(tbl, out, 1).replace("</office:automatic-styles>", css + "</office:automatic-styles>", 1)
+    tmp = path.with_suffix(".tmp")
+    with _zf.ZipFile(tmp, "w") as zout:
+        for i, d in items:
+            zout.writestr(i, xml.encode("utf8") if i.filename == "content.xml" else d,
+                          compress_type=_zf.ZIP_STORED if i.filename == "mimetype" else _zf.ZIP_DEFLATED)
+    tmp.replace(path)

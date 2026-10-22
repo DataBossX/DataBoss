@@ -199,3 +199,23 @@ def test_add_row_overlay_inserts_by_rec_date_and_never_duplicates(tmp_path: Path
     ws = openpyxl.load_workbook(next((tmp_path / "out/CLIENT").glob("*Abstract_Index.xlsx"))).active
     assert [ws.cell(r, 4).value for r in (10, 11, 12)] == [1001, 1002, 1003]
     assert res["counts"]["county_rows_added"] == 1 and ws.max_row == 12
+
+
+def test_set_ods_column_widths_snaps_to_exact_cm(tmp_path: Path):
+    import shutil, zipfile
+    from abstract_builder.render import convert, set_ods_column_widths
+    if not shutil.which("soffice"):
+        pytest.skip("LibreOffice not installed")
+    x = write_index([["Deed", "A", "B", 1, "0001-0001", None, date(2020, 1, 2), "All of 6-47N-76W", None]], _meta(), "county", tmp_path / "t.xlsx")
+    convert(x, "ods")
+    target = D.COUNTY_ODS_CM
+    set_ods_column_widths(tmp_path / "t.ods", target)
+    xml = zipfile.ZipFile(tmp_path / "t.ods").read("content.xml").decode()
+    import re
+    ws = [float(m) for m in re.findall(r'codonor\d+"[^>]*>\s*<style:table-column-properties[^>]*column-width="([\d.]+)cm"', xml)]
+    assert [round(w, 3) for w in ws] == [round(w, 3) for w in target]
+
+
+def test_party_role_tails_are_stripped():
+    assert norm_parties("Jeannette L. Quale, grantors")[0] == "Jeannette L. Quale"
+    assert norm_parties("Devon Energy Production Company, L.P., secured party authorizing termination")[0] == "Devon Energy Production Company, L.P."

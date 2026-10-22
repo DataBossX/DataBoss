@@ -154,7 +154,7 @@ _LLC_COMMA = re.compile(r"(?<![,])\s+LLC\b")
 _LLLP = re.compile(r"\bL\.?L\.?L\.?P\.?\b", re.I)
 _LLP = re.compile(r"\bL\.?L\.?P\.?\b", re.I)
 _LP = re.compile(r"\bL\.?P\.?\b")
-_ROLE_TAIL = re.compile(r",\s*(?:each|et ?al\.?|etal|debtor|secured party|mortgagee|mortgagor|individually)\s*$", re.I)
+_ROLE_TAIL = re.compile(r",\s*(?:each|et ?al\.?|etal|debtor|secured party(?: authorizing (?:termination|amendment))?|grantors?|grantees?|mortgagee|mortgagor|individually)\s*$", re.I)
 _CAPACITY_TAILS = re.compile(r",?\s*(?:as joint tenants[^,]*|with rights? of survivorship|for the benefit of [^,]+|"
                              r"on behalf of [^,]+|also identified as [^,]+(?:,[^,]+)?|debtor|each as [^,]+|"
                              r"in Schedule [A-Z0-9]+)", re.I)

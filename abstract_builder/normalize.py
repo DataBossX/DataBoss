@@ -76,6 +76,7 @@ def norm_book_page(v: Any) -> tuple[Any, list[str]]:
     if m:
         suffix = " " + m.group(0).strip()
         raw = raw[: m.start()].strip()
+    raw = re.sub(r"(?i)^R/?W(?=\d)", "R/W", raw)          # right-of-way series: RW32 -> R/W32 (authentic series keeps the slash)
     raw = raw.replace("R/W", "\x01").replace("r/w", "\x01")
     parens = re.findall(r"\s*\([^)]*\)", raw)
     raw = re.sub(r"\s*\([^)]*\)", "\x02", raw)
@@ -88,7 +89,7 @@ def norm_book_page(v: Any) -> tuple[Any, list[str]]:
     rest = toks[1:]
     # alpha-series book split across tokens: '86A' '83' '0071' -> book '86A83'
     if re.search(r"[A-Za-z]", first) and len(rest) >= 2 and rest[0].isdigit() and not first.endswith("R/W"):
-        if not re.fullmatch(r"[A-Za-z]+\d+", first) or re.fullmatch(r"\d+[A-Za-z]+", first):
+        if re.fullmatch(r"\d+[A-Za-z]+", first):
             first = first + rest[0]
             rest = rest[1:]
             notes.append("BOOK_PAGE_ALPHA_SERIES_JOINED")

@@ -219,3 +219,11 @@ def test_set_ods_column_widths_snaps_to_exact_cm(tmp_path: Path):
 def test_party_role_tails_are_stripped():
     assert norm_parties("Jeannette L. Quale, grantors")[0] == "Jeannette L. Quale"
     assert norm_parties("Devon Energy Production Company, L.P., secured party authorizing termination")[0] == "Devon Energy Production Company, L.P."
+
+
+def test_row_series_slash_and_alpha_book_with_page_span():
+    assert norm_book_page("RW32-0623-0632")[0] == "R/W32-0623-0632"
+    assert norm_book_page("RW21-0329")[0] == "R/W21-0329"
+    assert norm_book_page("87A35-306-0308")[0] == "87A35-0306-0308"
+    assert norm_book_page("86A-83-0071")[0] == "86A83-0071"
+    assert norm_book_page("67MR-0168")[0] == "67MR-0168"

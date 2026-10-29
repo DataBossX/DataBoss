@@ -549,10 +549,12 @@ def _check_evidence_links(workbook, evidence_root: Path) -> CheckResult:
                         )
                     )
                     continue
-                if parsed.scheme == "file":
+                if parsed.scheme == "file" and not parsed.netloc:
                     local = Path(unquote(parsed.path))
-                elif not parsed.scheme:
-                    local = resolved_root / unquote(target)
+                elif not parsed.scheme and not parsed.netloc:
+                    # PDF fragments select a viewer page, not a filesystem name.
+                    # Resolve only the URL path, then enforce containment below.
+                    local = resolved_root / unquote(parsed.path)
                 else:
                     local = None
                 contained = False
@@ -695,3 +697,4 @@ def inspect_workbook(
         score=score,
         inventory=inventory,
     )
+
